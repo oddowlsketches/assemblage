@@ -18,7 +18,11 @@ class App {
         this.currentImages = null;
         this.isFortuneVisible = false;
         this.currentIconPosition = null;
-        this.iconOptions = ['★', '◆', '✧', '⚹', '⁕'];
+        this.iconOptions = [
+            'arch.svg', 'bird.svg', 'compass.svg', 'crystal.svg',
+            'halfmoon.svg', 'hand.svg', 'plant.svg', 'shell.svg',
+            'spiral.svg', 'sun.svg', 'tree.svg', 'vase.svg'
+        ];
         
         // Store app instance globally for data.js to access
         window.app = this;
@@ -67,27 +71,24 @@ class App {
         this.updateFortuneIcon();
         setTimeout(() => {
             const fortuneIcon = document.getElementById('fortuneIcon');
-            if (fortuneIcon) fortuneIcon.classList.add('visible');
+            if (fortuneIcon) {
+                fortuneIcon.classList.add('visible');
+            }
         }, 2000);
     }
 
     setupEventListeners() {
         // Add click event listener for the fortune icon
         const fortuneIcon = document.getElementById('fortuneIcon');
+        console.log('Setting up fortune icon event listener:', !!fortuneIcon);
         if (fortuneIcon) {
-            fortuneIcon.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.toggleFortune();
-            });
+            fortuneIcon.addEventListener('click', () => this.toggleFortune());
         }
 
         // Add click event listener for the shuffle button
         const shuffleButton = document.getElementById('shuffleButton');
         if (shuffleButton) {
-            shuffleButton.addEventListener('click', () => {
-                this.shuffleImages();
-            });
+            shuffleButton.addEventListener('click', () => this.shuffleImages());
         }
     }
 
@@ -99,13 +100,17 @@ class App {
 
         console.log('Shuffling images...');
         console.log('Current collection size:', imageCollection.length);
-
+        
         // Hide fortune icon and text first
         const fortuneIcon = document.getElementById('fortuneIcon');
+        if (fortuneIcon) {
+            fortuneIcon.classList.remove('visible');
+        }
         const fortuneText = document.getElementById('fortuneText');
-        if (fortuneIcon) fortuneIcon.classList.remove('visible');
-        if (fortuneText) fortuneText.style.display = 'none';
-
+        if (fortuneText) {
+            fortuneText.style.display = 'none';
+        }
+        
         // Create a copy of the collection and shuffle it
         const shuffledCollection = [...imageCollection];
         for (let i = shuffledCollection.length - 1; i > 0; i--) {
@@ -129,7 +134,9 @@ class App {
             this.updateFortuneIcon();
             // Show icon after position is updated
             setTimeout(() => {
-                if (fortuneIcon) fortuneIcon.classList.add('visible');
+                if (fortuneIcon) {
+                    fortuneIcon.classList.add('visible');
+                }
             }, 100);
         }, 2000);
     }
@@ -168,10 +175,22 @@ class App {
         const fortuneIcon = document.getElementById('fortuneIcon');
         const imageContainer = document.getElementById('imageContainer');
         
+        console.log('Updating fortune icon:', {
+            fortuneIcon: !!fortuneIcon,
+            imageContainer: !!imageContainer
+        });
+        
         if (fortuneIcon && imageContainer) {
             // Get container dimensions and position
             const containerRect = imageContainer.getBoundingClientRect();
             const iconRect = fortuneIcon.getBoundingClientRect();
+            
+            console.log('Container dimensions:', {
+                containerWidth: containerRect.width,
+                containerHeight: containerRect.height,
+                iconWidth: iconRect.width,
+                iconHeight: iconRect.height
+            });
             
             // Calculate safe boundaries (20% margin from edges)
             const marginX = containerRect.width * 0.2;
@@ -205,6 +224,8 @@ class App {
             x = Math.max(marginX, Math.min(x, containerRect.width - marginX - iconRect.width));
             y = Math.max(marginY, Math.min(y, containerRect.height - marginY - iconRect.height));
             
+            console.log('Setting position:', { x, y });
+            
             // Position the icon
             fortuneIcon.style.position = 'absolute';
             fortuneIcon.style.left = `${x}px`;
@@ -218,7 +239,33 @@ class App {
 
             // Select a random icon
             const randomIndex = Math.floor(Math.random() * this.iconOptions.length);
-            fortuneIcon.textContent = this.iconOptions[randomIndex];
+            const iconPath = this.iconOptions[randomIndex];
+            
+            console.log('Loading icon:', iconPath);
+            
+            // Clear any existing content
+            fortuneIcon.innerHTML = '';
+            
+            // Create new image element for the SVG
+            const iconImg = document.createElement('img');
+            iconImg.src = `images/ui/icons/${iconPath}`;
+            iconImg.alt = 'Fortune Icon';
+            iconImg.classList.add('fortune-svg-icon');
+            
+            // Add error handling for icon loading
+            iconImg.onerror = (e) => {
+                console.error('Failed to load icon:', iconPath, e);
+                // Try to load a fallback icon
+                iconImg.src = 'images/ui/icons/compass.svg';
+            };
+            
+            // Add load handler to confirm icon loaded
+            iconImg.onload = () => {
+                console.log('Icon loaded successfully:', iconPath);
+            };
+            
+            // Add the image to the fortune icon
+            fortuneIcon.appendChild(iconImg);
         }
     }
 
@@ -240,5 +287,6 @@ class App {
 
 // Initialize the app when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing app');
     new App();
 });
