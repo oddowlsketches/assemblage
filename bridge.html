@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assemblage | Ephemeral visions, assembled meanings</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/layouts.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --header-height: 80px;
+            --button-min-width: 44px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .collage-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        canvas {
+            position: absolute;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: cover;
+        }
+
+        header {
+            position: relative;
+            z-index: 1;
+            background-color: transparent;
+            padding: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+        }
+
+        .header-text h1 {
+            font-size: 2rem;
+            margin: 0;
+        }
+
+        .header-text .tagline {
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .admin-link {
+            color: var(--text-color);
+            text-decoration: none;
+            font-size: 1.5rem;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+            min-width: var(--button-min-width);
+            min-height: var(--button-min-width);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-link:hover {
+            opacity: 1;
+        }
+
+        button {
+            background: white;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            padding: 0.5rem 1rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: var(--button-min-width);
+            min-height: var(--button-min-width);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button:hover {
+            background: var(--text-color);
+            color: white;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #imageContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            opacity: 0.8;
+            z-index: 1000;
+            display: none;
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text-color);
+        }
+
+        @media (max-width: 768px) {
+            .header-text h1 {
+                font-size: 1.5rem;
+            }
+
+            .header-text .tagline {
+                font-size: 0.9rem;
+            }
+
+            .header-controls {
+                gap: 0.5rem;
+            }
+
+            button {
+                padding: 0.5rem;
+                font-size: 0.8rem;
+            }
+
+            #shiftButton::before {
+                content: "Shift";
+            }
+
+            #saveButton::before {
+                content: "Save";
+            }
+
+            #shiftButton span,
+            #saveButton span {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+
+            .header-controls {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="collage-container">
+        <canvas id="collageCanvas" willReadFrequently></canvas>
+        <div id="loading" class="loading">Generating collage...</div>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <div class="header-text">
+                <h1><em>Assemblage</em></h1>
+                <p class="tagline">Ephemeral visions, assembled meanings</p>
+            </div>
+            <div class="header-controls">
+                <button id="shiftButton"><span>Shift Perspective</span></button>
+                <button id="saveButton"><span>Save Collage</span></button>
+                <a href="collage.html" class="admin-link" title="Collage Generator">+</a>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div id="imageContainer"></div>
+    </main>
+
+    <script type="module">
+        import CollageGenerator from './js/collage/collageGenerator.js';
+        import { loadImageCollection } from './js/data.js';
+        import BackgroundManager from './js/backgroundManager.js';
+
+        class BridgeApp {
+            constructor() {
+                this.canvas = document.getElementById('collageCanvas');
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                this.generator = new CollageGenerator(this.canvas);
+                this.loadingElement = document.getElementById('loading');
+                this.shiftButton = document.getElementById('shiftButton');
+                this.saveButton = document.getElementById('saveButton');
+                this.backgroundManager = new BackgroundManager();
+                
+                // Add loading state management
+                this.isLoading = false;
+                this.imagesLoaded = false;
+                this.allImages = []; // Store all available images
+                
+                // Optimal settings for each effect type
+                this.optimalSettings = {
+                    tiling: {
+                        // Base settings for tiling effect
+                        base: {
+                            complexity: 6,
+                            density: 3,
+                            contrast: 6,
+                            cleanTiling: false,
+                            uniqueImages: 15,
+                            scaleRange: [0.3, 0.7],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Special settings for non-rotated tiles
+                        clean: {
+                            complexity: 4,
+                            density: 2,
+                            contrast: 5,
+                            cleanTiling: true,
+                            uniqueImages: 8,
+                            scaleRange: [0.4, 0.8],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Focused composition with fewer images
+                        focused: {
+                            complexity: 7,
+                            density: 2,
+                            contrast: 8,
+                            cleanTiling: false,
+                            uniqueImages: 3,
+                            scaleRange: [0.2, 0.5],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Minimalist composition
+                        minimal: {
+                            complexity: 3,
+                            density: 2,
+                            contrast: 7,
+                            cleanTiling: true,
+                            uniqueImages: 3,
+                            scaleRange: [0.3, 0.6],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        }
+                    },
+                    fragments: {
+                        // Base settings for fragments effect
+                        base: {
+                            complexity: 7,
+                            density: 2,
+                            contrast: 7,
+                            cleanTiling: false,
+                            uniqueImages: 20,
+                            scaleRange: [0.1, 0.3],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Alternative settings for more dramatic fragments
+                        dramatic: {
+                            complexity: 8,
+                            density: 2,
+                            contrast: 8,
+                            cleanTiling: false,
+                            uniqueImages: 12,
+                            scaleRange: [0.08, 0.25],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Focused composition with fewer images
+                        focused: {
+                            complexity: 6,
+                            density: 2,
+                            contrast: 9,
+                            cleanTiling: false,
+                            uniqueImages: 4,
+                            scaleRange: [0.15, 0.35],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Minimalist composition
+                        minimal: {
+                            complexity: 4,
+                            density: 2,
+                            contrast: 8,
+                            cleanTiling: true,
+                            uniqueImages: 3,
+                            scaleRange: [0.2, 0.4],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        }
+                    },
+                    layers: {
+                        // Base settings for layers effect
+                        base: {
+                            complexity: 5,
+                            density: 2,
+                            contrast: 6,
+                            cleanTiling: false,
+                            uniqueImages: 15,
+                            scaleRange: [0.3, 0.7],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Alternative settings for more overlapping layers
+                        overlapping: {
+                            complexity: 6,
+                            density: 2,
+                            contrast: 7,
+                            cleanTiling: false,
+                            uniqueImages: 25,
+                            scaleRange: [0.25, 0.6],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Focused composition with fewer images
+                        focused: {
+                            complexity: 4,
+                            density: 2,
+                            contrast: 8,
+                            cleanTiling: false,
+                            uniqueImages: 3,
+                            scaleRange: [0.2, 0.4],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        },
+                        // Minimalist composition
+                        minimal: {
+                            complexity: 3,
+                            density: 2,
+                            contrast: 7,
+                            cleanTiling: true,
+                            uniqueImages: 3,
+                            scaleRange: [0.3, 0.5],
+                            blendMode: 'multiply',
+                            blendOpacity: 0.7
+                        }
+                    },
+                    mosaic: {
+                        classic: { // Even grid
+                            complexity: 5, // Influences gridSize (3-6)
+                            density: 3, // Keep consistent for now
+                            contrast: 7, // Keep consistent for now
+                            blendOpacity: 0.3, // Base low opacity
+                            variation: 'Classic' // Hint for generator
+                        },
+                        organic: { // Variable cells
+                            complexity: 6, // Influences baseGridSize & subdivisionChance
+                            density: 3,
+                            contrast: 7,
+                            blendOpacity: 0.3,
+                            variation: 'Organic' // Hint for generator
+                        },
+                        focal: { // Central emphasis
+                            complexity: 7, // Influences baseGridSize & subdivisionChance
+                            density: 3,
+                            contrast: 8, // Slightly higher contrast?
+                            blendOpacity: 0.3,
+                            variation: 'Focal' // Hint for generator
+                        }
+                    }
+                };
+
+                // Parameter ranges for quality checks
+                this.parameterRanges = {
+                    density: { min: 2, max: 4, ideal: 3 },
+                    complexity: { min: 3, max: 8, ideal: 6 },
+                    contrast: { min: 5, max: 9, ideal: 7 }
+                };
+
+                // Initialize the app
+                this.initialize();
+            }
+
+            resizeCanvas() {
+                const container = this.canvas.parentElement;
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                
+                // Set canvas size to match container
+                this.canvas.width = containerWidth;
+                this.canvas.height = containerHeight;
+                
+                // Calculate dimensions that will cover the entire viewport while maintaining aspect ratio
+                const aspectRatio = 4/3;
+                let width = containerWidth;
+                let height = containerHeight;
+                
+                if (containerWidth / containerHeight > aspectRatio) {
+                    // If viewport is wider than target aspect ratio, fit to width
+                    width = containerWidth;
+                    height = containerWidth / aspectRatio;
+                    if (height < containerHeight) {
+                        height = containerHeight;
+                        width = height * aspectRatio;
+                    }
+                } else {
+                    // If viewport is taller than target aspect ratio, fit to height
+                    height = containerHeight;
+                    width = containerHeight * aspectRatio;
+                    if (width < containerWidth) {
+                        width = containerWidth;
+                        height = width / aspectRatio;
+                    }
+                }
+                
+                // Apply the dimensions that ensure full coverage
+                this.canvas.style.width = `${width}px`;
+                this.canvas.style.height = `${height}px`;
+                this.canvas.style.left = `${(containerWidth - width) / 2}px`;
+                this.canvas.style.top = `${(containerHeight - height) / 2}px`;
+                
+                // Redraw the collage if it exists
+                if (this.generator) {
+                    this.generator.redraw();
+                }
+            }
+
+            async loadImage(imageData) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.crossOrigin = "anonymous";
+                    
+                    let retries = 0;
+                    const maxRetries = 3;
+                    
+                    const tryLoad = () => {
+                        if (retries >= maxRetries) {
+                            console.warn(`Max retries reached for image: ${imageData.src}`);
+                            reject(new Error(`Failed to load image after ${maxRetries} attempts: ${imageData.src}`));
+                            return;
+                        }
+
+                        img.onload = () => {
+                            if (img.complete && img.naturalWidth !== 0) {
+                                resolve(img);
+                            } else {
+                                handleError();
+                            }
+                        };
+                        
+                        img.onerror = (error) => {
+                            console.warn(`Failed to load image: ${imageData.src}`, error);
+                            handleError();
+                        };
+                        
+                        img.src = imageData.src;
+                    };
+                    
+                    const handleError = () => {
+                        retries++;
+                        setTimeout(tryLoad, 1000 * retries);
+                    };
+                    
+                    tryLoad();
+                });
+            }
+
+            async loadImages(imageCollection) {
+                // Only load a subset of images initially
+                const initialBatchSize = 20;
+                const initialImages = imageCollection.slice(0, initialBatchSize);
+                
+                try {
+                    const loadedImages = await Promise.all(
+                        initialImages.map(imageData => 
+                            this.loadImage(imageData).catch(error => {
+                                console.warn(`Skipping failed image: ${imageData.src}`);
+                                return null;
+                            })
+                        )
+                    );
+                    
+                    const validImages = loadedImages.filter(img => img !== null);
+                    if (validImages.length === 0) {
+                        throw new Error('No images were loaded successfully');
+                    }
+                    
+                    this.imagesLoaded = true;
+                    return validImages;
+                } catch (error) {
+                    console.error('Error loading initial images:', error);
+                    throw error;
+                }
+            }
+
+            updateBackgroundColor(color) {
+                console.log('Updating background color:', color);
+                // Set the CSS variable which will be used by all elements
+                document.documentElement.style.setProperty('--background-color', color);
+            }
+
+            getRandomEffectSettings() {
+                const effects = [
+                    { name: 'tiling', presets: ['base', 'clean', 'focused', 'minimal'] },
+                    { name: 'fragments', presets: ['base', 'dramatic', 'focused', 'minimal'] },
+                    { name: 'layers', presets: ['base', 'overlapping', 'focused', 'minimal'] },
+                    { name: 'mosaic', presets: ['classic', 'organic', 'focal'] } // Added mosaic with its presets
+                ];
+
+                // Weighted selection (adjust weights if needed, current gives equal chance: 25% each)
+                const effectWeights = [1, 1, 1, 1];
+                const totalWeight = effectWeights.reduce((sum, weight) => sum + weight, 0);
+                let randomWeight = Math.random() * totalWeight;
+                let selectedEffectIndex = 0;
+                for(let i = 0; i < effectWeights.length; i++) {
+                    if (randomWeight < effectWeights[i]) {
+                        selectedEffectIndex = i;
+                        break;
+                    }
+                    randomWeight -= effectWeights[i];
+                }
+
+                const selectedEffectInfo = effects[selectedEffectIndex];
+                const selectedEffectName = selectedEffectInfo.name;
+
+                // Select a random preset for the chosen effect
+                const availablePresets = selectedEffectInfo.presets;
+                const selectedPresetName = availablePresets[Math.floor(Math.random() * availablePresets.length)];
+                const selectedPreset = this.optimalSettings[selectedEffectName][selectedPresetName];
+
+                // Log the selection
+                console.log(`Selected effect: ${selectedEffectName}, Preset: ${selectedPresetName}`);
+                console.log('Preset parameters:', selectedPreset);
+
+
+                return {
+                    effect: selectedEffectName,
+                    // Pass the full preset object
+                    params: { ...selectedPreset } 
+                };
+            }
+
+            async checkCollageQuality(canvas) {
+                if (!canvas) {
+                    console.error("Quality check failed: Canvas element not provided.");
+                    return false;
+                }
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                         console.error("Quality check failed: Could not get 2D context.");
+                         return false;
+                    }
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    
+                    let totalBrightness = 0;
+                    let darkPixels = 0;
+                    let totalPixels = 0;
+                    
+                    // Sample every 16th pixel for performance
+                    for (let i = 0; i < data.length; i += 64) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const brightness = (r + g + b) / 3;
+                        
+                        totalBrightness += brightness;
+                        if (brightness < 20) darkPixels++; // More sensitive to dark areas
+                        totalPixels++;
+                    }
+                    
+                    if (totalPixels === 0) {
+                        console.warn("Quality check: No pixels sampled.");
+                        return true;
+                    }
+                    
+                    const averageBrightness = totalBrightness / (totalPixels * 255);
+                    const darkRatio = darkPixels / totalPixels;
+                    
+                    // Stricter quality thresholds
+                    const isTooDark = averageBrightness < 0.03 || darkRatio > 0.6; 
+                    const isTooLight = averageBrightness > 0.98;
+                    
+                    // Log quality metrics for debugging
+                    console.log(`Quality metrics - Brightness: ${averageBrightness.toFixed(2)}, Dark ratio: ${darkRatio.toFixed(2)}`);
+                    
+                    return !isTooDark && !isTooLight;
+                } catch (error) {
+                    console.error('Error checking collage quality:', error); 
+                    return true;
+                }
+            }
+
+            async getRandomImageSubset(count) {
+                // Shuffle all available images
+                const shuffled = [...this.allImages];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                
+                // Take a subset of the shuffled images
+                const subset = shuffled.slice(0, Math.min(count, shuffled.length));
+                
+                // Load the selected images
+                const loadedImages = await Promise.all(
+                    subset.map(img => this.loadImage({
+                        src: img.src || img.path || `/images/collages/${img.filename}`,
+                        filename: img.filename
+                    }))
+                );
+                
+                // Filter out any failed loads
+                return loadedImages.filter(img => img && img.complete && img.naturalWidth > 0);
+            }
+
+            async generateNewCollage() {
+                if (this.isLoading) return;
+                this.isLoading = true;
+                this.loadingElement.style.display = 'block';
+                this.shiftButton.disabled = true;
+
+                try {
+                    // Update background color using backgroundManager
+                    const newColor = this.backgroundManager.generateRandomColor();
+                    this.updateBackgroundColor(newColor);
+                    // console.log('Updating background color:', newColor);
+
+                    // Get effect settings
+                    const { effect, params } = this.getRandomEffectSettings();
+                    // console.log('Generated params:', params);
+                    
+                    // Get image subset
+                    // Using a fixed reasonable number for now, can be tied to params later if needed
+                    const imageCount = 20; 
+                    this.generator.images = await this.getRandomImageSubset(imageCount);
+                    // console.log(`Using ${this.generator.images.length} unique images for this collage`);
+
+                    // Apply settings and generate collage
+                    this.generator.setParameters(params); 
+                    this.generator.currentEffect = effect;
+                    this.generator.generate(); 
+
+                    // Wait a moment for rendering
+                    await new Promise(resolve => setTimeout(resolve, 200));
+
+                    // Check quality
+                    const qualityOK = await this.checkCollageQuality(this.canvas);
+
+                    if (!qualityOK) { 
+                        console.log('Poor quality detected, regenerating...');
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // Use requestAnimationFrame for smoother recursion? Or just direct call.
+                        this.generateNewCollage(); 
+                        return; 
+                    }
+
+                } catch (error) {
+                    console.error('Error generating collage:', error); 
+                    // Display error to user? 
+                } finally {
+                    this.isLoading = false;
+                    this.loadingElement.style.display = 'none';
+                    this.shiftButton.disabled = false;
+                }
+            }
+
+            async initialize() {
+                try {
+                    // Load all available images first
+                    this.allImages = await loadImageCollection();
+                    console.log('Image collection initialized with', this.allImages.length, 'images');
+                    this.imagesLoaded = true;
+                    
+                    // Generate initial collage
+                    await this.generateNewCollage();
+                    
+                    // Set up event listeners
+                    this.shiftButton.addEventListener('click', () => this.generateNewCollage());
+                    this.saveButton.addEventListener('click', () => this.generator.save());
+                } catch (error) {
+                    console.error('Error initializing:', error);
+                }
+            }
+        }
+
+        // Initialize the app when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new BridgeApp();
+        });
+    </script>
+</body>
+</html> 
