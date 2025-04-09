@@ -17,7 +17,7 @@ function getBaseUrl() {
     return '';
 }
 
-async function loadImageCollection() {
+export async function loadImageCollection() {
     try {
         const baseUrl = getBaseUrl();
         const response = await fetch(`${baseUrl}/images/metadata.json`);
@@ -56,7 +56,7 @@ async function loadImageCollection() {
     }
 }
 
-async function checkForNewImages() {
+export async function checkForNewImages() {
     const currentTime = Date.now();
     if (currentTime - lastCheckTime < CHECK_INTERVAL) {
         return; // Don't check too frequently
@@ -124,4 +124,4 @@ loadImageCollection().then(collection => {
     }
 });
 
-export { imageCollection, loadImageCollection, checkForNewImages };
+export { imageCollection };
