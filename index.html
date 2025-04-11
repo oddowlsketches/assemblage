@@ -426,21 +426,44 @@
             
             // Get the appropriate number of images based on the effect
             getImageCountForEffect(effect) {
+                // Determine which third of the distribution we're in
+                const rand = Math.random();
+                
                 switch (effect) {
                     case 'tiling':
-                        // Tiling can use 4-100 images
-                        return Math.random() < 0.5 ? 
-                            Math.floor(Math.random() * 7) + 4 : // 4-10 images
-                            Math.floor(Math.random() * 21) + 80; // 80-100 images
+                        if (rand < 0.33) {
+                            return Math.floor(Math.random() * 7) + 4; // 4-10 images (focused)
+                        } else if (rand < 0.67) {
+                            return Math.floor(Math.random() * 30) + 30; // 30-59 images (medium)
+                        } else {
+                            return Math.floor(Math.random() * 41) + 60; // 60-100 images (dense)
+                        }
                     case 'fragments':
-                        // Fragments use 6-30 images
-                        return Math.floor(Math.random() * 25) + 6;
+                        if (rand < 0.33) {
+                            return Math.floor(Math.random() * 5) + 6; // 6-10 images (focused)
+                        } else if (rand < 0.67) {
+                            return Math.floor(Math.random() * 10) + 11; // 11-20 images (medium)
+                        } else {
+                            return Math.floor(Math.random() * 10) + 21; // 21-30 images (dense)
+                        }
                     case 'mosaic':
-                        // Mosaic uses 20-80 images for denser patterns
-                        return Math.floor(Math.random() * 61) + 20;
+                        if (rand < 0.33) {
+                            return Math.floor(Math.random() * 10) + 10; // 10-19 images (focused)
+                        } else if (rand < 0.67) {
+                            return Math.floor(Math.random() * 20) + 20; // 20-39 images (medium)
+                        } else {
+                            return Math.floor(Math.random() * 41) + 40; // 40-80 images (dense)
+                        }
+                    case 'layers':
+                        if (rand < 0.33) {
+                            return Math.floor(Math.random() * 3) + 3; // 3-5 images (focused)
+                        } else if (rand < 0.67) {
+                            return Math.floor(Math.random() * 4) + 6; // 6-9 images (medium)
+                        } else {
+                            return Math.floor(Math.random() * 3) + 10; // 10-12 images (dense)
+                        }
                     default:
-                        // Default to 8-12 images
-                        return Math.floor(Math.random() * 5) + 8;
+                        return Math.floor(Math.random() * 5) + 8; // 8-12 images
                 }
             }
             

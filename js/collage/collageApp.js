@@ -176,7 +176,8 @@ class CollageApp {
                     this.generator.parameters.variation || 'Classic'
                 );
             } else {
-                this.generator.generate();
+                // Pass the current effect to the generator for non-legacy effects
+                this.generator.generate(this.generator.images, null, this.currentEffect);
             }
             generateButton.textContent = 'Generate';
         } catch (error) {
