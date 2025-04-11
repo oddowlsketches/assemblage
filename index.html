@@ -96,7 +96,7 @@
             gap: 1rem;
         }
         
-        button {
+        .header-controls button {
             background: white;
             color: var(--text-color);
             border: 1px solid var(--text-color);
@@ -107,12 +107,12 @@
             transition: all 0.3s ease;
         }
         
-        button:hover {
+        .header-controls button:hover {
             background: var(--text-color);
-            color: white;
+            color: white !important;
         }
         
-        button:disabled {
+        .header-controls button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
         }
@@ -158,6 +158,26 @@
                 justify-content: center;
             }
         }
+        
+        /* Footer */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            background-color: transparent;
+        }
+        
+        .copyright {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -180,6 +200,11 @@
             </div>
         </div>
     </header>
+
+    <!-- Footer -->
+    <footer>
+        <p class="copyright">© 2025 Assemblage by Emily Schwartzman. All rights reserved.</p>
+    </footer>
 
     <!-- Main Application Script -->
     <script type="module">
@@ -308,6 +333,9 @@
                     
                     // Generate initial collage
                     await this.generateNewCollage();
+                    
+                    // Adjust text color based on background after initial load
+                    this.adjustTextColorForBackground();
                 } catch (error) {
                     console.error('Error initializing application:', error);
                 }
@@ -322,6 +350,8 @@
                     if (this.generator) {
                         this.generator.redraw();
                     }
+                    // Adjust text color based on background after resize
+                    this.adjustTextColorForBackground();
                 }
             }
             
@@ -371,6 +401,9 @@
                     
                     // Update background based on fortune and images
                     updateBackground(fortune.text, images);
+                    
+                    // Adjust text color based on background
+                    this.adjustTextColorForBackground();
                     
                 } catch (error) {
                     console.error('Error generating collage:', error);
@@ -477,11 +510,11 @@
                 if (brightness > 128) {
                     // For light backgrounds, use a darker complementary color
                     textColor = this.getComplementaryColor(avgR, avgG, avgB, true);
-                    shadowColor = 'rgba(0, 0, 0, 0.2)';
+                    shadowColor = 'rgba(0, 0, 0, 0.1)'; // Reduced opacity from 0.2 to 0.1
                 } else {
                     // For dark backgrounds, use a lighter complementary color
                     textColor = this.getComplementaryColor(avgR, avgG, avgB, false);
-                    shadowColor = 'rgba(255, 255, 255, 0.2)';
+                    shadowColor = 'rgba(255, 255, 255, 0.1)'; // Reduced opacity from 0.2 to 0.1
                 }
                 
                 // Apply the color to the header text
@@ -491,11 +524,21 @@
                 if (headerText) headerText.style.color = textColor;
                 if (tagline) tagline.style.color = textColor;
                 
-                // Apply subtle shadow
-                const shadowStyle = `0 1px 3px ${shadowColor}`;
+                // Apply subtle shadow with reduced opacity
+                const shadowStyle = `0 1px 2px ${shadowColor}`; // Reduced blur from 3px to 2px
                 
                 if (headerText) headerText.style.textShadow = shadowStyle;
                 if (tagline) tagline.style.textShadow = shadowStyle;
+                
+                // Update the CSS variable for text color
+                document.documentElement.style.setProperty('--text-color', textColor);
+                
+                // Apply the color to the buttons
+                const buttons = document.querySelectorAll('button');
+                buttons.forEach(button => {
+                    button.style.color = textColor;
+                    button.style.borderColor = textColor;
+                });
             }
             
             // Generate a complementary color
