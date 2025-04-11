@@ -45,12 +45,17 @@ class MosaicGenerator {
             const complexity = parameters.complexity || 0.5;
             const baseGridSize = Math.ceil(Math.sqrt(images.length));
             
-            // Add possibility for very large tiles (2-3 rows)
+            // Create more varied tile sizes
             let gridSize;
-            if (Math.random() < 0.2) { // 20% chance for large tiles
-                gridSize = Math.floor(Math.random() * 2) + 2; // 2 or 3 rows
-            } else {
-                gridSize = Math.max(3, Math.min(10, Math.ceil(baseGridSize * (1 + complexity))));
+            const rand = Math.random();
+            if (rand < 0.2) { // 20% chance for very large tiles
+                gridSize = Math.floor(Math.random() * 2) + 2; // 2-3 rows
+            } else if (rand < 0.4) { // 20% chance for large tiles
+                gridSize = Math.floor(Math.random() * 2) + 4; // 4-5 rows
+            } else if (rand < 0.7) { // 30% chance for medium tiles
+                gridSize = Math.floor(Math.random() * 2) + 6; // 6-7 rows
+            } else { // 30% chance for smaller tiles
+                gridSize = Math.max(8, Math.min(10, Math.ceil(baseGridSize * (1 + complexity))));
             }
             
             // Calculate cell dimensions

@@ -291,6 +291,20 @@
                         focal: {
                             centerCellRatio: { min: 0.4, max: 0.6 }
                         }
+                    },
+                    layers: {
+                        complexity: 6,
+                        density: 4,
+                        contrast: 6,
+                        blendOpacity: 0.5,
+                        minLayers: 3,
+                        maxLayers: 6,
+                        scaleVariation: {
+                            focal: { min: 0.6, max: 1.2 },
+                            field: { min: 0.3, max: 0.7 }
+                        },
+                        minVisibility: 0.7,
+                        opacityTargets: { high: 0.35, full: 0.12 }
                     }
                 };
                 
@@ -432,7 +446,7 @@
             
             // Select a random effect
             getRandomEffect() {
-                const effects = ['tiling', 'fragments', 'mosaic'];
+                const effects = ['tiling', 'fragments', 'mosaic', 'layers'];
                 return effects[Math.floor(Math.random() * effects.length)];
             }
             

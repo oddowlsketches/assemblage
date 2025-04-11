@@ -311,6 +311,9 @@ class CollageGenerator {
                 case 'fragments':
                     this.generateFragments(this.images, fortuneText, this.parameters);
                     break;
+                case 'layers':
+                    this.generateLayers(this.images, fortuneText, this.parameters);
+                    break;
                 default:
                     console.warn(`Unknown effect type: ${this.currentEffect}`);
                     this.generateFragments(this.images, fortuneText, this.parameters);
@@ -341,7 +344,7 @@ class CollageGenerator {
 
     // Helper function to ensure effect type compatibility between bridge.html and collageGenerator.js
     ensureValidEffectName(effectName) {
-        const validEffects = ['mosaic', 'tiling', 'fragments'];
+        const validEffects = ['mosaic', 'tiling', 'fragments', 'layers'];
         if (!validEffects.includes(effectName)) {
             console.warn(`Invalid effect name: ${effectName}, defaulting to fragments`);
             return 'fragments';
@@ -674,7 +677,7 @@ class CollageGenerator {
         }
     }
     
-    generateLayers(images, fortune, parameters = {}) {
+    generateLayers(images, fortuneText, parameters = {}) {
         // Use the class's images property if images parameter is not provided
         const imagesToUse = images || this.images;
         
@@ -686,6 +689,11 @@ class CollageGenerator {
         
         console.log('Generating layers effect');
         console.log(`Layers: Using ${imagesToUse.length} images`);
+        
+        // Clear canvas and set background
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = this.generateBackgroundColor();
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.ctx.globalCompositeOperation = 'multiply';
         const isFocalStyle = this.selectedCompositionStyle === 'Focal';
@@ -709,19 +717,19 @@ class CollageGenerator {
             scaleVariationSettings.field;
         
         // Base scale and variation
-        const baseScale = isFocalStyle ? 1.2 : 1.0;
+        const baseScale = isFocalStyle ? 1.5 : 1.3;  // Increased from 1.2/1.0
         const scaleRange = scaleVariation.max - scaleVariation.min;
         
         // Adjust visibility settings
-        const minVisibleScale = minVisibility;
+        const minVisibleScale = Math.max(1.0, minVisibility);  // Ensure minimum scale covers canvas
         
         // Adjust logic for composition flow
-        const flowStrengthMultiplier = isFocalStyle ? 0.15 : 0.1;
+        const flowStrengthMultiplier = isFocalStyle ? 0.08 : 0.05;  // Reduced from 0.15/0.1
         const flowStrength = flowStrengthMultiplier * this.parameters.complexity;
         
         // Adjust opacity assignment
-        const targetHighOpacity = opacityTargets.high;
-        const targetFullOpacity = opacityTargets.full;
+        const targetHighOpacity = Math.max(0.6, opacityTargets.high);  // Increased from 0.35
+        const targetFullOpacity = Math.max(0.3, opacityTargets.full);  // Increased from 0.12
         
         // Adjust drawing process to maintain aspect ratio
         const ctx = this.ctx;
@@ -995,6 +1003,120 @@ class CollageGenerator {
     addFortuneText(fortuneText) {
         // Fortune text display removed in this version
         return;
+    }
+
+    /**
+     * Generates a layered collage effect with 2-4 images that have significant overlap
+     * and varying opacity levels to create depth.
+     * 
+     * @param {Array} images - The images to use in the collage
+     * @param {string} fortuneText - Optional fortune text to add to the collage
+     * @param {Object} parameters - Parameters for the effect
+     */
+    generateLayered(images, fortuneText, parameters = {}) {
+        // Use the class's images property if images parameter is not provided
+        const imagesToUse = images || this.images;
+        
+        // Check if we have valid images
+        if (!imagesToUse || !Array.isArray(imagesToUse) || imagesToUse.length === 0) {
+            console.error('No valid images provided for layered generation');
+            return;
+        }
+        
+        console.log('Generating layered effect');
+        console.log(`Layered: Using ${imagesToUse.length} images`);
+        
+        // Set multiply blend mode for images
+        this.ctx.globalCompositeOperation = 'multiply';
+        
+        // Determine number of layers (2-4)
+        const numLayers = 2 + Math.floor(Math.random() * 3); // Random number between 2 and 4
+        
+        // Shuffle image indices to randomly select images
+        const imageIndices = Array.from({length: this.images.length}, (_, i) => i);
+        this.shuffleArray(imageIndices);
+        
+        // Create layers array to store image data
+        const layers = [];
+        
+        // Generate layer data
+        for (let i = 0; i < numLayers; i++) {
+            const imageIndex = imageIndices[i % imageIndices.length];
+            const image = this.images[imageIndex];
+            
+            if (!image || !image.complete || image.naturalWidth === 0) continue;
+            
+            // Calculate scale to ensure full bleed across canvas
+            // We'll use a scale that's slightly larger than the canvas to ensure full coverage
+            const scale = 1.1 + Math.random() * 0.2; // Scale between 1.1 and 1.3
+            
+            // Calculate dimensions with aspect ratio preservation
+            const imgAspectRatio = image.naturalWidth / image.naturalHeight;
+            const canvasAspectRatio = this.canvas.width / this.canvas.height;
+            
+            let width, height;
+            if (imgAspectRatio > canvasAspectRatio) {
+                // Image is wider than canvas
+                width = this.canvas.width * scale;
+                height = width / imgAspectRatio;
+            } else {
+                // Image is taller than canvas
+                height = this.canvas.height * scale;
+                width = height * imgAspectRatio;
+            }
+            
+            // Calculate position with slight offset for layering effect
+            // We want at least 70% overlap between images
+            const maxOffset = Math.min(width, height) * 0.3; // 30% of the smaller dimension
+            const offsetX = (Math.random() - 0.5) * maxOffset;
+            const offsetY = (Math.random() - 0.5) * maxOffset;
+            
+            // Center the image with the offset
+            const x = (this.canvas.width - width) / 2 + offsetX;
+            const y = (this.canvas.height - height) / 2 + offsetY;
+            
+            // Determine opacity - one image should be at least 80% opacity
+            // The rest should be lower for the layered effect
+            let opacity;
+            if (i === 0) {
+                // First image gets higher opacity (80-100%)
+                opacity = 0.8 + Math.random() * 0.2;
+            } else {
+                // Other images get lower opacity (30-70%)
+                opacity = 0.3 + Math.random() * 0.4;
+            }
+            
+            layers.push({
+                image,
+                x,
+                y,
+                width,
+                height,
+                opacity
+            });
+        }
+        
+        // Sort layers by opacity (lower opacity drawn first)
+        layers.sort((a, b) => a.opacity - b.opacity);
+        
+        // Draw layers
+        layers.forEach(layer => {
+            const { image, x, y, width, height, opacity } = layer;
+            
+            this.ctx.save();
+            
+            // Apply contrast enhancement
+            const contrastLevel = this.parameters.contrast / 10;
+            this.ctx.filter = `contrast(${1 + contrastLevel})`;
+            
+            // Set opacity
+            this.ctx.globalAlpha = opacity;
+            
+            // Draw the image
+            this.ctx.drawImage(image, x, y, width, height);
+            
+            this.ctx.restore();
+        });
     }
 }
 
