@@ -103,10 +103,7 @@ export async function checkForNewImages() {
             // Add new images to collection
             imageCollection = [...imageCollection, ...newCollectionItems];
             
-            // Trigger display update if app is initialized
-            if (window.app) {
-                window.app.displayImages();
-            }
+            // No need to call displayImages() as it doesn't exist in the current implementation
         }
     } catch (error) {
         console.error('Error checking for new images:', error);
@@ -118,10 +115,7 @@ loadImageCollection().then(collection => {
     console.log('Image collection initialized with', collection.length, 'images');
     // Start periodic check for new images
     setInterval(checkForNewImages, CHECK_INTERVAL);
-    // Trigger initial display if app is already initialized
-    if (window.app) {
-        window.app.displayImages();
-    }
+    // No need to call displayImages() as it doesn't exist in the current implementation
 });
 
 export { imageCollection };

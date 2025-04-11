@@ -5,11 +5,13 @@
  */
 
 import CollageGenerator from './collageGenerator.js';
+import LegacyCollageAdapter from './legacyCollageAdapter.js';
 
 class CollageApp {
     constructor() {
         this.canvas = document.getElementById('collageCanvas');
         this.generator = new CollageGenerator(this.canvas);
+        this.legacyAdapter = new LegacyCollageAdapter(this.generator);
         this.imageCollection = [];
         this.currentEffect = null;
         
@@ -18,9 +20,9 @@ class CollageApp {
     }
     
     initializeUI() {
-        // Set canvas size
-        this.canvas.width = 800;
-        this.canvas.height = 600;
+        // Set canvas size to match the viewport
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
         
         // Effect buttons
         document.querySelectorAll('.effect-button').forEach(button => {
@@ -105,15 +107,54 @@ class CollageApp {
         // Show/hide clean tiling toggle based on effect
         const cleanTilingToggle = document.getElementById('cleanTilingToggle').parentElement;
         cleanTilingToggle.style.display = effect === 'tiling' ? 'block' : 'none';
+
+        // Set initial parameters for mosaic effect
+        if (effect === 'mosaic') {
+            // Get current slider values
+            const complexity = parseInt(document.getElementById('complexitySlider').value);
+            const density = parseInt(document.getElementById('densitySlider').value);
+            const contrast = parseInt(document.getElementById('contrastSlider').value);
+            
+            // Randomly select a variation
+            const variations = ['Classic', 'Organic', 'Focal'];
+            const variation = variations[Math.floor(Math.random() * variations.length)];
+            
+            // Set parameters with the new variation
+            this.generator.parameters = {
+                complexity,
+                density,
+                contrast,
+                blendOpacity: 0.3,
+                variation: variation,
+                cleanTiling: false
+            };
+        }
     }
     
     updateParameters() {
-        this.generator.parameters = {
-            ...this.generator.parameters,
-            complexity: parseInt(document.getElementById('complexitySlider').value),
-            density: parseInt(document.getElementById('densitySlider').value),
-            contrast: parseInt(document.getElementById('contrastSlider').value)
-        };
+        if (this.currentEffect === 'mosaic') {
+            // For mosaic, randomly select a new variation each time
+            const variations = ['Classic', 'Organic', 'Focal'];
+            const variation = variations[Math.floor(Math.random() * variations.length)];
+            
+            this.generator.parameters = {
+                complexity: parseInt(document.getElementById('complexitySlider').value),
+                density: parseInt(document.getElementById('densitySlider').value),
+                contrast: parseInt(document.getElementById('contrastSlider').value),
+                blendOpacity: 0.3,
+                variation: variation, // Select a new random variation
+                cleanTiling: this.generator.parameters.cleanTiling || false
+            };
+        } else {
+            // For other effects, update normally
+            const currentParams = this.generator.parameters;
+            this.generator.parameters = {
+                ...currentParams,
+                complexity: parseInt(document.getElementById('complexitySlider').value),
+                density: parseInt(document.getElementById('densitySlider').value),
+                contrast: parseInt(document.getElementById('contrastSlider').value)
+            };
+        }
     }
     
     generate() {
@@ -127,7 +168,16 @@ class CollageApp {
         generateButton.textContent = 'Generating...';
         
         try {
-            this.generator.generate();
+            // Use legacy styles for mosaic and tiling effects
+            if (this.currentEffect === 'mosaic' || this.currentEffect === 'tiling') {
+                this.legacyAdapter.generate(
+                    this.currentEffect,
+                    this.generator.parameters,
+                    this.generator.parameters.variation || 'Classic'
+                );
+            } else {
+                this.generator.generate();
+            }
             generateButton.textContent = 'Generate';
         } catch (error) {
             console.error('Error generating collage:', error);

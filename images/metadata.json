@@ -24,18 +24,6 @@
     ]
   },
   {
-    "id": "imgf5b459b6",
-    "src": "imgf5b459b6 3.jpg",
-    "description": "The image is a close-up of a person's hands held together in a prayer-like posture, positioned near their chin. The person is wearing a patterned outfit, possibly with polka dots or star-like shapes. The image has a halftone texture, giving it a vintage, newspaper-like appearance.",
-    "tags": [
-      "prayer",
-      "halftone",
-      "vintage",
-      "polka-dot",
-      "close-up"
-    ]
-  },
-  {
     "id": "imgf21429ed",
     "src": "imgf21429ed.jpg",
     "description": "The black-and-white photograph features two women dressed in 1940s fashion, standing in front of a vintage airplane. One woman is wearing a belted dress and the other a suit with a long coat. Both are smiling and holding onto their hats as they pose beside the aircraft's propeller. The airplane features the \"Delta Air Lines\" logo.",
@@ -45,18 +33,6 @@
       "1940s",
       "fashion",
       "airplane"
-    ]
-  },
-  {
-    "id": "imgf48d1413",
-    "src": "imgf48d1413 3.jpg",
-    "description": "The image is a vintage-style diagram showing the Earth with time annotations around its perimeter. The map features continents in a monochrome style, with lines indicating time zones. Specific hours are marked, representing different locations' times relative to noon.",
-    "tags": [
-      "Earth",
-      "Time Zones",
-      "Map",
-      "Vintage",
-      "Diagram"
     ]
   },
   {
@@ -72,18 +48,6 @@
     ]
   },
   {
-    "id": "imgeafcfde7",
-    "src": "imgeafcfde7 3.jpg",
-    "description": "The image shows a black and white illustration of a cross-section of a geode or agate. The design reveals concentric layers or bands, showcasing intricate patterns created by natural mineral deposits. The texture appears dot-like, resembling a stippling technique, adding depth and shading to the illustration.",
-    "tags": [
-      "#geode",
-      "#illustration",
-      "#agate",
-      "#stippling",
-      "#blackandwhite"
-    ]
-  },
-  {
     "id": "imgefd56c83",
     "src": "imgefd56c83.jpg",
     "description": "The image features a monochrome, halftone depiction of bare tree branches set against a blurred background. The dotted pattern gives a textured, vintage newspaper effect, creating a sense of depth and visual interest.",
@@ -93,18 +57,6 @@
       "#Tree",
       "#Vintage",
       "#Texture"
-    ]
-  },
-  {
-    "id": "imgf09e3117",
-    "src": "imgf09e3117 3.jpg",
-    "description": "The image is a vintage postcard featuring an illustrated woman dressed in 1940s fashion. She is wearing a high-waisted, full skirt paired with a fitted blouse that has voluminous sleeves. The woman stands in a stylish pose, with a hand near her chin. The postcard has a stamp and French text \"Carte Postale\" on it, evoking a retro, classic feel.",
-    "tags": [
-      "vintage",
-      "fashion",
-      "postcard",
-      "illustration",
-      "1940s"
     ]
   },
   {
@@ -141,18 +93,6 @@
       "architecture",
       "historic",
       "stone"
-    ]
-  },
-  {
-    "id": "imge386a804",
-    "src": "imge386a804 3.jpg",
-    "description": "The image is a vintage-style illustration depicting three different types of swallows (hirondelles). The top image shows a swallow perched on a rock near the sea. The lower part of the illustration has two images: one of a chimney swallow flying near rooftops, and another of two swallows on a window ledge. Below the images is written text in French labeling the types as chimney, window, and sea swallows.",
-    "tags": [
-      "illustration",
-      "birds",
-      "swallows",
-      "vintage",
-      "nature"
     ]
   },
   {
@@ -456,18 +396,6 @@
     ]
   },
   {
-    "id": "imge1cdb50d",
-    "src": "imge1cdb50d 3.jpg",
-    "description": "The image shows a bold, uppercase letter \"A\" in a serif typeface with a textured, distressed appearance, set against a plain white background.",
-    "tags": [
-      "typography",
-      "letter",
-      "serif",
-      "bold",
-      "black"
-    ]
-  },
-  {
     "id": "img560a3181",
     "src": "img560a3181.jpg",
     "description": "The image is a black and white illustration of the uppercase letter \"C.\" The letter is bold and prominently displayed on a white background, with thick strokes.",
@@ -513,18 +441,6 @@
       "vintage",
       "black and white",
       "portrait"
-    ]
-  },
-  {
-    "id": "imgdd9fa496",
-    "src": "imgdd9fa496 3.jpg",
-    "description": "The image features a high-contrast black and white design with a series of white dots arranged vertically on a black strip. The background is textured, and there is a thin vertical black line to the right of the strip of dots. The design has an abstract and graphic quality.",
-    "tags": [
-      "abstract",
-      "black and white",
-      "dots",
-      "graphic design",
-      "texture"
     ]
   },
   {
@@ -924,18 +840,6 @@
     ]
   },
   {
-    "id": "imgdd67f109",
-    "src": "imgdd67f109 3.jpg",
-    "description": "A vintage-style botanical illustration showing various plant specimens. The artwork features detailed line work and shading, with a focus on natural forms and organic shapes.",
-    "tags": [
-      "botanical",
-      "illustration",
-      "vintage",
-      "nature",
-      "line art"
-    ]
-  },
-  {
     "id": "img1abab9e4",
     "src": "img1abab9e4.jpg",
     "description": "The image is a black and white photo of a person striking a dynamic pose with an arched back, gazing intently at a fluffy cat they are holding. The person is wearing a fitted top, cinched at the waist, and dark trousers. Their hair is styled in a voluminous, textured fashion, and they have a netted bag hanging from their shoulder.",
@@ -1197,18 +1101,6 @@
       "pattern",
       "optical illusion",
       "letter"
-    ]
-  },
-  {
-    "id": "imge2f14431",
-    "src": "imge2f14431 3.jpg",
-    "description": "The image is a high-contrast black and white depiction of a chandelier. The chandelier has an ornate design with numerous beads and drops, appearing to be in silhouette against a vertically striped background that may be sheer curtains or wallpaper. The overall composition creates an abstract and artistic effect.",
-    "tags": [
-      "chandelier",
-      "abstract",
-      "black and white",
-      "silhouette",
-      "artistic"
     ]
   },
   {
@@ -1824,18 +1716,6 @@
     ]
   },
   {
-    "id": "img65d677be",
-    "src": "img65d677be.jpg",
-    "description": "A vintage illustration showing various natural forms and organic shapes. The artwork combines detailed line work with subtle shading techniques.",
-    "tags": [
-      "illustration",
-      "organic",
-      "vintage",
-      "line art",
-      "nature"
-    ]
-  },
-  {
     "id": "img6e0ff79d",
     "src": "img6e0ff79d.jpg",
     "description": "A monochromatic photograph capturing architectural details with a focus on texture and pattern. The image features strong contrast and dramatic lighting.",
@@ -2016,18 +1896,6 @@
     ]
   },
   {
-    "id": "img92d0682a",
-    "src": "img92d0682a 3.jpg",
-    "description": "A vintage illustration showing various natural forms and organic shapes. The artwork combines detailed line work with subtle shading techniques.",
-    "tags": [
-      "illustration",
-      "organic",
-      "vintage",
-      "line art",
-      "nature"
-    ]
-  },
-  {
     "id": "img9355fed8",
     "src": "img9355fed8.jpg",
     "description": "A monochromatic photograph capturing architectural details with a focus on texture and pattern. The image features strong contrast and dramatic lighting.",
@@ -2136,42 +2004,6 @@
     ]
   },
   {
-    "id": "imgad3e55ba",
-    "src": "imgad3e55ba 3.jpg",
-    "description": "A geometric pattern design with repeating motifs and intricate line work in black and white",
-    "tags": [
-      "geometric",
-      "pattern",
-      "design",
-      "abstract",
-      "line art",
-      "repetitive",
-      "monochrome"
-    ]
-  },
-  {
-    "id": "imgdf28901d",
-    "src": "imgdf28901d 3.jpg",
-    "description": "A technical drawing of electrical circuits and components with detailed wiring diagrams",
-    "tags": [
-      "electrical",
-      "engineering",
-      "technical drawing",
-      "circuits",
-      "vintage",
-      "detailed",
-      "schematic"
-    ]
-  },
-  {
-    "id": "img15a2e86c",
-    "src": "img15a2e86c.jpg",
-    "description": "Image description not available",
-    "tags": [
-      "image"
-    ]
-  },
-  {
     "id": "img9e26f6ff",
     "src": "img9e26f6ff.jpg",
     "description": "Image description not available",
@@ -2180,24 +2012,8 @@
     ]
   },
   {
-    "id": "imgc876983d",
-    "src": "imgc876983d.jpg",
-    "description": "Image description not available",
-    "tags": [
-      "image"
-    ]
-  },
-  {
     "id": "img5acc9ae5",
     "src": "img5acc9ae5.jpg",
-    "description": "Image description not available",
-    "tags": [
-      "image"
-    ]
-  },
-  {
-    "id": "img827bc58d",
-    "src": "img827bc58d.jpg",
     "description": "Image description not available",
     "tags": [
       "image"
@@ -2466,5 +2282,1135 @@
     "tags": [
       "image"
     ]
+  },
+  {
+    "id": "img618c8975",
+    "src": "img618c8975.jpg",
+    "path": "images/collages/img618c8975.jpg",
+    "description": "The black and white collage features a striking composition of a person in profile wearing an oversized, textured hat that obscures much of their face. The stippling and dot patterns create varying textures, lending a sense of depth and contrast. The shadowy silhouette of the figure suggests mystery and elegance, enhanced by the simplicity and abstraction of the contours. The hat dominates the image, symbolizing anonymity and sophistication. The overall grainy texture evokes a vintage feel, while the interplay of light and shadow accentuates the artistic tension.",
+    "tags": [
+      "Vintage",
+      "Minimalism",
+      "Elegance",
+      "Mystery",
+      "Abstract"
+    ],
+    "dateAdded": "2025-04-09T13:46:34.649173"
+  },
+  {
+    "id": "img0c86258b",
+    "src": "img0c86258b.jpg",
+    "path": "images/collages/img0c86258b.jpg",
+    "description": "A black and white collage image with artistic composition and texture.",
+    "tags": [
+      "collage",
+      "black and white",
+      "art",
+      "texture",
+      "composition"
+    ],
+    "dateAdded": "2025-04-09T14:11:36.669542"
+  },
+  {
+    "id": "imgd8d14fad",
+    "src": "imgd8d14fad.jpg",
+    "path": "images/collages/imgd8d14fad.jpg",
+    "description": "The black and white collage captures a profile view of a woman, exuding a vintage, classic aesthetic. The image is characterized by a halftone dot pattern, giving it a textured, grainy quality reminiscent of old newspaper prints. The woman's head is covered with a dark headscarf, which contrasts sharply with her light-colored skin and the white background. Her expression is serene, and her eyes are closed, adding a contemplative mood to the piece. The interplay of light and shadow adds depth, highlighting the contours of her face and shoulders. The artistic elements are minimalist yet powerful, focusing on contrast and texture over detail.",
+    "tags": [
+      "Vintage",
+      "Collage",
+      "Halftone",
+      "Retro",
+      "Portrait"
+    ],
+    "dateAdded": "2025-04-09T14:17:48.171080"
+  },
+  {
+    "id": "imgf80fd84e",
+    "src": "imgf80fd84e.jpg",
+    "path": "images/collages/imgf80fd84e.jpg",
+    "description": "The image is a black and white halftone collage featuring a dog sitting on a textured blanket. The halftone effect creates a dotted pattern throughout the image, adding a vintage aesthetic and a sense of depth. The dog's fur features subtle shading due to the dot distribution, contributing to the overall tactile quality. The background and the blanket also exhibit the halftone texture, emphasizing the collage's retro feel.",
+    "tags": [
+      "#Halftone",
+      "#Vintage",
+      "#Collage",
+      "#Dog",
+      "#Monochrome"
+    ],
+    "dateAdded": "2025-04-09T14:18:09.983437"
+  },
+  {
+    "id": "img08ba7c2a",
+    "src": "img08ba7c2a.jpg",
+    "path": "images/collages/img08ba7c2a.jpg",
+    "description": "The black and white image features a small dog inside a uniquely shaped doghouse, which resembles a miniature arc-like structure. The doghouse has a curved roof and a small entrance, through which the dog is partially visible, peeking out with a curious expression. The texture of the image is created using halftone dots, giving it a vintage and classic newspaper print appearance. The dotted shading adds depth and contrast to the doghouse and the dog's face, emphasizing shadows and highlights effectively. At the top of the dog's abode, there is a crown-shaped insignia, adding a whimsical element suggesting a regal theme.",
+    "tags": [
+      "#Vintage",
+      "#Halftone",
+      "#Doghouse",
+      "#Nostalgic",
+      "#BlackAndWhite"
+    ],
+    "dateAdded": "2025-04-09T14:18:17.871132"
+  },
+  {
+    "id": "img67d8c2a5",
+    "src": "img67d8c2a5.jpg",
+    "path": "images/collages/img67d8c2a5.jpg",
+    "description": "The image is a black and white collage featuring a cat and a box of fish balls. The cat is positioned to the left, investigating a box labeled \"FISH BALLS FOR CATS.\" The composition utilizes a halftone dot pattern, creating a textured effect reminiscent of vintage print materials. The cat's shadow is elongated and prominently visible on the right side, adding a dynamic element to the artwork. The box and the scattered balls on the ground provide a sense of depth and interest, enhancing the playful interaction captured in the scene. The overall aesthetic combines elements of pop art and retro advertising, offering a nostalgic yet contemporary feel.",
+    "tags": [
+      "collage",
+      "vintage",
+      "halftone",
+      "pop art",
+      "feline"
+    ],
+    "dateAdded": "2025-04-09T14:18:23.603644"
+  },
+  {
+    "id": "img48d8e868",
+    "src": "img48d8e868.jpg",
+    "path": "images/collages/img48d8e868.jpg",
+    "description": "The image is a black and white halftone collage of a dog, likely a Pekingese, positioned against a dark, blurred background. The halftone effect creates a dotted texture, adding depth and a retro feel to the composition. The dog's long fur is detailed with a range of grayscale tones, emphasizing its texture and making it stand out against the simpler backdrop. The contrast between the lights and darks in the dog's fur and face enhances the expression and character of the animal. Overall, the image blends realism with an artistic, print-like quality.",
+    "tags": [
+      "Halftone",
+      "Pekingese",
+      "Black and White",
+      "Retro",
+      "Texture"
+    ],
+    "dateAdded": "2025-04-09T14:18:28.858809"
+  },
+  {
+    "id": "img8dd41d35",
+    "src": "img8dd41d35.jpg",
+    "path": "images/collages/img8dd41d35.jpg",
+    "description": "The image features a black and white halftone collage of a dog. The composition prominently showcases the dog's head in a classic side profile, highlighting its distinct features such as large, upright ears and a focused gaze. The halftone effect creates a textured and patterned appearance, giving the image a vintage or retro quality. The absence of background elements keeps the focus entirely on the dog, enhancing its presence in the frame. The interplay of light and dark tones, facilitated by the halftone technique, adds depth and dimension to the portrait.",
+    "tags": [
+      "Halftone",
+      "Vintage",
+      "Dog",
+      "Black and White",
+      "Retro"
+    ],
+    "dateAdded": "2025-04-09T14:19:45.215113"
+  },
+  {
+    "id": "imgd9939f37",
+    "src": "imgd9939f37.jpg",
+    "path": "images/collages/imgd9939f37.jpg",
+    "description": "This black and white collage features a close-up of a dog, possibly a hound, with long, droopy ears and a soulful expression. The composition utilizes a halftone pattern, giving the image a textured, vintage feel. The dot pattern varies in density, creating shades and depth across the dog's face and body. The high contrast between black and white emphasizes the dog's expression and texture of the fur. The artistic use of halftone suggests a pop art influence, reminiscent of newspaper print imagery.",
+    "tags": [
+      "#Collage",
+      "#Halftone",
+      "#Vintage",
+      "#PopArt",
+      "#DogPortrait"
+    ],
+    "dateAdded": "2025-04-09T14:19:50.433877"
+  },
+  {
+    "id": "img8e313b0b",
+    "src": "img8e313b0b.jpg",
+    "path": "images/collages/img8e313b0b.jpg",
+    "description": "The image is a black and white halftone collage of a dog, featuring a classic stippling effect which creates a textured appearance. The dog's fur is depicted with intricate detailing, using varying dot sizes to convey depth and contrast. The ears are perked up, suggesting attentiveness, and the eyes are gentle yet expressive. The overall composition centers the dog prominently in the frame, with a simple background that allows the subject to stand out. The use of black and white enhances the vintage aesthetic and emphasizes the contrast between the elements.",
+    "tags": [
+      "Halftone",
+      "Dog",
+      "Black and White",
+      "Vintage",
+      "Stippling"
+    ],
+    "dateAdded": "2025-04-09T14:19:55.990128"
+  },
+  {
+    "id": "imgbb8ce252",
+    "src": "imgbb8ce252.jpg",
+    "path": "images/collages/imgbb8ce252.jpg",
+    "description": "The black and white collage features an intriguing juxtaposition of architectural and human elements. On the left, there are tall buildings with repetitive patterns of windows, creating a sense of urban density and structure. The texture of the buildings is smooth, contrasting with the coarse, organic texture of a human figure on the right. This figure appears to be cropped, focusing on the upper torso and arm, wearing a textured suit. The composition draws a parallel between the rigidity of urban architecture and the softness of human form, creating tension and balance. The grayscale palette emphasizes the interplay of light and shadow, enriching the visual depth.",
+    "tags": [
+      "Urban",
+      "Contrast",
+      "Architecture",
+      "Human",
+      "Texture"
+    ],
+    "dateAdded": "2025-04-09T14:20:05.078908"
+  },
+  {
+    "id": "imgaf03a47b",
+    "src": "imgaf03a47b.jpg",
+    "path": "images/collages/imgaf03a47b.jpg",
+    "description": "The black and white image depicts a woman in a classic, elegant attire standing in front of an urban backdrop of tall buildings. Her outfit is reminiscent of mid-20th century fashion, featuring a tailored suit with circular embellishments. The composition balances the structured vertical lines of the architecture with the soft curves of the woman's pose and outfit. The texture is grainy, enhancing the vintage feel and adding depth. The contrast between the light and shadows highlights the sleekness of her gloves and the details in her hair, adding an air of sophistication and timelessness.",
+    "tags": [
+      "Vintage",
+      "Fashion",
+      "Monochrome",
+      "Elegance",
+      "Architecture"
+    ],
+    "dateAdded": "2025-04-09T14:20:10.612842"
+  },
+  {
+    "id": "img69bdaf84",
+    "src": "img69bdaf84.jpg",
+    "path": "images/collages/img69bdaf84.jpg",
+    "description": "The black and white collage features a striking image of a woman wearing a high-collared coat and a furry hat. The texture of the image suggests a gritty, almost stippled effect that adds depth and interest. Her half-turned pose and direct gaze exude a vintage, cinematic aura reminiscent of classic Hollywood glamour. The contrasts between the light and dark areas are sharp and dramatic, further emphasizing the elegance and confidence of the subject. The background is textured similarly, adding to the cohesive, tactile quality of the composition.",
+    "tags": [
+      "#VintageFashion",
+      "#ClassicGlamour",
+      "#BlackAndWhite",
+      "#TexturedArt",
+      "#CinematicElegance"
+    ],
+    "dateAdded": "2025-04-09T14:20:16.752780"
+  },
+  {
+    "id": "img219b09a9",
+    "src": "img219b09a9.jpg",
+    "path": "images/collages/img219b09a9.jpg",
+    "description": "The image is a black and white collage focusing on the lower half of a person's face and upper torso. The composition features a soft texture on the skin, contrasted by the smooth, dark fabric of the garment. The highlight of the image is an intricately detailed brooch pinned to the clothing, showcasing a floral or geometric pattern that adds texture and visual interest. The grayscale tones create a classic, timeless feel, reminiscent of vintage photography. The overall mood is sophisticated and elegant.",
+    "tags": [
+      "Vintage",
+      "BlackAndWhite",
+      "Elegance",
+      "Fashion",
+      "Portrait"
+    ],
+    "dateAdded": "2025-04-09T14:20:21.872335"
+  },
+  {
+    "id": "imgde613dce",
+    "src": "imgde613dce.jpg",
+    "path": "images/collages/imgde613dce.jpg",
+    "description": "The image is a black and white collage featuring a striking profile of a woman. The composition focuses on the side view of her face, highlighting her prominent features such as the nose and lips. The texture of the image has a grainy, almost film-like quality, adding a vintage feel. The contrast is high, emphasizing the light and shadow play on her facial contours. An elegant earring adorned with small stones provides a focal point, adding a touch of glamour. The background is dark, which brings the subject's face into sharp relief, creating a dynamic and timeless effect.",
+    "tags": [
+      "#ProfilePortrait",
+      "#VintageStyle",
+      "#HighContrast",
+      "#Elegance",
+      "#GrainyTexture"
+    ],
+    "dateAdded": "2025-04-09T14:20:30.679737"
+  },
+  {
+    "id": "imgb7d2dcf5",
+    "src": "imgb7d2dcf5.jpg",
+    "path": "images/collages/imgb7d2dcf5.jpg",
+    "description": "The black and white collage features a high-contrast image of a woman's face, primarily focusing on her eyes and intricate hair ornamentation. The texture is rich and gritty, with a grainy overlay that adds depth and a vintage feel to the composition. The woman's hair is styled in an elaborate updo, adorned with a detailed and ornate headpiece that includes floral and teardrop shapes. This creates a symmetrical and balanced aesthetic. The eyes are striking and intense, drawing the viewer's attention immediately. The overall composition combines elements of classical beauty and avant-garde fashion, blending traditional and modern artistic elements.",
+    "tags": [
+      "#CollageArt",
+      "#BlackAndWhite",
+      "#VintageAesthetic",
+      "#OrnateHeadpiece",
+      "#AvantGardeFashion"
+    ],
+    "dateAdded": "2025-04-09T14:20:39.844068"
+  },
+  {
+    "id": "img435e77d5",
+    "src": "img435e77d5.jpg",
+    "path": "images/collages/img435e77d5.jpg",
+    "description": "The black and white collage features a close-up of a woman's face, focusing on her eye and part of her hair. She holds a pair of vintage scissors, cleverly positioned to mimic eyeglass frames around her eye. This creates a surreal and intriguing visual effect. The texture of the image has a grainy, fine dot pattern reminiscent of old newspaper print, adding to its vintage aesthetic. The woman's hair is styled elegantly, and she wears a dangling, intricate earring, contributing to a sense of classic sophistication. The composition is both playful and thought-provoking, combining elements of fashion and pop art.",
+    "tags": [
+      "surrealism",
+      "vintage",
+      "pop art",
+      "collage",
+      "fashion"
+    ],
+    "dateAdded": "2025-04-09T14:20:45.323773"
+  },
+  {
+    "id": "img871f55f9",
+    "src": "img871f55f9.jpg",
+    "path": "images/collages/img871f55f9.jpg",
+    "description": "The black and white collage features a close-up of a hand with a pointed finger interacting with a button or switch on a vintage-looking machine. The image has a grainy texture, reminiscent of old newspaper prints or photocopies, giving it a retro feel. The composition focuses on the action of the finger, with the creases of the skin and the mechanical details of the device emphasized through contrast and shading. The combination of human and mechanical elements suggests themes of interaction and technology.",
+    "tags": [
+      "vintage",
+      "collage",
+      "retro",
+      "machine",
+      "interaction"
+    ],
+    "dateAdded": "2025-04-09T14:20:50.109756"
+  },
+  {
+    "id": "imgf4ca51d8",
+    "src": "imgf4ca51d8.jpg",
+    "path": "images/collages/imgf4ca51d8.jpg",
+    "description": "The image showcases a detailed black and white depiction of billowing clouds. The texture is rich and varied, with subtle shading and gradients that convey depth and volume. The clouds appear soft and voluminous, with intricate detailing that suggests movement and a dynamic quality. The background is a darker tone, which contrasts with the lighter shades of the clouds, enhancing their three-dimensional appearance. The image has a classic, almost timeless feel, reminiscent of traditional charcoal or pencil sketches, and exudes a serene, expansive atmosphere.",
+    "tags": [
+      "#clouds",
+      "#blackandwhite",
+      "#texture",
+      "#atmospheric",
+      "#artistic"
+    ],
+    "dateAdded": "2025-04-09T14:20:56.273975"
+  },
+  {
+    "id": "imgd2975ade",
+    "src": "imgd2975ade.jpg",
+    "path": "images/collages/imgd2975ade.jpg",
+    "description": "This black and white image prominently features the word \"CLIMATE\" in bold, uppercase letters centered on a plain white background. The text has a slightly rough texture, suggesting a stamped or printed effect, which adds a tactile element to the simplicity of the design. The stark contrast between the black text and the white background emphasizes clarity and directness, conveying a strong, impactful message. The minimalist composition leaves the focus solely on the word itself, invoking themes of awareness and urgency.",
+    "tags": [
+      "Climate",
+      "Typography",
+      "BlackandWhite",
+      "Minimalism",
+      "Awareness"
+    ],
+    "dateAdded": "2025-04-09T14:21:01.188865"
+  },
+  {
+    "id": "img025e3e54",
+    "src": "img025e3e54.jpg",
+    "path": "images/collages/img025e3e54.jpg",
+    "description": "The black and white collage illustrates two hands holding flashlights, casting overlapping beams of light onto a surface. The composition uses a halftone texture, often seen in vintage illustrations, giving it a retro feel. The lines are sharp and clear, emphasizing the form of the hands and the cylindrical shape of the flashlights. Shadows and light are represented through a stark contrast between black and white, creating a dramatic and graphic aesthetic. The image captures a sense of action and focus, as though the holders are searching or examining something.",
+    "tags": [
+      "retro",
+      "vintage",
+      "flashlight",
+      "halftone",
+      "illustration"
+    ],
+    "dateAdded": "2025-04-09T14:21:06.408105"
+  },
+  {
+    "id": "imgf35717ea",
+    "src": "imgf35717ea.jpg",
+    "path": "images/collages/imgf35717ea.jpg",
+    "description": "The black and white collage image presents a textured impression of a city skyline beneath a sky marked by a sequence of spherical phases, resembling the waxing and waning journey of the moon. The urban silhouette at the bottom features skyscrapers and architectural shapes that appear almost shadow-like against the complex, grainy backdrop. The sky itself is dense with a stippling effect, adding depth and an aura of mystery to the composition. The methodical, diagonal arrangement of the spheres adds a dynamic, celestial dimension to the otherwise static skyline, hinting at themes of time and transformation. The interplay of light and dark, along with the tactile quality of the image, contributes to its abstract and surreal character.",
+    "tags": [
+      "#Surrealism",
+      "#Cityscape",
+      "#BlackAndWhite",
+      "#Celestial",
+      "#AbstractArt"
+    ],
+    "dateAdded": "2025-04-09T14:21:15.222728"
+  },
+  {
+    "id": "imgb3b82d96",
+    "src": "imgb3b82d96.jpg",
+    "path": "images/collages/imgb3b82d96.jpg",
+    "description": "The black and white image features a textured depiction of what appears to be a celestial body, likely the moon, set against a dark, grainy background. The moon's surface is detailed with a stippled texture, adding depth and realism. Surrounding the moon are a series of elliptical, concentric lines, suggesting orbital paths, which introduce a sense of movement and cosmic dynamism. The contrast between the dark background and the bright lines emphasizes the celestial themes, creating a striking visual composition reminiscent of vintage space illustrations or scientific diagrams.",
+    "tags": [
+      "#Celestial",
+      "#Minimalism",
+      "#SpaceArt",
+      "#VintageStyle",
+      "#Monochrome"
+    ],
+    "dateAdded": "2025-04-09T14:21:20.037523"
+  },
+  {
+    "id": "img89ae1cb5",
+    "src": "img89ae1cb5.jpg",
+    "path": "images/collages/img89ae1cb5.jpg",
+    "description": "The image is a black and white text-based work featuring the word \"CLOUD?\" in a bold, sans-serif font. The letters are evenly spaced, and their uniform thickness gives them a strong presence against the stark white background. The inclusion of the question mark adds an element of inquiry or surprise, provoking thought or prompting viewers to reconsider the typical associations with the word \"cloud.\" The simplicity of the composition creates a striking visual impact, emphasizing the text's meaning through minimalism. The texture of the text appears slightly grainy, suggesting it could have been printed or stamped manually, adding a tactile quality to the otherwise clean design.",
+    "tags": [
+      "minimalism",
+      "typography",
+      "contrast",
+      "question",
+      "texture"
+    ],
+    "dateAdded": "2025-04-09T14:21:26.180440"
+  },
+  {
+    "id": "img3da55198",
+    "src": "img3da55198.jpg",
+    "path": "images/collages/img3da55198.jpg",
+    "description": "The black and white collage image features an intricate combination of textures and contrasts. Dominating the lower section is the visible wing of an airplane, capturing details with a reflective surface that glistens against the light. The sky above is dramatic, filled with scattered clouds that appear dense and textured, creating a dynamic contrast with the darker, grainy expanse that surrounds them. The overall graininess of the photo enhances its vintage, film-like quality, adding layers of depth and nostalgia. The composition evokes a sense of movement and exploration, presenting an aerial perspective that leads the viewer\u2019s eye from the sleek lines of the wing to the expansive sky.",
+    "tags": [
+      "#Aviation",
+      "#Vintage",
+      "#Monochrome",
+      "#Cloudscape",
+      "#AerialView"
+    ],
+    "dateAdded": "2025-04-09T14:21:33.860892"
+  },
+  {
+    "id": "img310f4fbc",
+    "src": "img310f4fbc.jpg",
+    "path": "images/collages/img310f4fbc.jpg",
+    "description": "The image is a black and white collage featuring various phases of the moon. Each moon is highly stylized, with high contrast between the dark and light areas that accentuate the lunar surface's craters and textures. The moons are set against a nearly black background, enhancing the bright white details of the lunar surfaces. The composition creates a harmonious balance and rhythm, as the moons are distributed across the image, showcasing different phases in a visually engaging manner. The textures are rich and varied, with the graininess of the image giving it a raw, almost vintage feel, adding to its artistic appeal.",
+    "tags": [
+      "#MoonPhases",
+      "#BlackAndWhite",
+      "#LunarTexture",
+      "#CelestialArt",
+      "#VintageAstro"
+    ],
+    "dateAdded": "2025-04-09T14:21:40.598782"
+  },
+  {
+    "id": "img73c285c6",
+    "src": "img73c285c6.jpg",
+    "path": "images/collages/img73c285c6.jpg",
+    "description": "The image is a black and white photograph depicting a lunar surface. It features a rugged terrain dotted with numerous craters and a prominent impact crater at the center-right, surrounded by radiating patterns resembling ejecta. The surface texture is rough, with varying shades of gray highlighting the stark contrasts between the elevated crater rims and the shadowed depths. The overall composition creates a sense of depth and scale, emphasizing the barren, ancient landscape typical of celestial bodies like the moon.",
+    "tags": [
+      "lunar",
+      "craters",
+      "monochrome",
+      "texture",
+      "space"
+    ],
+    "dateAdded": "2025-04-09T14:21:46.550726"
+  },
+  {
+    "id": "img14837454",
+    "src": "img14837454.jpg",
+    "path": "images/collages/img14837454.jpg",
+    "description": "The image is a black and white collage featuring abstract patterns that resemble flowing, silky fabric. It has a soft, ethereal texture with light and shadow interplay, creating a sense of movement and fluidity. The use of grayscale adds depth, highlighting the subtle gradations and intricate details. Specks throughout the image evoke a starry, cosmic feel, adding to its mysterious and dreamy atmosphere.",
+    "tags": [
+      "Abstract",
+      "Monochrome",
+      "Texture",
+      "Ethereal",
+      "Cosmic"
+    ],
+    "dateAdded": "2025-04-09T14:21:53.008911"
+  },
+  {
+    "id": "imgfffd72f0",
+    "src": "imgfffd72f0.jpg",
+    "path": "images/collages/imgfffd72f0.jpg",
+    "description": "The image is a striking black and white collage that features a central black circle, resembling a solar eclipse or celestial body. The surrounding area is composed of textured gradients, creating a dramatic contrast between the central darkness and the lighter peripheral region. The gradients radiate outward from the circle, giving the impression of light or energy emanating from the central point. The texture is grainy, providing a vintage, photographic quality that enhances the cosmic theme of the piece. The simplicity of the composition, combined with the intricate texture, evokes a sense of mystery and intrigue.",
+    "tags": [
+      "Eclipse",
+      "Celestial",
+      "Monochrome",
+      "Abstract",
+      "Cosmic"
+    ],
+    "dateAdded": "2025-04-09T14:21:58.695268"
+  },
+  {
+    "id": "img5e82cc30",
+    "src": "img5e82cc30.jpg",
+    "path": "images/collages/img5e82cc30.jpg",
+    "description": "",
+    "tags": [],
+    "dateAdded": "2025-04-09T14:22:01.299451"
+  },
+  {
+    "id": "imga3b138cf",
+    "src": "imga3b138cf.jpg",
+    "path": "images/collages/imga3b138cf.jpg",
+    "description": "The black and white collage features a juxtaposition of a classical statue and a contemporary figure. The statue appears to be female, draped in cloth, with intricate detailing in the hair and robes that highlight its classical style. Next to it stands a figure wearing a floral-patterned outfit and a wide-brimmed hat, with her pose casual yet striking. The textural contrast between the smoothness of the statue and the pattern of the attire adds depth and intrigue. The image's grainy texture enhances its vintage and artistic feel, creating a seamless blend of past and present.",
+    "tags": [
+      "Collage",
+      "Surrealism",
+      "Vintage",
+      "Juxtaposition",
+      "Artistic"
+    ],
+    "dateAdded": "2025-04-09T14:22:10.865192"
+  },
+  {
+    "id": "img1c48439b",
+    "src": "img1c48439b.jpg",
+    "path": "images/collages/img1c48439b.jpg",
+    "description": "The image is a black and white collage consisting primarily of the bold text \"The Empire\" set against a textured background. The text has a strong, sans-serif typeface that conveys a modern and authoritative feel. The background has a grainy texture, resembling aged paper or a distressed surface, which adds a vintage or retro vibe to the composition. The contrast between the solid black letters and the speckled white background creates a striking visual effect, emphasizing the text as the focal point of the piece.",
+    "tags": [
+      "Typography",
+      "BlackAndWhite",
+      "Collage",
+      "Vintage",
+      "TextArt"
+    ],
+    "dateAdded": "2025-04-09T14:22:15.842989"
+  },
+  {
+    "id": "img7a05b9d0",
+    "src": "img7a05b9d0.jpg",
+    "path": "images/collages/img7a05b9d0.jpg",
+    "description": "The black and white collage features a surreal composition of a man sitting inside the open mouth of a large hippopotamus. The man is depicted in a simple, sketch-like style, with his arms wrapped around his knees in a contemplative pose. The hippo's mouth is wide open, showcasing detailed textures with meticulous cross-hatching to convey the skin's roughness and the dark interior of the mouth. The image juxtaposes the small, vulnerable human figure against the massive, powerful animal, creating a sense of irony and intrigue. The stark contrast in shading enhances the visual impact, adding depth to the scene.",
+    "tags": [
+      "surrealism",
+      "collage",
+      "black and white",
+      "juxtaposition",
+      "texture"
+    ],
+    "dateAdded": "2025-04-09T14:22:22.086912"
+  },
+  {
+    "id": "imgf4aaa0b0",
+    "src": "imgf4aaa0b0.jpg",
+    "path": "images/collages/imgf4aaa0b0.jpg",
+    "description": "The black and white collage depicts a classical ancient Greek-style amphora. The vase has a symmetrical structure with two handles on either side. The upper section features a decorative band with interlocking circular motifs, adding a sense of rhythm to the composition. Below it, an intricate frieze showcases figures and horses in silhouette, engaged in what appears to be a procession or a narrative scene, typical of ancient pottery art. The textures vary from fine, detailed patterns on the upper half to bolder, solid shapes in the lower frieze, creating a balance between complexity and simplicity. The use of black against a stark white background highlights the contrast and enhances the visual impact of the image.",
+    "tags": [
+      "Ancient Greek",
+      "Pottery",
+      "Black and White",
+      "Amphora",
+      "Classical Art"
+    ],
+    "dateAdded": "2025-04-09T14:22:27.929558"
+  },
+  {
+    "id": "img24fb1269",
+    "src": "img24fb1269.jpg",
+    "path": "images/collages/img24fb1269.jpg",
+    "description": "The black and white image depicts a dramatic landscape dominated by two jagged rock formations, possibly sandstone, set against a subtly textured sky. The larger formation on the left appears rugged and monumental, with visible shadows emphasizing its steep, uneven surface. The smaller, pointed formation on the right complements the scene with its sharp, angular shape. The foreground is covered with low vegetation, adding contrast and texture to the overall composition. The use of black and white enhances the graphic nature of the rock formations, highlighting their stark outlines and intricate details.",
+    "tags": [
+      "#landscape",
+      "#rockformations",
+      "#blackandwhite",
+      "#textured",
+      "#dramatic"
+    ],
+    "dateAdded": "2025-04-09T14:22:34.275794"
+  },
+  {
+    "id": "imgfb3af322",
+    "src": "imgfb3af322.jpg",
+    "path": "images/collages/imgfb3af322.jpg",
+    "description": "The image is a black and white photograph featuring a bighorn sheep in motion. The background and foreground are textured with a grainy, speckled effect that adds depth and intensity to the scene. The sheep's silhouette is bold and dynamic, with its distinctive curled horns prominently displayed. The contrast between the dark figure of the sheep and the lighter background is stark, creating an eye-catching focal point. The blurred motion of the image suggests movement and speed, adding a sense of liveliness to the composition. The overall mood is raw and rugged, capturing the essence of wildlife in an artistic manner.",
+    "tags": [
+      "Wildlife",
+      "Motion",
+      "Grainy",
+      "Black and White",
+      "Nature"
+    ],
+    "dateAdded": "2025-04-09T14:22:41.128896"
+  },
+  {
+    "id": "img45ba4d6a",
+    "src": "img45ba4d6a.jpg",
+    "path": "images/collages/img45ba4d6a.jpg",
+    "description": "The image is a high-contrast black and white photograph of a ram in motion, captured with a grainy texture that gives it a vintage or abstract feel. The composition is dynamic, showcasing the ram mid-stride, emphasizing movement and energy. The heavy use of grain creates a textured, almost pointillistic effect, making the ram appear as though it's part of a fading memory or dream. The blurred background adds to the sense of speed, while the sharp contrast highlights the form of the animal against lighter and darker areas. The lighting creates dramatic shadows, adding depth and intensity to the image.",
+    "tags": [
+      "Animal",
+      "Motion",
+      "Abstract",
+      "Grainy",
+      "Vintage"
+    ],
+    "dateAdded": "2025-04-09T14:22:45.949431"
+  },
+  {
+    "id": "imgc3a71161",
+    "src": "imgc3a71161.jpg",
+    "path": "images/collages/imgc3a71161.jpg",
+    "description": "The black and white collage features a figure, likely a woman, dressed in a form-fitting black bodysuit. She is positioned in profile, standing on one leg while the other is raised parallel to the ground, showcasing a dynamic ballet or yoga pose. Her right hand rests on her hip, emphasizing the grace and balance of the pose. Behind her is a chair, suggesting support and adding depth to the composition. The high contrast between the black attire and the white background highlights the intricate silhouette of the figure and adds a minimalist aesthetic. The texture appears smooth, and the focus is on the interplay of light and shadow, which accentuates the form and composition.",
+    "tags": [
+      "Minimalism",
+      "Dance",
+      "Balance",
+      "Monochrome",
+      "Movement"
+    ],
+    "dateAdded": "2025-04-09T14:22:51.683558"
+  },
+  {
+    "id": "img56e0988d",
+    "src": "img56e0988d.jpg",
+    "path": "images/collages/img56e0988d.jpg",
+    "description": "The image is a black and white photograph of a person in a bent-over position, touching the ground. The subject is wearing a form-fitting, likely leotard-style outfit that accentuates their form against a light background, creating a strong contrast. The textures in the image are highlighted by the graininess typical of high-contrast or vintage photographic film, adding an artistic, textured quality. The image combines elements of fashion, form, and movement, emphasizing the silhouettes and lines created by the pose and attire.",
+    "tags": [
+      "monochrome",
+      "fashion",
+      "silhouette",
+      "vintage",
+      "photography"
+    ],
+    "dateAdded": "2025-04-09T14:22:57.521501"
+  },
+  {
+    "id": "img5a33430a",
+    "src": "img5a33430a.jpg",
+    "path": "images/collages/img5a33430a.jpg",
+    "description": "This black and white image features a vintage style portrait of a woman in a seated pose, wearing a form-fitting black outfit. The background is textured with a subtle grid pattern, adding depth and contrast to the image. The woman's hair is styled in a voluminous, classic manner, drawing attention to her poised expression. She is pulling a white fabric or towel with her feet, adding a dynamic element to the composition. The use of monochrome emphasizes the textures and contrasts within the image, highlighting the interplay between light and shadow.",
+    "tags": [
+      "Vintage",
+      "Portrait",
+      "BlackAndWhite",
+      "Texture",
+      "DynamicPose"
+    ],
+    "dateAdded": "2025-04-09T14:23:04.589811"
+  },
+  {
+    "id": "imgdbb8cc92",
+    "src": "imgdbb8cc92.jpg",
+    "path": "images/collages/imgdbb8cc92.jpg",
+    "description": "The black and white image depicts a woman standing in a poised, symmetrical position with her hands on her hips. She is dressed in a solid black outfit that consists of a long-sleeved top and fitted pants, which contrast sharply against the light background. Her hairstyle is neat and volumetric, adding a sense of balance to her slender figure. The minimalistic background and lack of other elements focus attention entirely on the subject. The texture of the image is smooth, with a slight graininess typical of vintage photography, adding depth and a retro feel to the overall composition. The lighting is even, highlighting the contours of her form.",
+    "tags": [
+      "Vintage",
+      "Portrait",
+      "BlackandWhite",
+      "Minimalism",
+      "Poise"
+    ],
+    "dateAdded": "2025-04-09T14:23:10.423914"
+  },
+  {
+    "id": "img410d77b4",
+    "src": "img410d77b4.jpg",
+    "path": "images/collages/img410d77b4.jpg",
+    "description": "The black and white collage features a symmetrical arrangement of dots that create a visually arresting pattern. The dots vary in size, with larger ones interspersed among smaller ones, forming concentric circles radiating out from the center. The central point is a blank circle, providing a focal point in the composition. The background has a subtle texture, adding depth and contrast to the crisp, sharp edges of the dots. The overall effect is reminiscent of a mandala or an abstract representation of a crystal lattice, invoking a sense of order and intricacy.",
+    "tags": [
+      "Abstract",
+      "Symmetry",
+      "Mandala",
+      "Geometric",
+      "Monochrome"
+    ],
+    "dateAdded": "2025-04-09T14:23:17.018156"
+  },
+  {
+    "id": "imgea417d2f",
+    "src": "imgea417d2f.jpg",
+    "path": "images/collages/imgea417d2f.jpg",
+    "description": "The image is a black and white collage that prominently features a dynamic, lightning-like pattern running vertically through the center. This pattern is formed by a textured application of white material against a dark, grainy black background. The contrast is stark, creating an impression of energy and movement. The white lines have an organic, jagged appearance, suggesting the raw power of a natural element such as lightning or a crack in a surface. The overall texture is gritty, with the white areas appearing almost like a powdered substance dispersed across the canvas. The composition\u2019s high contrast and abstract nature emphasize drama and intensity.",
+    "tags": [
+      "#AbstractArt",
+      "#BlackAndWhite",
+      "#LightningPattern",
+      "#HighContrast",
+      "#TexturedCollage"
+    ],
+    "dateAdded": "2025-04-09T14:23:25.919076"
+  },
+  {
+    "id": "imga7e700b0",
+    "src": "imga7e700b0.jpg",
+    "path": "images/collages/imga7e700b0.jpg",
+    "description": "",
+    "tags": [],
+    "dateAdded": "2025-04-09T14:23:29.061468"
+  },
+  {
+    "id": "imgd21fef89",
+    "src": "imgd21fef89.jpg",
+    "path": "images/collages/imgd21fef89.jpg",
+    "description": "The image features a detailed black and white illustration of an owl, showcasing its striking features with high contrast. The owl's eyes are large and expressive, conveying a sense of wisdom and watchfulness. The intricate feather patterns are crisply defined with varying textures, creating a dynamic interplay of light and shadow across the image. The use of black and white emphasizes the owl's commanding presence and the texture of its feathers, giving the piece a classic and timeless quality.",
+    "tags": [
+      "#OwlArt",
+      "#BlackAndWhite",
+      "#Illustration",
+      "#Texture",
+      "#WildlifeArt"
+    ],
+    "dateAdded": "2025-04-09T14:23:39.098690"
+  },
+  {
+    "id": "imgf944368f",
+    "src": "imgf944368f.jpg",
+    "path": "images/collages/imgf944368f.jpg",
+    "description": "The image is a black and white collage featuring a woman's face with a blindfold covering her eyes. The collage employs a halftone effect, giving the image a textured, grainy appearance reminiscent of vintage print media. The woman's expression is a smiling one, contrasting with the blindfold, which could symbolize themes of ignorance or hidden truths. The background is lightly textured, adding depth without distracting from the central figure. The overall composition balances ambiguity and humor, inviting interpretation.",
+    "tags": [
+      "#CollageArt",
+      "#Halftone",
+      "#Blindfold",
+      "#Retro",
+      "#Surrealism"
+    ],
+    "dateAdded": "2025-04-09T14:23:44.932843"
+  },
+  {
+    "id": "imgbe6a4eed",
+    "src": "imgbe6a4eed.jpg",
+    "path": "images/collages/imgbe6a4eed.jpg",
+    "description": "The image is a black and white collage featuring a halftone texture, which creates a vintage and graphic novel aesthetic. At the center, a silhouetted cable car is suspended on a diagonal cable against a backdrop of abstract shapes resembling clouds, formed by varying dot densities. The composition highlights contrast between the solid black silhouette and the dotted textures, adding depth and dimension, while the diagonal lines offer dynamic movement. The overall effect is one of nostalgia, abstraction, and whimsicality.",
+    "tags": [
+      "#Halftone",
+      "#Silhouette",
+      "#Vintage",
+      "#Abstract",
+      "#CableCar"
+    ],
+    "dateAdded": "2025-04-09T14:23:52.195749"
+  },
+  {
+    "id": "imga05ebf10",
+    "src": "imga05ebf10.jpg",
+    "path": "images/collages/imga05ebf10.jpg",
+    "description": "The image is a black and white close-up of a vintage camera with a trio of lenses prominently displayed. The camera body has a textured, grainy appearance, suggestive of its age and possibly a metallic or plastic finish. The lenses are arranged in a rotary fashion, and each one features detailed engravings around their rings, indicating settings or specifications. There is a dial prominently displayed beneath the lenses with the words \"SUBJECT\" and options for \"DARK,\" \"AVERAGE,\" and \"LIGHT,\" suggesting exposure settings. The background is slightly blurred, focusing attention on the camera's intricate design and mechanical details. The image's high contrast between light and dark areas adds depth and drama to the composition.",
+    "tags": [
+      "vintage",
+      "camera",
+      "retro",
+      "technology",
+      "photography"
+    ],
+    "dateAdded": "2025-04-09T14:23:59.885345"
+  },
+  {
+    "id": "img90e51067",
+    "src": "img90e51067.jpg",
+    "path": "images/collages/img90e51067.jpg",
+    "description": "The black and white collage features a stark contrast between light and shadow, with a prominent silhouetted arm and hand reaching upwards. The texture of the background is gritty, with visible scratches and marks, adding a raw, urban feel. Vertical and horizontal lines, reminiscent of crosses, are scattered across the backdrop, creating a sense of depth and intrigue. The composition is minimalistic yet striking, with the diagonal orientation of the arm adding dynamic movement and tension to the scene.",
+    "tags": [
+      "monochrome",
+      "silhouette",
+      "abstract",
+      "urban",
+      "minimalism"
+    ],
+    "dateAdded": "2025-04-09T14:24:06.643302"
+  },
+  {
+    "id": "img3f538225",
+    "src": "img3f538225.jpg",
+    "path": "images/collages/img3f538225.jpg",
+    "description": "The image is a black and white collage that features a circular shape, resembling a petri dish, against a textured, dark background. Inside the circle, abstract, biomorphic forms are captured, resembling microscopic organisms or cells. The texture is grainy, with a high contrast that emphasizes the white shapes against the dark backdrop. The forms exhibit a sense of motion and fluidity, lending an organic quality to the composition. The overall aesthetic is reminiscent of scientific imagery, combining elements of abstraction and realism.",
+    "tags": [
+      "#AbstractArt",
+      "#BlackAndWhite",
+      "#ScientificImagery",
+      "#Microbiology",
+      "#OrganicForms"
+    ],
+    "dateAdded": "2025-04-09T14:24:12.437141"
+  },
+  {
+    "id": "img865be7a6",
+    "src": "img865be7a6.jpg",
+    "path": "images/collages/img865be7a6.jpg",
+    "description": "The black and white image appears to be an abstract representation reminiscent of a planetary body with banded textures. The composition consists of a circular form dominating the center, filled with horizontal stripes that suggest atmospheric bands. The use of a grainy texture adds a vintage or aged effect, enhancing the impression of an astronomical photograph. The stark contrast between the dark background and the lighter, textured area creates depth and emphasis on the central figure. This collage invokes a sense of mystery and exploration, characteristic of space imagery.",
+    "tags": [
+      "#Abstract",
+      "#Planetary",
+      "#BlackAndWhite",
+      "#GrainyTexture",
+      "#SpaceArt"
+    ],
+    "dateAdded": "2025-04-09T14:24:18.671977"
+  },
+  {
+    "id": "img14467ab8",
+    "src": "img14467ab8.jpg",
+    "path": "images/collages/img14467ab8.jpg",
+    "description": "The black and white collage features a striking image of a large, ethereal, translucent form floating against a stark sky. The central shape resembles a ghostly, elongated jellyfish with delicate, flowing lines that suggest movement and fluidity. The background offers a subtle gradient, transitioning from lighter shades at the horizon to a darker, textured sky. The lower portion of the image is marked by a dark silhouette of a flat landscape, adding contrast and grounding the composition. The image as a whole evokes a sense of surrealism, mystery, and otherworldliness.",
+    "tags": [
+      "surrealism",
+      "ethereal",
+      "monochrome",
+      "fluidity",
+      "mystery"
+    ],
+    "dateAdded": "2025-04-09T14:24:30.299636"
+  },
+  {
+    "id": "img578690d9",
+    "src": "img578690d9.jpg",
+    "path": "images/collages/img578690d9.jpg",
+    "description": "This black and white image features a grainy texture that suggests a layered visual depth, making it appear both abstract and reminiscent of a landscape. The composition includes contrasting areas of light and dark, evoking a sense of movement and tension. The top half has a speckled, textured sky-like appearance, while the bottom half is defined by horizontal lines, akin to a terrain or seascape. The interplay of shadows and highlights creates a dramatic, almost cinematic atmosphere.",
+    "tags": [
+      "Abstract",
+      "Grainy",
+      "Texture",
+      "Landscape",
+      "Monochrome"
+    ],
+    "dateAdded": "2025-04-09T14:24:35.438243"
+  },
+  {
+    "id": "imga0e25c68",
+    "src": "imga0e25c68.jpg",
+    "path": "images/collages/imga0e25c68.jpg",
+    "description": "The image is a black and white collage featuring a dynamic interplay of geometric shapes and lines against a textured background. At the center is a large, shaded sphere, suggesting depth through its gradient. Radiating from this sphere are several curving lines, varying in thickness, creating a sense of motion and flow. These lines exhibit a mathematical precision, reminiscent of scientific or astronomical diagrams. The labels \"PARABOLA,\" \"IPERBOLI,\" and \"ELLISSI\" indicate different types of curves, adding an educational element. The texture is slightly grainy, enhancing the vintage and scientific feel of the piece.",
+    "tags": [
+      "Geometry",
+      "Science",
+      "Abstract",
+      "Mathematics",
+      "Vintage"
+    ],
+    "dateAdded": "2025-04-09T14:24:43.198665"
+  },
+  {
+    "id": "img54df4e3f",
+    "src": "img54df4e3f.jpg",
+    "path": "images/collages/img54df4e3f.jpg",
+    "description": "The image is a black and white collage featuring a silhouette of a large bird, likely a heron or crane, in mid-flight. The bird's wings are extended upwards, showcasing their full span with intricate feather details. The overall texture of the image is grainy, adding a vintage or classic photographic feel. The stark contrast between the dark figure of the bird and the light background emphasizes its graceful shape and lines. Below the bird, the rough silhouettes of trees or bushes are visible, contributing to the image's naturalistic theme and depth.",
+    "tags": [
+      "#Silhouette",
+      "#BirdInFlight",
+      "#Monochrome",
+      "#NatureArt",
+      "#VintagePhotography"
+    ],
+    "dateAdded": "2025-04-09T14:24:49.868555"
+  },
+  {
+    "id": "imgaf944f10",
+    "src": "imgaf944f10.jpg",
+    "path": "images/collages/imgaf944f10.jpg",
+    "description": "The image is a black and white collage featuring the back view of a woman's head and shoulders. Her hair is styled in a neat bun, composed of intricate swirls and textures giving a sense of grace and elegance. The texture of the image appears grainy, with a vintage or retro photographic quality. Superimposed onto this backdrop are elements resembling puncture marks or nail heads on the neck and upper back, adding a surreal, slightly unsettling dimension to the composition. The contrast between the soft, smooth lines of the woman's figure and the stark, abstract additions creates an intriguing tension.",
+    "tags": [
+      "surrealism",
+      "collage",
+      "vintage",
+      "texture",
+      "abstract"
+    ],
+    "dateAdded": "2025-04-09T14:24:54.769648"
+  },
+  {
+    "id": "img98be0e7c",
+    "src": "img98be0e7c.jpg",
+    "path": "images/collages/img98be0e7c.jpg",
+    "description": "The image features a collage composed of a black and white photograph of a woman's upper face, focusing on her eyes and forehead. Her short hair is styled neatly back. A bold, black geometric symbol consisting of a dot and an inverted triangle is strategically placed at the center of her forehead, adding a surreal and symbolic element to the composition. The image has a textured appearance, resembling newsprint paper, with visible graininess and a slightly uneven surface, contributing to its vintage and artistic quality. The stark contrast between the grayscale tones and the sharp symbol enhances the dramatic effect and invites various interpretations.",
+    "tags": [
+      "#CollageArt",
+      "#Surrealism",
+      "#BlackAndWhite",
+      "#Symbolism",
+      "#TexturedPortrait"
+    ],
+    "dateAdded": "2025-04-09T14:25:01.734857"
+  },
+  {
+    "id": "imge9b0f28c",
+    "src": "imge9b0f28c.jpg",
+    "path": "images/collages/imge9b0f28c.jpg",
+    "description": "The image depicts a black and white collage featuring an intricately designed rectangular serving tray. The tray showcases an ornate border with detailed embellishments, including elegant scrollwork and floral motifs on the handles. The surface of the tray appears worn, with visible scratches and a textured patina, suggesting a sense of age and history. The high contrast between the dark shadows and bright highlights accentuates the intricate details and textures, giving the piece an antique and vintage feel. The artistic composition focuses on symmetry and balance, drawing attention to the tray's elaborate design and craftsmanship.",
+    "tags": [
+      "antique",
+      "vintage",
+      "ornate",
+      "texture",
+      "symmetrical"
+    ],
+    "dateAdded": "2025-04-09T14:25:06.939310"
+  },
+  {
+    "id": "img24cdc170",
+    "src": "img24cdc170.jpg",
+    "path": "images/collages/img24cdc170.jpg",
+    "description": "The image is a black and white representation of a textured, patterned object resembling a decorative plate or dish. Its surface is characterized by a central oval medallion with intricate geometric designs, indicating a focal point. Radiating outward, the pattern consists of a series of finely detailed, repetitive linear and circular motifs creating a sense of movement and depth. Surrounding the central texture is a border of evenly spaced, elongated oval cutouts, giving the piece a lace-like edge. The high contrast of black and white enhances the intricate details, emphasizing the shadows and highlights. The overall aesthetic suggests a blend of delicate craftsmanship with an industrial feel due to its symmetrical, precise design.",
+    "tags": [
+      "#GeometricPattern",
+      "#Monochrome",
+      "#IntricateDesign",
+      "#TexturedArt",
+      "#DecorativeObject"
+    ],
+    "dateAdded": "2025-04-09T14:25:17.643353"
+  },
+  {
+    "id": "imgb25f761d",
+    "src": "imgb25f761d.jpg",
+    "path": "images/collages/imgb25f761d.jpg",
+    "description": "The image is a black and white collage featuring two silhouetted bottles against a light background. The bottle on the left is more ornate, with a curvaceous shape and a pointed stopper. Its design suggests elegance, and its silhouette forms a classic outline reminiscent of vintage perfume bottles. The bottle on the right has a simpler, rectangular structure with a rounded stopper. The contrast between the two shapes highlights the elegance and simplicity of their forms. The texture appears smooth, with the glossy surface of the bottles reflecting minimal light. The use of black and white enhances the stark contrast and timeless quality of the composition.",
+    "tags": [
+      "Silhouette",
+      "Contrast",
+      "Vintage",
+      "Minimalism",
+      "Elegance"
+    ],
+    "dateAdded": "2025-04-09T14:25:23.947394"
+  },
+  {
+    "id": "img0eb0fa12",
+    "src": "img0eb0fa12.jpg",
+    "path": "images/collages/img0eb0fa12.jpg",
+    "description": "The image is a black and white close-up collage focusing on the eye and surrounding features of a stylized face. The composition showcases detailed line work, particularly in the hair and eyelashes, creating a sense of movement and texture. The hair is illustrated with flowing, precise lines that convey a vintage or retro aesthetic. The eye is the central element, drawing attention with its bold, inky outline and detailed shading. The image overall has a grainy, textured appearance that adds to its classic and nostalgic feel, reminiscent of print media from a bygone era. The use of stark black and white contrasts emphasizes the dramatic expression captured in this fragment.",
+    "tags": [
+      "#Vintage",
+      "#Collage",
+      "#BlackAndWhite",
+      "#Retro",
+      "#Illustration"
+    ],
+    "dateAdded": "2025-04-09T14:25:30.529355"
+  },
+  {
+    "id": "imgffbc438c",
+    "src": "imgffbc438c.jpg",
+    "path": "images/collages/imgffbc438c.jpg",
+    "description": "The image is a black and white close-up collage focusing on a person's eyes and part of their face. The eyes contain intricate details with expressive eyelashes, and the eyebrows are elegantly arched. The texture of the collage appears worn and slightly grainy, giving it a vintage feel. The hat with a leopard print pattern adds a bold contrast to the softness of the face, introducing a dynamic element to the composition. The interplay between the smooth textures of the skin and the rough texture of the leopard print creates a striking visual juxtaposition.",
+    "tags": [
+      "Vintage",
+      "Collage",
+      "Texture",
+      "Leopard Print",
+      "Black and White"
+    ],
+    "dateAdded": "2025-04-09T14:25:35.836718"
+  },
+  {
+    "id": "img01c8612c",
+    "src": "img01c8612c.jpg",
+    "path": "images/collages/img01c8612c.jpg",
+    "description": "The image is a detailed black and white halftone illustration of a woman's face. The composition focuses closely on the eyes, nose, and mouth, capturing a classic and timeless beauty. The texture is defined by intricate dot patterns and fine lines, typical of halftone techniques, which create depth and shading. The lines curve elegantly around the facial features, enhancing the expression with a sense of grace and sophistication. The overall effect combines a vintage aesthetic with a modern appreciation of detail and texture.",
+    "tags": [
+      "Halftone",
+      "Portrait",
+      "Vintage",
+      "Illustration",
+      "Texture"
+    ],
+    "dateAdded": "2025-04-09T14:25:42.695994"
+  },
+  {
+    "id": "imgef2a507a",
+    "src": "imgef2a507a.jpg",
+    "path": "images/collages/imgef2a507a.jpg",
+    "description": "The black and white collage features a close-up of four distinct mineral or crystal formations, each numbered for identification. The textures range from smooth and layered to rough and granular. The number 20 shows a rock with flowing, smooth layers, giving it a sense of movement. Number 21 has a geometric, cubical crystal structure set against a contrasting ridged background. Number 25 features prominent horizontal striations, resembling sedimentary layers. Number 26 displays a chaotic cluster of long, slender crystals emanating from a core. The overall composition highlights the diversity in natural textures and forms, with a high contrast between the light and dark areas enhancing the details and depth.",
+    "tags": [
+      "minerals",
+      "textures",
+      "crystals",
+      "geology",
+      "blackandwhite"
+    ],
+    "dateAdded": "2025-04-09T14:25:49.658312"
+  },
+  {
+    "id": "img02cb3331",
+    "src": "img02cb3331.jpg",
+    "path": "images/collages/img02cb3331.jpg",
+    "description": "The black and white collage features a collection of carved gemstones, each uniquely shaped and numbered. The stones exhibit various cuts, including round, oval, and rectangular, each with intricately faceted surfaces that create a sense of depth and dimension. The textures range from smooth, polished surfaces to more rugged, detailed engravings, enhancing the visual complexity. The stones are arranged symmetrically, creating a pleasing composition. The monochrome palette emphasizes the contrast between light and shadow, highlighting the intricacies in the carvings and cuts.",
+    "tags": [
+      "#gemstones",
+      "#blackandwhite",
+      "#collage",
+      "#faceted",
+      "#artisticcarving"
+    ],
+    "dateAdded": "2025-04-09T14:25:56.004887"
+  },
+  {
+    "id": "imgd74984ad",
+    "src": "imgd74984ad.jpg",
+    "path": "images/collages/imgd74984ad.jpg",
+    "description": "The image is a black and white illustration featuring two distinct shell forms, numbered 16 and 17. The shell on the left, number 16, is elongated with a textured surface that appears dotted and wavy, giving it a natural, organic pattern. The shell on the right, number 17, is tall and spiral with a tightly wound, coiled structure. The contrast between the two shells is emphasized by the shading and use of light and dark tones, highlighting their unique textures and forms. Both shells are set against a plain white background, which accentuates their detailed appearance. The artistic elements include intricate line work and stippling to convey texture and depth.",
+    "tags": [
+      "#shells",
+      "#blackandwhite",
+      "#illustration",
+      "#texture",
+      "#nature"
+    ],
+    "dateAdded": "2025-04-09T14:26:02.555395"
+  },
+  {
+    "id": "img6c1ab4f1",
+    "src": "img6c1ab4f1.jpg",
+    "path": "images/collages/img6c1ab4f1.jpg",
+    "description": "The image depicts a black and white photograph of a single, smooth stone with an oval shape. The stone features natural lines and striations, giving it a layered, textured appearance. The surface is smooth with areas of varied shading, highlighting its contours and imperfections. It's set against a stark white background, enhancing the contrast and making the stone stand out as the focal point. The simplicity of the composition, combined with the natural details of the stone, creates an expressive and minimalistic artwork.",
+    "tags": [
+      "Minimalism",
+      "BlackAndWhite",
+      "Nature",
+      "Texture",
+      "Simplicity"
+    ],
+    "dateAdded": "2025-04-09T14:26:07.066373"
+  },
+  {
+    "id": "img92edcd7a",
+    "src": "img92edcd7a.jpg",
+    "path": "images/collages/img92edcd7a.jpg",
+    "description": "The image features a simple, oval-shaped stone or object in grayscale, set against a stark white background. The surface of the object is smooth yet textured, with visible natural patterns and imperfections, such as small indents and darker streaks running vertically. The lighting highlights these grooves and gives the object a slightly three-dimensional appearance. The overall composition is minimalistic, focusing on the organic texture and form of the stone.",
+    "tags": [
+      "#Minimalism",
+      "#Texture",
+      "#Monochrome",
+      "#OrganicForm",
+      "#AbstractArt"
+    ],
+    "dateAdded": "2025-04-09T14:26:12.429665"
+  },
+  {
+    "id": "imga129f4ea",
+    "src": "imga129f4ea.jpg",
+    "path": "images/collages/imga129f4ea.jpg",
+    "description": "The image features a single black and white pebble, centered against a plain white background. The pebble showcases a smooth, oval shape with a polished surface, exhibiting a range of gray tones. Subtle white veins run across the surface, adding intricate textures and visual interest. The shadow cast by the pebble adds depth, enhancing its three-dimensional appearance. The simplicity and contrast in the composition highlight the natural beauty and detail of the stone.",
+    "tags": [
+      "Minimalism",
+      "Monochrome",
+      "Texture",
+      "Nature",
+      "Simplicity"
+    ],
+    "dateAdded": "2025-04-09T14:26:17.632665"
+  },
+  {
+    "id": "imgc87d22ef",
+    "src": "imgc87d22ef.jpg",
+    "path": "images/collages/imgc87d22ef.jpg",
+    "description": "The image depicts a black and white photograph of a single, smooth stone with an organic, triangular shape. The surface of the stone features a distinct pattern that resembles a series of irregular, darker patches creating a natural, abstract design. The stone is placed against a plain, white background, creating a strong contrast that highlights its textures and patterns. The lighting is soft, casting a faint shadow on one side and emphasizing the stone\u2019s subtle, polished texture. This minimalist composition focuses on the beauty of natural forms and textures, with the monochromatic palette enhancing the visual impact of the stone\u2019s details.",
+    "tags": [
+      "#Monochrome",
+      "#Minimalism",
+      "#NaturalTextures",
+      "#AbstractPatterns",
+      "#StoneArt"
+    ],
+    "dateAdded": "2025-04-09T14:26:28.058693"
+  },
+  {
+    "id": "imgb351076c",
+    "src": "imgb351076c.jpg",
+    "path": "images/collages/imgb351076c.jpg",
+    "description": "The image is a close-up photograph of a smooth, oval-shaped stone set against a plain white background. The stone exhibits a variety of textures, with areas of light and dark contrasts that create an almost marbled effect. The darker patterns resemble natural veins or mineral deposits, adding depth and interest to its surface. Its polished exterior hints at a glossy finish, reflecting light subtly and enhancing the visual dynamics of the stone. The simplicity of the composition, with the stone centered and the background clear and uncluttered, directs the viewer's focus entirely onto the unique characteristics of the stone.",
+    "tags": [
+      "stone",
+      "texture",
+      "monochrome",
+      "nature",
+      "minimalism"
+    ],
+    "dateAdded": "2025-04-09T14:26:32.359977"
+  },
+  {
+    "id": "img6bd58bcb",
+    "src": "img6bd58bcb.jpg",
+    "path": "images/collages/img6bd58bcb.jpg",
+    "description": "The image features a black and white photograph of a single stone with a smooth, oval shape. The stone's surface has a mix of light and dark patches, showcasing its natural marbled texture. The variations in shading create an organic, flowing pattern that adds depth and interest. The monochrome color palette emphasizes the stone's textures and highlights the intricate details. The stark contrast against the plain white background draws attention to the stone\u2019s inherent beauty and organic form.",
+    "tags": [
+      "stone",
+      "texture",
+      "monochrome",
+      "nature",
+      "minimalism"
+    ],
+    "dateAdded": "2025-04-09T14:26:36.963490"
+  },
+  {
+    "id": "img662d4572",
+    "src": "img662d4572.jpg",
+    "path": "images/collages/img662d4572.jpg",
+    "description": "The image features a single black and white stone or pebble set against a stark white background. The irregularly shaped object is roughly heart-shaped with a predominantly dark surface, interspersed with irregular white patches, creating a visually striking contrast. The texture appears rough and uneven, suggesting a natural, perhaps weathered surface. The minimalist composition highlights the pebble's unique patterns and organic form, evoking a sense of simplicity and focus on the natural world.",
+    "tags": [
+      "#Minimalism",
+      "#BlackAndWhite",
+      "#Nature",
+      "#Texture",
+      "#Contrast"
+    ],
+    "dateAdded": "2025-04-09T14:26:43.105860"
+  },
+  {
+    "id": "imge886d3e0",
+    "src": "imge886d3e0.jpg",
+    "path": "images/collages/imge886d3e0.jpg",
+    "description": "The image is a black and white photograph of a single stone, smooth and oval in shape. The stone's surface shows natural textures with dark, intricate lines and speckles that create a marbled effect. The lighting is soft, highlighting the stone's smooth surface and subtle gradations in shading. The contrast between the stone's darker lines and lighter background adds depth, making the stone stand out prominently against the plain, light background. The composition is minimalist yet detailed, focusing solely on the stone's natural beauty and texture.",
+    "tags": [
+      "#Minimalism",
+      "#Texture",
+      "#Monochrome",
+      "#Nature",
+      "#Simplicity"
+    ],
+    "dateAdded": "2025-04-09T14:26:48.220855"
+  },
+  {
+    "id": "img325bfa8a",
+    "src": "img325bfa8a.jpg",
+    "path": "images/collages/img325bfa8a.jpg",
+    "description": "",
+    "tags": [],
+    "dateAdded": "2025-04-09T14:26:50.648908"
+  },
+  {
+    "id": "img94a51469",
+    "src": "img94a51469.jpg",
+    "path": "images/collages/img94a51469.jpg",
+    "description": "The image is a high-contrast black and white photograph of a single, smooth stone placed against a plain white background. The stone's surface exhibits a mixture of marbled textures with varying shades of gray, creating a sense of depth and dimension. Its irregular oval shape and polished surface suggest a natural origin, enhancing the organic feel of the composition. The simplicity of the background makes the stone the focal point, emphasizing its detailed texture and subtle patterns.",
+    "tags": [
+      "minimalism",
+      "stone",
+      "black and white",
+      "texture",
+      "nature"
+    ],
+    "dateAdded": "2025-04-09T14:26:55.096228"
+  },
+  {
+    "id": "img74257e01",
+    "src": "img74257e01.jpg",
+    "path": "images/collages/img74257e01.jpg",
+    "description": "The image features a smooth, oval-shaped stone with intricate veining patterns, creating a fascinating play of lines and textures. The stone, placed against a stark white background, appears to be slightly translucent with natural, organic lines running across its surface. The lack of color emphasizes the stone\u2019s subtle gradients and shadows, giving it a pure and serene appearance. The composition is minimalistic, highlighting the stone as the sole focus, allowing the viewer to appreciate its natural beauty and details.",
+    "tags": [
+      "stone",
+      "minimalism",
+      "black and white",
+      "texture",
+      "nature"
+    ],
+    "dateAdded": "2025-04-09T14:26:59.289013"
+  },
+  {
+    "id": "img5c0ac296",
+    "src": "img5c0ac296.jpg",
+    "path": "images/collages/img5c0ac296.jpg",
+    "description": "The image features a single pebble, artistically captured in black and white. It has an organic, rounded shape, and its surface is embedded with intricate, dark patterns reminiscent of abstract art or natural rock formations. The play of light and shadow highlights its textured surface, giving it a tactile, almost three-dimensional quality. The smooth, polished exterior contrasts with the irregular, branching lines that stretch across the stone, creating a sense of depth and movement. The simple white background accentuates the pebble, drawing attention to its natural artistry and the subtle variations in its texture.",
+    "tags": [
+      "Pebble",
+      "Abstract",
+      "Texture",
+      "Monochrome",
+      "Nature Art"
+    ],
+    "dateAdded": "2025-04-09T14:27:04.882379"
+  },
+  {
+    "id": "imgc6a9dd92",
+    "src": "imgc6a9dd92.jpg",
+    "path": "images/collages/imgc6a9dd92.jpg",
+    "description": "The image is a black and white photo of a single textured rock set against a white background. The rock has an irregular, rounded shape with a surface that features dark streaks and scattered small holes, creating an organic and intricate pattern. The grayscale palette enhances the tactile quality of the rock, highlighting the contrast between its shadows and lighter areas. The simplicity of the composition draws attention to the natural beauty and details of the stone, emphasizing its earthy texture and irregular form.",
+    "tags": [
+      "Rock",
+      "Texture",
+      "Black and White",
+      "Nature",
+      "Minimalism"
+    ],
+    "dateAdded": "2025-04-09T14:27:09.292858"
+  },
+  {
+    "id": "imgaa326c03",
+    "src": "imgaa326c03.jpg",
+    "path": "images/collages/imgaa326c03.jpg",
+    "description": "The image features a black and white collage centered around a single rounded stone or pebble. The stone is textured with intricate patterns, ranging from light grays to deep blacks, creating a marbled effect that suggests depth and dimension. The high contrast highlights the rough, uneven surface of the stone, while the smooth background amplifies its organic shape. The overall composition is minimalist, drawing attention to the stone's natural beauty and the interplay of shadows and light.",
+    "tags": [
+      "Minimalism",
+      "Texture",
+      "Monochrome",
+      "Nature",
+      "Stone"
+    ],
+    "dateAdded": "2025-04-09T14:27:13.823907"
+  },
+  {
+    "id": "img14af5558",
+    "src": "img14af5558.jpg",
+    "path": "images/collages/img14af5558.jpg",
+    "description": "The image features a black and white depiction of a smooth, oval-shaped stone. The stone exhibits a variety of textures, with areas of darker and lighter shades creating an impression of depth and dimension. Its surface is marked by irregular striations that appear to be naturally occurring, adding a tactile element to the visual experience. The stone's form is slightly asymmetrical, offering a sense of organic imperfection. The high contrast in the image accentuates the stone's surface details, offering a stark relief against the plain white background. This minimalist composition emphasizes the object\u2019s natural beauty and simplicity.",
+    "tags": [
+      "Stone",
+      "Texture",
+      "Monochrome",
+      "Minimalism",
+      "Nature"
+    ],
+    "dateAdded": "2025-04-09T14:27:20.414371"
+  },
+  {
+    "id": "imgffe16d35",
+    "src": "imgffe16d35.jpg",
+    "path": "images/collages/imgffe16d35.jpg",
+    "description": "The image is a black and white photograph of a smooth, polished stone with an irregular, teardrop shape. The stone features a mix of light and dark veining patterns, giving it a marbled appearance. The textures appear soft and glossy, highlighting the stone's polished surface. The background is plain white, effectively isolating the stone and emphasizing its form and texture. The lighting creates subtle shadows, enhancing the depth and details of the stone.",
+    "tags": [
+      "stone",
+      "black and white",
+      "texture",
+      "polished",
+      "minimalist"
+    ],
+    "dateAdded": "2025-04-09T14:27:25.604935"
   }
 ]

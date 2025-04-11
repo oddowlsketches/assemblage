@@ -1,406 +1,156 @@
-/* Main Styles for Assemblage */
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500&display=swap');
-
+/* Color System Variables */
 :root {
-    /* Core Colors */
-    --primary-color: #333;
-    --secondary-color: #666;
-    --accent-color: #9370DB;
-    --background-color: #f5f5f5;
-    --card-color: #fff;
-    --text-color: #333;
-    --border-radius: 8px;
-    --transition-speed: 0.3s;
-
-    /* Typography Scale */
-    --font-size-xs: 0.875rem;
-    --font-size-sm: 1rem;
-    --font-size-base: 1.125rem;
-    --font-size-lg: 1.5rem;
-    --font-size-xl: 3.5rem;
-    
-    /* Line Heights */
-    --line-height-tight: 1.1;
-    --line-height-normal: 1.5;
-    --line-height-relaxed: 1.6;
-    
-    /* Spacing */
-    --spacing-xs: 0.5rem;
-    --spacing-sm: 1rem;
-    --spacing-md: 1.5rem;
-    --spacing-lg: 2rem;
-    --spacing-xl: 3rem;
-
-    /* Base Colors */
-    --color-background: #f5f5f5;
-    --color-text: #333333;
-    --color-accent: #666666;
-    
-    /* Tag-based Colors - Vibrant but harmonious palette */
-    --color-technical: #e6f3ff;  /* Soft blue */
-    --color-botanical: #e6ffe6;  /* Soft green */
-    --color-architectural: #f5f5f5; /* Light gray */
-    --color-scientific: #e6f3ff;  /* Soft blue */
-    --color-geometric: #f3e6ff;  /* Soft purple */
-    --color-abstract: #ffe6e6;   /* Soft pink */
-    --color-mystery: #e6e6ff;    /* Soft indigo */
-    --color-transformation: #fff3e6; /* Soft orange */
-    --color-wisdom: #e6fff3;     /* Soft teal */
-    --color-reflection: #f3f3f3; /* Soft white */
-    --color-insight: #ffe6f3;    /* Soft rose */
-    --color-clarity: #f5f5f5;    /* Light gray */
-    
-    /* Transition Properties */
-    --transition-duration: 0.5s;
-    --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Base Colors */
+  --color-background: #ffffff;
+  --color-text: #333333;
+  --color-accent: #666666;
+  
+  /* Mood Colors */
+  --color-mystery: #2c1b47;
+  --color-transformation: #4a3b6c;
+  --color-wisdom: #6b5b8c;
+  --color-reflection: #8c7bac;
+  --color-insight: #ad9ecc;
+  --color-clarity: #cec1ec;
+  
+  /* Tag-based Colors */
+  --color-technical: #2c3e50;
+  --color-botanical: #2ecc71;
+  --color-architectural: #34495e;
+  --color-scientific: #3498db;
+  --color-geometric: #9b59b6;
+  --color-abstract: #e74c3c;
+  
+  /* Transition Properties */
+  --transition-duration: 1.5s;
+  --transition-timing: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* Background Transition */
 body {
-    font-family: 'Space Grotesk', sans-serif;
-    color: var(--text-color);
-    line-height: var(--line-height-normal);
-    min-height: 100vh;
-    overflow: hidden;
-    transition: background-color var(--transition-speed) ease;
-    background-color: var(--background-color);
+  background-color: var(--color-background);
+  transition: background-color var(--transition-duration) var(--transition-timing);
 }
 
-.container {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    background-color: inherit;
-}
+/* Background Color Classes */
+.bg-mystery { background-color: var(--color-mystery); }
+.bg-transformation { background-color: var(--color-transformation); }
+.bg-wisdom { background-color: var(--color-wisdom); }
+.bg-reflection { background-color: var(--color-reflection); }
+.bg-insight { background-color: var(--color-insight); }
+.bg-clarity { background-color: var(--color-clarity); }
 
-/* Header Styles */
-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    padding: var(--spacing-lg);
-    text-align: left;
-}
+.bg-technical { background-color: var(--color-technical); }
+.bg-botanical { background-color: var(--color-botanical); }
+.bg-architectural { background-color: var(--color-architectural); }
+.bg-scientific { background-color: var(--color-scientific); }
+.bg-geometric { background-color: var(--color-geometric); }
+.bg-abstract { background-color: var(--color-abstract); }
 
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    max-width: 1200px;
-    margin: 0 auto;
-}
-
-.header-text {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-}
-
-h1 {
-    font-family: 'Playfair Display', serif;
-    font-size: 3.5rem;
-    font-weight: 700;
-    font-style: italic;
-    color: #000;
-    margin: 0;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.tagline {
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 300;
-    color: #000;
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    opacity: 0.9;
-}
-
-/* Header Controls */
-.header-controls {
+/* Toggle Button Styles */
+.toggle-btn {
     display: flex;
     align-items: center;
-    gap: 15px;
-}
-
-/* Shift Perspective Button */
-#shuffleButton {
-    background-color: #fff !important;
-    border: 1px solid #000 !important;
-    color: #000 !important;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 1.125rem;
-    font-weight: 300;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--color-background);
+    border: 1px solid var(--color-accent);
+    border-radius: 4px;
     cursor: pointer;
-    padding: 0.5rem 1.5rem;
     transition: all 0.3s ease;
-    opacity: 1;
-    position: relative;
-    z-index: 30;
 }
 
-#shuffleButton:hover {
-    background: #000 !important;
-    color: #fff !important;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.toggle-btn:hover {
+    background: var(--color-accent);
+    color: var(--color-background);
 }
 
-/* Admin Link */
-.admin-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    background-color: transparent;
-    color: #000;
-    border: 1px solid #000;
-    border-radius: 50%;
-    font-size: 1.25rem;
-    text-decoration: none;
-    opacity: 0.3;
-    transition: all 0.3s ease;
-    z-index: 30;
+.toggle-btn.active {
+    background: var(--color-accent);
+    color: var(--color-background);
 }
 
-.admin-link:hover {
-    opacity: 1;
-    background-color: #000;
-    color: #fff;
-    transform: translateY(-2px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.toggle-icon {
+    font-size: 1.2em;
 }
 
-/* Footer */
-footer {
-    text-align: center;
-    padding: var(--spacing-md);
-    background-color: inherit;
-    margin-top: auto;
-    font-size: var(--font-size-sm);
-    letter-spacing: 0.05em;
-    opacity: 0.9;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    header {
-        padding: var(--spacing-md);
-    }
-
-    h1 {
-        font-size: calc(var(--font-size-xl) * 0.7);
-    }
-    
-    #shuffleButton {
-        padding: var(--spacing-sm) var(--spacing-md);
-        font-size: var(--font-size-sm);
-    }
+.toggle-text {
+    font-size: 0.9em;
 }
 
 /* Image Card Styles */
 .image-card {
     position: relative;
-    background-color: transparent;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: none;
-    transition: none;
+    transition: all var(--transition-duration) var(--transition-timing);
+    background: transparent;
 }
 
 .image-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: none;
+    mix-blend-mode: multiply;
+    transition: mix-blend-mode var(--transition-duration) var(--transition-timing);
 }
 
-/* Remove all hover effects */
-.image-card:hover,
-.image-card:hover img,
-.image-card:hover::after {
-    transform: none;
-    filter: none;
-    opacity: 1;
-    box-shadow: none;
+/* Export Mode Styles */
+.export-mode .image-card {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Image Blend Modes */
-.image-card[data-blend-mode="multiply"] img {
+.export-mode .image-card img {
     mix-blend-mode: multiply;
 }
 
-/* Shuffle Animation */
-@keyframes shuffle {
-    0% {
-        transform: translateX(0) rotate(0);
-        opacity: 1;
-    }
-    50% {
-        transform: translateX(100px) rotate(5deg);
-        opacity: 0.5;
-    }
-    100% {
-        transform: translateX(0) rotate(0);
-        opacity: 1;
-    }
-}
-
-.image-card.shuffling {
-    animation: shuffle 0.7s ease-in-out;
-}
-
-/* Fortune Icon */
-.fortune-icon {
-    font-size: 5rem;
-    color: #fff;
-    background: none !important;
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    border-radius: 0 !important;
-    display: inline-block;
-    position: absolute;
-    cursor: pointer;
-    z-index: 20;
-    opacity: 0;
-    transform: scale(0.9);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    padding: 0;
-    margin: 0;
-    line-height: 1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-    width: 160px;
-    height: 160px;
-}
-
-.fortune-icon.visible {
-    opacity: 0.8 !important;
-    transform: scale(1);
-    animation: pulse 2s ease-in-out infinite;
-}
-
-.fortune-icon:hover {
-    opacity: 1 !important;
-}
-
-.fortune-icon img {
-    width: 100%;
-    height: 100%;
-    filter: brightness(0) invert(1);
-    opacity: inherit;
-}
-
-@keyframes pulse {
-    0% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.05);
-    }
-    100% {
-        transform: scale(1);
-    }
-}
-
-/* Fortune Display */
-.fortune-container {
+/* Export Version Controls */
+.export-controls {
     position: fixed;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    z-index: 1000;
+}
+
+.export-btn {
+    padding: 0.5rem 1rem;
+    background: var(--color-background);
+    border: 1px solid var(--color-accent);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.export-btn:hover {
+    background: var(--color-accent);
+    color: var(--color-background);
+}
+
+/* Print Styles */
+@media print {
+    .image-card img {
+        mix-blend-mode: normal;
+    }
+
+    .export-controls,
+    .toggle-btn {
+        display: none;
+    }
+} 
+/* Collage Styles */
+.collage-container {
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    z-index: -1; /* Behind other content */
+}
+
+.collage-canvas {
+    width: 100%;
     height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 5;
-    opacity: 0;
-    transition: opacity 0.5s ease;
-    pointer-events: none;
-}
-
-.fortune-container.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* Fortune Text */
-.fortune-text {
-    display: none; /* Initial state */
-    position: fixed;
-    z-index: 15;
-    transition: opacity 0.3s ease;
-    mix-blend-mode: normal !important;
-    padding: 3px 5px !important;
-    box-decoration-break: clone !important;
-    -webkit-box-decoration-break: clone !important;
-    line-height: 1.7;
-    position: relative;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transform-origin: center;
-    animation: fortuneReveal 1s ease forwards;
-    max-width: 80%;
-    text-align: center;
-    line-height: 1.6;
-    text-shadow: none;
-    opacity: 0;
-    pointer-events: none;
-}
-
-@keyframes fortuneReveal {
-    0% {
-        opacity: 0;
-        transform: scale(0.8) rotate(-2deg);
-    }
-    100% {
-        opacity: 1;
-        transform: scale(1) rotate(0deg);
-    }
-}
-
-/* Remove the span-based highlighting since we're highlighting the entire block */
-.fortune-text span {
-    display: inline;
-    color: inherit;
-    background-color: transparent;
-}
-
-/* Remove the reveal button styles since we're using the icon now */
-.reveal-meaning-btn {
-    display: none;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .fortune-icon {
-        width: 100px;
-        height: 100px;
-    }
-    
-    .fortune-icon::before {
-        font-size: 28px;
-        width: 40px;
-        height: 40px;
-    }
-    
-    .fortune-text {
-        font-size: 0.9em;
-        max-width: 90%;
-    }
+    display: block;
 }

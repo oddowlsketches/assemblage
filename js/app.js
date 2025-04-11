@@ -8,6 +8,7 @@ import BackgroundManager from './backgroundManager.js';
 import LayoutManager from './layouts.js';
 import FortuneGenerator from './fortuneGenerator.js';
 import { imageCollection } from './data.js';
+import CollageGenerator from './collage/collageGenerator.js';
 
 class App {
     constructor() {
@@ -24,6 +25,22 @@ class App {
             'spiral.svg', 'sun.svg', 'tree.svg', 'vase.svg'
         ];
         
+        // Initialize collage generator
+        this.collageGenerator = null;
+        this.tilingParameters = {
+            // Base parameters
+            complexity: 6,        // Controls number of images (5-10 recommended)
+            density: 5,           // Controls spacing between images (3-8 recommended)
+            contrast: 6,          // Controls image contrast (5-7 recommended)
+            
+            // Tiling specific parameters
+            cleanTiling: false,   // Set to false for more artistic layouts
+            blendOpacity: 0.6,    // Increased for better visibility
+            
+            // Image repetition - key new feature
+            allowImageRepetition: true  // Allow some images to repeat
+        };
+        
         // Store app instance globally for data.js to access
         window.app = this;
         
@@ -33,6 +50,7 @@ class App {
 
     async init() {
         this.setupEventListeners();
+        this.initializeCollageGenerator();
         
         // Wait for image collection to be loaded
         if (imageCollection.length > 0) {
@@ -46,6 +64,62 @@ class App {
                 }
             }, 100);
         }
+    }
+
+    initializeCollageGenerator() {
+        const collageCanvas = document.getElementById('collageCanvas');
+        if (!collageCanvas) {
+            console.error('Collage canvas not found');
+            return;
+        }
+        
+        // Initialize collage generator with the canvas
+        this.collageGenerator = new CollageGenerator(collageCanvas);
+        
+        // Set initial canvas size
+        this.resizeCollageCanvas();
+        
+        // Add window resize listener
+        window.addEventListener('resize', () => this.resizeCollageCanvas());
+    }
+
+    resizeCollageCanvas() {
+        const collageCanvas = document.getElementById('collageCanvas');
+        const container = document.getElementById('collageContainer');
+        
+        if (!collageCanvas || !container) return;
+        
+        // Match canvas size to container
+        collageCanvas.width = container.clientWidth;
+        collageCanvas.height = container.clientHeight;
+        
+        // Redraw if we have current images
+        if (this.imageCollection && this.imageCollection.length > 0) {
+            this.generateCollage();
+        }
+    }
+
+    generateCollage() {
+        if (!this.collageGenerator || !this.imageCollection || this.imageCollection.length === 0) {
+            console.error('Cannot generate collage: missing generator or images');
+            return;
+        }
+        
+        // Randomize some parameters
+        const randomParams = {
+            ...this.tilingParameters,
+            complexity: 5 + Math.floor(Math.random() * 5),    // 5-9
+            density: 3 + Math.floor(Math.random() * 5),       // 3-7
+            allowImageRepetition: Math.random() > 0.3         // 70% chance to allow repetition
+        };
+        
+        // Generate tiling collage with the current images
+        this.collageGenerator.generate(
+            this.imageCollection,
+            null,  // No fortune text on the canvas
+            'tiling',
+            randomParams
+        );
     }
 
     initializeDefaultState() {
@@ -282,6 +356,9 @@ class App {
         
         // Display images in row layout
         this.layoutManager.displayImages(this.imageCollection);
+        
+        // Generate collage
+        this.generateCollage();
     }
 }
 
