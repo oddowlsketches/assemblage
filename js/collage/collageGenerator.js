@@ -34,16 +34,16 @@ class CollageGenerator {
             opacityRange: { min: 0.3, max: 0.8 }, // Opacity range for tiles
             
             // Image repetition control
-            allowImageRepetition: null // null = random, true = always allow, false = never allow
+            allowImageRepetition: false // Default to false to prevent repetition
         };
         
         // Composition Settings
         this.compositionTemplates = ['center', 'ruleOfThirds', 'diagonalTLBR', 'diagonalTRBL', 'goldenRatio'];
         this.selectedTemplate = null;
-        this.selectedCompositionStyle = null; // Added style property ('Focal' or 'Field')
+        this.selectedCompositionStyle = null;
         this.focalPoints = []; 
 
-        // Initialize generators
+        // Initialize generators with parameters
         this.tilingGenerator = new TilingGenerator(this.canvas, this.parameters);
         this.fragmentsGenerator = new FragmentsGenerator(this.ctx, canvas);
         this.mosaicGenerator = new MosaicGenerator(this.canvas, this.parameters);
@@ -291,41 +291,44 @@ class CollageGenerator {
             // Select composition style and template
             this.selectCompositionStyleAndTemplate();
 
-            // Set background color
-            this.ctx.fillStyle = this.generateBackgroundColor();
+            // Set background color and blend mode
+            const backgroundColor = this.generateBackgroundColor();
+            this.ctx.fillStyle = backgroundColor;
             this.ctx.fillRect(0, 0, displayWidth, displayHeight);
-
-            // Set multiply blend mode for images
             this.ctx.globalCompositeOperation = 'multiply';
+            this.ctx.globalAlpha = 1.0; // Reset alpha to ensure full opacity for background
 
             console.log(`Generating collage with effect: ${this.currentEffect}, image repetition: ${this.parameters.allowImageRepetition}`);
 
             // Generate collage based on current effect
+            let fragments = [];
             switch (this.currentEffect) {
                 case 'mosaic':
-                    this.generateMosaic(this.images, fortuneText, this.parameters);
+                    fragments = this.generateMosaic(this.images, fortuneText, this.parameters);
                     break;
                 case 'tiling':
-                    this.generateTiling(this.images, fortuneText, this.parameters);
+                    fragments = this.generateTiling(this.images, fortuneText, this.parameters);
                     break;
                 case 'fragments':
-                    this.generateFragments(this.images, fortuneText, this.parameters);
+                    fragments = this.generateFragments(this.images, fortuneText, this.parameters);
                     break;
                 case 'layers':
-                    this.generateLayers(this.images, fortuneText, this.parameters);
+                    fragments = this.generateLayers(this.images, fortuneText, this.parameters);
                     break;
                 default:
-                    console.warn(`Unknown effect type: ${this.currentEffect}`);
-                    this.generateFragments(this.images, fortuneText, this.parameters);
+                    console.error(`Unknown effect: ${this.currentEffect}`);
+                    return;
             }
-            
+
             // Add fortune text if provided
             if (fortuneText) {
                 this.addFortuneText(fortuneText);
             }
-            
+
+            return fragments;
         } catch (error) {
             console.error('Error generating collage:', error);
+            return [];
         }
     }
     
@@ -354,7 +357,15 @@ class CollageGenerator {
     
     generateMosaic(images, fortuneText, parameters) {
         try {
-            console.log(`Generating mosaic with variation: ${parameters.variation}`);
+            // Merge parameters with defaults
+            const mergedParameters = {
+                ...this.parameters,
+                ...parameters,
+                variation: parameters.variation || 'Classic',
+                allowImageRepetition: parameters.allowImageRepetition ?? false
+            };
+            
+            console.log(`Generating mosaic with variation: ${mergedParameters.variation}`);
             
             // Clear any previous content
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -363,9 +374,9 @@ class CollageGenerator {
             this.ctx.fillStyle = this.generateBackgroundColor();
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
-            // Use the new MosaicGenerator
-            this.mosaicGenerator.generateMosaic(images, {
-                ...parameters,
+            // Use the new MosaicGenerator with merged parameters
+            const fragments = this.mosaicGenerator.generateMosaic(images, {
+                ...mergedParameters,
                 compositionStyle: this.selectedCompositionStyle,
                 tilesTouching: Math.random() < 0.3 // 30% chance of having tiles touch without overlap
             });
@@ -375,13 +386,16 @@ class CollageGenerator {
                 this.addFortuneText(fortuneText);
             }
             
+            // Return the fragments array for mask application
+            return fragments;
         } catch (error) {
             console.error('Error generating mosaic:', error);
+            return [];
         }
     }
     
     async generateTiling(images, fortuneText, parameters) {
-        if (!images || images.length === 0) return;
+        if (!images || images.length === 0) return [];
         
         const tilingGenerator = new TilingGenerator(this.canvas, parameters);
         const tiles = await tilingGenerator.generateTiles(images);
@@ -431,6 +445,9 @@ class CollageGenerator {
         if (fortuneText) {
             this.addFortuneText(fortuneText);
         }
+        
+        // Return the tiles array for mask application
+        return tiles;
     }
 
     // Helper method to draw individual tiles
@@ -549,7 +566,7 @@ class CollageGenerator {
         }
     }
     
-    generateFragments(images, fortuneText, parameters = {}) {
+    async generateFragments(images, fortuneText, parameters = {}) {
         try {
             // Clear any previous content
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -558,11 +575,8 @@ class CollageGenerator {
             this.ctx.fillStyle = this.generateBackgroundColor();
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
-            // Pass the allowImageRepetition parameter to the fragments generator
-            const fragments = this.fragmentsGenerator.generateFragments(images, {
-                ...parameters,
-                allowImageRepetition: this.parameters.allowImageRepetition
-            });
+            // Generate fragments using the FragmentsGenerator
+            const fragments = this.fragmentsGenerator.generateFragments(images, parameters);
             
             // Draw fragments
             fragments.forEach(fragment => {
@@ -618,9 +632,79 @@ class CollageGenerator {
                 // Add a very small random offset for more natural feeling
                 drawX += (Math.random() - 0.5) * fragment.width * 0.05;
                 drawY += (Math.random() - 0.5) * fragment.height * 0.05;
+
+                // Apply mask if present
+                if (fragment.mask && fragment.mask.enabled) {
+                    // Create clipping path based on mask type
+                    this.ctx.beginPath();
+                    const centerX = drawX + drawWidth / 2;
+                    const centerY = drawY + drawHeight / 2;
+                    const radius = Math.min(drawWidth, drawHeight) / 2;
+
+                    switch (fragment.mask.type) {
+                        case 'circle':
+                            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                            break;
+                        case 'triangle':
+                            this.ctx.moveTo(centerX, drawY);
+                            this.ctx.lineTo(drawX + drawWidth, drawY + drawHeight);
+                            this.ctx.lineTo(drawX, drawY + drawHeight);
+                            this.ctx.closePath();
+                            break;
+                        case 'rectangle':
+                            this.ctx.rect(drawX, drawY, drawWidth, drawHeight);
+                            break;
+                        case 'ellipse':
+                            this.ctx.ellipse(centerX, centerY, drawWidth / 2, drawHeight / 2, 0, 0, Math.PI * 2);
+                            break;
+                        case 'diamond':
+                            this.ctx.moveTo(centerX, drawY);
+                            this.ctx.lineTo(drawX + drawWidth, centerY);
+                            this.ctx.lineTo(centerX, drawY + drawHeight);
+                            this.ctx.lineTo(drawX, centerY);
+                            this.ctx.closePath();
+                            break;
+                        case 'hexagon':
+                            const hexRadius = Math.min(drawWidth, drawHeight) / 2;
+                            for (let i = 0; i < 6; i++) {
+                                const angle = (i * Math.PI) / 3;
+                                const x = centerX + hexRadius * Math.cos(angle);
+                                const y = centerY + hexRadius * Math.sin(angle);
+                                if (i === 0) {
+                                    this.ctx.moveTo(x, y);
+                                } else {
+                                    this.ctx.lineTo(x, y);
+                                }
+                            }
+                            this.ctx.closePath();
+                            break;
+                        case 'star':
+                            const starRadius = Math.min(drawWidth, drawHeight) / 2;
+                            const innerRadius = starRadius * 0.4;
+                            for (let i = 0; i < 10; i++) {
+                                const angle = (i * Math.PI) / 5;
+                                const radius = i % 2 === 0 ? starRadius : innerRadius;
+                                const x = centerX + radius * Math.cos(angle);
+                                const y = centerY + radius * Math.sin(angle);
+                                if (i === 0) {
+                                    this.ctx.moveTo(x, y);
+                                } else {
+                                    this.ctx.lineTo(x, y);
+                                }
+                            }
+                            this.ctx.closePath();
+                            break;
+                        case 'arc':
+                            this.ctx.arc(centerX, centerY, radius, 0, Math.PI, false);
+                            break;
+                        case 'arch':
+                            this.ctx.arc(centerX, centerY, radius, Math.PI, 0, false);
+                            break;
+                    }
+                    this.ctx.clip();
+                }
                 
                 this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-                
                 this.ctx.restore();
             });
             
@@ -684,7 +768,7 @@ class CollageGenerator {
         // Check if we have valid images
         if (!imagesToUse || !Array.isArray(imagesToUse) || imagesToUse.length === 0) {
             console.error('No valid images provided for layers generation');
-            return;
+            return [];
         }
         
         console.log('Generating layers effect');
@@ -701,20 +785,23 @@ class CollageGenerator {
         // Check if we have specific settings for layers
         const minLayers = this.parameters.minLayers || 3;
         const maxLayers = this.parameters.maxLayers || 6;
+        
+        // Ensure scaleVariation exists with default values
         const scaleVariationSettings = this.parameters.scaleVariation || { 
             focal: { min: 0.6, max: 1.2 }, 
             field: { min: 0.3, max: 0.7 } 
         };
+        
+        // Handle both object and number formats for scaleVariation
+        const scaleVariation = isFocalStyle ? 
+            (typeof scaleVariationSettings === 'object' ? scaleVariationSettings.focal : { min: 0.6, max: 1.2 }) : 
+            (typeof scaleVariationSettings === 'object' ? scaleVariationSettings.field : { min: 0.3, max: 0.7 });
+        
         const minVisibility = this.parameters.minVisibility || 0.7;
         const opacityTargets = this.parameters.opacityTargets || { high: 0.35, full: 0.12 };
 
         // --- Calculate Layer Count based on parameters ---
         const baseLayerCalc = minLayers + Math.floor(Math.random() * (maxLayers - minLayers + 1));
-        
-        // Get scale variation based on style
-        const scaleVariation = isFocalStyle ? 
-            scaleVariationSettings.focal : 
-            scaleVariationSettings.field;
         
         // Base scale and variation
         const baseScale = isFocalStyle ? 1.5 : 1.3;  // Increased from 1.2/1.0
@@ -786,7 +873,7 @@ class CollageGenerator {
             }
             
             layers.push({ 
-                image, x, y, scale, 
+                image, x, y, scale, width, height,
                 isFocalCandidate: isFocalCandidate, 
                 forceOpacity: null // Initialize opacity as null
             });
@@ -868,6 +955,14 @@ class CollageGenerator {
             this.drawImage(image, centerX, centerY, width, height, false, forceOpacity);
             this.ctx.restore();
         });
+        
+        // Add fortune text if provided
+        if (fortuneText) {
+            this.addFortuneText(fortuneText);
+        }
+        
+        // Return the layers array for mask application
+        return layers;
     }
     
     save() {
