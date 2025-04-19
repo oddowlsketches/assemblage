@@ -7,86 +7,124 @@ export class FragmentsGenerator {
     constructor(ctx, canvas) {
         this.ctx = ctx;
         this.canvas = canvas;
+        
+        // Set default canvas dimensions if not provided
+        if (!this.canvas) {
+            this.canvas = {
+                width: 1200,
+                height: 800
+            };
+        }
+        
+        // Ensure canvas has dimensions
+        if (!this.canvas.width || !this.canvas.height) {
+            this.canvas.width = 1200;
+            this.canvas.height = 800;
+        }
     }
 
-    generateFragments(images, parameters = {}) {
-        // Check if we have valid images
-        if (!images || !Array.isArray(images) || images.length === 0) {
-            console.error('No valid images provided for fragments generation');
+    generateFragments(images) {
+        // Validate images array
+        if (!Array.isArray(images) || images.length === 0) {
+            console.warn('Invalid or empty images array provided to generateFragments');
             return [];
         }
+
+        // Find valid images (complete and loaded)
+        const validImages = [];
+        const validImageIndices = [];
         
-        console.log('Generating fragments with variation:', parameters.variation || 'Classic');
-        console.log(`Fragments: Using ${images.length} images`);
-        
-        // Default to Classic if no variation specified
-        const variation = parameters.variation || 'Classic';
-        console.log(`Using fragments variation: ${variation}`);
-        
-        // Initialize fragments array and shuffle image indices
-        const fragments = [];
-        const imageIndices = Array.from({ length: images.length }, (_, i) => i);
-        this.shuffleArray(imageIndices);
-        
-        // Calculate number of fragments based on complexity and image count
-        const complexity = parameters.complexity || 5;
-        
-        // ENHANCED: Adjust fragment count and size based on variation
-        let baseFragmentCount;
-        let sizeTierFactor = 1.0; // Default size tier factor
-        
-        // NEW: Randomize fragment count between 5-50 based on variation
-        if (variation === 'Uniform') {
-            // Uniform variation has more fragments with less size variation
-            baseFragmentCount = 15 + Math.floor(Math.random() * 35); // 15-50 fragments
-            sizeTierFactor = 0.5; // Reduced size variation (fragments more similar in size)
-        } else if (variation === 'Organic') {
-            // Organic variation uses more fragments with more size variation
-            baseFragmentCount = 20 + Math.floor(Math.random() * 30); // 20-50 fragments
-            sizeTierFactor = 1.5; // Increased size variation
-        } else if (variation === 'Focal') {
-            // Focal variation uses fewer, larger fragments
-            baseFragmentCount = 5 + Math.floor(Math.random() * 15); // 5-20 fragments
-            sizeTierFactor = 2.0; // Dramatic size variation
-        } else {
-            // Classic variation - balanced approach
-            baseFragmentCount = 10 + Math.floor(Math.random() * 25); // 10-35 fragments
-            sizeTierFactor = 1.2; // Moderate size variation
+        images.forEach((img, index) => {
+            if (img && img.complete) {
+                validImages.push(img);
+                validImageIndices.push(index);
+            }
+        });
+
+        if (validImages.length === 0) {
+            console.warn('No valid images found for fragment generation');
+            return [];
         }
-        
-        console.log(`Fragments: Base fragment count: ${baseFragmentCount} (complexity: ${complexity})`);
-        
-        // Adjust fragment count based on variation
-        let fragmentCount = baseFragmentCount;
-        
-        // Calculate base fragment size
+
+        const fragments = [];
         const canvasArea = this.canvas.width * this.canvas.height;
-        const idealCoverage = 0.9; // Target 90% coverage
-        const fragmentArea = (canvasArea * idealCoverage) / fragmentCount;
-        const baseFragmentSize = Math.sqrt(fragmentArea) * 0.75;
-        
-        // Create three size categories for more variation
-        const sizeDelta = 0.6 * sizeTierFactor; // Increased from 0.4 to 0.6 for more dramatic size differences
-        const sizeTiers = [
-            baseFragmentSize * (1.0 - sizeDelta),  // Small fragments
-            baseFragmentSize,                      // Medium fragments
-            baseFragmentSize * (1.0 + sizeDelta)   // Large fragments
-        ];
-        
-        // Generate fragments based on variation
-        this.generateFragmentsByVariation(
-            fragments,
-            fragmentCount,
-            sizeTiers,
-            variation,
-            images,
-            imageIndices,
-            parameters.allowImageRepetition
+        const targetCoverage = 0.8; // Target 80% canvas coverage
+        const avgFragmentArea = 40000; // Target average fragment area
+        const numFragments = Math.min(
+            Math.ceil((canvasArea * targetCoverage) / avgFragmentArea),
+            validImages.length * 2 // Allow up to 2 fragments per image
         );
-        
-        // Sort and adjust fragments
-        this.postProcessFragments(fragments, variation);
-        
+
+        // Create size tiers for better distribution
+        const minDimension = Math.min(this.canvas.width, this.canvas.height);
+        const sizeTiers = [
+            minDimension * 0.15, // Small fragments (15% of canvas)
+            minDimension * 0.25, // Medium fragments (25% of canvas)
+            minDimension * 0.35  // Large fragments (35% of canvas)
+        ];
+
+        // Define mask types and probability
+        const maskTypes = ['circle', 'triangle', 'rectangle', 'ellipse'];
+        const maskProbability = 0.2; // 20% chance of applying a mask
+
+        // Create fragments with validated image indices
+        for (let i = 0; i < numFragments; i++) {
+            // Use modulo to cycle through available images
+            const validImageIndex = i % validImages.length;
+            const originalImageIndex = validImageIndices[validImageIndex];
+
+            // Select size tier with weighted distribution
+            const tierRand = Math.random();
+            let baseSize;
+            if (tierRand < 0.4) { // 40% small fragments
+                baseSize = sizeTiers[0];
+            } else if (tierRand < 0.8) { // 40% medium fragments
+                baseSize = sizeTiers[1];
+            } else { // 20% large fragments
+                baseSize = sizeTiers[2];
+            }
+
+            // Add size variation
+            const sizeVariation = 0.3; // 30% variation
+            const size = baseSize * (1 + (Math.random() - 0.5) * sizeVariation);
+
+            // Calculate position with overlap allowance
+            const overlap = 0.2; // Allow 20% overlap
+            const maxX = this.canvas.width + size * overlap;
+            const maxY = this.canvas.height + size * overlap;
+            const x = Math.max(-size * overlap, Math.min(Math.random() * maxX, maxX));
+            const y = Math.max(-size * overlap, Math.min(Math.random() * maxY, maxY));
+
+            // Create fragment with validated properties
+            const fragment = {
+                x,
+                y,
+                width: size,
+                height: size,
+                img: originalImageIndex,
+                rotation: Math.random() * 360,
+                opacity: 0.8 + Math.random() * 0.2, // 0.8-1.0 range
+                blendMode: ['multiply', 'screen', 'overlay', 'soft-light'][Math.floor(Math.random() * 4)],
+                depth: Math.random(),
+                metadata: {
+                    originalIndex: originalImageIndex,
+                    validationStatus: 'valid',
+                    sizeTier: tierRand < 0.4 ? 'small' : tierRand < 0.8 ? 'medium' : 'large'
+                }
+            };
+
+            // Randomly apply mask
+            if (Math.random() < maskProbability) {
+                fragment.mask = {
+                    type: maskTypes[Math.floor(Math.random() * maskTypes.length)],
+                    enabled: true
+                };
+            }
+
+            fragments.push(fragment);
+        }
+
+        console.log(`Generated ${fragments.length} fragments from ${validImages.length} valid images`);
         return fragments;
     }
 
