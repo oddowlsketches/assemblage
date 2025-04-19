@@ -431,20 +431,20 @@
                 
                 switch (effect) {
                     case 'tiling':
-                        if (rand < 0.33) {
-                            return Math.floor(Math.random() * 7) + 4; // 4-10 images (focused)
-                        } else if (rand < 0.67) {
-                            return Math.floor(Math.random() * 30) + 30; // 30-59 images (medium)
+                        if (rand < 0.5) {
+                            return Math.floor(Math.random() * 7) + 4; // 4-10 images (focused) - 50% chance
+                        } else if (rand < 0.8) {
+                            return Math.floor(Math.random() * 20) + 20; // 20-39 images (medium) - 30% chance
                         } else {
-                            return Math.floor(Math.random() * 41) + 60; // 60-100 images (dense)
+                            return Math.floor(Math.random() * 21) + 40; // 40-60 images (dense) - 20% chance
                         }
                     case 'fragments':
-                        if (rand < 0.33) {
-                            return Math.floor(Math.random() * 5) + 6; // 6-10 images (focused)
-                        } else if (rand < 0.67) {
-                            return Math.floor(Math.random() * 10) + 11; // 11-20 images (medium)
+                        if (rand < 0.5) {
+                            return Math.floor(Math.random() * 5) + 6; // 6-10 images (focused) - 50% chance
+                        } else if (rand < 0.8) {
+                            return Math.floor(Math.random() * 8) + 11; // 11-18 images (medium) - 30% chance
                         } else {
-                            return Math.floor(Math.random() * 10) + 21; // 21-30 images (dense)
+                            return Math.floor(Math.random() * 7) + 19; // 19-25 images (dense) - 20% chance
                         }
                     case 'mosaic':
                         if (rand < 0.33) {
@@ -452,7 +452,7 @@
                         } else if (rand < 0.67) {
                             return Math.floor(Math.random() * 20) + 20; // 20-39 images (medium)
                         } else {
-                            return Math.floor(Math.random() * 41) + 40; // 40-80 images (dense)
+                            return Math.floor(Math.random() * 21) + 40; // 40-60 images (dense)
                         }
                     case 'layers':
                         if (rand < 0.33) {
@@ -469,8 +469,17 @@
             
             // Select a random effect
             getRandomEffect() {
-                const effects = ['tiling', 'fragments', 'mosaic', 'layers'];
-                return effects[Math.floor(Math.random() * effects.length)];
+                const rand = Math.random();
+                // 40% chance of fragments, 20% chance of mosaic, 20% chance of tiling, 20% chance of layers
+                if (rand < 0.4) {
+                    return 'fragments';
+                } else if (rand < 0.6) {
+                    return 'mosaic';
+                } else if (rand < 0.8) {
+                    return 'tiling';
+                } else {
+                    return 'layers';
+                }
             }
             
             // Get a random variation for the effect
@@ -756,5 +765,9 @@
             window.app = new AssemblageApp();
         });
     </script>
+    
+    <!-- Mask Integration -->
+    <link rel="stylesheet" href="css/mask-controls.css">
+    <script src="js/main-mask-integration.js"></script>
 </body>
 </html>
