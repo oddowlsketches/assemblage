@@ -41,13 +41,13 @@ export class FragmentsGenerator {
     }
 
     async generateFragments(images, fortuneText, parameters = {}) {
-        console.log('Starting fragment generation with parameters:', {
-            variation: parameters.variation,
-            complexity: parameters.complexity,
-            maxFragments: parameters.maxFragments,
-            canvasWidth: this.canvas.width,
-            canvasHeight: this.canvas.height
-        });
+        // console.log('Starting fragment generation with parameters:', {
+        //     variation: parameters.variation,
+        //     complexity: parameters.complexity,
+        //     maxFragments: parameters.maxFragments,
+        //     canvasWidth: this.canvas.width,
+        //     canvasHeight: this.canvas.height
+        // });
 
         // Clear canvas and set background
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -56,7 +56,7 @@ export class FragmentsGenerator {
 
         // Filter out invalid images
         const validImages = images.filter(img => img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
-        console.log('Valid images found:', validImages.length, 'out of', images.length);
+        // console.log('Valid images found:', validImages.length, 'out of', images.length);
 
         if (validImages.length === 0) {
             console.warn('No valid images provided for fragment generation');
@@ -68,26 +68,26 @@ export class FragmentsGenerator {
             Math.max(3, Math.floor(validImages.length * parameters.complexity)),
             parameters.maxFragments || 12
         );
-        console.log('Calculated number of fragments:', numFragments);
+        // console.log('Calculated number of fragments:', numFragments);
 
         // Calculate fragment dimensions
         const fragmentWidth = this.canvas.width / 4;
         const fragmentHeight = this.canvas.height / 4;
-        console.log('Fragment dimensions:', { width: fragmentWidth, height: fragmentHeight });
+        // console.log('Fragment dimensions:', { width: fragmentWidth, height: fragmentHeight });
 
         // Calculate maximum valid positions
         const maxX = this.canvas.width - fragmentWidth;
         const maxY = this.canvas.height - fragmentHeight;
-        console.log('Maximum valid positions:', { maxX, maxY });
+        // console.log('Maximum valid positions:', { maxX, maxY });
 
         const fragments = [];
-        const margin = 20; // Minimum distance from edges
+        const margin = 0; // Temporarily removed margin to test edge bleeding
 
         for (let i = 0; i < numFragments; i++) {
             // Calculate position with margin
             const x = margin + Math.random() * (maxX - 2 * margin);
             const y = margin + Math.random() * (maxY - 2 * margin);
-            console.log(`Fragment ${i} position:`, { x, y });
+            // console.log(`Fragment ${i} position:`, { x, y });
 
             // Create fragment with calculated position
             const fragment = {
@@ -103,19 +103,19 @@ export class FragmentsGenerator {
                     type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'star', 'arc', 'arch'][Math.floor(Math.random() * 9)]
                 }
             };
-            console.log(`Created fragment ${i}:`, {
-                position: { x: fragment.x, y: fragment.y },
-                dimensions: { width: fragment.width, height: fragment.height },
-                rotation: fragment.rotation,
-                depth: fragment.depth,
-                mask: fragment.mask
-            });
+            // console.log(`Created fragment ${i}:`, {
+            //     position: { x: fragment.x, y: fragment.y },
+            //     dimensions: { width: fragment.width, height: fragment.height },
+            //     rotation: fragment.rotation,
+            //     depth: fragment.depth,
+            //     mask: fragment.mask
+            // });
             fragments.push(fragment);
         }
 
         // Sort fragments by depth
         fragments.sort((a, b) => a.depth - b.depth);
-        console.log('Final fragments array:', fragments.length, 'fragments');
+        // console.log('Final fragments array:', fragments.length, 'fragments');
 
         return fragments;
     }
@@ -129,12 +129,12 @@ export class FragmentsGenerator {
         
         for (let i = 0; i < count; i++) {
             // Reduced position bias for more even distribution
-            const positionBias = Math.random() < 0.3 ? 0.1 : 0;
+            const positionBias = Math.random() < 0.3 ? 0.05 : 0; // Reduced from 0.1 to 0.05
             let x = (Math.random() * (1 - 2 * positionBias) + positionBias) * this.canvas.width;
             let y = (Math.random() * (1 - 2 * positionBias) + positionBias) * this.canvas.height;
             
             // Add slight bias towards center for better composition
-            const centerBias = 0.1;
+            const centerBias = 0.05; // Reduced from 0.1 to allow more edge bleeding
             x = x * (1 - centerBias) + centerX * centerBias;
             y = y * (1 - centerBias) + centerY * centerBias;
             
@@ -161,10 +161,23 @@ export class FragmentsGenerator {
             const width = baseSize.width;
             const height = baseSize.height;
             
-            // ENHANCED: More controlled overflow
-            const overflowAllowed = 0.15; // Reduced from 0.2
+            // Allow fragments to overflow by up to 75% of their width/height
+            const overflowAllowed = 0.75; // Increased from 0.5 to allow more dramatic edge bleeding
             x = Math.max(-width * overflowAllowed, Math.min(x, this.canvas.width - width * (1 - overflowAllowed)));
             y = Math.max(-height * overflowAllowed, Math.min(y, this.canvas.height - height * (1 - overflowAllowed)));
+            
+            // Log fragment position and overflow
+            console.log(`Fragment ${i} position:`, {
+                x, y,
+                width, height,
+                overflowAllowed,
+                canvasBounds: {
+                    minX: -width * overflowAllowed,
+                    maxX: this.canvas.width - width * (1 - overflowAllowed),
+                    minY: -height * overflowAllowed,
+                    maxY: this.canvas.height - height * (1 - overflowAllowed)
+                }
+            });
             
             // ENHANCED: More controlled rotation
             rotation = (Math.random() - 0.5) * 0.5; // Reduced rotation range
