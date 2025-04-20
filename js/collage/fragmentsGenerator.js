@@ -23,108 +23,100 @@ export class FragmentsGenerator {
         }
     }
 
-    generateFragments(images) {
-        // Validate images array
-        if (!Array.isArray(images) || images.length === 0) {
-            console.warn('Invalid or empty images array provided to generateFragments');
-            return [];
-        }
+    generateBackgroundColor() {
+        // Array of vibrant background colors
+        const colors = [
+            '#FF6B6B', // Coral Red
+            '#4ECDC4', // Turquoise
+            '#45B7D1', // Sky Blue
+            '#96CEB4', // Sage Green
+            '#FFEEAD', // Cream
+            '#D4A5A5', // Dusty Rose
+            '#9B59B6', // Purple
+            '#3498DB', // Blue
+            '#E67E22', // Orange
+            '#2ECC71'  // Green
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
 
-        // Find valid images (complete and loaded)
-        const validImages = [];
-        const validImageIndices = [];
-        
-        images.forEach((img, index) => {
-            if (img && img.complete) {
-                validImages.push(img);
-                validImageIndices.push(index);
-            }
+    async generateFragments(images, fortuneText, parameters = {}) {
+        console.log('Starting fragment generation with parameters:', {
+            variation: parameters.variation,
+            complexity: parameters.complexity,
+            maxFragments: parameters.maxFragments,
+            canvasWidth: this.canvas.width,
+            canvasHeight: this.canvas.height
         });
 
+        // Clear canvas and set background
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = this.generateBackgroundColor();
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Filter out invalid images
+        const validImages = images.filter(img => img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
+        console.log('Valid images found:', validImages.length, 'out of', images.length);
+
         if (validImages.length === 0) {
-            console.warn('No valid images found for fragment generation');
-            return [];
+            console.warn('No valid images provided for fragment generation');
+            return;
         }
 
-        const fragments = [];
-        const canvasArea = this.canvas.width * this.canvas.height;
-        const targetCoverage = 0.8; // Target 80% canvas coverage
-        const avgFragmentArea = 40000; // Target average fragment area
+        // Calculate number of fragments based on complexity
         const numFragments = Math.min(
-            Math.ceil((canvasArea * targetCoverage) / avgFragmentArea),
-            validImages.length * 2 // Allow up to 2 fragments per image
+            Math.max(3, Math.floor(validImages.length * parameters.complexity)),
+            parameters.maxFragments || 12
         );
+        console.log('Calculated number of fragments:', numFragments);
 
-        // Create size tiers for better distribution
-        const minDimension = Math.min(this.canvas.width, this.canvas.height);
-        const sizeTiers = [
-            minDimension * 0.15, // Small fragments (15% of canvas)
-            minDimension * 0.25, // Medium fragments (25% of canvas)
-            minDimension * 0.35  // Large fragments (35% of canvas)
-        ];
+        // Calculate fragment dimensions
+        const fragmentWidth = this.canvas.width / 4;
+        const fragmentHeight = this.canvas.height / 4;
+        console.log('Fragment dimensions:', { width: fragmentWidth, height: fragmentHeight });
 
-        // Define mask types and probability
-        const maskTypes = ['circle', 'triangle', 'rectangle', 'ellipse'];
-        const maskProbability = 0.2; // 20% chance of applying a mask
+        // Calculate maximum valid positions
+        const maxX = this.canvas.width - fragmentWidth;
+        const maxY = this.canvas.height - fragmentHeight;
+        console.log('Maximum valid positions:', { maxX, maxY });
 
-        // Create fragments with validated image indices
+        const fragments = [];
+        const margin = 20; // Minimum distance from edges
+
         for (let i = 0; i < numFragments; i++) {
-            // Use modulo to cycle through available images
-            const validImageIndex = i % validImages.length;
-            const originalImageIndex = validImageIndices[validImageIndex];
+            // Calculate position with margin
+            const x = margin + Math.random() * (maxX - 2 * margin);
+            const y = margin + Math.random() * (maxY - 2 * margin);
+            console.log(`Fragment ${i} position:`, { x, y });
 
-            // Select size tier with weighted distribution
-            const tierRand = Math.random();
-            let baseSize;
-            if (tierRand < 0.4) { // 40% small fragments
-                baseSize = sizeTiers[0];
-            } else if (tierRand < 0.8) { // 40% medium fragments
-                baseSize = sizeTiers[1];
-            } else { // 20% large fragments
-                baseSize = sizeTiers[2];
-            }
-
-            // Add size variation
-            const sizeVariation = 0.3; // 30% variation
-            const size = baseSize * (1 + (Math.random() - 0.5) * sizeVariation);
-
-            // Calculate position with overlap allowance
-            const overlap = 0.2; // Allow 20% overlap
-            const maxX = this.canvas.width + size * overlap;
-            const maxY = this.canvas.height + size * overlap;
-            const x = Math.max(-size * overlap, Math.min(Math.random() * maxX, maxX));
-            const y = Math.max(-size * overlap, Math.min(Math.random() * maxY, maxY));
-
-            // Create fragment with validated properties
+            // Create fragment with calculated position
             const fragment = {
-                x,
-                y,
-                width: size,
-                height: size,
-                img: originalImageIndex,
+                image: validImages[i % validImages.length],
+                x: x,
+                y: y,
+                width: fragmentWidth,
+                height: fragmentHeight,
                 rotation: Math.random() * 360,
-                opacity: 0.8 + Math.random() * 0.2, // 0.8-1.0 range
-                blendMode: ['multiply', 'screen', 'overlay', 'soft-light'][Math.floor(Math.random() * 4)],
                 depth: Math.random(),
-                metadata: {
-                    originalIndex: originalImageIndex,
-                    validationStatus: 'valid',
-                    sizeTier: tierRand < 0.4 ? 'small' : tierRand < 0.8 ? 'medium' : 'large'
+                mask: {
+                    enabled: Math.random() < 0.3,
+                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'star', 'arc', 'arch'][Math.floor(Math.random() * 9)]
                 }
             };
-
-            // Randomly apply mask
-            if (Math.random() < maskProbability) {
-                fragment.mask = {
-                    type: maskTypes[Math.floor(Math.random() * maskTypes.length)],
-                    enabled: true
-                };
-            }
-
+            console.log(`Created fragment ${i}:`, {
+                position: { x: fragment.x, y: fragment.y },
+                dimensions: { width: fragment.width, height: fragment.height },
+                rotation: fragment.rotation,
+                depth: fragment.depth,
+                mask: fragment.mask
+            });
             fragments.push(fragment);
         }
 
-        console.log(`Generated ${fragments.length} fragments from ${validImages.length} valid images`);
+        // Sort fragments by depth
+        fragments.sort((a, b) => a.depth - b.depth);
+        console.log('Final fragments array:', fragments.length, 'fragments');
+
         return fragments;
     }
 
@@ -136,10 +128,15 @@ export class FragmentsGenerator {
         let currentIndex = 0;
         
         for (let i = 0; i < count; i++) {
-            // ENHANCED: More varied positioning
-            const positionBias = Math.random() < 0.7 ? 0.2 : 0; // Increased bias probability
+            // Reduced position bias for more even distribution
+            const positionBias = Math.random() < 0.3 ? 0.1 : 0;
             let x = (Math.random() * (1 - 2 * positionBias) + positionBias) * this.canvas.width;
             let y = (Math.random() * (1 - 2 * positionBias) + positionBias) * this.canvas.height;
+            
+            // Add slight bias towards center for better composition
+            const centerBias = 0.1;
+            x = x * (1 - centerBias) + centerX * centerBias;
+            y = y * (1 - centerBias) + centerY * centerBias;
             
             // ENHANCED: More varied rotation
             let rotation = 0;
@@ -161,13 +158,16 @@ export class FragmentsGenerator {
             
             // ENHANCED: More varied aspect ratios
             const aspectVariation = Math.random() * 0.6 + 0.7; // Wider range (0.7-1.3)
-            const width = baseSize;
-            const height = baseSize * aspectVariation;
+            const width = baseSize.width;
+            const height = baseSize.height;
             
-            // ENHANCED: Allow more overflow for more dynamic composition
-            const overflowAllowed = 0.3; // Increased from 0.2
+            // ENHANCED: More controlled overflow
+            const overflowAllowed = 0.15; // Reduced from 0.2
             x = Math.max(-width * overflowAllowed, Math.min(x, this.canvas.width - width * (1 - overflowAllowed)));
             y = Math.max(-height * overflowAllowed, Math.min(y, this.canvas.height - height * (1 - overflowAllowed)));
+            
+            // ENHANCED: More controlled rotation
+            rotation = (Math.random() - 0.5) * 0.5; // Reduced rotation range
             
             // Select image based on repetition setting
             let imgIndex;
@@ -188,50 +188,67 @@ export class FragmentsGenerator {
     }
 
     calculateOrganicSize(sizeTiers) {
+        // Select a base size from the tiers with bias towards smaller sizes
         const tierRand = Math.random();
         let baseSize;
-        if (tierRand < 0.3) { // More small fragments
+        if (tierRand < 0.4) { // 40% chance for small
             baseSize = sizeTiers[0];
-        } else if (tierRand < 0.7) { // Fewer medium fragments
+        } else if (tierRand < 0.8) { // 40% chance for medium
             baseSize = sizeTiers[1];
-        } else {
+        } else { // 20% chance for large
             baseSize = sizeTiers[2];
         }
-        return baseSize * (1 + (Math.random() - 0.5) * 0.6); // Increased variation
+        
+        // Add organic variation to width and height
+        const widthVariation = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        const heightVariation = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        
+        return {
+            width: baseSize * widthVariation,
+            height: baseSize * heightVariation
+        };
     }
 
     calculateFocalSize(sizeTiers, x, y, centerX, centerY) {
+        // Calculate distance from center
         const dx = x - centerX;
         const dy = y - centerY;
-        const distanceFromCenter = Math.sqrt(
-            (dx * dx) / (this.canvas.width * this.canvas.width / 4) + 
-            (dy * dy) / (this.canvas.height * this.canvas.height / 4)
-        );
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
+        const normalizedDistance = distance / maxDistance;
         
+        // Select base size based on distance from center
         let baseSize;
-        if (distanceFromCenter < 0.3) {
-            baseSize = Math.random() < 0.8 ? sizeTiers[2] : sizeTiers[1]; // More large fragments in center
-        } else if (distanceFromCenter < 0.6) {
-            baseSize = Math.random() < 0.6 ? sizeTiers[1] : 
-                      (Math.random() < 0.4 ? sizeTiers[0] : sizeTiers[2]); // More medium fragments
-        } else {
-            baseSize = Math.random() < 0.8 ? sizeTiers[0] : sizeTiers[1]; // More small fragments at edges
+        if (normalizedDistance < 0.3) { // Close to center
+            baseSize = sizeTiers[2]; // Large
+        } else if (normalizedDistance < 0.6) { // Medium distance
+            baseSize = sizeTiers[1]; // Medium
+        } else { // Far from center
+            baseSize = sizeTiers[0]; // Small
         }
         
-        return baseSize * (1 + (Math.random() - 0.5) * 0.5); // Increased variation
+        // Add variation based on distance
+        const variation = 0.8 + (1 - normalizedDistance) * 0.4; // More variation near center
+        
+        return {
+            width: baseSize * variation,
+            height: baseSize * variation
+        };
     }
 
     calculateClassicSize(sizeTiers) {
-        const tierRand = Math.random();
-        let baseSize;
-        if (tierRand < 0.25) { // More small fragments
-            baseSize = sizeTiers[0];
-        } else if (tierRand < 0.65) { // Fewer medium fragments
-            baseSize = sizeTiers[1];
-        } else {
-            baseSize = sizeTiers[2];
-        }
-        return baseSize * (1 + (Math.random() - 0.5) * 0.5); // Increased variation
+        // Select a base size from the tiers
+        const tierIndex = Math.floor(Math.random() * sizeTiers.length);
+        const baseSize = sizeTiers[tierIndex];
+        
+        // Add some variation to width and height independently
+        const widthVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+        const heightVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+        
+        return {
+            width: baseSize * widthVariation,
+            height: baseSize * heightVariation
+        };
     }
 
     postProcessFragments(fragments, variation) {
@@ -278,5 +295,32 @@ export class FragmentsGenerator {
             const j = Math.floor(Math.random() * (i + 1));
             [array[i], array[j]] = [array[j], array[i]];
         }
+    }
+
+    drawFragment(fragment, ctx) {
+        console.log('Drawing fragment:', fragment);
+        const { x, y, width, height, image, rotation } = fragment;
+        
+        // Validate fragment properties
+        if (!image || typeof image === 'undefined') {
+            console.warn('Invalid image for fragment:', fragment);
+            return;
+        }
+        
+        if (isNaN(x) || isNaN(y) || isNaN(width) || isNaN(height)) {
+            console.warn('Invalid fragment dimensions or position:', { x, y, width, height });
+            return;
+        }
+        
+        // ENHANCED: Draw fragment with controlled size
+        const drawScale = 1.2; // Reduced from 1.5
+        ctx.save();
+        ctx.translate(x + width/2, y + height/2);
+        ctx.rotate(rotation);
+        ctx.scale(drawScale, drawScale);
+        ctx.drawImage(image, -width/2, -height/2, width, height);
+        ctx.restore();
+        
+        console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height);
     }
 } 

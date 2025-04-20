@@ -37,7 +37,7 @@ class MosaicGenerator {
     async generateMosaic(images, parameters = {}) {
         if (!images || images.length === 0) {
             console.warn('No images provided for mosaic generation');
-            return;
+            return [];
         }
 
         try {
@@ -79,6 +79,9 @@ class MosaicGenerator {
             
             // Determine if tiles should touch without overlap
             const tilesTouching = parameters.tilesTouching || false;
+            
+            // Array to store fragment information
+            const fragments = [];
             
             // Apply composition style
             if (parameters.compositionStyle === 'Focal') {
@@ -122,17 +125,34 @@ class MosaicGenerator {
                         // 40% chance of showing a cropped portion
                         const showCroppedPortion = Math.random() < 0.4;
                         
+                        // Calculate final position and dimensions
+                        const finalX = x - (cellWidth * scale - cellWidth) / 2;
+                        const finalY = y - (cellHeight * scale - cellHeight) / 2;
+                        const finalWidth = cellWidth * scale;
+                        const finalHeight = cellHeight * scale;
+                        
                         // Draw cell with scaled dimensions and proper cropping
                         this.drawImage(
                             image,
-                            x - (cellWidth * scale - cellWidth) / 2,
-                            y - (cellHeight * scale - cellHeight) / 2,
-                            cellWidth * scale,
-                            cellHeight * scale,
+                            finalX,
+                            finalY,
+                            finalWidth,
+                            finalHeight,
                             true,
                             opacity,
                             showCroppedPortion
                         );
+                        
+                        // Store fragment information
+                        fragments.push({
+                            image,
+                            x: finalX,
+                            y: finalY,
+                            width: finalWidth,
+                            height: finalHeight,
+                            opacity,
+                            showCroppedPortion
+                        });
                     }
                 }
             } else {
@@ -172,22 +192,43 @@ class MosaicGenerator {
                         // 40% chance of showing a cropped portion
                         const showCroppedPortion = Math.random() < 0.4;
                         
+                        // Calculate final position and dimensions
+                        const finalX = x + offsetX;
+                        const finalY = y + offsetY;
+                        const finalWidth = cellWidth * scale;
+                        const finalHeight = cellHeight * scale;
+                        
                         // Draw cell with slight variations and proper cropping
                         this.drawImage(
                             image,
-                            x + offsetX,
-                            y + offsetY,
-                            cellWidth * scale,
-                            cellHeight * scale,
+                            finalX,
+                            finalY,
+                            finalWidth,
+                            finalHeight,
                             true,
                             opacity,
                             showCroppedPortion
                         );
+                        
+                        // Store fragment information
+                        fragments.push({
+                            image,
+                            x: finalX,
+                            y: finalY,
+                            width: finalWidth,
+                            height: finalHeight,
+                            opacity,
+                            showCroppedPortion
+                        });
                     }
                 }
             }
+            
+            // Return the array of fragments
+            return fragments;
         } catch (error) {
             console.error('Error generating mosaic:', error);
+            return [];
         }
     }
 

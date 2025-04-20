@@ -7,6 +7,7 @@
 import { TilingGenerator } from './tilingGenerator.js';
 import { FragmentsGenerator } from './fragmentsGenerator.js';
 import MosaicGenerator from './mosaicGenerator.js';
+import { NarrativeCompositionManager } from '../../narrativeCompositionManager.js';
 
 class CollageGenerator {
     constructor(canvas) {
@@ -34,7 +35,12 @@ class CollageGenerator {
             opacityRange: { min: 0.3, max: 0.8 }, // Opacity range for tiles
             
             // Image repetition control
-            allowImageRepetition: false // Default to false to prevent repetition
+            allowImageRepetition: false, // Default to false to prevent repetition
+            
+            // Narrative composition parameters
+            useNarrativeComposition: false, // Whether to use narrative composition
+            narrativeCompositionType: 'multiple-actors', // Default composition type
+            narrativeFlowPattern: 'left-to-right' // Default flow pattern
         };
         
         // Composition Settings
@@ -47,6 +53,13 @@ class CollageGenerator {
         this.tilingGenerator = new TilingGenerator(this.canvas, this.parameters);
         this.fragmentsGenerator = new FragmentsGenerator(this.ctx, canvas);
         this.mosaicGenerator = new MosaicGenerator(this.canvas, this.parameters);
+        
+        // Initialize narrative manager with canvas dimensions
+        this.narrativeManager = new NarrativeCompositionManager({
+            ...this.parameters,
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height
+        });
 
         // Initialize canvas size
         this.resizeCanvas();
@@ -70,6 +83,12 @@ class CollageGenerator {
         
         // Scale the context
         this.ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        // Update narrative manager's canvas dimensions
+        if (this.narrativeManager) {
+            this.narrativeManager.canvas.width = this.canvas.width;
+            this.narrativeManager.canvas.height = this.canvas.height;
+        }
     }
     
     // Helper function to preserve aspect ratio when drawing tiles
@@ -270,6 +289,12 @@ class CollageGenerator {
             
             if (settings) {
                 this.parameters = { ...this.parameters, ...settings };
+                
+                // If narrative composition settings are provided, configure them
+                if (settings.narrativeComposition) {
+                    this.configureNarrativeComposition(settings.narrativeComposition);
+                }
+                
                 console.log(`Applied settings for ${this.currentEffect}:`, this.parameters);
             }
             
@@ -568,153 +593,52 @@ class CollageGenerator {
     
     async generateFragments(images, fortuneText, parameters = {}) {
         try {
-            // Clear any previous content
+            // Clear canvas and set background
             this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            
-            // Set background color
-            this.ctx.fillStyle = this.generateBackgroundColor();
+            const backgroundColor = this.fragmentsGenerator.generateBackgroundColor();
+            this.ctx.fillStyle = backgroundColor;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             
-            // Generate fragments using the FragmentsGenerator
-            const fragments = this.fragmentsGenerator.generateFragments(images, parameters);
+            // Generate base fragments
+            const fragments = await this.fragmentsGenerator.generateFragments(images, fortuneText, parameters);
             
-            // Draw fragments
-            fragments.forEach(fragment => {
-                const img = images[fragment.img];
-                
-                // Skip missing or incomplete images
-                if (!img || !img.complete) return;
-                
-                this.ctx.save();
-                
-                // Calculate opacity based on depth and variation
-                let opacity;
-                if (fragment.forceFullOpacity) {
-                    opacity = 1.0;
-                } else if (parameters.variation === 'Classic') {
-                    opacity = 0.3 + fragment.depth * 0.6;
-                } else if (parameters.variation === 'Organic') {
-                    opacity = 0.25 + fragment.depth * 0.7;
-                } else if (parameters.variation === 'Focal') {
-                    opacity = 0.35 + fragment.depth * 0.6;
-                } else {
-                    opacity = 0.3 + fragment.depth * 0.6;
-                }
-                
-                // Clamp opacity between 0.25 and 1.0
-                opacity = Math.max(0.25, Math.min(1.0, opacity));
-                this.ctx.globalAlpha = opacity;
-                
-                // Apply rotation
-                if (fragment.rotation) {
-                    const centerX = fragment.x + fragment.width / 2;
-                    const centerY = fragment.y + fragment.height / 2;
-                    this.ctx.translate(centerX, centerY);
-                    this.ctx.rotate(fragment.rotation * Math.PI / 180);
-                    this.ctx.translate(-centerX, -centerY);
-                }
-                
-                // Draw fragment with aspect ratio preservation
-                const imgAspectRatio = img.width / img.height;
-                let drawWidth, drawHeight, drawX, drawY;
-                
-                if (imgAspectRatio > 1) {
-                    drawWidth = fragment.width * 1.5;
-                    drawHeight = drawWidth / imgAspectRatio;
-                } else {
-                    drawHeight = fragment.height * 1.5;
-                    drawWidth = drawHeight * imgAspectRatio;
-                }
-                
-                drawX = fragment.x + (fragment.width - drawWidth) / 2;
-                drawY = fragment.y + (fragment.height - drawHeight) / 2;
-                
-                // Add a very small random offset for more natural feeling
-                drawX += (Math.random() - 0.5) * fragment.width * 0.05;
-                drawY += (Math.random() - 0.5) * fragment.height * 0.05;
-
-                // Apply mask if present
-                if (fragment.mask && fragment.mask.enabled) {
-                    // Create clipping path based on mask type
-                    this.ctx.beginPath();
-                    const centerX = drawX + drawWidth / 2;
-                    const centerY = drawY + drawHeight / 2;
-                    const radius = Math.min(drawWidth, drawHeight) / 2;
-
-                    switch (fragment.mask.type) {
-                        case 'circle':
-                            this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                            break;
-                        case 'triangle':
-                            this.ctx.moveTo(centerX, drawY);
-                            this.ctx.lineTo(drawX + drawWidth, drawY + drawHeight);
-                            this.ctx.lineTo(drawX, drawY + drawHeight);
-                            this.ctx.closePath();
-                            break;
-                        case 'rectangle':
-                            this.ctx.rect(drawX, drawY, drawWidth, drawHeight);
-                            break;
-                        case 'ellipse':
-                            this.ctx.ellipse(centerX, centerY, drawWidth / 2, drawHeight / 2, 0, 0, Math.PI * 2);
-                            break;
-                        case 'diamond':
-                            this.ctx.moveTo(centerX, drawY);
-                            this.ctx.lineTo(drawX + drawWidth, centerY);
-                            this.ctx.lineTo(centerX, drawY + drawHeight);
-                            this.ctx.lineTo(drawX, centerY);
-                            this.ctx.closePath();
-                            break;
-                        case 'hexagon':
-                            const hexRadius = Math.min(drawWidth, drawHeight) / 2;
-                            for (let i = 0; i < 6; i++) {
-                                const angle = (i * Math.PI) / 3;
-                                const x = centerX + hexRadius * Math.cos(angle);
-                                const y = centerY + hexRadius * Math.sin(angle);
-                                if (i === 0) {
-                                    this.ctx.moveTo(x, y);
-                                } else {
-                                    this.ctx.lineTo(x, y);
-                                }
-                            }
-                            this.ctx.closePath();
-                            break;
-                        case 'star':
-                            const starRadius = Math.min(drawWidth, drawHeight) / 2;
-                            const innerRadius = starRadius * 0.4;
-                            for (let i = 0; i < 10; i++) {
-                                const angle = (i * Math.PI) / 5;
-                                const radius = i % 2 === 0 ? starRadius : innerRadius;
-                                const x = centerX + radius * Math.cos(angle);
-                                const y = centerY + radius * Math.sin(angle);
-                                if (i === 0) {
-                                    this.ctx.moveTo(x, y);
-                                } else {
-                                    this.ctx.lineTo(x, y);
-                                }
-                            }
-                            this.ctx.closePath();
-                            break;
-                        case 'arc':
-                            this.ctx.arc(centerX, centerY, radius, 0, Math.PI, false);
-                            break;
-                        case 'arch':
-                            this.ctx.arc(centerX, centerY, radius, Math.PI, 0, false);
-                            break;
-                    }
-                    this.ctx.clip();
-                }
-                
-                this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
-                this.ctx.restore();
-            });
-            
-            // Add fortune text if provided
-            if (fortuneText) {
-                this.addFortuneText(fortuneText);
+            // Ensure fragments is an array before filtering
+            if (!Array.isArray(fragments)) {
+                console.error('Fragments generation failed or returned invalid data');
+                return;
             }
-            
+
+            // Filter out invalid fragments
+            const validFragments = fragments.filter(fragment => 
+                fragment && 
+                fragment.width > 0 && 
+                fragment.height > 0 && 
+                !isNaN(fragment.width) && 
+                !isNaN(fragment.height)
+            );
+
+            console.log(`Generated ${fragments.length} fragments, ${validFragments.length} valid`);
+
+            // Randomly decide whether to apply narrative composition
+            const shouldApplyNarrative = Math.random() < 0.6; // 60% chance
+            let compositionType = 'standard';
+            let flowPattern = null;
+
+            if (shouldApplyNarrative) {
+                compositionType = 'narrative';
+                flowPattern = this.getRandomFlowPattern();
+                console.log('Applying narrative composition with pattern:', flowPattern);
+            }
+
+            // Draw each valid fragment
+            for (const fragment of validFragments) {
+                await this.drawFragment(fragment, this.ctx);
+            }
+
+            return validFragments;
         } catch (error) {
             console.error('Error generating fragments:', error);
+            throw error;
         }
     }
 
@@ -1101,6 +1025,25 @@ class CollageGenerator {
     }
 
     /**
+     * Gets a random flow pattern for narrative composition
+     * @returns {string} A flow pattern name
+     */
+    getRandomFlowPattern() {
+        const flowPatterns = [
+            'left-to-right',
+            'right-to-left',
+            'top-to-bottom',
+            'bottom-to-top',
+            'center-outward',
+            'spiral',
+            'zigzag',
+            'diagonal',
+            'circular'
+        ];
+        return flowPatterns[Math.floor(Math.random() * flowPatterns.length)];
+    }
+
+    /**
      * Generates a layered collage effect with 2-4 images that have significant overlap
      * and varying opacity levels to create depth.
      * 
@@ -1212,6 +1155,263 @@ class CollageGenerator {
             
             this.ctx.restore();
         });
+    }
+
+    /**
+     * Configures narrative composition parameters
+     * @param {Object} params - Parameters for narrative composition
+     */
+    configureNarrativeComposition(params = {}) {
+        // Update narrative composition parameters
+        this.parameters.useNarrativeComposition = params.useNarrativeComposition ?? this.parameters.useNarrativeComposition;
+        this.parameters.narrativeCompositionType = params.compositionType ?? this.parameters.narrativeCompositionType;
+        this.parameters.narrativeFlowPattern = params.flowPattern ?? this.parameters.narrativeFlowPattern;
+        
+        // Update narrative manager parameters
+        if (this.narrativeManager) {
+            this.narrativeManager.parameters = {
+                ...this.narrativeManager.parameters,
+                compositionType: this.parameters.narrativeCompositionType,
+                flowPattern: this.parameters.narrativeFlowPattern,
+                useLLM: params.useLLM ?? this.narrativeManager.parameters.useLLM,
+                focalScale: params.focalScale ?? this.narrativeManager.parameters.focalScale,
+                depthOpacity: params.depthOpacity ?? this.narrativeManager.parameters.depthOpacity
+            };
+        }
+        
+        console.log('Updated narrative composition parameters:', {
+            useNarrativeComposition: this.parameters.useNarrativeComposition,
+            compositionType: this.parameters.narrativeCompositionType,
+            flowPattern: this.parameters.narrativeFlowPattern
+        });
+    }
+
+    drawFragment(fragment, ctx) {
+        console.log('Drawing fragment:', {
+            image: fragment.image ? 'valid' : 'invalid',
+            position: { x: fragment.x, y: fragment.y },
+            dimensions: { width: fragment.width, height: fragment.height },
+            rotation: fragment.rotation,
+            depth: fragment.depth,
+            mask: fragment.mask
+        });
+
+        // Validate fragment dimensions
+        if (!fragment.width || !fragment.height || isNaN(fragment.width) || isNaN(fragment.height)) {
+            console.warn('Invalid fragment dimensions, skipping draw:', fragment);
+            return;
+        }
+
+        // Save the current context state
+        ctx.save();
+
+        // Set opacity based on depth with added variance
+        const opacityVariation = 0.1; // Small random variation
+        const randomOpacity = Math.random() * opacityVariation * 2 - opacityVariation; // Random value between -0.1 and 0.1
+        ctx.globalAlpha = Math.max(0.3, Math.min(1, fragment.depth + randomOpacity));
+
+        // Move to fragment center for rotation
+        const centerX = fragment.x + fragment.width / 2;
+        const centerY = fragment.y + fragment.height / 2;
+        ctx.translate(centerX, centerY);
+        ctx.rotate((fragment.rotation * Math.PI) / 180);
+
+        // Apply mask if specified
+        if (fragment.mask && fragment.mask.enabled) {
+            console.log('Applying mask to fragment:', {
+                type: fragment.mask.type,
+                scale: fragment.mask.scale,
+                rotation: fragment.mask.rotation,
+                fragmentDimensions: { width: fragment.width, height: fragment.height }
+            });
+            
+            // Create clipping path based on mask type
+            ctx.beginPath();
+            
+            // Calculate dimensions for mask
+            const maskScale = fragment.mask.scale || 1.0;
+            const scaledWidth = fragment.width * maskScale;
+            const scaledHeight = fragment.height * maskScale;
+            
+            // Apply mask rotation if specified
+            if (fragment.mask.rotation) {
+                ctx.rotate((fragment.mask.rotation * Math.PI) / 180);
+            }
+            
+            // Draw the mask shape
+            switch (fragment.mask.type) {
+                case 'circle':
+                    ctx.arc(0, 0, Math.min(scaledWidth, scaledHeight) / 2, 0, Math.PI * 2);
+                    break;
+                    
+                case 'triangle':
+                    ctx.moveTo(0, -scaledHeight / 2);
+                    ctx.lineTo(scaledWidth / 2, scaledHeight / 2);
+                    ctx.lineTo(-scaledWidth / 2, scaledHeight / 2);
+                    ctx.closePath();
+                    break;
+                    
+                case 'rectangle':
+                    ctx.rect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
+                    break;
+                    
+                case 'ellipse':
+                    ctx.ellipse(0, 0, scaledWidth / 2, scaledHeight / 2, 0, 0, Math.PI * 2);
+                    break;
+                    
+                case 'diamond':
+                    ctx.moveTo(0, -scaledHeight / 2);
+                    ctx.lineTo(scaledWidth / 2, 0);
+                    ctx.lineTo(0, scaledHeight / 2);
+                    ctx.lineTo(-scaledWidth / 2, 0);
+                    ctx.closePath();
+                    break;
+                    
+                case 'hexagon':
+                    const hexRadius = Math.min(scaledWidth, scaledHeight) / 2;
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI) / 3;
+                        const x = hexRadius * Math.cos(angle);
+                        const y = hexRadius * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    break;
+                    
+                case 'star':
+                    const outerRadius = Math.min(scaledWidth, scaledHeight) / 2;
+                    const innerRadius = outerRadius * 0.4;
+                    for (let i = 0; i < 10; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (i * Math.PI) / 5;
+                        const x = radius * Math.cos(angle);
+                        const y = radius * Math.sin(angle);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    break;
+                    
+                case 'arc':
+                    const arcRadius = Math.min(scaledWidth, scaledHeight) / 2;
+                    console.log('Drawing arc mask:', {
+                        center: { x: 0, y: 0 },
+                        radius: arcRadius,
+                        innerRadius: arcRadius * 0.7,
+                        dimensions: { width: scaledWidth, height: scaledHeight }
+                    });
+                    ctx.beginPath();
+                    // Draw the outer arc
+                    ctx.arc(0, 0, arcRadius, 0, Math.PI, false);
+                    // Draw the inner arc in reverse to create the arc shape
+                    ctx.arc(0, 0, arcRadius * 0.7, Math.PI, 0, true);
+                    ctx.closePath();
+                    console.log('Arc mask path completed');
+                    break;
+                    
+                case 'arch':
+                    console.log('Drawing arch mask:', {
+                        dimensions: { width: scaledWidth, height: scaledHeight }
+                    });
+                    ctx.beginPath();
+                    
+                    // Calculate arch dimensions
+                    const archWidth = scaledWidth;
+                    const archHeight = scaledHeight;
+                    const archRadius = archWidth / 2;
+                    
+                    // Draw the arch path
+                    ctx.moveTo(-archWidth / 2, archHeight / 2);
+                    ctx.lineTo(-archWidth / 2, -archHeight / 2 + archRadius);
+                    ctx.arc(0, -archHeight / 2 + archRadius, archRadius, Math.PI, 0, false);
+                    ctx.lineTo(archWidth / 2, archHeight / 2);
+                    ctx.closePath();
+                    
+                    console.log('Arch mask path completed');
+                    break;
+            }
+            
+            // Apply the clipping path
+            ctx.clip();
+        }
+
+        // Calculate image dimensions to ensure it completely fills the mask
+        const imageAspectRatio = fragment.image.width / fragment.image.height;
+        const fragmentAspectRatio = fragment.width / fragment.height;
+        
+        // Calculate the base scaling factor needed to cover the fragment
+        let scaleFactor;
+        
+        if (imageAspectRatio > fragmentAspectRatio) {
+            // Image is wider than fragment - scale based on height
+            scaleFactor = fragment.height / fragment.image.height;
+        } else {
+            // Image is taller than fragment - scale based on width
+            scaleFactor = fragment.width / fragment.image.width;
+        }
+        
+        // Apply a minimal buffer to prevent edge clipping
+        const bufferFactor = 1.05;
+        
+        // Get mask scale if applicable
+        const maskScale = fragment.mask && fragment.mask.enabled ? (fragment.mask.scale || 1.0) : 1.0;
+        
+        // Calculate final scale factor with minimal adjustments
+        scaleFactor = scaleFactor * bufferFactor;
+        
+        // Add minimal shape-specific adjustments
+        if (fragment.mask && fragment.mask.enabled) {
+            switch (fragment.mask.type) {
+                case 'star':
+                    scaleFactor *= 1.05;
+                    break;
+                case 'hexagon':
+                    scaleFactor *= 1.03;
+                    break;
+                case 'diamond':
+                    scaleFactor *= 1.02;
+                    break;
+                case 'arc':
+                case 'arch':
+                    scaleFactor *= 1.01;
+                    break;
+            }
+        }
+        
+        // Add random variation to scale factor (minimal change)
+        const randomScaleVariation = 0.95 + Math.random() * 0.1; // Random value between 0.95 and 1.05
+        scaleFactor *= randomScaleVariation;
+        
+        // Ensure scale factor stays within reasonable bounds
+        scaleFactor = Math.min(Math.max(scaleFactor, 1.0), 1.2);
+        
+        // Calculate the dimensions of the scaled image
+        const drawWidth = fragment.image.width * scaleFactor;
+        const drawHeight = fragment.image.height * scaleFactor;
+        
+        // Calculate the offset to center the image
+        const offsetX = (drawWidth - fragment.width) / 2;
+        const offsetY = (drawHeight - fragment.height) / 2;
+        
+        console.log('Drawing image with dimensions:', {
+            original: { width: fragment.image.width, height: fragment.image.height },
+            scaled: { width: drawWidth, height: drawHeight },
+            scaleFactor: scaleFactor,
+            offset: { x: offsetX, y: offsetY }
+        });
+
+        // Draw the image perfectly centered within the fragment
+        ctx.drawImage(
+            fragment.image,
+            -fragment.width / 2 - offsetX,
+            -fragment.height / 2 - offsetY,
+            drawWidth,
+            drawHeight
+        );
+
+        // Restore the context state
+        ctx.restore();
     }
 }
 
