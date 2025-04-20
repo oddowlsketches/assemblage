@@ -34,11 +34,14 @@ pids
 uploads/
 
 # Test files
-test.html
-fix.html
-simple.html
-index-fixed.html
-bridge.html
+*-test.html
+*-test.js
+*debug*.js
+*test*.js
+rotation-debug.html
+rotation-test.html
+test-console.js
+test_tiling.html
 
 # IDE specific files
 .idea/
@@ -54,4 +57,16 @@ backups/
 # Temporary files
 *.tmp
 *.temp
-*.bak 
+*.bak
+.DS_Store
+*.backup
+*.updated
+*.update.js
+*.fix.js
+*.fix.sh
+*.sh
+collages.txt
+metadata_ids.txt
+
+# Development files
+assemblage-fresh-apr10/ 
