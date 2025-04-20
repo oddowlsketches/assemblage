@@ -1,10 +1,9 @@
 import http.server
 import socketserver
-
-PORT = 8000
+from scripts.config import MAIN_SERVER_PORT
 
 Handler = http.server.SimpleHTTPRequestHandler
 
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
-    print(f"Serving at http://localhost:{PORT}")
+with socketserver.TCPServer(("", MAIN_SERVER_PORT), Handler) as httpd:
+    print(f"Serving at http://localhost:{MAIN_SERVER_PORT}")
     httpd.serve_forever() 

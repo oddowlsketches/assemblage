@@ -1,3 +1,64 @@
+#!/bin/bash
+
+# Implementation script for integrating the tiling collage feature into the main app
+# Created on April 10, 2025
+
+echo "===================================================="
+echo "Implementing Tiling Collage in Main Assemblage App"
+echo "===================================================="
+
+# Create backup directory with timestamp
+BACKUP_DIR="app_backups_$(date +%Y%m%d%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+echo "📁 Created backup directory: $BACKUP_DIR"
+
+# Backup key files
+cp "js/app.js" "$BACKUP_DIR/app.js.bak"
+cp "index.html" "$BACKUP_DIR/index.html.bak"
+cp "css/styles.css" "$BACKUP_DIR/styles.css.bak"
+echo "📁 Created backups of app.js, index.html, and styles.css"
+
+# 1. Update index.html to add the collage container
+echo "🔧 Updating index.html to add collage container..."
+if grep -q "collageContainer" "index.html"; then
+    echo "⚠️ Collage container already exists in index.html"
+else
+    # Find the main element to add the collage container
+    sed -i'.tmp' '/<main/a\\n    <div id="collageContainer" class="collage-container">\n        <canvas id="collageCanvas" class="collage-canvas"></canvas>\n    </div>' "index.html"
+    rm -f "index.html.tmp"
+    echo "✅ Added collage container to index.html"
+fi
+
+# 2. Update styles.css to add collage styles
+echo "🔧 Updating CSS styles..."
+if grep -q "collage-container" "css/styles.css"; then
+    echo "⚠️ Collage styles already exist in styles.css"
+else
+    cat >> "css/styles.css" << EOL
+
+/* Collage Styles */
+.collage-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    z-index: -1; /* Behind other content */
+}
+
+.collage-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+EOL
+    echo "✅ Added collage styles to styles.css"
+fi
+
+# 3. Update app.js to integrate collage generator
+echo "🔧 Updating app.js to integrate collage generator..."
+cat > "app.js.update.js" << EOL
 /**
  * Main Application for Oracle Stack
  * 
@@ -41,12 +102,11 @@ class App {
             allowImageRepetition: true  // Allow some images to repeat
         };
         
+        // Store app instance globally for data.js to access
+        window.app = this;
+        
         // Initialize the app
-        this.init().then(() => {
-            // Store app instance globally after initialization
-            window.app = this;
-            console.log('App initialized and exposed to window');
-        });
+        this.init();
     }
 
     async init() {
@@ -303,13 +363,13 @@ class App {
             
             // Position the icon
             fortuneIcon.style.position = 'absolute';
-            fortuneIcon.style.left = `${x}px`;
-            fortuneIcon.style.top = `${y}px`;
+            fortuneIcon.style.left = \`\${x}px\`;
+            fortuneIcon.style.top = \`\${y}px\`;
             
             // Store the current position
             this.currentIconPosition = {
-                left: `${x}px`,
-                top: `${y}px`
+                left: \`\${x}px\`,
+                top: \`\${y}px\`
             };
 
             // Select a random icon
@@ -323,7 +383,7 @@ class App {
             
             // Create new image element for the SVG
             const iconImg = document.createElement('img');
-            iconImg.src = `images/ui/icons/${iconPath}`;
+            iconImg.src = \`images/ui/icons/\${iconPath}\`;
             iconImg.alt = 'Fortune Icon';
             iconImg.classList.add('fortune-svg-icon');
             
@@ -368,3 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('DOM loaded, initializing app');
     new App();
 });
+EOL
+
+echo "⚠️ Created an updated version of app.js in app.js.update.js"
+echo "✏️ Manual steps required:"
+echo "   1. Review app.js.update.js"
+echo "   2. If it looks good, replace your js/app.js with this file:"
+echo "      cp app.js.update.js js/app.js"
+echo ""
+echo "✅ Implementation script completed!"
+echo "===================================================="
+echo "Your Oracle Stack app should now integrate the improved tiling collage feature!"
+echo "To activate: Replace your js/app.js with app.js.update.js"
+echo "===================================================="

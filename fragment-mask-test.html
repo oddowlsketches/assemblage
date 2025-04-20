@@ -1,0 +1,718 @@
+            // Create simple fragments manually as a fallback
+            createFallbackFragments(images) {
+                if (!images || images.length === 0) {
+                    console.error('No images available for fallback fragment generation');
+                    return [];
+                }
+                
+                console.log('Creating fallback fragments...');
+                const fragments = [];
+                const canvasWidth = this.canvas.width;
+                const canvasHeight = this.canvas.height;
+                
+                // Create a small number of fragments with simple layout
+                const count = Math.min(6, images.length);
+                
+                for (let i = 0; i < count; i++) {
+                    // Use modulo to handle cases where there are fewer images than fragments
+                    const imgIndex = i % images.length;
+                    
+                    // Calculate size (larger fragments in the center)
+                    const baseSize = Math.min(canvasWidth, canvasHeight) * 0.3;
+                    const sizeVariation = 0.2; // 20% variation
+                    const size = baseSize * (1 + (Math.random() - 0.5) * sizeVariation);
+                    
+                    // Calculate position with some randomness but avoid edges
+                    const maxX = canvasWidth - size;
+                    const maxY = canvasHeight - size;
+                    const margin = size * 0.1; // 10% margin from edges
+                    const x = margin + Math.random() * (maxX - 2 * margin);
+                    const y = margin + Math.random() * (maxY - 2 * margin);
+                    
+                    // Create basic fragment
+                    fragments.push({
+                        img: imgIndex,  // Direct index to image
+                        x: x,
+                        y: y,
+                        width: size,
+                        height: size,
+                        rotation: Math.random() * 30 - 15, // -15 to +15 degrees
+                        depth: Math.random(),
+                        opacity: 0.7 + Math.random() * 0.3 // 0.7-1.0 opacity
+                    });
+                }
+                
+                console.log(`Created ${fragments.length} fallback fragments`);
+                return fragments;
+            }<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assemblage | Fragment Mask Test</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* CSS Reset and Variables */
+        :root {
+            --background-color: #f5f5f5;
+            --text-color: #333;
+            --transition-speed: 0.3s;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+            background-color: var(--background-color);
+            transition: background-color var(--transition-speed) ease;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        /* Canvas Container */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-color);
+            transition: background-color var(--transition-speed) ease;
+        }
+        
+        /* Canvas Element */
+        #collageCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        
+        /* Header */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1.5rem;
+            z-index: 10;
+            background-color: transparent;
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-text h1 {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            font-size: 2.5rem;
+            color: white;
+            margin: 0;
+            line-height: 1;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header-text .tagline {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            margin: 0.5rem 0;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Buttons */
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .header-controls button {
+            background: white;
+            color: var(--text-color);
+            border: 1px solid var(--text-color);
+            padding: 0.5rem 1rem;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .header-controls button:hover {
+            background: var(--text-color);
+            color: white !important;
+        }
+        
+        /* Mask settings controls */
+        .mask-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            z-index: 10;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 300px;
+        }
+        
+        .mask-controls h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .mask-control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .mask-control-row label {
+            flex: 1;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .mask-control-row input[type="range"] {
+            flex: 1;
+        }
+        
+        .mask-control-row input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        
+        .mask-control-row select {
+            flex: 1;
+            padding: 3px;
+            font-size: 12px;
+        }
+        
+        .mask-value {
+            font-size: 10px;
+            width: 25px;
+            text-align: right;
+            margin-left: 5px;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Space Grotesk', sans-serif;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            z-index: 20;
+            display: none;
+        }
+        
+        /* Test badge */
+        .test-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #f44336;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            z-index: 100;
+        }
+        
+        /* Footer */
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 0.5rem;
+            text-align: center;
+            z-index: 10;
+            background-color: transparent;
+        }
+        
+        .copyright {
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Test Badge -->
+    <div class="test-badge">FRAGMENT MASK TEST</div>
+    
+    <!-- Canvas Container -->
+    <div id="canvas-container">
+        <canvas id="collageCanvas"></canvas>
+        <div id="loading" class="loading">Generating collage...</div>
+    </div>
+    
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="header-text">
+                <h1>Assemblage</h1>
+                <p class="tagline">FRAGMENT MASK TEST</p>
+            </div>
+            <div class="header-controls">
+                <button id="generateButton">Generate Collage</button>
+                <button id="saveButton">Save Collage</button>
+            </div>
+        </div>
+    </header>
+    
+    <!-- Mask Controls -->
+    <div class="mask-controls">
+        <h3>Mask Settings</h3>
+        <div class="mask-control-row">
+            <label for="maskProbability">Mask Probability:</label>
+            <input type="range" id="maskProbability" min="0" max="100" value="20" step="5">
+            <span class="mask-value" id="maskProbabilityValue">20%</span>
+        </div>
+        <div class="mask-control-row">
+            <label for="consistentMasks">Use Consistent Masks:</label>
+            <input type="checkbox" id="consistentMasks">
+        </div>
+        <div class="mask-control-row">
+            <label>Enabled Mask Types:</label>
+            <div>
+                <div>
+                    <input type="checkbox" id="maskCircle" checked>
+                    <label for="maskCircle">Circle</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskTriangle" checked>
+                    <label for="maskTriangle">Triangle</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskRectangle" checked>
+                    <label for="maskRectangle">Rectangle</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskEllipse" checked>
+                    <label for="maskEllipse">Ellipse</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskDiamond">
+                    <label for="maskDiamond">Diamond</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskHexagon">
+                    <label for="maskHexagon">Hexagon</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskStar">
+                    <label for="maskStar">Star</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskArc">
+                    <label for="maskArc">Arc</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="maskArch">
+                    <label for="maskArch">Arch</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p class="copyright">© 2025 Assemblage by Emily Schwartzman. All rights reserved.</p>
+    </footer>
+
+    <!-- Script for Fragment Mask Test -->
+    <script type="module">
+        import { FragmentsGenerator } from './js/collage/fragmentsGenerator.js';
+        import { loadImageCollection } from './js/data.js';
+        import { applyMasksToFragments, drawMaskedFragment } from './js/fragmentsMaskSupport.js';
+        
+        // Create a wrapper to handle image loading issues
+        async function loadImagesWithFallback() {
+            try {
+                // Try loading images with standard method first
+                const images = await loadImageCollection();
+                console.log(`Loaded ${images.length} images via standard method`);
+                return images;
+            } catch (error) {
+                console.warn('Error loading images with standard method:', error);
+                
+                // Fallback: Try to get images from the main app if available
+                if (window.app && window.app.images && Array.isArray(window.app.images) && window.app.images.length > 0) {
+                    console.log(`Using ${window.app.images.length} images from main app`);
+                    return window.app.images;
+                }
+                
+                // Second fallback: Try to load a few test images directly
+                console.warn('Trying fallback image loading method...');
+                return loadFallbackImages();
+            }
+        }
+
+        // Fallback method to load a few test images directly
+        async function loadFallbackImages() {
+            const testImages = [
+                '/images/collages/collage01.jpg',
+                '/images/collages/collage02.jpg',
+                '/images/collages/collage03.jpg',
+                '/images/collages/collage04.jpg',
+                '/images/collages/collage05.jpg'
+            ];
+            
+            const loadedImages = [];
+            
+            for (const path of testImages) {
+                try {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    
+                    await new Promise((resolve, reject) => {
+                        img.onload = () => resolve();
+                        img.onerror = () => reject(new Error(`Failed to load ${path}`));
+                        img.src = path;
+                    });
+                    
+                    loadedImages.push(img);
+                } catch (error) {
+                    console.warn(`Failed to load test image ${path}:`, error);
+                }
+            }
+            
+            console.log(`Loaded ${loadedImages.length} fallback images`);
+            return loadedImages;
+        }
+        
+        class FragmentMaskTest {
+            constructor() {
+                // Canvas setup
+                this.canvas = document.getElementById('collageCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // UI Elements
+                this.generateButton = document.getElementById('generateButton');
+                this.saveButton = document.getElementById('saveButton');
+                this.loadingElement = document.getElementById('loading');
+                this.maskProbabilityInput = document.getElementById('maskProbability');
+                this.maskProbabilityValue = document.getElementById('maskProbabilityValue');
+                this.consistentMasksCheckbox = document.getElementById('consistentMasks');
+                
+                // Mask checkboxes
+                this.maskTypeCheckboxes = {
+                    circle: document.getElementById('maskCircle'),
+                    triangle: document.getElementById('maskTriangle'),
+                    rectangle: document.getElementById('maskRectangle'),
+                    ellipse: document.getElementById('maskEllipse'),
+                    diamond: document.getElementById('maskDiamond'),
+                    hexagon: document.getElementById('maskHexagon'),
+                    star: document.getElementById('maskStar'),
+                    arc: document.getElementById('maskArc'),
+                    arch: document.getElementById('maskArch')
+                };
+                
+                // State
+                this.images = [];
+                this.fragments = [];
+                this.maskSettings = {
+                    probability: 0.2,
+                    maskTypes: ['circle', 'triangle', 'rectangle', 'ellipse'],
+                    consistentMasks: false
+                };
+                
+                // Event listeners
+                this.generateButton.addEventListener('click', () => this.generateCollage());
+                this.saveButton.addEventListener('click', () => this.saveCollage());
+                this.maskProbabilityInput.addEventListener('input', () => this.updateMaskSettings());
+                this.consistentMasksCheckbox.addEventListener('change', () => this.updateMaskSettings());
+                
+                // Add event listeners to all mask type checkboxes
+                Object.keys(this.maskTypeCheckboxes).forEach(type => {
+                    const checkbox = this.maskTypeCheckboxes[type];
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => this.updateMaskSettings());
+                    }
+                });
+                
+                // Initialize
+                this.init();
+            }
+            
+            async init() {
+    try {
+        // Show loading indicator
+        this.showLoading(true);
+        
+        // Try to load images with fallback mechanisms
+        this.images = await loadImagesWithFallback();
+        console.log(`Successfully loaded ${this.images.length} images for fragment test`);
+        
+        // Display warning if few images were loaded
+        if (this.images.length < 5) {
+            console.warn('Only loaded a few images - visuals may be limited');
+        }
+        
+        // Create fragments generator
+        this.fragmentsGenerator = new FragmentsGenerator(this.ctx, this.canvas);
+        
+        // Update mask settings from UI
+        this.updateMaskSettings();
+        
+        // Generate initial collage
+        if (this.images.length > 0) {
+            await this.generateCollage();
+        } else {
+            console.error('No images loaded, cannot generate collage');
+            alert('Failed to load images. Please check console for details.');
+        }
+        
+        this.showLoading(false);
+    } catch (error) {
+        console.error('Error initializing fragment mask test:', error);
+        this.showLoading(false);
+        alert('Error initializing test page. See console for details.');
+    }
+}
+            
+            resizeCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                
+                this.canvas.width = width * dpr;
+                this.canvas.height = height * dpr;
+                
+                this.canvas.style.width = width + 'px';
+                this.canvas.style.height = height + 'px';
+                
+                this.ctx.scale(dpr, dpr);
+            }
+            
+            updateMaskSettings() {
+                // Update probability
+                const probability = parseInt(this.maskProbabilityInput.value) / 100;
+                this.maskSettings.probability = probability;
+                this.maskProbabilityValue.textContent = `${this.maskProbabilityInput.value}%`;
+                
+                // Update consistent masks setting
+                this.maskSettings.consistentMasks = this.consistentMasksCheckbox.checked;
+                
+                // Update enabled mask types
+                this.maskSettings.maskTypes = [];
+                Object.keys(this.maskTypeCheckboxes).forEach(type => {
+                    const checkbox = this.maskTypeCheckboxes[type];
+                    if (checkbox && checkbox.checked) {
+                        this.maskSettings.maskTypes.push(type);
+                    }
+                });
+                
+                console.log('Updated mask settings:', this.maskSettings);
+            }
+            
+            async generateCollage() {
+                try {
+                    this.showLoading(true);
+                    
+                    // Clear canvas
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Generate background color
+                    const backgroundColor = this.generateRandomColor();
+                    document.documentElement.style.setProperty('--background-color', backgroundColor);
+                    
+                    // Set background
+                    this.ctx.fillStyle = backgroundColor;
+                    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                    
+                    // Check if we have valid images
+                    if (!this.images || this.images.length === 0) {
+                        console.error('No images available for fragment generation');
+                        this.showLoading(false);
+                        alert('No images available for collage. Please reload the page or check image paths.');
+                        return;
+                    }
+                    
+                    console.log(`Generating fragments with ${this.images.length} images`);
+                    
+                    try {
+                        // Create fragments generator if needed
+                        if (!this.fragmentsGenerator) {
+                            this.fragmentsGenerator = new FragmentsGenerator(this.ctx, this.canvas);
+                        }
+                        
+                        // Generate fragments
+                        const generatedFragments = await this.fragmentsGenerator.generateFragments(this.images);
+                        
+                        if (!generatedFragments || !Array.isArray(generatedFragments)) {
+                            console.error('Failed to generate fragments array');
+                            this.showLoading(false);
+                            alert('Error generating fragments. See console for details.');
+                            return;
+                        }
+                        
+                        console.log(`Generated ${generatedFragments.length} fragments`);
+                        
+                        // Store the fragments
+                        this.fragments = generatedFragments;
+                    } catch (fragmentError) {
+                        console.error('Error generating fragments:', fragmentError);
+                        
+                        // Fallback: Create simple fragments manually
+                        console.warn('Using fallback fragment generation...');
+                        this.fragments = this.createFallbackFragments(this.images);
+                    }
+                    
+                    // Apply masks to fragments
+                    this.fragments = applyMasksToFragments(this.fragments, this.maskSettings);
+                    
+                    // Draw fragments with masks
+                    this.drawFragments();
+                    
+                    this.showLoading(false);
+                } catch (error) {
+                    console.error('Error generating collage:', error);
+                    this.showLoading(false);
+                    alert('Error generating collage. See console for details.');
+                }
+            }
+            
+            drawFragments() {
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Set background
+                this.ctx.fillStyle = document.documentElement.style.getPropertyValue('--background-color');
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Set blend mode
+                this.ctx.globalCompositeOperation = 'multiply';
+                
+                // Sort fragments by depth
+                const sortedFragments = [...this.fragments].sort((a, b) => a.depth - b.depth);
+                
+                // Create a log for tracking issues
+                let drawCount = 0;
+                let errorCount = 0;
+                
+                // Draw each fragment
+                sortedFragments.forEach((fragment, index) => {
+                    try {
+                        // Skip if fragment is invalid
+                        if (!fragment || typeof fragment !== 'object') {
+                            console.warn(`Invalid fragment at index ${index}:`, fragment);
+                            errorCount++;
+                            return;
+                        }
+                        
+                        // Get the image using the img index
+                        let img;
+                        
+                        // Handle different image formats
+                        if (typeof fragment.img === 'number') {
+                            // Standard index format
+                            img = this.images[fragment.img];
+                        } else if (fragment.img && fragment.img.img instanceof HTMLImageElement) {
+                            // Object with img property
+                            img = fragment.img.img;
+                        } else if (fragment.img instanceof HTMLImageElement) {
+                            // Direct HTMLImageElement
+                            img = fragment.img;
+                        } else {
+                            console.warn(`Cannot find image for fragment at index ${index}`, fragment);
+                            errorCount++;
+                            return;
+                        }
+                        
+                        // Skip missing or incomplete images
+                        if (!img || !img.complete) {
+                            console.warn(`Invalid image for fragment at index ${index}:`, img);
+                            errorCount++;
+                            return;
+                        }
+                        
+                        // Calculate opacity based on depth
+                        let opacity = 0.3 + fragment.depth * 0.6;
+                        if (fragment.forceFullOpacity) {
+                            opacity = 1.0;
+                        }
+                        
+                        // Clamp opacity between 0.25 and 1.0
+                        opacity = Math.max(0.25, Math.min(1.0, opacity));
+                        
+                        // Draw the fragment (with mask if applicable)
+                        drawMaskedFragment(this.ctx, fragment, img, opacity);
+                        drawCount++;
+                    } catch (error) {
+                        console.error(`Error drawing fragment ${index}:`, error);
+                        errorCount++;
+                    }
+                });
+                
+                // Reset blend mode
+                this.ctx.globalCompositeOperation = 'source-over';
+                
+                // Log results
+                console.log(`Drew ${drawCount}/${sortedFragments.length} fragments with ${errorCount} errors`);
+            }
+            
+            saveCollage() {
+                const link = document.createElement('a');
+                link.download = 'assemblage-masked-fragment.png';
+                link.href = this.canvas.toDataURL('image/png');
+                link.click();
+            }
+            
+            generateRandomColor() {
+                // Soft, light colors that work well with multiply blend mode
+                const colors = [
+                    '#F5F5F5', // White
+                    '#F0F5E9', // Soft Mint
+                    '#F5EFED', // Pale Pink
+                    '#E9F0F5', // Light Blue
+                    '#F5F0E9', // Warm Beige
+                    '#EFF5F0', // Sage Green
+                    '#F5E9F0', // Lavender
+                    '#F0E9F5', // Soft Purple
+                    '#E9F5F0', // Mint Green
+                    '#F5E9E9'  // Soft Rose
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            
+            showLoading(show) {
+                if (this.loadingElement) {
+                    this.loadingElement.style.display = show ? 'block' : 'none';
+                }
+            }
+        }
+        
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new FragmentMaskTest();
+        });
+    </script>
+</body>
+</html>

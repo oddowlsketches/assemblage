@@ -41,12 +41,11 @@ class App {
             allowImageRepetition: true  // Allow some images to repeat
         };
         
+        // Store app instance globally for data.js to access
+        window.app = this;
+        
         // Initialize the app
-        this.init().then(() => {
-            // Store app instance globally after initialization
-            window.app = this;
-            console.log('App initialized and exposed to window');
-        });
+        this.init();
     }
 
     async init() {

@@ -417,7 +417,7 @@ def upload_images():
 
 # Start the server if run directly
 if __name__ == '__main__':
-    print("Starting Assemblage Image Processor server on http://localhost:8000")
+    print(f"Starting Assemblage Image Processor server on http://localhost:{IMAGE_PROCESSOR_PORT}")
     print(f"Images will be saved to: {os.path.abspath(UPLOAD_FOLDER)}")
     print(f"Metadata will be updated at: {os.path.abspath(METADATA_FILE)}")
     cleanup_metadata()  # Clean up metadata before starting server

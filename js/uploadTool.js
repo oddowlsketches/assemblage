@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             
             // Upload to server
-            const response = await fetch('http://localhost:8000/upload', {
+            const response = await fetch('http://localhost:5001/upload', {
                 method: 'POST',
                 body: formData
             });

@@ -1,0 +1,295 @@
+import { FragmentsGenerator } from './js/collage/fragmentsGenerator.js';
+import { NarrativeCompositionManager } from './narrativeCompositionManager.js';
+
+export class NarrativeTest {
+    constructor() {
+        // Get canvas elements
+        this.standardCanvas = document.getElementById('standardCanvas');
+        this.narrativeCanvas = document.getElementById('narrativeCanvas');
+        
+        // Get canvas contexts
+        this.standardCtx = this.standardCanvas ? this.standardCanvas.getContext('2d') : null;
+        this.narrativeCtx = this.narrativeCanvas ? this.narrativeCanvas.getContext('2d') : null;
+        
+        // Initialize properties
+        this.images = [];
+        this.standardFragments = [];
+        this.narrativeFragments = [];
+        this.narrativeEnabled = true; // Default to enabled
+        this.useLLM = false; // Default to disabled
+        this.narrativeCompositionManager = new NarrativeCompositionManager({
+            useLLM: this.useLLM,
+            llmParameters: {
+                useMockResponses: true, // Use mock responses for testing
+                debug: true // Enable debug logging
+            }
+        });
+        
+        // Set up event listeners if elements exist
+        const generateBtn = document.getElementById('generateNarrativeBtn');
+        const toggleBtn = document.getElementById('toggleNarrativeBtn');
+        const toggleLLMBtn = document.getElementById('toggleLLMBtn');
+        this.statusMessage = document.getElementById('statusMessage');
+        
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.generateCollage());
+        } else {
+            console.warn('Generate button not found in DOM');
+        }
+        
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => this.toggleNarrative());
+        } else {
+            console.warn('Toggle button not found in DOM');
+        }
+        
+        if (toggleLLMBtn) {
+            toggleLLMBtn.addEventListener('click', () => this.toggleLLM());
+        } else {
+            console.warn('Toggle LLM button not found in DOM');
+        }
+        
+        // Load images on initialization
+        this.loadImages();
+    }
+    
+    async loadImages() {
+        try {
+            this.updateStatus('Loading image metadata...');
+            
+            // Load image metadata
+            const response = await fetch('images/metadata.json');
+            const metadata = await response.json();
+            
+            // Select a random subset of images for testing
+            const selectedMetadata = this.selectRandomImages(metadata, 10);
+            
+            this.updateStatus(`Selected ${selectedMetadata.length} images, loading...`);
+            
+            // Load the actual images
+            this.images = await Promise.all(
+                selectedMetadata.map(async (img) => {
+                    try {
+                        const image = new Image();
+                        image.src = `images/collages/${img.src}`;
+                        await new Promise((resolve, reject) => {
+                            image.onload = resolve;
+                            image.onerror = reject;
+                        });
+                        console.log(`Loaded image: ${img.src}`);
+                        return image;
+                    } catch (error) {
+                        console.error(`Failed to load image ${img.src}:`, error);
+                        return null;
+                    }
+                })
+            );
+            
+            // Filter out any failed loads
+            this.images = this.images.filter(img => img !== null);
+            
+            // Enable the generate button if it exists
+            const generateBtn = document.getElementById('generateNarrativeBtn');
+            if (generateBtn) {
+                generateBtn.disabled = false;
+            }
+            
+            this.updateStatus(`Loaded ${this.images.length} images successfully. Click "Generate New Collage" to start.`);
+            console.log(`Loaded ${this.images.length} images for testing`);
+        } catch (error) {
+            this.updateStatus(`Error loading images: ${error.message}`);
+            console.error('Error loading images:', error);
+        }
+    }
+    
+    updateStatus(message) {
+        if (this.statusMessage) {
+            this.statusMessage.textContent = message;
+        }
+    }
+    
+    selectRandomImages(metadata, count) {
+        const shuffled = [...metadata].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    }
+    
+    async generateCollage() {
+        try {
+            // Check if canvases exist
+            if (!this.standardCanvas || !this.standardCtx || !this.narrativeCanvas || !this.narrativeCtx) {
+                this.updateStatus('Canvas not available');
+                console.error('Canvas not available');
+                return;
+            }
+            
+            this.updateStatus('Generating collage...');
+            
+            // Clear the canvases
+            this.standardCtx.clearRect(0, 0, this.standardCanvas.width, this.standardCanvas.height);
+            this.narrativeCtx.clearRect(0, 0, this.narrativeCanvas.width, this.narrativeCanvas.height);
+            
+            // Set default background colors
+            this.standardCtx.fillStyle = '#f5f5f5';
+            this.standardCtx.fillRect(0, 0, this.standardCanvas.width, this.standardCanvas.height);
+            
+            this.narrativeCtx.fillStyle = '#f5f5f5';
+            this.narrativeCtx.fillRect(0, 0, this.narrativeCanvas.width, this.narrativeCanvas.height);
+            
+            // Generate fragments for standard composition
+            const standardGenerator = new FragmentsGenerator(this.standardCtx, this.standardCanvas);
+            this.standardFragments = standardGenerator.generateFragments(this.images, {
+                variation: 'Classic',
+                complexity: 5,
+                overlap: 0.3
+            });
+            
+            // Draw standard fragments
+            this.drawFragments(this.standardCtx, this.standardFragments, false);
+            
+            // Generate fragments for narrative composition
+            const narrativeGenerator = new FragmentsGenerator(this.narrativeCtx, this.narrativeCanvas);
+            this.narrativeFragments = narrativeGenerator.generateFragments(this.images, {
+                variation: 'Classic',
+                complexity: 5,
+                overlap: 0.3
+            });
+            
+            // Apply narrative enhancements if enabled
+            if (this.narrativeEnabled) {
+                // Update the composition manager with current LLM setting
+                this.narrativeCompositionManager = new NarrativeCompositionManager({
+                    useLLM: this.useLLM,
+                    llmParameters: {
+                        useMockResponses: true, // Use mock responses for testing
+                        debug: true // Enable debug logging
+                    }
+                });
+                
+                // Apply enhancements (now supports async/await)
+                const enhanced = await this.narrativeCompositionManager.enhanceComposition(this.narrativeFragments);
+                this.narrativeFragments = enhanced.fragments;
+                
+                // Set background color from metadata
+                if (enhanced.backgroundColor) {
+                    this.narrativeCtx.fillStyle = enhanced.backgroundColor;
+                    this.narrativeCtx.fillRect(0, 0, this.narrativeCanvas.width, this.narrativeCanvas.height);
+                    console.log(`Set background color: ${enhanced.backgroundColor}`);
+                }
+            }
+            
+            // Draw narrative fragments
+            this.drawFragments(this.narrativeCtx, this.narrativeFragments, this.narrativeEnabled);
+            
+            let statusMessage = `Generated collage with ${this.standardFragments.length} fragments. `;
+            statusMessage += `Narrative enhancement: ${this.narrativeEnabled ? 'ON' : 'OFF'}`;
+            statusMessage += this.useLLM ? ' with LLM' : '';
+            
+            this.updateStatus(statusMessage);
+            console.log(`Generated collage with ${this.standardFragments.length} fragments`);
+        } catch (error) {
+            this.updateStatus(`Error generating collage: ${error.message}`);
+            console.error('Error generating collage:', error);
+        }
+    }
+    
+    drawFragments(ctx, fragments, useNarrativeStyle) {
+        // Check if canvas exists
+        if (!ctx) {
+            console.error('Canvas context not available for drawing fragments');
+            return;
+        }
+        
+        // Sort fragments by depth for proper layering
+        const sortedFragments = [...fragments].sort((a, b) => a.depth - b.depth);
+        
+        // Draw each fragment
+        sortedFragments.forEach(fragment => {
+            // Save the current context state
+            ctx.save();
+            
+            // Set opacity
+            ctx.globalAlpha = fragment.opacity || 1.0;
+            
+            // Set blend mode if specified or use multiply for narrative style
+            if (fragment.blendMode) {
+                ctx.globalCompositeOperation = fragment.blendMode;
+            } else if (useNarrativeStyle) {
+                ctx.globalCompositeOperation = 'multiply';
+            }
+            
+            // Apply rotation if specified
+            if (fragment.rotation) {
+                // Translate to the center of the fragment
+                ctx.translate(
+                    fragment.x + fragment.width/2,
+                    fragment.y + fragment.height/2
+                );
+                
+                // Rotate
+                ctx.rotate(fragment.rotation * Math.PI / 180);
+                
+                // Translate back
+                ctx.translate(
+                    -(fragment.x + fragment.width/2),
+                    -(fragment.y + fragment.height/2)
+                );
+            }
+            
+            // Get the image from the images array using the img index
+            const image = this.images[fragment.img];
+            
+            // Draw the fragment
+            ctx.drawImage(
+                image,
+                fragment.x,
+                fragment.y,
+                fragment.width,
+                fragment.height
+            );
+            
+            // Restore the context state
+            ctx.restore();
+            
+            // Log fragment details
+            console.log(`Drew fragment: size=${fragment.width}x${fragment.height}, ` +
+                       `position=(${fragment.x}, ${fragment.y}), ` +
+                       `opacity=${fragment.opacity || 1.0}, ` +
+                       `depth=${fragment.depth || 0}, ` +
+                       `rotation=${fragment.rotation || 0}°`);
+        });
+    }
+    
+    toggleNarrative() {
+        this.narrativeEnabled = !this.narrativeEnabled;
+        
+        // Update button text if it exists
+        const toggleBtn = document.getElementById('toggleNarrativeBtn');
+        if (toggleBtn) {
+            toggleBtn.textContent = this.narrativeEnabled ? 'Disable Narrative' : 'Enable Narrative';
+        }
+        
+        // Regenerate the collage with the new setting
+        this.generateCollage();
+    }
+    
+    toggleLLM() {
+        this.useLLM = !this.useLLM;
+        
+        // Update button text if it exists
+        const toggleLLMBtn = document.getElementById('toggleLLMBtn');
+        if (toggleLLMBtn) {
+            toggleLLMBtn.textContent = this.useLLM ? 'Disable LLM' : 'Enable LLM';
+        }
+        
+        // Update status
+        this.updateStatus(`LLM enhancement: ${this.useLLM ? 'ON' : 'OFF'}`);
+        
+        // Regenerate the collage with the new setting
+        this.generateCollage();
+    }
+}
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+    new NarrativeTest();
+});

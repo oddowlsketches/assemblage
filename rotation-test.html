@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotation Probability Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        canvas {
+            border: 1px solid #ccc;
+            background: white;
+            margin: 10px;
+        }
+        .stats {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        .controls {
+            margin: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin: 5px;
+        }
+        .toggle-container label {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rotation Probability Test</h1>
+    <div class="controls">
+        <button onclick="runTest()">Run Test</button>
+        <button onclick="clearCanvas()">Clear</button>
+        <div class="toggle-container">
+            <label for="noRotationMode">Force No Rotation:</label>
+            <input type="checkbox" id="noRotationMode" onchange="updateConfig()">
+        </div>
+        <div class="toggle-container">
+            <label for="globalNoRotationProbability">Global No Rotation Probability:</label>
+            <input type="range" id="globalNoRotationProbability" min="0" max="100" value="30" onchange="updateConfig()">
+            <span id="globalProbabilityValue">30%</span>
+        </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <canvas id="testCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const CONFIG = {
+            globalNoRotationProbability: 0.3,  // 30% chance that no fragments have rotation
+            numFragments: 50,            // Number of fragments to test
+            fragmentSize: 40,            // Size of each fragment
+            rotationRange: 45,           // Maximum rotation angle in degrees
+            forceNoRotation: false       // Global flag to force no rotation on all fragments
+        };
+
+        const canvas = document.getElementById('testCanvas');
+        const ctx = canvas.getContext('2d');
+        const statsDiv = document.getElementById('stats');
+        const noRotationModeCheckbox = document.getElementById('noRotationMode');
+        const globalNoRotationProbability = document.getElementById('globalNoRotationProbability');
+        const globalProbabilityValue = document.getElementById('globalProbabilityValue');
+
+        function updateConfig() {
+            CONFIG.forceNoRotation = noRotationModeCheckbox.checked;
+            CONFIG.globalNoRotationProbability = parseInt(globalNoRotationProbability.value) / 100;
+            globalProbabilityValue.textContent = `${globalNoRotationProbability.value}%`;
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            statsDiv.innerHTML = '';
+        }
+
+        function drawFragment(x, y, size, rotation, hasRotation) {
+            ctx.save();
+            
+            // Move to fragment center for rotation
+            ctx.translate(x + size/2, y + size/2);
+            ctx.rotate(rotation * Math.PI / 180);
+            
+            // Draw fragment
+            ctx.fillStyle = hasRotation ? '#4CAF50' : '#2196F3';
+            ctx.fillRect(-size/2, -size/2, size, size);
+            
+            // Draw border
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(-size/2, -size/2, size, size);
+            
+            ctx.restore();
+        }
+
+        function runTest() {
+            clearCanvas();
+            
+            let noRotationCount = 0;
+            let rotationCount = 0;
+            
+            // Determine if any fragments should have rotation (global setting)
+            const globalNoRotation = CONFIG.forceNoRotation || Math.random() < CONFIG.globalNoRotationProbability;
+            
+            // Calculate grid layout
+            const cols = Math.ceil(Math.sqrt(CONFIG.numFragments));
+            const rows = Math.ceil(CONFIG.numFragments / cols);
+            const spacing = CONFIG.fragmentSize * 1.5;
+            
+            // Draw fragments in a grid
+            for (let i = 0; i < CONFIG.numFragments; i++) {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                
+                const x = col * spacing + 50;
+                const y = row * spacing + 50;
+                
+                // Determine if this fragment should have rotation
+                let shouldRotate;
+                if (globalNoRotation) {
+                    shouldRotate = false; // No rotation for any fragments
+                } else {
+                    shouldRotate = true; // All fragments have rotation
+                }
+                
+                const rotation = shouldRotate ? (Math.random() - 0.5) * CONFIG.rotationRange * 2 : 0;
+                
+                if (shouldRotate) {
+                    rotationCount++;
+                } else {
+                    noRotationCount++;
+                }
+                
+                drawFragment(x, y, CONFIG.fragmentSize, rotation, shouldRotate);
+            }
+            
+            // Update statistics
+            const actualNoRotationPercent = (noRotationCount / CONFIG.numFragments * 100).toFixed(1);
+            const expectedNoRotationPercent = globalNoRotation ? 100 : 0;
+            
+            statsDiv.innerHTML = `
+                <h3>Test Results:</h3>
+                <p>Total Fragments: ${CONFIG.numFragments}</p>
+                <p>Fragments with No Rotation: ${noRotationCount} (${actualNoRotationPercent}%)</p>
+                <p>Fragments with Rotation: ${rotationCount} (${(100 - actualNoRotationPercent).toFixed(1)}%)</p>
+                <p>Expected No Rotation: ${expectedNoRotationPercent}%</p>
+                <p>Difference from Expected: ${(actualNoRotationPercent - expectedNoRotationPercent).toFixed(1)}%</p>
+                <p><small>Green squares = with rotation, Blue squares = no rotation</small></p>
+                <p><small>Mode: ${CONFIG.forceNoRotation ? 'Forced No Rotation' : (globalNoRotation ? 'Global No Rotation' : 'All Fragments Rotated')}</small></p>
+            `;
+        }
+    </script>
+</body>
+</html> 
