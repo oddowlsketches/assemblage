@@ -7,6 +7,7 @@
 import { TilingGenerator } from './tilingGenerator.js';
 import { FragmentsGenerator } from './fragmentsGenerator.js';
 import MosaicGenerator from './mosaicGenerator.js';
+import { SlicedCollageGenerator } from './slicedCollageGenerator.js';
 import { NarrativeCompositionManager } from '../../narrativeCompositionManager.js';
 
 class CollageGenerator {
@@ -40,7 +41,13 @@ class CollageGenerator {
             // Narrative composition parameters
             useNarrativeComposition: false, // Whether to use narrative composition
             narrativeCompositionType: 'multiple-actors', // Default composition type
-            narrativeFlowPattern: 'left-to-right' // Default flow pattern
+            narrativeFlowPattern: 'left-to-right', // Default flow pattern
+            
+            // Sliced effect parameters
+            sliceDirection: 'vertical', // Always vertical for now
+            sliceWidthVariation: 0.1, // Controls the variation in slice width (0.1-0.3)
+            sliceBehavior: 'random', // 'random', 'single-image', or 'alternating'
+            maxSlices: 50 // Maximum number of slices
         };
         
         // Composition Settings
@@ -53,6 +60,7 @@ class CollageGenerator {
         this.tilingGenerator = new TilingGenerator(this.canvas, this.parameters);
         this.fragmentsGenerator = new FragmentsGenerator(this.ctx, canvas);
         this.mosaicGenerator = new MosaicGenerator(this.canvas, this.parameters);
+        this.slicedGenerator = new SlicedCollageGenerator(this.ctx, canvas);
         
         // Initialize narrative manager with canvas dimensions
         this.narrativeManager = new NarrativeCompositionManager({
@@ -340,6 +348,9 @@ class CollageGenerator {
                 case 'layers':
                     fragments = this.generateLayers(this.images, fortuneText, this.parameters);
                     break;
+                case 'sliced':
+                    fragments = this.generateSliced(this.images, fortuneText, this.parameters);
+                    break;
                 default:
                     console.error(`Unknown effect: ${this.currentEffect}`);
                     return;
@@ -372,7 +383,7 @@ class CollageGenerator {
 
     // Helper function to ensure effect type compatibility between bridge.html and collageGenerator.js
     ensureValidEffectName(effectName) {
-        const validEffects = ['mosaic', 'tiling', 'fragments', 'layers'];
+        const validEffects = ['mosaic', 'tiling', 'fragments', 'layers', 'sliced'];
         if (!validEffects.includes(effectName)) {
             console.warn(`Invalid effect name: ${effectName}, defaulting to fragments`);
             return 'fragments';
@@ -1412,6 +1423,17 @@ class CollageGenerator {
 
         // Restore the context state
         ctx.restore();
+    }
+
+    async generateSliced(images, fortuneText, parameters = {}) {
+        try {
+            // Use the sliced generator to create the collage
+            const slices = await this.slicedGenerator.generateSliced(images, fortuneText, parameters);
+            return slices;
+        } catch (error) {
+            console.error('Error generating sliced collage:', error);
+            return [];
+        }
     }
 }
 

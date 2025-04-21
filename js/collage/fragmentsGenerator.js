@@ -99,8 +99,8 @@ export class FragmentsGenerator {
                 rotation: Math.random() * 360,
                 depth: Math.random(),
                 mask: {
-                    enabled: Math.random() < 0.3,
-                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'star', 'arc', 'arch'][Math.floor(Math.random() * 9)]
+                    enabled: Math.random() < 0.30,
+                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle', 'star'][Math.floor(Math.random() * 12)]
                 }
             };
             // console.log(`Created fragment ${i}:`, {
