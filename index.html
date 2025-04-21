@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- GitHub Pages rebuild trigger -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -305,6 +306,16 @@
                         },
                         minVisibility: 0.7,
                         opacityTargets: { high: 0.35, full: 0.12 }
+                    },
+                    sliced: {
+                        complexity: 6,
+                        density: 3,
+                        contrast: 6,
+                        blendOpacity: 0.7,
+                        sliceDirection: 'vertical',
+                        sliceWidthVariation: 0.1 + Math.random() * 0.2, // 0.1-0.3
+                        sliceBehavior: 'random', // Default behavior, will be overridden in generateNewCollage
+                        maxSlices: 50
                     }
                 };
                 
@@ -407,6 +418,13 @@
                         console.log(`Selected ${effect} variation: ${effectSettings.variation}`);
                     }
                     
+                    // Set sliceBehavior for sliced effect
+                    if (effect === 'sliced') {
+                        const behaviors = ['random', 'single-image', 'alternating'];
+                        effectSettings.sliceBehavior = behaviors[Math.floor(Math.random() * behaviors.length)];
+                        console.log(`Selected slice behavior: ${effectSettings.sliceBehavior}`);
+                    }
+                    
                     // Log the settings being applied
                     console.log(`Applying settings for ${effect}:`, effectSettings);
                     
@@ -470,15 +488,17 @@
             // Select a random effect
             getRandomEffect() {
                 const rand = Math.random();
-                // 40% chance of fragments, 20% chance of mosaic, 20% chance of tiling, 20% chance of layers
-                if (rand < 0.4) {
+                // 30% chance of fragments, 15% chance of mosaic, 20% chance of tiling, 15% chance of layers, 20% chance of sliced
+                if (rand < 0.3) {
                     return 'fragments';
-                } else if (rand < 0.6) {
+                } else if (rand < 0.45) {
                     return 'mosaic';
-                } else if (rand < 0.8) {
+                } else if (rand < 0.65) {
                     return 'tiling';
-                } else {
+                } else if (rand < 0.8) {
                     return 'layers';
+                } else {
+                    return 'sliced';
                 }
             }
             
