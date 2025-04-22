@@ -565,7 +565,7 @@ class CollageGenerator {
             }
             
             this.ctx.translate(centerX, centerY);
-            this.ctx.rotate(tile.rotation * Math.PI / 180);
+            this.ctx.rotate(tile.rotation);
             
             // Draw the tile with aspect ratio preservation
             const imgRatio = img.width / img.height;
@@ -1254,15 +1254,28 @@ class CollageGenerator {
         ctx.save();
 
         // Set opacity based on depth with added variance
-        const opacityVariation = 0.1; // Small random variation
-        const randomOpacity = Math.random() * opacityVariation * 2 - opacityVariation; // Random value between -0.1 and 0.1
-        ctx.globalAlpha = Math.max(0.3, Math.min(1, fragment.depth + randomOpacity));
+        const opacityVariation = 0.05; // Reduced from 0.1 to create more full opacity fragments
+        const randomOpacity = (Math.random() * 2 - 1) * opacityVariation;
+        const opacity = Math.min(Math.max(fragment.depth + randomOpacity, 0.5), 1.0);
+        
+        // Increase chance of full opacity based on fragment size and position
+        const isLargeFragment = fragment.width * fragment.height > (this.canvas.width * this.canvas.height * 0.15);
+        const isCentralFragment = Math.abs(fragment.x - this.canvas.width/2) < this.canvas.width * 0.3 && 
+                                 Math.abs(fragment.y - this.canvas.height/2) < this.canvas.height * 0.3;
+        
+        // 40% chance of full opacity for large fragments, 30% for central fragments, 20% for others
+        const fullOpacityChance = isLargeFragment ? 0.4 : (isCentralFragment ? 0.3 : 0.2);
+        if (Math.random() < fullOpacityChance) {
+            ctx.globalAlpha = 1.0;
+        } else {
+            ctx.globalAlpha = opacity;
+        }
 
         // Move to fragment center for rotation
         const centerX = fragment.x + fragment.width / 2;
         const centerY = fragment.y + fragment.height / 2;
         ctx.translate(centerX, centerY);
-        ctx.rotate((fragment.rotation * Math.PI) / 180);
+        ctx.rotate(fragment.rotation);
 
         // Apply mask if specified
         if (fragment.mask && fragment.mask.enabled) {
@@ -1400,7 +1413,7 @@ class CollageGenerator {
         }
         
         // Apply a minimal buffer to prevent edge clipping
-        const bufferFactor = 1.05;
+        const bufferFactor = 1.15; // Increased from 1.05 to allow more edge bleeding
         
         // Get mask scale if applicable
         const maskScale = fragment.mask && fragment.mask.enabled ? (fragment.mask.scale || 1.0) : 1.0;
@@ -1408,31 +1421,12 @@ class CollageGenerator {
         // Calculate final scale factor with minimal adjustments
         scaleFactor = scaleFactor * bufferFactor;
         
-        // Add minimal shape-specific adjustments
-        if (fragment.mask && fragment.mask.enabled) {
-            switch (fragment.mask.type) {
-                case 'star':
-                    scaleFactor *= 1.05;
-                    break;
-                case 'hexagon':
-                    scaleFactor *= 1.03;
-                    break;
-                case 'diamond':
-                    scaleFactor *= 1.02;
-                    break;
-                case 'arc':
-                case 'arch':
-                    scaleFactor *= 1.01;
-                    break;
-            }
-        }
-        
         // Add random variation to scale factor (minimal change)
-        const randomScaleVariation = 0.95 + Math.random() * 0.1; // Random value between 0.95 and 1.05
+        const randomScaleVariation = 0.85 + Math.random() * 0.3; // Random value between 0.85 and 1.15 (increased from 0.95-1.05)
         scaleFactor *= randomScaleVariation;
         
         // Ensure scale factor stays within reasonable bounds
-        scaleFactor = Math.min(Math.max(scaleFactor, 1.0), 1.2);
+        scaleFactor = Math.min(Math.max(scaleFactor, 0.9), 1.5); // Increased range from 1.0-1.3 to 0.9-1.5
         
         // Calculate the dimensions of the scaled image
         const drawWidth = fragment.image.width * scaleFactor;

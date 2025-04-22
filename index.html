@@ -430,15 +430,6 @@
                 try {
                     console.log('=== Starting new collage generation ===');
                     
-                    // Clear the canvas immediately
-                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                    console.log('Canvas cleared');
-                    
-                    // Generate a new background color
-                    const newColor = this.generateRandomColor();
-                    document.documentElement.style.setProperty('--background-color', newColor);
-                    console.log('New background color set:', newColor);
-                    
                     // Select a random effect
                     const effect = this.getRandomEffect();
                     console.log('Selected effect:', effect);
@@ -481,6 +472,12 @@
                     
                     // Log the settings being applied
                     console.log(`Applying settings for ${effect}:`, effectSettings);
+                    
+                    // Clear the canvas and set background color right before generation
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    const newColor = this.generateRandomColor();
+                    document.documentElement.style.setProperty('--background-color', newColor);
+                    console.log('New background color set:', newColor);
                     
                     console.log('Starting collage generation with generator.generate()');
                     // Generate the collage with the selected effect and settings

@@ -12,11 +12,20 @@ console.log('Loading main app mask integration...');
 // Configuration
 const CONFIG = {
     enabled: true,               // Start enabled
-    allMasksProbability: 0.6,    // 60% chance of applying masks to all fragments
-    noMasksProbability: 0.1,     // 10% chance of no masks
+    maskStateProbabilities: {
+        mixed: 0.5,             // 50% chance of mixed masks (10-70% fragments masked)
+        all: 0.2,               // 20% chance of all fragments masked
+        none: 0.1,              // 10% chance of no masks
+        same: 0.2               // 20% chance of same mask type for all fragments
+    },
+    mixedMaskRange: {
+        min: 0.1,               // Minimum 10% of fragments masked in mixed state (reduced from 20%)
+        max: 0.6                // Maximum 60% of fragments masked in mixed state (reduced from 80%)
+    },
     sameMaskProbability: 0.3,    // 30% chance of using the same mask type for all fragments
-    globalNoRotationProbability: 0.3,  // 30% chance that no fragments have rotation at all
-    maskTypes: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'star', 'arc', 'arch'],
+    globalNoRotationProbability: 0.5,  // 50% chance that no fragments have rotation at all (increased from 30%)
+    fragmentRotationProbability: 0.3,  // 30% chance that an individual fragment has rotation (reduced from 40%)
+    maskTypes: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch'],
     maskWeights: {
         circle: 1.0,
         triangle: 1.0,
@@ -24,7 +33,6 @@ const CONFIG = {
         ellipse: 1.0,
         diamond: 1.0,
         hexagon: 1.0,
-        star: 0.3,  // Reduced probability for star mask (30% of normal)
         arc: 1.0,
         arch: 1.0
     },
@@ -160,13 +168,37 @@ function initializeMaskSupport() {
 
                     // Determine mask application strategy
                     const useSameMask = Math.random() < CONFIG.sameMaskProbability;
-                    const applyMasks = Math.random() > CONFIG.noMasksProbability;
                     const selectedMaskType = useSameMask ? CONFIG.maskTypes[Math.floor(Math.random() * CONFIG.maskTypes.length)] : null;
+                    const noRotation = Math.random() < CONFIG.globalNoRotationProbability;
+
+                    // Determine mask state
+                    const stateRandom = Math.random();
+                    let maskState;
+                    let cumulativeProbability = 0;
+                    
+                    for (const [state, probability] of Object.entries(CONFIG.maskStateProbabilities)) {
+                        cumulativeProbability += probability;
+                        if (stateRandom <= cumulativeProbability) {
+                            maskState = state;
+                            break;
+                        }
+                    }
+
+                    // Calculate mask probability for mixed state
+                    let maskProbability = 1.0;
+                    if (maskState === 'mixed') {
+                        const range = CONFIG.mixedMaskRange.max - CONFIG.mixedMaskRange.min;
+                        maskProbability = CONFIG.mixedMaskRange.min + (Math.random() * range);
+                    } else if (maskState === 'none') {
+                        maskProbability = 0;
+                    }
 
                     console.log('Mask strategy:', {
+                        maskState,
+                        maskProbability,
                         useSameMask,
-                        applyMasks,
-                        selectedMaskType
+                        selectedMaskType,
+                        noRotation
                     });
 
                     // Helper function to select a mask type with weighted probabilities
@@ -190,23 +222,36 @@ function initializeMaskSupport() {
                     }
 
                     // Apply masks to fragments
-                    if (applyMasks) {
-                        fragments.forEach(fragment => {
-                            // Skip fragments with invalid dimensions
-                            if (!isValidFragmentDimensions(fragment)) {
-                                return;
-                            }
-                            
+                    fragments.forEach(fragment => {
+                        // Skip fragments with invalid dimensions
+                        if (!isValidFragmentDimensions(fragment)) {
+                            return;
+                        }
+                        
+                        // Determine if this fragment should have a mask based on the mask probability
+                        const shouldHaveMask = Math.random() < maskProbability;
+                        
+                        if (shouldHaveMask) {
                             // Select a mask type
                             const maskType = selectedMaskType || selectMaskType();
                             
                             // Create the mask object
                             const mask = createMaskObject(maskType, fragment);
                             
+                            // Preserve the original rotation from the fragments generator
+                            // Only apply rotation if the fragment doesn't already have one
+                            if (fragment.rotation === undefined || fragment.rotation === 0) {
+                                if (Math.random() > CONFIG.globalNoRotationProbability) {
+                                    const direction = Math.random() < 0.5 ? -1 : 1;
+                                    const rotation = (direction * (Math.random() * 15)) * (Math.PI / 180);
+                                    fragment.rotation = rotation;
+                                }
+                            }
+                            
                             // Apply the mask to the fragment
                             fragment.mask = mask;
-                        });
-                    }
+                        }
+                    });
                     
                     return fragments;
                 };
@@ -226,8 +271,9 @@ function initializeMaskSupport() {
                 
                 // Helper function to create a valid mask object
                 function createMaskObject(maskType, fragment) {
-                    // Use the same global rotation setting for the mask
-                    const rotation = fragment.rotation || 0;
+                    // Don't use the fragment's rotation for the mask
+                    // This prevents compounding rotations
+                    const rotation = 0;
 
                     console.log('Creating mask object:', {
                         maskType,

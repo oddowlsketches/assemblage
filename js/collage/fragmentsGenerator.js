@@ -96,11 +96,11 @@ export class FragmentsGenerator {
                 y: y,
                 width: fragmentWidth,
                 height: fragmentHeight,
-                rotation: Math.random() * 360,
+                rotation: Math.random() * 90, // Reduced from 360 to 90 degrees
                 depth: Math.random(),
                 mask: {
                     enabled: Math.random() < 0.30,
-                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle', 'star'][Math.floor(Math.random() * 12)]
+                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle' /* 'star' */][Math.floor(Math.random() * 11)]
                 }
             };
             // console.log(`Created fragment ${i}:`, {
@@ -138,22 +138,28 @@ export class FragmentsGenerator {
             x = x * (1 - centerBias) + centerX * centerBias;
             y = y * (1 - centerBias) + centerY * centerBias;
             
-            // ENHANCED: More varied rotation
+            // ENHANCED: More varied rotation with balanced distribution
             let rotation = 0;
-            if (Math.random() < 0.9) { // Increased rotation probability
-                rotation = (Math.random() - 0.5) * 90; // Increased rotation range
-                if (Math.random() < 0.5) { // Increased chance of extreme rotation
-                    rotation *= 2.0; // More dramatic rotation
-                }
+            const randomValue = Math.random();
+            if (randomValue < 0.3) { // 30% chance of no rotation
+                rotation = 0;
+            } else if (randomValue < 0.93) { // 63% chance of small rotation
+                // Invert the direction to match canvas rotation
+                const direction = Math.random() < 0.5 ? -1 : 1;
+                rotation = (direction * (Math.random() * 8)) * (Math.PI / 180); // Reduced from 15 to 8 degrees
+            } else { // 7% chance of moderate rotation
+                // Invert the direction to match canvas rotation
+                const direction = Math.random() < 0.5 ? -1 : 1;
+                rotation = (direction * (8 + Math.random() * 7)) * (Math.PI / 180); // Reduced from 15-30 to 8-15 degrees
             }
             
             let baseSize;
             if (variation === 'Organic') {
-                baseSize = this.calculateOrganicSize(sizeTiers);
+                baseSize = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
             } else if (variation === 'Focal') {
-                baseSize = this.calculateFocalSize(sizeTiers, x, y, centerX, centerY);
+                baseSize = this.calculateFocalSize(this.canvas.width, this.canvas.height, x, y);
             } else {
-                baseSize = this.calculateClassicSize(sizeTiers);
+                baseSize = this.calculateClassicSize(this.canvas.width, this.canvas.height);
             }
             
             // ENHANCED: More varied aspect ratios
@@ -161,10 +167,41 @@ export class FragmentsGenerator {
             const width = baseSize.width;
             const height = baseSize.height;
             
-            // Allow fragments to overflow by up to 75% of their width/height
-            const overflowAllowed = 0.75; // Increased from 0.5 to allow more dramatic edge bleeding
-            x = Math.max(-width * overflowAllowed, Math.min(x, this.canvas.width - width * (1 - overflowAllowed)));
-            y = Math.max(-height * overflowAllowed, Math.min(y, this.canvas.height - height * (1 - overflowAllowed)));
+            // Allow fragments to overflow by up to 75% of their width/height (increased from 50%)
+            const overflowAllowed = 0.75; // Keep the same edge bleeding
+            
+            // Calculate position with reduced overlap
+            const minDistance = Math.max(width, height) * 0.5; // Increased from 0.4 to 0.5 for more spacing between fragments
+            let attempts = 0;
+            let validPosition = false;
+            
+            while (!validPosition && attempts < 10) {
+                // Calculate new position
+                x = Math.max(-width * overflowAllowed, Math.min(x, this.canvas.width - width * (1 - overflowAllowed)));
+                y = Math.max(-height * overflowAllowed, Math.min(y, this.canvas.height - height * (1 - overflowAllowed)));
+                
+                // Check distance from other fragments
+                validPosition = true;
+                let overlappingCount = 0;
+                for (const existingFragment of fragments) {
+                    const dx = x - existingFragment.x;
+                    const dy = y - existingFragment.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Check if fragments overlap
+                    if (distance < (width + existingFragment.width) / 2) {
+                        overlappingCount++;
+                        if (overlappingCount >= 2) { // Allow max 2 overlapping fragments
+                            validPosition = false;
+                            // Adjust position to increase distance
+                            x += (Math.random() - 0.5) * minDistance * 1.5; // Increased adjustment
+                            y += (Math.random() - 0.5) * minDistance * 1.5; // Increased adjustment
+                            break;
+                        }
+                    }
+                }
+                attempts++;
+            }
             
             // Log fragment position and overflow
             console.log(`Fragment ${i} position:`, {
@@ -178,9 +215,6 @@ export class FragmentsGenerator {
                     maxY: this.canvas.height - height * (1 - overflowAllowed)
                 }
             });
-            
-            // ENHANCED: More controlled rotation
-            rotation = (Math.random() - 0.5) * 0.5; // Reduced rotation range
             
             // Select image based on repetition setting
             let imgIndex;
@@ -200,67 +234,50 @@ export class FragmentsGenerator {
         }
     }
 
-    calculateOrganicSize(sizeTiers) {
-        // Select a base size from the tiers with bias towards smaller sizes
-        const tierRand = Math.random();
-        let baseSize;
-        if (tierRand < 0.4) { // 40% chance for small
-            baseSize = sizeTiers[0];
-        } else if (tierRand < 0.8) { // 40% chance for medium
-            baseSize = sizeTiers[1];
-        } else { // 20% chance for large
-            baseSize = sizeTiers[2];
-        }
+    calculateOrganicSize(width, height) {
+        // Select a base size with bias towards smaller sizes
+        const baseSize = Math.random() < 0.6 ? 0.6 : 0.8; // Increased range from 0.7-0.9 to 0.6-0.8
         
         // Add organic variation to width and height
-        const widthVariation = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
-        const heightVariation = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+        const widthVariation = 0.6 + Math.random() * 0.8; // Increased range from 0.7-1.3 to 0.6-1.4
+        const heightVariation = 0.6 + Math.random() * 0.8; // Increased range from 0.7-1.3 to 0.6-1.4
         
         return {
-            width: baseSize * widthVariation,
-            height: baseSize * heightVariation
+            width: width * baseSize * widthVariation,
+            height: height * baseSize * heightVariation
         };
     }
 
-    calculateFocalSize(sizeTiers, x, y, centerX, centerY) {
-        // Calculate distance from center
-        const dx = x - centerX;
-        const dy = y - centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
-        const normalizedDistance = distance / maxDistance;
+    calculateFocalSize(width, height, x, y) {
+        // Calculate distance from center (0 to 1)
+        const centerX = 0.5;
+        const centerY = 0.5;
+        const distanceFromCenter = Math.sqrt(
+            Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+        );
         
-        // Select base size based on distance from center
-        let baseSize;
-        if (normalizedDistance < 0.3) { // Close to center
-            baseSize = sizeTiers[2]; // Large
-        } else if (normalizedDistance < 0.6) { // Medium distance
-            baseSize = sizeTiers[1]; // Medium
-        } else { // Far from center
-            baseSize = sizeTiers[0]; // Small
-        }
+        // Adjust base size based on distance from center
+        const baseSize = 0.5 + (1 - distanceFromCenter) * 0.7; // Increased range from 0.6-1.2 to 0.5-1.2
         
-        // Add variation based on distance
-        const variation = 0.8 + (1 - normalizedDistance) * 0.4; // More variation near center
+        // Add some variation
+        const variation = 0.7 + Math.random() * 0.6; // Increased range from 0.8-1.2 to 0.7-1.3
         
         return {
-            width: baseSize * variation,
-            height: baseSize * variation
+            width: width * baseSize * variation,
+            height: height * baseSize * variation
         };
     }
 
-    calculateClassicSize(sizeTiers) {
-        // Select a base size from the tiers
-        const tierIndex = Math.floor(Math.random() * sizeTiers.length);
-        const baseSize = sizeTiers[tierIndex];
+    calculateClassicSize(width, height) {
+        // Select a base size
+        const baseSize = 0.6 + Math.random() * 0.4; // Increased range from 0.7-0.9 to 0.6-1.0
         
-        // Add some variation to width and height independently
-        const widthVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
-        const heightVariation = 0.8 + Math.random() * 0.4; // 0.8 to 1.2
+        // Add some variation
+        const variation = 0.7 + Math.random() * 0.6; // Increased range from 0.8-1.2 to 0.7-1.3
         
         return {
-            width: baseSize * widthVariation,
-            height: baseSize * heightVariation
+            width: width * baseSize * variation,
+            height: height * baseSize * variation
         };
     }
 
