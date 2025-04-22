@@ -316,6 +316,15 @@
                         sliceWidthVariation: 0.1 + Math.random() * 0.2, // 0.1-0.3
                         sliceBehavior: 'random', // Default behavior, will be overridden in generateNewCollage
                         maxSlices: 50
+                    },
+                    crystal: {
+                        complexity: 3 + Math.floor(Math.random() * 8), // 3-10 (increased range)
+                        density: 3 + Math.floor(Math.random() * 4), // 3-6
+                        contrast: 6,
+                        blendOpacity: 0.7,
+                        seedPattern: ['radial', 'grid', 'random', 'clusters'][Math.floor(Math.random() * 4)], // Added more patterns
+                        rotationRange: 15 + Math.floor(Math.random() * 15), // 15-30 degrees
+                        opacity: 0.6 + Math.random() * 0.4 // 0.6-1.0
                     }
                 };
                 
@@ -339,30 +348,66 @@
                 // Scale the canvas style to fit the viewport
                 this.canvas.style.width = viewportWidth + 'px';
                 this.canvas.style.height = viewportHeight + 'px';
+                
+                // Also resize the collage generator's canvas
+                if (this.generator) {
+                    this.generator.resizeCanvas();
+                }
+            }
+            
+            // Set up event listeners
+            setupEventListeners() {
+                window.addEventListener('resize', this.handleResize.bind(this));
+                this.shiftButton.addEventListener('click', this.generateNewCollage.bind(this));
+                this.saveButton.addEventListener('click', this.saveCollage.bind(this));
             }
             
             // Initialize the application
             async initialize() {
+                if (this._initializing) return;
+                this._initializing = true;
+                
                 try {
                     // Set up event listeners
-                    window.addEventListener('resize', this.handleResize.bind(this));
-                    this.shiftButton.addEventListener('click', this.generateNewCollage.bind(this));
-                    this.saveButton.addEventListener('click', this.saveCollage.bind(this));
-                    
-                    // Set canvas dimensions
-                    this.resizeCanvas();
+                    this.setupEventListeners();
                     
                     // Load images
-                    this.allImages = await loadImageCollection();
-                    console.log('Image collection initialized with', this.allImages.length, 'images');
+                    await this.loadImages();
                     
                     // Generate initial collage
-                    await this.generateNewCollage();
+                    await this.generateCollage();
                     
-                    // Adjust text color based on background after initial load
-                    this.adjustTextColorForBackground();
+                    // Adjust text color based on background
+                    this.adjustTextColor();
+                    
+                    // Initialize mask integration
+                    await this.initializeMaskIntegration();
                 } catch (error) {
-                    console.error('Error initializing application:', error);
+                    console.error('Error during initialization:', error);
+                } finally {
+                    this._initializing = false;
+                }
+            }
+            
+            async initializeMaskIntegration() {
+                if (!this._initializing) return;
+                
+                try {
+                    // Load mask integration script
+                    const script = document.createElement('script');
+                    script.src = 'js/main-mask-integration.js';
+                    script.type = 'module';
+                    
+                    await new Promise((resolve, reject) => {
+                        script.onload = resolve;
+                        script.onerror = reject;
+                        document.head.appendChild(script);
+                    });
+                    
+                    // Wait for mask integration to initialize
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error('Error initializing mask integration:', error);
                 }
             }
             
@@ -376,16 +421,23 @@
                         this.generator.redraw();
                     }
                     // Adjust text color based on background after resize
-                    this.adjustTextColorForBackground();
+                    this.adjustTextColor();
                 }
             }
             
             // Generate a new collage
             async generateNewCollage() {
                 try {
+                    console.log('=== Starting new collage generation ===');
+                    
+                    // Clear the canvas immediately
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    console.log('Canvas cleared');
+                    
                     // Generate a new background color
                     const newColor = this.generateRandomColor();
                     document.documentElement.style.setProperty('--background-color', newColor);
+                    console.log('New background color set:', newColor);
                     
                     // Select a random effect
                     const effect = this.getRandomEffect();
@@ -397,6 +449,7 @@
                     
                     // Get a random subset of images
                     const images = await this.getRandomImageSubset(imageCount);
+                    console.log(`Loaded ${images.length} images`);
                     
                     if (images.length === 0) {
                         console.error('No images available for collage generation');
@@ -405,6 +458,7 @@
                     
                     // Generate a new fortune
                     const fortune = this.fortuneGenerator.generateFortune(images);
+                    console.log('Fortune generated');
                     
                     // Update the fortune display
                     this.updateFortuneDisplay(fortune);
@@ -428,15 +482,18 @@
                     // Log the settings being applied
                     console.log(`Applying settings for ${effect}:`, effectSettings);
                     
+                    console.log('Starting collage generation with generator.generate()');
                     // Generate the collage with the selected effect and settings
-                    this.generator.generate(images, fortune.text, effect, effectSettings);
+                    await this.generator.generate(images, fortune.text, effect, effectSettings);
+                    console.log('Collage generation completed');
                     
                     // Update background based on fortune and images
                     updateBackground(fortune.text, images);
                     
                     // Adjust text color based on background
-                    this.adjustTextColorForBackground();
+                    this.adjustTextColor();
                     
+                    console.log('=== Collage generation process complete ===');
                 } catch (error) {
                     console.error('Error generating collage:', error);
                 }
@@ -488,17 +545,19 @@
             // Select a random effect
             getRandomEffect() {
                 const rand = Math.random();
-                // 30% chance of fragments, 15% chance of mosaic, 20% chance of tiling, 15% chance of layers, 20% chance of sliced
-                if (rand < 0.3) {
+                // 25% crystal, 25% sliced, 20% fragments, 15% tiling, 10% layers, 5% mosaic
+                if (rand < 0.25) {
+                    return 'crystal';
+                } else if (rand < 0.50) {
+                    return 'sliced';
+                } else if (rand < 0.70) {
                     return 'fragments';
-                } else if (rand < 0.45) {
-                    return 'mosaic';
-                } else if (rand < 0.65) {
+                } else if (rand < 0.85) {
                     return 'tiling';
-                } else if (rand < 0.8) {
+                } else if (rand < 0.95) {
                     return 'layers';
                 } else {
-                    return 'sliced';
+                    return 'mosaic';
                 }
             }
             
@@ -527,7 +586,7 @@
             }
             
             // Adjust text color based on background
-            adjustTextColorForBackground() {
+            adjustTextColor() {
                 // Get the header element
                 const header = document.querySelector('header');
                 if (!header) return;
@@ -778,11 +837,96 @@
                 this.container.style.backgroundColor = newColor;
                 return newColor;
             }
+
+            // Load images
+            async loadImages() {
+                this.allImages = await loadImageCollection();
+                console.log('Image collection initialized with', this.allImages.length, 'images');
+                this.resizeCanvas();
+            }
+
+            // Generate a collage
+            async generateCollage() {
+                try {
+                    console.log('=== Starting initial collage generation ===');
+                    
+                    // Clear the canvas immediately
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    console.log('Canvas cleared');
+                    
+                    // Generate a new background color
+                    const newColor = this.generateRandomColor();
+                    document.documentElement.style.setProperty('--background-color', newColor);
+                    console.log('New background color set:', newColor);
+                    
+                    // Select a random effect
+                    const effect = this.getRandomEffect();
+                    console.log('Selected effect:', effect);
+                    
+                    // Get the appropriate number of images based on the effect
+                    const imageCount = this.getImageCountForEffect(effect);
+                    console.log(`Getting ${imageCount} images for ${effect} effect`);
+                    
+                    // Get a random subset of images
+                    const images = await this.getRandomImageSubset(imageCount);
+                    console.log(`Loaded ${images.length} images`);
+                    
+                    if (images.length === 0) {
+                        console.error('No images available for collage generation');
+                        return;
+                    }
+                    
+                    // Generate a new fortune
+                    const fortune = this.fortuneGenerator.generateFortune(images);
+                    console.log('Fortune generated');
+                    
+                    // Update the fortune display
+                    this.updateFortuneDisplay(fortune);
+                    
+                    // Get the effect settings
+                    const effectSettings = { ...this.effectSettings[effect] };
+                    
+                    // Add variation for mosaic or fragments effect
+                    if (effect === 'mosaic' || effect === 'fragments') {
+                        effectSettings.variation = this.getRandomVariation(effect);
+                        console.log(`Selected ${effect} variation: ${effectSettings.variation}`);
+                    }
+                    
+                    // Set sliceBehavior for sliced effect
+                    if (effect === 'sliced') {
+                        const behaviors = ['random', 'single-image', 'alternating'];
+                        effectSettings.sliceBehavior = behaviors[Math.floor(Math.random() * behaviors.length)];
+                        console.log(`Selected slice behavior: ${effectSettings.sliceBehavior}`);
+                    }
+                    
+                    // Log the settings being applied
+                    console.log(`Applying settings for ${effect}:`, effectSettings);
+                    
+                    console.log('Starting collage generation with generator.generate()');
+                    // Generate the collage with the selected effect and settings
+                    await this.generator.generate(images, fortune.text, effect, effectSettings);
+                    console.log('Collage generation completed');
+                    
+                    // Update background based on fortune and images
+                    updateBackground(fortune.text, images);
+                    
+                    // Adjust text color based on background
+                    this.adjustTextColor();
+                    
+                    console.log('=== Collage generation process complete ===');
+                } catch (error) {
+                    console.error('Error generating collage:', error);
+                }
+            }
         }
 
         // Initialize the application when the DOM is loaded
         document.addEventListener('DOMContentLoaded', () => {
-            window.app = new AssemblageApp();
+            // Only initialize if not already initialized
+            if (!window.app) {
+                window.app = new AssemblageApp();
+                window.app.initialize();
+            }
         });
     </script>
     

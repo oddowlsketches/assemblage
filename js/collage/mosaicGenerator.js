@@ -355,4 +355,4 @@ class MosaicGenerator {
 }
 
 // Export the MosaicGenerator class
-export default MosaicGenerator; 
+export { MosaicGenerator }; 

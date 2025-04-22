@@ -6,9 +6,10 @@
 
 import { TilingGenerator } from './tilingGenerator.js';
 import { FragmentsGenerator } from './fragmentsGenerator.js';
-import MosaicGenerator from './mosaicGenerator.js';
+import { MosaicGenerator } from './mosaicGenerator.js';
 import { SlicedCollageGenerator } from './slicedCollageGenerator.js';
-import { NarrativeCompositionManager } from '../../narrativeCompositionManager.js';
+import { NarrativeCompositionManager } from './narrativeCompositionManager.js';
+import { SafeCrystalFormationGenerator } from './crystalFormationGenerator.js';
 
 class CollageGenerator {
     constructor(canvas) {
@@ -47,7 +48,11 @@ class CollageGenerator {
             sliceDirection: 'vertical', // Always vertical for now
             sliceWidthVariation: 0.1, // Controls the variation in slice width (0.1-0.3)
             sliceBehavior: 'random', // 'random', 'single-image', or 'alternating'
-            maxSlices: 50 // Maximum number of slices
+            
+            // Crystal effect parameters
+            crystalDensity: 5,
+            crystalComplexity: 5,
+            crystalOpacity: 0.7
         };
         
         // Composition Settings
@@ -69,12 +74,32 @@ class CollageGenerator {
             canvasHeight: canvas.height
         });
 
-        // Initialize canvas size
-        this.resizeCanvas();
+        // Initialize crystal effect
+        try {
+            this.crystalGenerator = new SafeCrystalFormationGenerator(this.ctx, this.canvas);
+            this.hasCrystalEffect = true;
+        } catch (error) {
+            console.warn('Failed to initialize crystal effect:', error);
+            this.hasCrystalEffect = false;
+        }
+
+        // Add resize event listener
         window.addEventListener('resize', () => this.resizeCanvas());
     }
     
     resizeCanvas() {
+        // Check if canvas is properly initialized
+        if (!this.canvas) {
+            console.error('Canvas is not initialized in CollageGenerator');
+            return;
+        }
+        
+        // Check if context is properly initialized
+        if (!this.ctx) {
+            console.error('Canvas context is not initialized in CollageGenerator');
+            return;
+        }
+        
         // Get the device pixel ratio for better quality on high-DPI screens
         const devicePixelRatio = window.devicePixelRatio || 1;
         
@@ -94,8 +119,8 @@ class CollageGenerator {
 
         // Update narrative manager's canvas dimensions
         if (this.narrativeManager) {
-            this.narrativeManager.canvas.width = this.canvas.width;
-            this.narrativeManager.canvas.height = this.canvas.height;
+            this.narrativeManager.parameters.canvasWidth = this.canvas.width;
+            this.narrativeManager.parameters.canvasHeight = this.canvas.height;
         }
     }
     
@@ -282,7 +307,7 @@ class CollageGenerator {
         }
     }
     
-    generate(images, fortuneText, effect, settings = null) {
+    async generate(images, fortuneText, effect, settings = null) {
         try {
             if (images) {
                 this.images = images;
@@ -333,6 +358,15 @@ class CollageGenerator {
 
             console.log(`Generating collage with effect: ${this.currentEffect}, image repetition: ${this.parameters.allowImageRepetition}`);
 
+            // Add crystal effect to available effects
+            const availableEffects = [
+                'tiling',
+                'fragments',
+                'mosaic',
+                'sliced',
+                ...(this.hasCrystalEffect ? ['crystal'] : [])
+            ];
+
             // Generate collage based on current effect
             let fragments = [];
             switch (this.currentEffect) {
@@ -350,6 +384,9 @@ class CollageGenerator {
                     break;
                 case 'sliced':
                     fragments = this.generateSliced(this.images, fortuneText, this.parameters);
+                    break;
+                case 'crystal':
+                    fragments = await this.generateCrystal(this.images, fortuneText, this.parameters);
                     break;
                 default:
                     console.error(`Unknown effect: ${this.currentEffect}`);
@@ -1433,6 +1470,53 @@ class CollageGenerator {
         } catch (error) {
             console.error('Error generating sliced collage:', error);
             return [];
+        }
+    }
+
+    // Add crystal generation method
+    async generateCrystal(images, fortuneText, parameters = {}) {
+        if (!this.hasCrystalEffect) {
+            console.warn('Crystal effect not available, falling back to default effect');
+            return this.generate(images, fortuneText, 'tiling', parameters);
+        }
+
+        try {
+            // Clear canvas and set background
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = this.generateBackgroundColor();
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Get crystal settings from effectSettings if available
+            const crystalSettings = this.effectSettings?.crystal || {};
+            
+            // Map parameters to crystal generator format with randomization
+            const crystalParams = {
+                complexity: parameters.crystalComplexity || crystalSettings.complexity || this.parameters.crystalComplexity || 5,
+                maxFacets: Math.floor((parameters.crystalDensity || crystalSettings.density || this.parameters.crystalDensity || 5) * 5),
+                opacity: parameters.crystalOpacity || crystalSettings.opacity || this.parameters.crystalOpacity || 0.7,
+                seedPattern: parameters.seedPattern || crystalSettings.seedPattern || this.getRandomSeedPattern(),
+                rotationRange: parameters.rotationRange || crystalSettings.rotationRange || 15
+            };
+            
+            console.log('Generating crystal with parameters:', crystalParams);
+            
+            // Generate crystal effect
+            const success = await this.crystalGenerator.generateCrystal(
+                images,
+                fortuneText,
+                crystalParams
+            );
+            
+            if (!success) {
+                console.warn('Crystal generation failed, falling back to tiling');
+                return this.generate(images, fortuneText, 'tiling', parameters);
+            }
+            
+            // Return empty fragments array since crystal effect handles its own drawing
+            return [];
+        } catch (error) {
+            console.error('Error generating crystal effect:', error);
+            return this.generate(images, fortuneText, 'tiling', parameters);
         }
     }
 }

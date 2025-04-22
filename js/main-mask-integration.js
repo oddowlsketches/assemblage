@@ -29,9 +29,9 @@ const CONFIG = {
         arch: 1.0
     },
     debugMode: true,            // Enable detailed logging
-    initializationDelay: 2000,   // Wait 2 seconds for app to initialize
-    maxRetries: 3,              // Number of times to retry initialization
-    retryDelay: 1000           // Delay between retries in milliseconds
+    initializationDelay: 2000,   // Increased from 500 to 2000ms
+    maxRetries: 10,              // Increased from 5 to 10
+    retryDelay: 1000            // Increased from 500 to 1000ms
 };
 
 // State tracking
@@ -58,19 +58,31 @@ function error(...args) {
 // Safety check for required app components
 function checkAppComponents() {
     try {
-        // Check if window.app exists
+        // More granular checks
+        if (typeof window === 'undefined') {
+            throw new Error('Window object not available');
+        }
+
         if (!window.app) {
             throw new Error('App not found in window object');
         }
 
-        // Check if generator exists
         if (!window.app.generator) {
-            throw new Error('generator not found in app');
+            throw new Error('Generator not found in app');
         }
 
-        // Check if fragmentsGenerator exists
         if (!window.app.generator.fragmentsGenerator) {
-            throw new Error('fragmentsGenerator not found in generator');
+            throw new Error('FragmentsGenerator not found');
+        }
+
+        // Additional validation
+        const generator = window.app.generator;
+        if (typeof generator.generate !== 'function') {
+            throw new Error('Generator missing generate method');
+        }
+
+        if (typeof generator.fragmentsGenerator.generateFragments !== 'function') {
+            throw new Error('FragmentsGenerator missing generateFragments method');
         }
 
         return true;
@@ -82,15 +94,21 @@ function checkAppComponents() {
 
 // Store original methods for safe restoration
 function storeOriginalMethods() {
-    const app = window.app;
-    const generator = app.generator;
-    const fragmentsGenerator = generator.fragmentsGenerator;
-    
-    state.originalMethods = {
-        generateFragments: fragmentsGenerator.generateFragments.bind(fragmentsGenerator),
-        generate: generator.generate.bind(generator)
-    };
-    log('Stored original methods');
+    try {
+        const app = window.app;
+        const generator = app.generator;
+        const fragmentsGenerator = generator.fragmentsGenerator;
+        
+        state.originalMethods = {
+            generateFragments: fragmentsGenerator.generateFragments.bind(fragmentsGenerator),
+            generate: generator.generate.bind(generator)
+        };
+        log('Stored original methods');
+        return true;
+    } catch (error) {
+        error('Failed to store original methods:', error);
+        return false;
+    }
 }
 
 // Initialize mask support
@@ -104,7 +122,10 @@ function initializeMaskSupport() {
     const waitForApp = () => {
         if (checkAppComponents()) {
             try {
-                storeOriginalMethods();
+                if (!storeOriginalMethods()) {
+                    throw new Error('Failed to store original methods');
+                }
+
                 // Override fragmentsGenerator to add mask support
                 const app = window.app;
                 const generator = app.generator;
@@ -112,6 +133,16 @@ function initializeMaskSupport() {
                 
                 const originalGenerateFragments = fragmentsGenerator.generateFragments;
                 fragmentsGenerator.generateFragments = async function(images, fortuneText, parameters = {}) {
+                    // Skip mask integration if this is part of the initial app load
+                    if (window.app._initializing) {
+                        return originalGenerateFragments.call(this, images, fortuneText, parameters);
+                    }
+
+                    // Skip if we're still initializing the mask integration
+                    if (!state.initialized) {
+                        return originalGenerateFragments.call(this, images, fortuneText, parameters);
+                    }
+
                     console.log('Starting fragment generation in main integration:', {
                         numImages: images.length,
                         hasFortuneText: !!fortuneText,
@@ -143,72 +174,41 @@ function initializeMaskSupport() {
                         // Calculate total weight
                         const totalWeight = Object.values(CONFIG.maskWeights).reduce((sum, weight) => sum + weight, 0);
                         
-                        // Generate random value between 0 and total weight
-                        const randomValue = Math.random() * totalWeight;
+                        // Generate a random value between 0 and total weight
+                        let random = Math.random() * totalWeight;
                         
-                        // Find the mask type that corresponds to the random value
-                        let cumulativeWeight = 0;
-                        for (const maskType of CONFIG.maskTypes) {
-                            cumulativeWeight += CONFIG.maskWeights[maskType];
-                            if (randomValue <= cumulativeWeight) {
-                                return maskType;
+                        // Select a mask type based on weight
+                        for (const [type, weight] of Object.entries(CONFIG.maskWeights)) {
+                            random -= weight;
+                            if (random <= 0) {
+                                return type;
                             }
                         }
                         
-                        // Fallback to a random mask type if something goes wrong
+                        // Fallback to a random mask type
                         return CONFIG.maskTypes[Math.floor(Math.random() * CONFIG.maskTypes.length)];
                     }
 
-                    // Determine if this collage should have no rotation (global setting)
-                    const collageHasNoRotation = Math.random() < CONFIG.globalNoRotationProbability;
-                    console.log('Collage rotation setting:', { collageHasNoRotation, probability: CONFIG.globalNoRotationProbability });
-                    
                     // Apply masks to fragments
-                    const maskedFragments = fragments.map(fragment => {
-                        try {
-                            // Ensure fragment has valid dimensions and position
-                            ensureFragmentInBounds(fragment, this.canvas.width, this.canvas.height);
-                            
-                            // Apply global rotation setting
-                            if (collageHasNoRotation) {
-                                fragment.rotation = 0;
+                    if (applyMasks) {
+                        fragments.forEach(fragment => {
+                            // Skip fragments with invalid dimensions
+                            if (!isValidFragmentDimensions(fragment)) {
+                                return;
                             }
                             
-                            // Apply mask based on strategy
-                            if (applyMasks && (useSameMask || Math.random() < CONFIG.allMasksProbability)) {
-                                const maskType = useSameMask ? selectedMaskType : selectMaskType();
-                                
-                                // Validate fragment dimensions before applying mask
-                                if (!isValidFragmentDimensions(fragment)) {
-                                    console.warn('Invalid fragment dimensions, skipping mask application:', {
-                                        width: fragment.width,
-                                        height: fragment.height
-                                    });
-                                    return fragment;
-                                }
-                                
-                                console.log('Applying mask to fragment:', {
-                                    position: { x: fragment.x, y: fragment.y },
-                                    dimensions: { width: fragment.width, height: fragment.height },
-                                    maskType: maskType,
-                                    rotation: fragment.rotation
-                                });
-                                
-                                // Create mask object with proper structure and validation
-                                fragment.mask = createMaskObject(maskType, fragment);
-                                
-                                // Log successful mask application
-                                console.log('Mask applied successfully:', fragment.mask);
-                            }
-                            return fragment;
-                        } catch (error) {
-                            console.error('Error processing fragment:', error);
-                            return fragment;
-                        }
-                    });
-
-                    console.log('Final processed fragments:', maskedFragments.length);
-                    return maskedFragments;
+                            // Select a mask type
+                            const maskType = selectedMaskType || selectMaskType();
+                            
+                            // Create the mask object
+                            const mask = createMaskObject(maskType, fragment);
+                            
+                            // Apply the mask to the fragment
+                            fragment.mask = mask;
+                        });
+                    }
+                    
+                    return fragments;
                 };
                 
                 // Helper function to validate fragment dimensions
@@ -274,29 +274,45 @@ function initializeMaskSupport() {
                     console.log('Fragment after bounds check:', fragment);
                 }
                 
-                log('Overrode fragmentsGenerator.generateFragments method');
-
-                state.initialized = true;
                 log('Mask support initialized successfully');
+                state.initialized = true;
             } catch (error) {
-                error('Failed to initialize mask support:', error);
+                error('Error initializing mask support:', error);
                 state.lastError = error;
+                
+                // Retry if we haven't exceeded max retries
+                if (state.retryCount < CONFIG.maxRetries) {
+                    state.retryCount++;
+                    log(`Retrying initialization (${state.retryCount}/${CONFIG.maxRetries})...`);
+                    setTimeout(waitForApp, CONFIG.retryDelay);
+                } else {
+                    error('Max retries exceeded, giving up on mask integration');
+                }
             }
-        } else if (state.retryCount < CONFIG.maxRetries) {
-            state.retryCount++;
-            log(`Retrying initialization (${state.retryCount}/${CONFIG.maxRetries})...`);
-            setTimeout(waitForApp, CONFIG.retryDelay);
         } else {
-            error('Failed to initialize after maximum retries:', state.lastError);
+            // Retry if we haven't exceeded max retries
+            if (state.retryCount < CONFIG.maxRetries) {
+                state.retryCount++;
+                log(`Waiting for app components (${state.retryCount}/${CONFIG.maxRetries})...`);
+                setTimeout(waitForApp, CONFIG.retryDelay);
+            } else {
+                error('Max retries exceeded, giving up on mask integration');
+            }
         }
     };
-
-    // Start the initialization process
+    
+    // Start the initialization process with a longer delay
     setTimeout(waitForApp, CONFIG.initializationDelay);
 }
 
-// Start initialization after delay
-setTimeout(initializeMaskSupport, CONFIG.initializationDelay);
+// Start initialization after page load
+if (document.readyState === 'complete') {
+    setTimeout(initializeMaskSupport, CONFIG.initializationDelay);
+} else {
+    window.addEventListener('load', () => {
+        setTimeout(initializeMaskSupport, CONFIG.initializationDelay);
+    });
+}
 
 // Export public API
 window.maskIntegration = {
@@ -312,12 +328,16 @@ window.maskIntegration = {
     },
     reset: () => {
         if (state.originalMethods && window.app) {
-            const app = window.app;
-            const generator = app.generator;
-            const fragmentsGenerator = generator.fragmentsGenerator;
-            
-            fragmentsGenerator.generateFragments = state.originalMethods.generateFragments;
-            log('Restored original methods');
+            try {
+                const app = window.app;
+                const generator = app.generator;
+                const fragmentsGenerator = generator.fragmentsGenerator;
+                
+                fragmentsGenerator.generateFragments = state.originalMethods.generateFragments;
+                log('Restored original methods');
+            } catch (error) {
+                error('Failed to reset mask integration:', error);
+            }
         }
     },
     getState: () => ({ ...state }),
