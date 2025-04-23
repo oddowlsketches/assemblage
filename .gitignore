@@ -53,6 +53,7 @@ test_tiling.html
 backups/
 *_backup*/
 *_backups*/
+backup-*/
 
 # Temporary files
 *.tmp
