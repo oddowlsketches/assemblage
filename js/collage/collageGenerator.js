@@ -158,24 +158,42 @@ class CollageGenerator {
             return;
         }
         
-        // Get the device pixel ratio for better quality on high-DPI screens
-        const devicePixelRatio = window.devicePixelRatio || 1;
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
         
         // Set the display size (CSS pixels)
-        this.canvas.style.width = window.innerWidth + 'px';
-        this.canvas.style.height = window.innerHeight + 'px';
+        this.canvas.style.width = viewportWidth + 'px';
+        this.canvas.style.height = viewportHeight + 'px';
         
-        // Set the canvas dimensions to match the display size
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        // CRITICAL FIX: For desktop browsers, ignore devicePixelRatio and use 1:1 mapping
+        // This ensures collages are properly sized on all devices
+        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const devicePixelRatio = isMobileDevice ? (window.devicePixelRatio || 1) : 1;
         
-        // Reset any transforms
+        console.log('Device detection:', {
+            userAgent: navigator.userAgent,
+            isMobileDevice,
+            devicePixelRatio,
+            viewportDimensions: `${viewportWidth}x${viewportHeight}`,
+        });
+        
+        // Set canvas dimensions with appropriate scaling
+        this.canvas.width = viewportWidth * devicePixelRatio;
+        this.canvas.height = viewportHeight * devicePixelRatio;
+        
+        // Reset any existing transform
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-
+        
+        // If mobile with high DPI, scale the context
+        if (devicePixelRatio > 1) {
+            this.ctx.scale(devicePixelRatio, devicePixelRatio);
+        }
+        
         // Update narrative manager's canvas dimensions
         if (this.narrativeManager) {
-            this.narrativeManager.parameters.canvasWidth = this.canvas.width;
-            this.narrativeManager.parameters.canvasHeight = this.canvas.height;
+            this.narrativeManager.parameters.canvasWidth = viewportWidth;
+            this.narrativeManager.parameters.canvasHeight = viewportHeight;
         }
     }
     
@@ -1326,6 +1344,12 @@ class CollageGenerator {
             return;
         }
 
+        // Use logical (CSS) pixel coordinates to work with the scaled canvas
+        const x = fragment.x;
+        const y = fragment.y;
+        const width = fragment.width;
+        const height = fragment.height;
+        
         // Save the current context state
         ctx.save();
 
@@ -1335,9 +1359,9 @@ class CollageGenerator {
         const opacity = Math.min(Math.max(fragment.depth + randomOpacity, 0.5), 1.0);
         
         // Increase chance of full opacity based on fragment size and position
-        const isLargeFragment = fragment.width * fragment.height > (this.canvas.width * this.canvas.height * 0.15);
-        const isCentralFragment = Math.abs(fragment.x - this.canvas.width/2) < this.canvas.width * 0.3 && 
-                                 Math.abs(fragment.y - this.canvas.height/2) < this.canvas.height * 0.3;
+        const isLargeFragment = width * height > (this.canvas.width * this.canvas.height * 0.15);
+        const isCentralFragment = Math.abs(x - this.canvas.width/2) < this.canvas.width * 0.3 && 
+                                 Math.abs(y - this.canvas.height/2) < this.canvas.height * 0.3;
         
         // 40% chance of full opacity for large fragments, 30% for central fragments, 20% for others
         const fullOpacityChance = isLargeFragment ? 0.4 : (isCentralFragment ? 0.3 : 0.2);
@@ -1348,8 +1372,8 @@ class CollageGenerator {
         }
 
         // Move to fragment center for rotation
-        const centerX = fragment.x + fragment.width / 2;
-        const centerY = fragment.y + fragment.height / 2;
+        const centerX = x + width / 2;
+        const centerY = y + height / 2;
         ctx.translate(centerX, centerY);
         ctx.rotate(fragment.rotation);
 
@@ -1359,7 +1383,7 @@ class CollageGenerator {
                 type: fragment.mask.type,
                 scale: fragment.mask.scale,
                 rotation: fragment.mask.rotation,
-                fragmentDimensions: { width: fragment.width, height: fragment.height }
+                fragmentDimensions: { width, height }
             });
             
             // Create clipping path based on mask type
@@ -1367,8 +1391,8 @@ class CollageGenerator {
             
             // Calculate dimensions for mask
             const maskScale = fragment.mask.scale || 1.0;
-            const scaledWidth = fragment.width * maskScale;
-            const scaledHeight = fragment.height * maskScale;
+            const scaledWidth = width * maskScale;
+            const scaledHeight = height * maskScale;
             
             // Apply mask rotation if specified
             if (fragment.mask.rotation) {
@@ -1475,17 +1499,17 @@ class CollageGenerator {
 
         // Calculate image dimensions to ensure it completely fills the mask
         const imageAspectRatio = fragment.image.width / fragment.image.height;
-        const fragmentAspectRatio = fragment.width / fragment.height;
+        const fragmentAspectRatio = width / height;
         
         // Calculate the base scaling factor needed to cover the fragment
         let scaleFactor;
         
         if (imageAspectRatio > fragmentAspectRatio) {
             // Image is wider than fragment - scale based on height
-            scaleFactor = fragment.height / fragment.image.height;
+            scaleFactor = height / fragment.image.height;
         } else {
             // Image is taller than fragment - scale based on width
-            scaleFactor = fragment.width / fragment.image.width;
+            scaleFactor = width / fragment.image.width;
         }
         
         // Apply a minimal buffer to prevent edge clipping
@@ -1522,8 +1546,8 @@ class CollageGenerator {
         // Draw the image perfectly centered within the fragment
         ctx.drawImage(
             fragment.image,
-            -fragment.width / 2 - offsetX,
-            -fragment.height / 2 - offsetY,
+            -width / 2 - offsetX,
+            -height / 2 - offsetY,
             drawWidth,
             drawHeight
         );

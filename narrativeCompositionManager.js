@@ -158,7 +158,8 @@ export class NarrativeCompositionManager {
                         
                         // Set opacity and rotation with controlled variation
                         fragment.opacity = 0.85 + (Math.random() * 0.15);
-                        fragment.rotation = (Math.random() - 0.5) * 20; // Reduced rotation range
+                        // Temporarily comment out rotation to test bias
+                        // fragment.rotation = (Math.random() - 0.5) * 20; // Reduced rotation range
                     });
                     break;
 
@@ -222,12 +223,12 @@ export class NarrativeCompositionManager {
                         fragment.y = Math.max(-fragment.height*0.1, Math.min(this.canvas.height - fragment.height*0.9, fragment.y));
                         
                         // Create relationships with nearby fragments through rotation
-                        // Rotation follows the flow direction to create visual continuity
-                        const flowAngle = Math.atan2(
-                            Math.cos(progress * Math.PI * 2 + primaryPath.phase), // Flow derivative Y
-                            1 / spacing // Flow derivative X (constant spacing)
-                        );
-                        fragment.rotation = (flowAngle * 180 / Math.PI) + (Math.random() - 0.5) * 15;
+                        // Temporarily comment out rotation to test bias
+                        // const flowAngle = Math.atan2(
+                        //     Math.cos(progress * Math.PI * 2 + primaryPath.phase), // Flow derivative Y
+                        //     1 / spacing // Flow derivative X (constant spacing)
+                        // );
+                        // fragment.rotation = (flowAngle * 180 / Math.PI) + (Math.random() - 0.5) * 15;
                         
                         // Progressive opacity creates depth and focus
                         fragment.opacity = 0.7 + (Math.sin(progress * Math.PI) * 0.3); // Opacity peaks in middle
@@ -270,7 +271,8 @@ export class NarrativeCompositionManager {
                         // Consistent scale and high opacity
                         fragment.scale = 0.9 + Math.random() * 0.2;
                         fragment.opacity = 0.9 + Math.random() * 0.1;
-                        fragment.rotation = -15 + Math.random() * 10; // Slight leftward tilt
+                        // Temporarily comment out rotation to test bias
+                        // fragment.rotation = -15 + Math.random() * 10; // Slight leftward tilt
                     });
                     
                     // Position right side in a mirrored grid
@@ -293,7 +295,8 @@ export class NarrativeCompositionManager {
                         // Consistent scale and high opacity
                         fragment.scale = 0.9 + Math.random() * 0.2;
                         fragment.opacity = 0.9 + Math.random() * 0.1;
-                        fragment.rotation = 15 - Math.random() * 10; // Slight rightward tilt
+                        // Temporarily comment out rotation to test bias
+                        // fragment.rotation = 15 - Math.random() * 10; // Slight rightward tilt
                     });
                     break;
 
@@ -307,7 +310,8 @@ export class NarrativeCompositionManager {
                     protagonist.y = this.canvas.height * 0.15 - protagonist.height/2;
                     protagonist.scale = parameters.focalScale || 1.4;
                     protagonist.opacity = 1.0;
-                    protagonist.rotation = 0;
+                    // Temporarily comment out rotation to test bias
+                    // protagonist.rotation = 0;
                     
                     // Position supporting elements in a balanced arrangement
                     const supportingElements = enhancedFragments.filter(f => f !== protagonist);
