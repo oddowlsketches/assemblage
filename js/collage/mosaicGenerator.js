@@ -10,8 +10,22 @@ class MosaicGenerator {
      */
     constructor(canvas, parameters = {}) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas ? canvas.getContext('2d') : null;
         this.parameters = parameters;
+        
+        // Set default canvas dimensions if not provided
+        if (!this.canvas) {
+            this.canvas = {
+                width: 1200,
+                height: 800
+            };
+        }
+        
+        // Ensure canvas has dimensions
+        if (!this.canvas.width || !this.canvas.height) {
+            this.canvas.width = 1200;
+            this.canvas.height = 800;
+        }
     }
 
     /**

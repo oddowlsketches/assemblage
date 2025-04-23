@@ -63,10 +63,12 @@ export class FragmentsGenerator {
             return;
         }
 
-        // Calculate number of fragments based on complexity
+        // Slightly reduce the number of fragments to prevent crowding
+        // Slightly vary the fragment count to create more visual diversity between generations
+        const complexityVariation = 0.75 + Math.random() * 0.3; // 0.75-1.05 range
         const numFragments = Math.min(
-            Math.max(3, Math.floor(validImages.length * parameters.complexity)),
-            parameters.maxFragments || 12
+            Math.max(3, Math.floor(validImages.length * parameters.complexity * 0.7 * complexityVariation)), // Reduced by 30%
+            parameters.maxFragments || 8 // Reduced from 10 to 8 max fragments
         );
         // console.log('Calculated number of fragments:', numFragments);
 
@@ -96,7 +98,7 @@ export class FragmentsGenerator {
                 y: y,
                 width: fragmentWidth,
                 height: fragmentHeight,
-                rotation: Math.random() * 90, // Reduced from 360 to 90 degrees
+                rotation: Math.random() < 0.7 ? 0 : Math.random() * 0.2, // 70% zero rotation, 30% slight rotation (up to ~11 degrees)
                 depth: Math.random(),
                 mask: {
                     enabled: Math.random() < 0.30,
@@ -138,19 +140,14 @@ export class FragmentsGenerator {
             x = x * (1 - centerBias) + centerX * centerBias;
             y = y * (1 - centerBias) + centerY * centerBias;
             
-            // ENHANCED: More varied rotation with balanced distribution
-            let rotation = 0;
-            const randomValue = Math.random();
-            if (randomValue < 0.3) { // 30% chance of no rotation
-                rotation = 0;
-            } else if (randomValue < 0.93) { // 63% chance of small rotation
-                // Invert the direction to match canvas rotation
-                const direction = Math.random() < 0.5 ? -1 : 1;
-                rotation = (direction * (Math.random() * 8)) * (Math.PI / 180); // Reduced from 15 to 8 degrees
-            } else { // 7% chance of moderate rotation
-                // Invert the direction to match canvas rotation
-                const direction = Math.random() < 0.5 ? -1 : 1;
-                rotation = (direction * (8 + Math.random() * 7)) * (Math.PI / 180); // Reduced from 15-30 to 8-15 degrees
+            // ENHANCED: Add back a moderate amount of rotation
+            let rotation = 0; // Default to zero rotation
+            
+            // 75% chance of exactly zero rotation
+            if (Math.random() >= 0.75) {
+                // Only 25% of fragments get any rotation at all
+                const rotationAmount = Math.random() * 0.15; // Maximum of ~8-9 degrees in radians
+                rotation = (Math.random() < 0.5 ? -1 : 1) * rotationAmount;
             }
             
             let baseSize;
@@ -167,15 +164,15 @@ export class FragmentsGenerator {
             const width = baseSize.width;
             const height = baseSize.height;
             
-            // Allow fragments to overflow by up to 75% of their width/height (increased from 50%)
-            const overflowAllowed = 0.75; // Keep the same edge bleeding
+            // Allow fragments to overflow by up to 95% of their width/height for more dramatic edge bleeding
+            const overflowAllowed = Math.random() < 0.4 ? 0.95 : 0.75; // 40% chance of extensive bleeding (95%), otherwise standard (75%)
             
-            // Calculate position with reduced overlap
-            const minDistance = Math.max(width, height) * 0.5; // Increased from 0.4 to 0.5 for more spacing between fragments
+            // Calculate position with significantly reduced overlap
+            const minDistance = Math.max(width, height) * 1.1; // Increased from 0.8 to 1.1 for much more spacing between fragments
             let attempts = 0;
             let validPosition = false;
             
-            while (!validPosition && attempts < 10) {
+            while (!validPosition && attempts < 20) { // Increased attempts from 15 to 20 for better placement
                 // Calculate new position
                 x = Math.max(-width * overflowAllowed, Math.min(x, this.canvas.width - width * (1 - overflowAllowed)));
                 y = Math.max(-height * overflowAllowed, Math.min(y, this.canvas.height - height * (1 - overflowAllowed)));
@@ -188,14 +185,31 @@ export class FragmentsGenerator {
                     const dy = y - existingFragment.y;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     
-                    // Check if fragments overlap
-                    if (distance < (width + existingFragment.width) / 2) {
+                    // Adjust overlap allowance based on fragment sizes
+                    // Allow more overlap between very different sized fragments
+                    const sizeRatio = Math.max(
+                        width / existingFragment.width,
+                        existingFragment.width / width
+                    );
+                    
+                    // More overlap allowed when fragments have very different sizes
+                    const overlapFactor = sizeRatio > 2.5 ? 0.4 : 0.9; // 0.4 for very disparate sizes, 0.9 for similar sizes
+                    
+                    // Calculate minimum non-overlapping distance
+                    const minRequiredDistance = (width + existingFragment.width) * overlapFactor;
+                    
+                    // Check if fragments overlap too much
+                    if (distance < minRequiredDistance) {
                         overlappingCount++;
-                        if (overlappingCount >= 2) { // Allow max 2 overlapping fragments
+                        if (overlappingCount >= 1) { // Reduced from 2 to 1 to allow max 1 overlapping fragment
                             validPosition = false;
-                            // Adjust position to increase distance
-                            x += (Math.random() - 0.5) * minDistance * 1.5; // Increased adjustment
-                            y += (Math.random() - 0.5) * minDistance * 1.5; // Increased adjustment
+                            // Move fragments farther apart with more directed adjustments
+                            const moveDirection = {x: dx || 0.1, y: dy || 0.1}; // Avoid zero values
+                            const moveDistance = minDistance * 1.8; // Increased from 1.5 to 1.8
+                            const magnitude = Math.sqrt(moveDirection.x * moveDirection.x + moveDirection.y * moveDirection.y);
+                            // Move away from existing fragment in the direction of the vector between them
+                            x += (moveDirection.x / magnitude) * moveDistance * (0.8 + Math.random() * 0.4);
+                            y += (moveDirection.y / magnitude) * moveDistance * (0.8 + Math.random() * 0.4);
                             break;
                         }
                     }
@@ -208,6 +222,8 @@ export class FragmentsGenerator {
                 x, y,
                 width, height,
                 overflowAllowed,
+                attempts,
+                validPosition,
                 canvasBounds: {
                     minX: -width * overflowAllowed,
                     maxX: this.canvas.width - width * (1 - overflowAllowed),
@@ -235,12 +251,22 @@ export class FragmentsGenerator {
     }
 
     calculateOrganicSize(width, height) {
-        // Select a base size with bias towards smaller sizes
-        const baseSize = Math.random() < 0.6 ? 0.6 : 0.8; // Increased range from 0.7-0.9 to 0.6-0.8
+        // More dramatic size variation with bias towards extremes
+        // Create a bimodal distribution - either quite small or quite large
+        const sizeCategory = Math.random();
+        let baseSize;
         
-        // Add organic variation to width and height
-        const widthVariation = 0.6 + Math.random() * 0.8; // Increased range from 0.7-1.3 to 0.6-1.4
-        const heightVariation = 0.6 + Math.random() * 0.8; // Increased range from 0.7-1.3 to 0.6-1.4
+        if (sizeCategory < 0.35) { // 35% chance of smaller fragments
+            baseSize = 0.4 + Math.random() * 0.3; // 0.4-0.7 range (smaller)
+        } else if (sizeCategory < 0.85) { // 50% chance of medium fragments
+            baseSize = 0.6 + Math.random() * 0.4; // 0.6-1.0 range (medium)
+        } else { // 15% chance of larger fragments
+            baseSize = 1.0 + Math.random() * 0.5; // 1.0-1.5 range (larger)
+        }
+        
+        // Add more dramatic variation to width and height
+        const widthVariation = 0.5 + Math.random() * 1.0; // 0.5-1.5 range
+        const heightVariation = 0.5 + Math.random() * 1.0; // 0.5-1.5 range
         
         return {
             width: width * baseSize * widthVariation,
@@ -253,14 +279,30 @@ export class FragmentsGenerator {
         const centerX = 0.5;
         const centerY = 0.5;
         const distanceFromCenter = Math.sqrt(
-            Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+            Math.pow(x/width - centerX, 2) + Math.pow(y/height - centerY, 2)
         );
         
-        // Adjust base size based on distance from center
-        const baseSize = 0.5 + (1 - distanceFromCenter) * 0.7; // Increased range from 0.6-1.2 to 0.5-1.2
+        // More dramatic size difference between center and edges
+        // Central elements can be up to 3x the size of edge elements
+        const sizeCategory = Math.random();
+        let baseSize;
         
-        // Add some variation
-        const variation = 0.7 + Math.random() * 0.6; // Increased range from 0.8-1.2 to 0.7-1.3
+        if (distanceFromCenter < 0.3) { // Near center - bigger elements
+            if (sizeCategory < 0.6) { // 60% chance of very large focal elements
+                baseSize = 0.9 + (1 - distanceFromCenter) * 1.2; // 0.9-2.1 range
+            } else { // 40% chance of medium focal elements
+                baseSize = 0.7 + (1 - distanceFromCenter) * 0.8; // 0.7-1.5 range
+            }
+        } else { // Away from center - smaller elements
+            if (sizeCategory < 0.7) { // 70% chance of small peripheral elements
+                baseSize = 0.4 + (1 - distanceFromCenter) * 0.4; // 0.4-0.8 range
+            } else { // 30% chance of medium peripheral elements
+                baseSize = 0.6 + (1 - distanceFromCenter) * 0.5; // 0.6-1.1 range
+            }
+        }
+        
+        // Add variation with more range
+        const variation = 0.6 + Math.random() * 0.8; // 0.6-1.4 range
         
         return {
             width: width * baseSize * variation,
@@ -269,11 +311,20 @@ export class FragmentsGenerator {
     }
 
     calculateClassicSize(width, height) {
-        // Select a base size
-        const baseSize = 0.6 + Math.random() * 0.4; // Increased range from 0.7-0.9 to 0.6-1.0
+        // Create more dramatic size variations for classic layout
+        const sizeCategory = Math.random();
+        let baseSize;
         
-        // Add some variation
-        const variation = 0.7 + Math.random() * 0.6; // Increased range from 0.8-1.2 to 0.7-1.3
+        if (sizeCategory < 0.3) { // 30% chance of smaller fragments
+            baseSize = 0.45 + Math.random() * 0.25; // 0.45-0.7 range (smaller)
+        } else if (sizeCategory < 0.8) { // 50% chance of medium fragments
+            baseSize = 0.65 + Math.random() * 0.35; // 0.65-1.0 range (medium)
+        } else { // 20% chance of larger fragments
+            baseSize = 0.95 + Math.random() * 0.4; // 0.95-1.35 range (larger)
+        }
+        
+        // Add more dramatic variation
+        const variation = 0.6 + Math.random() * 0.8; // 0.6-1.4 range
         
         return {
             width: width * baseSize * variation,
@@ -287,6 +338,13 @@ export class FragmentsGenerator {
         fragments.forEach(fragment => {
             const layerIndex = Math.floor(fragment.depth * layerCount);
             fragment.depth = (layerIndex + Math.random() * 0.8) / layerCount; // Increased random factor
+            
+            // Force moderate rotation for some fragments
+            if (Math.random() < 0.75) { // 75% chance to have moderate rotation
+                fragment.rotation = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * 0.12); // Up to ~7 degrees
+            } else { // 25% chance to have zero rotation
+                fragment.rotation = 0;
+            }
         });
         
         // Ensure at least one fragment has 100% opacity
@@ -298,6 +356,11 @@ export class FragmentsGenerator {
                 }
             });
             maxDepthFragment.forceFullOpacity = true;
+            
+            // Key fragments (highest opacity) often have minimal rotation for stability
+            if (Math.random() < 0.7) {
+                maxDepthFragment.rotation = 0;
+            }
         }
         
         // Sort fragments by depth
@@ -313,6 +376,14 @@ export class FragmentsGenerator {
             fragments.forEach(fragment => {
                 if (fragment.width * fragment.height >= largeFragmentThreshold && Math.random() < 0.8) {
                     fragment.depth = 0.7 + Math.random() * 0.3;
+                    
+                    // Larger focal elements have minimal rotation for visual stability
+                    if (Math.random() < 0.7) { // 70% chance of minimal rotation
+                        fragment.rotation = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * 0.05); // Max ~3 degrees
+                    } else {
+                        // 30% chance of slightly more rotation, but still limited
+                        fragment.rotation = (Math.random() < 0.5 ? -1 : 1) * (Math.random() * 0.1); // Max ~6 degrees
+                    }
                 }
             });
             
@@ -342,15 +413,26 @@ export class FragmentsGenerator {
             return;
         }
         
-        // ENHANCED: Draw fragment with controlled size
-        const drawScale = 1.2; // Reduced from 1.5
+        // Vary scale based on fragment size for more visual interest
+        // Smaller fragments get slightly larger scale, larger fragments get normal scale
+        const canvasArea = this.canvas.width * this.canvas.height;
+        const fragmentArea = width * height;
+        const fragmentSizeRatio = fragmentArea / canvasArea;
+        
+        // Scale inversely proportional to fragment size
+        // Small fragments get scale up to 1.3, large fragments get scale around 1.0-1.1
+        const drawScale = 1.0 + Math.max(0, 0.3 - fragmentSizeRatio * 20);
+        
+        // Force zero rotation when drawing to ensure stable presentation
+        const effectiveRotation = Math.abs(rotation) < 0.01 ? 0 : rotation; // Treat tiny rotations as zero
+        
         ctx.save();
         ctx.translate(x + width/2, y + height/2);
-        ctx.rotate(rotation);
+        ctx.rotate(effectiveRotation);
         ctx.scale(drawScale, drawScale);
         ctx.drawImage(image, -width/2, -height/2, width, height);
         ctx.restore();
         
-        console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height);
+        console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height, 'scale:', drawScale);
     }
 } 

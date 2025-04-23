@@ -10,6 +10,7 @@ import { MosaicGenerator } from './mosaicGenerator.js';
 import { SlicedCollageGenerator } from './slicedCollageGenerator.js';
 import { NarrativeCompositionManager } from './narrativeCompositionManager.js';
 import { SafeCrystalFormationGenerator } from './crystalFormationGenerator.js';
+import IsolatedCrystalGenerator from './isolatedCrystalGenerator.js';
 
 class CollageGenerator {
     constructor(canvas) {
@@ -47,41 +48,98 @@ class CollageGenerator {
             // Sliced effect parameters
             sliceDirection: 'vertical', // Always vertical for now
             sliceWidthVariation: 0.1, // Controls the variation in slice width (0.1-0.3)
-            sliceBehavior: 'random', // 'random', 'single-image', or 'alternating'
             
             // Crystal effect parameters
-            crystalDensity: 5,
             crystalComplexity: 5,
-            crystalOpacity: 0.7
+            crystalDensity: 5,
+            crystalOpacity: 0.7,
+            isolatedMode: false,
+            addGlow: false
         };
+        
+        // Initialize effect settings
+        this.effectSettings = {
+            crystal: {
+                isolatedMode: false,
+                addGlow: false, // Explicitly set to false as requested
+                complexity: 5,
+                maxFacets: 25,
+                templates: ['hexagonal', 'irregular', 'angular', 'elongated']
+            }
+        };
+        
+        // Flag to indicate if crystal effect is available
+        this.hasCrystalEffect = false;
+        
+        // Initialize crystal generators
+        this.crystalGenerator = null;
+        this.isolatedCrystalGenerator = null;
+        
+        // Try to initialize crystal generators
+        try {
+            console.log('Initializing crystal generators...');
+            this.crystalGenerator = new SafeCrystalFormationGenerator(this.ctx, this.canvas);
+            console.log('Standard crystal generator initialized');
+            
+            // Make sure to create a new isolated generator with proper parameters
+            console.log('Initializing isolated crystal generator...');
+            this.isolatedCrystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
+            console.log('Isolated crystal generator initialized with canvas dimensions:', {
+                width: this.canvas.width,
+                height: this.canvas.height,
+                hasContext: !!this.ctx,
+                hasCanvas: !!this.canvas
+            });
+            
+            this.hasCrystalEffect = true;
+            console.log('Crystal effect initialized successfully');
+        } catch (error) {
+            console.warn('Failed to initialize crystal effect:', error);
+            this.hasCrystalEffect = false;
+        }
+        
+        // Initialize other generators
+        this.tilingGenerator = new TilingGenerator(this.canvas, this.ctx);
+        this.fragmentsGenerator = new FragmentsGenerator(this.ctx, this.canvas);
+        this.mosaicGenerator = new MosaicGenerator(this.canvas, this.ctx);
+        this.slicedGenerator = new SlicedCollageGenerator(this.ctx, this.canvas);
+        
+        // Initialize narrative composition manager
+        this.narrativeCompositionManager = new NarrativeCompositionManager();
+        
+        // Initialize crystal templates
+        this.crystalTemplates = {
+            hexagonal: this.generateHexagonalTemplate.bind(this),
+            irregular: this.generateIrregularTemplate.bind(this),
+            angular: this.generateAngularTemplate.bind(this),
+            elongated: this.generateElongatedTemplate.bind(this)
+        };
+        
+        // Initialize seed patterns
+        this.seedPatterns = ['radial', 'grid', 'random', 'clusters', 'spiral'];
         
         // Composition Settings
         this.compositionTemplates = ['center', 'ruleOfThirds', 'diagonalTLBR', 'diagonalTRBL', 'goldenRatio'];
         this.selectedTemplate = null;
         this.selectedCompositionStyle = null;
-        this.focalPoints = []; 
-
-        // Initialize generators with parameters
-        this.tilingGenerator = new TilingGenerator(this.canvas, this.parameters);
-        this.fragmentsGenerator = new FragmentsGenerator(this.ctx, canvas);
-        this.mosaicGenerator = new MosaicGenerator(this.canvas, this.parameters);
-        this.slicedGenerator = new SlicedCollageGenerator(this.ctx, canvas);
+        this.focalPoints = [];
         
-        // Initialize narrative manager with canvas dimensions
-        this.narrativeManager = new NarrativeCompositionManager({
-            ...this.parameters,
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height
-        });
-
-        // Initialize crystal effect
-        try {
-            this.crystalGenerator = new SafeCrystalFormationGenerator(this.ctx, this.canvas);
-            this.hasCrystalEffect = true;
-        } catch (error) {
-            console.warn('Failed to initialize crystal effect:', error);
-            this.hasCrystalEffect = false;
-        }
+        // Initialize crystal templates
+        this.crystalTemplates = {
+            hexagonal: this.generateHexagonalTemplate.bind(this),
+            irregular: this.generateIrregularTemplate.bind(this),
+            angular: this.generateAngularTemplate.bind(this),
+            elongated: this.generateElongatedTemplate.bind(this)
+        };
+        
+        // Initialize seed patterns
+        this.seedPatterns = ['radial', 'grid', 'random', 'clusters', 'spiral'];
+        
+        // Composition Settings
+        this.compositionTemplates = ['center', 'ruleOfThirds', 'diagonalTLBR', 'diagonalTRBL', 'goldenRatio'];
+        this.selectedTemplate = null;
+        this.selectedCompositionStyle = null;
+        this.focalPoints = [];
 
         // Add resize event listener
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -103,19 +161,16 @@ class CollageGenerator {
         // Get the device pixel ratio for better quality on high-DPI screens
         const devicePixelRatio = window.devicePixelRatio || 1;
         
-        // Set the canvas dimensions
-        this.canvas.width = window.innerWidth * devicePixelRatio;
-        this.canvas.height = window.innerHeight * devicePixelRatio;
-        
         // Set the display size (CSS pixels)
         this.canvas.style.width = window.innerWidth + 'px';
         this.canvas.style.height = window.innerHeight + 'px';
         
+        // Set the canvas dimensions to match the display size
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        
         // Reset any transforms
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-        
-        // Scale the context
-        this.ctx.scale(devicePixelRatio, devicePixelRatio);
 
         // Update narrative manager's canvas dimensions
         if (this.narrativeManager) {
@@ -157,8 +212,44 @@ class CollageGenerator {
         return true;
     }
 
-    setParameters(parameters) {
-        this.parameters = { ...this.parameters, ...parameters };
+    setParameters(params) {
+        // Log incoming parameters
+        console.log('[DEBUG] setParameters called with:', {
+            incomingParams: params,
+            currentIsolatedMode: this.parameters?.isolatedMode,
+            currentIsIsolated: this.parameters?.isIsolated
+        });
+
+        // Ensure isolatedMode is explicitly set and preserved
+        const isolatedMode = params.isolatedMode === true || params.isIsolated === true;
+        
+        // Update parameters with proper handling of isolatedMode
+        this.parameters = {
+            ...this.parameters,
+            ...params,
+            isolatedMode,
+            isIsolated: isolatedMode
+        };
+        
+        // Update effect settings for crystal
+        if (this.effectSettings?.crystal) {
+            this.effectSettings.crystal = {
+                ...this.effectSettings.crystal,
+                isolatedMode,
+                complexity: params.complexity || this.parameters.complexity || 0.5,
+                density: params.density || this.parameters.density || 0.5,
+                opacity: params.opacity || this.parameters.opacity || 0.8,
+                seedPattern: params.seedPattern || this.parameters.seedPattern || 'radial',
+                rotationRange: params.rotationRange || this.parameters.rotationRange || 45
+            };
+        }
+        
+        // Log final parameter state
+        console.log('[DEBUG] Parameters updated:', {
+            isolatedMode: this.parameters.isolatedMode,
+            isIsolated: this.parameters.isIsolated,
+            effectSettings: this.effectSettings?.crystal
+        });
     }
 
     generateBackgroundColor() {
@@ -308,64 +399,49 @@ class CollageGenerator {
     }
     
     async generate(images, fortuneText, effect, settings = null) {
+        console.log('[DEBUG] generate called with settings:', {
+            settings,
+            currentIsolatedMode: this.parameters.isolatedMode,
+            hasCrystalEffect: this.hasCrystalEffect,
+            hasIsolatedGenerator: !!this.isolatedCrystalGenerator,
+            hasStandardGenerator: !!this.crystalGenerator
+        });
+
         try {
-            if (images) {
-                this.images = images;
-            }
-            
-            this.currentEffect = effect || 'fragments';
-            
-            if (!this.currentEffect || this.images.length === 0) {
-                console.error('No images available for collage generation');
-                return;
-            }
-            
+            // Store images and fortune text
+            this.images = images;
+            this.fortuneText = fortuneText;
+
+            // Set current effect
+            this.currentEffect = effect;
+
+            // Set parameters if provided
             if (settings) {
-                this.parameters = { ...this.parameters, ...settings };
-                
-                // If narrative composition settings are provided, configure them
-                if (settings.narrativeComposition) {
-                    this.configureNarrativeComposition(settings.narrativeComposition);
-                }
-                
-                console.log(`Applied settings for ${this.currentEffect}:`, this.parameters);
+                this.setParameters(settings);
             }
-            
-            // Randomly decide on image repetition if not explicitly set
-            if (this.parameters.allowImageRepetition === null) {
-                this.parameters.allowImageRepetition = Math.random() < 0.5;
-                console.log(`Randomly set image repetition to: ${this.parameters.allowImageRepetition}`);
+
+            // Get variation for the effect
+            const variation = this.getRandomVariation(effect);
+            if (variation) {
+                this.parameters.variation = variation;
             }
-            
-            // Get device pixel ratio and canvas dimensions
-            const dpr = window.devicePixelRatio || 1;
-            const displayWidth = this.canvas.width / dpr;
-            const displayHeight = this.canvas.height / dpr;
-            
-            // Clear canvas completely
-            this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-            this.ctx.clearRect(0, 0, displayWidth, displayHeight);
-            
+
+            // Clear canvas and set background
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = this.generateBackgroundColor();
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
             // Select composition style and template
             this.selectCompositionStyleAndTemplate();
 
             // Set background color and blend mode
             const backgroundColor = this.generateBackgroundColor();
             this.ctx.fillStyle = backgroundColor;
-            this.ctx.fillRect(0, 0, displayWidth, displayHeight);
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.ctx.globalCompositeOperation = 'multiply';
-            this.ctx.globalAlpha = 1.0; // Reset alpha to ensure full opacity for background
+            this.ctx.globalAlpha = 1.0;
 
-            console.log(`Generating collage with effect: ${this.currentEffect}, image repetition: ${this.parameters.allowImageRepetition}`);
-
-            // Add crystal effect to available effects
-            const availableEffects = [
-                'tiling',
-                'fragments',
-                'mosaic',
-                'sliced',
-                ...(this.hasCrystalEffect ? ['crystal'] : [])
-            ];
+            console.log(`Generating collage with effect: ${this.currentEffect}, variation: ${this.parameters.variation}, image repetition: ${this.parameters.allowImageRepetition}`);
 
             // Generate collage based on current effect
             let fragments = [];
@@ -386,7 +462,7 @@ class CollageGenerator {
                     fragments = this.generateSliced(this.images, fortuneText, this.parameters);
                     break;
                 case 'crystal':
-                    fragments = await this.generateCrystal(this.images, fortuneText, this.parameters);
+                    fragments = await this.generateCrystal(this.images, this.parameters);
                     break;
                 default:
                     console.error(`Unknown effect: ${this.currentEffect}`);
@@ -1468,50 +1544,167 @@ class CollageGenerator {
     }
 
     // Add crystal generation method
-    async generateCrystal(images, fortuneText, parameters = {}) {
+    async generateCrystal(image, parameters = {}) {
+        console.log('[DEBUG] generateCrystal called with:', {
+            hasImage: !!image,
+            parameters,
+            currentIsolatedMode: this.parameters?.isolatedMode,
+            effectSettings: this.effectSettings?.crystal
+        });
+
         if (!this.hasCrystalEffect) {
-            console.warn('Crystal effect not available, falling back to default effect');
-            return this.generate(images, fortuneText, 'tiling', parameters);
+            console.warn('[DEBUG] Crystal effect not available');
+            return null;
         }
 
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Get crystal settings from effect settings or parameters
+        const crystalSettings = this.effectSettings?.crystal || {};
+        
+        // Map parameters to crystal generator format with direct mapping for critical parameters
+        const crystalParams = {
+            // Direct mapping from app parameters to generator parameters
+            complexity: parameters.crystalComplexity / 10, // Convert 3-7 scale to 0.3-0.7 scale
+            density: parameters.crystalDensity / 10, // Convert 3-7 scale to 0.3-0.7 scale
+            opacity: parameters.crystalOpacity,
+            seedPattern: parameters.seedPattern,
+            rotationRange: parameters.rotationRange,
+            isolatedMode: parameters.variation === 'Isolated',
+            imageMode: parameters.imageMode,
+            maxFacets: parameters.maxFacets,
+            blendOpacity: parameters.blendOpacity,
+            crystalSize: parameters.crystalSize,
+            crystalCount: parameters.crystalCount,
+            preventOverlap: parameters.preventOverlap,
+            facetBorders: parameters.facetBorders,
+            enableVisualEffects: parameters.enableVisualEffects,
+            template: parameters.template
+        };
+
+        console.log('[DEBUG] Direct crystal parameter mapping:', {
+            originalComplexity: parameters.crystalComplexity,
+            mappedComplexity: crystalParams.complexity,
+            originalDensity: parameters.crystalDensity,
+            mappedDensity: crystalParams.density,
+            imageMode: crystalParams.imageMode,
+            template: crystalParams.template,
+            maxFacets: crystalParams.maxFacets
+        });
+
         try {
-            // Clear canvas and set background
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-            this.ctx.fillStyle = this.generateBackgroundColor();
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            // Use appropriate generator based on variation
+            const generator = crystalParams.isolatedMode ? this.isolatedCrystalGenerator : this.crystalGenerator;
             
-            // Get crystal settings from effectSettings if available
-            const crystalSettings = this.effectSettings?.crystal || {};
-            
-            // Map parameters to crystal generator format with randomization
-            const crystalParams = {
-                complexity: parameters.crystalComplexity || crystalSettings.complexity || this.parameters.crystalComplexity || 5,
-                maxFacets: Math.floor((parameters.crystalDensity || crystalSettings.density || this.parameters.crystalDensity || 5) * 5),
-                opacity: parameters.crystalOpacity || crystalSettings.opacity || this.parameters.crystalOpacity || 0.7,
-                seedPattern: parameters.seedPattern || crystalSettings.seedPattern || this.getRandomSeedPattern(),
-                rotationRange: parameters.rotationRange || crystalSettings.rotationRange || 15
-            };
-            
-            console.log('Generating crystal with parameters:', crystalParams);
-            
-            // Generate crystal effect
-            const success = await this.crystalGenerator.generateCrystal(
-                images,
-                fortuneText,
-                crystalParams
-            );
-            
-            if (!success) {
-                console.warn('Crystal generation failed, falling back to tiling');
-                return this.generate(images, fortuneText, 'tiling', parameters);
+            // Generate crystal effect using the appropriate method
+            let result;
+            if (crystalParams.isolatedMode) {
+                result = await generator.generateIsolatedCrystal(image, crystalParams);
+            } else {
+                result = await generator.generateCrystal(image, crystalParams);
             }
             
-            // Return empty fragments array since crystal effect handles its own drawing
-            return [];
+            console.log('[DEBUG] Crystal generation result:', {
+                success: !!result,
+                isolatedMode: crystalParams.isolatedMode,
+                variation: parameters.variation,
+                imageMode: crystalParams.imageMode,
+                complexity: crystalParams.complexity,
+                density: crystalParams.density,
+                maxFacets: crystalParams.maxFacets,
+                template: crystalParams.template
+            });
+            
+            return result;
         } catch (error) {
-            console.error('Error generating crystal effect:', error);
-            return this.generate(images, fortuneText, 'tiling', parameters);
+            console.error('[DEBUG] Error generating crystal:', error);
+            return null;
         }
+    }
+
+    getRandomTemplate() {
+        const templates = Object.keys(this.crystalTemplates);
+        return templates[Math.floor(Math.random() * templates.length)];
+    }
+
+    // Crystal template generators
+    generateHexagonalTemplate(centerX, centerY, size) {
+        const points = [];
+        const sides = 6;
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2);
+            points.push({
+                x: centerX + size * Math.cos(angle),
+                y: centerY + size * Math.sin(angle)
+            });
+        }
+        return points;
+    }
+
+    generateIrregularTemplate(centerX, centerY, size) {
+        const points = [];
+        const sides = 5 + Math.floor(Math.random() * 3); // 5-7 sides
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2);
+            const variance = 0.8 + Math.random() * 0.4; // 80-120% of size
+            points.push({
+                x: centerX + size * variance * Math.cos(angle),
+                y: centerY + size * variance * Math.sin(angle)
+            });
+        }
+        return points;
+    }
+
+    generateAngularTemplate(centerX, centerY, size) {
+        const points = [];
+        const sides = 4;
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) - (Math.PI / 4);
+            const variance = 0.9 + Math.random() * 0.2; // 90-110% of size
+            points.push({
+                x: centerX + size * variance * Math.cos(angle),
+                y: centerY + size * variance * Math.sin(angle)
+            });
+            // Add intermediate point for more angular look
+            const midAngle = angle + (Math.PI / sides);
+            const midVariance = 0.4 + Math.random() * 0.3; // 40-70% of size
+            points.push({
+                x: centerX + size * midVariance * Math.cos(midAngle),
+                y: centerY + size * midVariance * Math.sin(midAngle)
+            });
+        }
+        return points;
+    }
+
+    generateElongatedTemplate(centerX, centerY, size) {
+        const points = [];
+        const verticalStretch = 1.5;
+        const sides = 6;
+        for (let i = 0; i < sides; i++) {
+            const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2);
+            points.push({
+                x: centerX + size * Math.cos(angle),
+                y: centerY + size * verticalStretch * Math.sin(angle)
+            });
+        }
+        return points;
+    }
+
+    getRandomSeedPattern() {
+        return this.seedPatterns[Math.floor(Math.random() * this.seedPatterns.length)];
+    }
+
+    // Get a random variation for the effect
+    getRandomVariation(effect) {
+        if (effect === 'mosaic') {
+            return ['Classic', 'Organic', 'Focal'][Math.floor(Math.random() * 3)];
+        } else if (effect === 'fragments') {
+            return ['Classic', 'Organic', 'Focal', 'Uniform'][Math.floor(Math.random() * 4)];
+        } else if (effect === 'crystal') {
+            return ['Standard', 'Isolated'][Math.floor(Math.random() * 2)];
+        }
+        return null;
     }
 }
 

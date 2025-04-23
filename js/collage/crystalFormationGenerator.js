@@ -33,7 +33,7 @@ class CrystalFormationGenerator {
                 const points = [];
                 for (let i = 0; i < count; i++) {
                     const angle = (i / count) * Math.PI * 2;
-                    const distance = radius * (0.7 + Math.random() * 0.3);
+                    const distance = radius * (0.5 + Math.random() * 0.5); // More even distribution
                     points.push({
                         x: centerX + Math.cos(angle) * distance,
                         y: centerY + Math.sin(angle) * distance
@@ -46,12 +46,20 @@ class CrystalFormationGenerator {
                 const gridSize = Math.ceil(Math.sqrt(count));
                 const cellSize = (radius * 2) / gridSize;
                 
-                for (let i = -1; i <= gridSize + 1; i++) {
-                    for (let j = -1; j <= gridSize + 1; j++) {
-                        if (points.length >= count * 1.5) break;
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        if (points.length >= count) break;
+                        
+                        const x = centerX - radius + (i + 0.5) * cellSize;
+                        const y = centerY - radius + (j + 0.5) * cellSize;
+                        
+                        // Add some randomness to avoid perfect grid
+                        const offsetX = (Math.random() - 0.5) * cellSize * 0.5;
+                        const offsetY = (Math.random() - 0.5) * cellSize * 0.5;
+                        
                         points.push({
-                            x: centerX + i * cellSize + (Math.random() - 0.5) * cellSize * 0.5,
-                            y: centerY + j * cellSize + (Math.random() - 0.5) * cellSize * 0.5
+                            x: x + offsetX,
+                            y: y + offsetY
                         });
                     }
                 }
@@ -60,7 +68,6 @@ class CrystalFormationGenerator {
             random: (centerX, centerY, radius, count) => {
                 const points = [];
                 for (let i = 0; i < count; i++) {
-                    // Use polar coordinates with random angle and distance
                     const angle = Math.random() * Math.PI * 2;
                     const distance = radius * Math.random();
                     points.push({
@@ -72,26 +79,39 @@ class CrystalFormationGenerator {
             },
             clusters: (centerX, centerY, radius, count) => {
                 const points = [];
-                const clusterCount = Math.max(2, Math.floor(count / 5));
-                const pointsPerCluster = Math.ceil(count / clusterCount);
+                const numClusters = Math.max(3, Math.floor(count / 5));
+                const pointsPerCluster = Math.ceil(count / numClusters);
                 
-                // Create clusters
-                for (let c = 0; c < clusterCount; c++) {
-                    // Position of cluster center
-                    const clusterAngle = (c / clusterCount) * Math.PI * 2;
+                for (let c = 0; c < numClusters; c++) {
+                    const clusterAngle = (c / numClusters) * Math.PI * 2;
                     const clusterDistance = radius * (0.3 + Math.random() * 0.4);
                     const clusterX = centerX + Math.cos(clusterAngle) * clusterDistance;
                     const clusterY = centerY + Math.sin(clusterAngle) * clusterDistance;
                     
-                    // Add points around cluster center
+                    const clusterRadius = radius * 0.2;
                     for (let i = 0; i < pointsPerCluster; i++) {
+                        if (points.length >= count) break;
                         const angle = Math.random() * Math.PI * 2;
-                        const distance = (radius * 0.2) * Math.random();
+                        const distance = clusterRadius * Math.random();
                         points.push({
                             x: clusterX + Math.cos(angle) * distance,
                             y: clusterY + Math.sin(angle) * distance
                         });
                     }
+                }
+                return points;
+            },
+            spiral: (centerX, centerY, radius, count) => {
+                const points = [];
+                const spiralTightness = 0.3;
+                for (let i = 0; i < count; i++) {
+                    const t = i / count;
+                    const angle = t * Math.PI * 8;
+                    const distance = radius * (0.2 + t * 0.8);
+                    points.push({
+                        x: centerX + Math.cos(angle) * distance * (1 - spiralTightness * t),
+                        y: centerY + Math.sin(angle) * distance * (1 - spiralTightness * t)
+                    });
                 }
                 return points;
             }

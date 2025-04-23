@@ -9,6 +9,7 @@ import LayoutManager from './layouts.js';
 import FortuneGenerator from './fortuneGenerator.js';
 import { imageCollection } from './data.js';
 import CollageGenerator from './collage/collageGenerator.js';
+import { enableCrystalEffect } from './enableCrystalEffect.js';
 
 class App {
     constructor() {
@@ -46,6 +47,9 @@ class App {
             // Store app instance globally after initialization
             window.app = this;
             console.log('App initialized and exposed to window');
+            
+            // Enable crystal effect
+            enableCrystalEffect(this);
         });
     }
 
@@ -106,7 +110,39 @@ class App {
             return;
         }
         
-        // Randomize some parameters
+        // Define available effects with weights
+        const effectWeights = [
+            { effect: 'tiling', weight: 20 },
+            { effect: 'fragments', weight: 20 },
+            { effect: 'mosaic', weight: 10 },
+            { effect: 'sliced', weight: 25 },
+            { effect: 'layers', weight: 15 }
+        ];
+        
+        // Add crystal effect if available with highest weight
+        if (this.collageGenerator.hasCrystalEffect) {
+            effectWeights.push({ effect: 'crystal', weight: 25 });
+        }
+        
+        // Calculate total weight
+        const totalWeight = effectWeights.reduce((sum, item) => sum + item.weight, 0);
+        
+        // Generate random number between 0 and total weight
+        let random = Math.random() * totalWeight;
+        
+        // Select effect based on weights
+        let selectedEffect = effectWeights[0].effect;
+        for (const item of effectWeights) {
+            if (random < item.weight) {
+                selectedEffect = item.effect;
+                break;
+            }
+            random -= item.weight;
+        }
+        
+        console.log(`Selected effect: ${selectedEffect} (weighted random)`);
+        
+        // Randomize parameters based on selected effect
         const randomParams = {
             ...this.tilingParameters,
             complexity: 5 + Math.floor(Math.random() * 5),    // 5-9
@@ -114,11 +150,27 @@ class App {
             allowImageRepetition: Math.random() > 0.3         // 70% chance to allow repetition
         };
         
-        // Generate tiling collage with the current images
+        // Add crystal-specific parameters if crystal effect is selected
+        if (selectedEffect === 'crystal') {
+            // Randomize isolated mode instead of forcing it
+            randomParams.isolatedMode = Math.random() > 0.5; // 50% chance of isolated mode
+            randomParams.isIsolated = randomParams.isolatedMode;
+            
+            console.log(`Using ${randomParams.isolatedMode ? 'ISOLATED' : 'STANDARD'} crystal mode`);
+            
+            randomParams.crystalComplexity = 3 + Math.floor(Math.random() * 5);  // 3-7
+            randomParams.crystalDensity = 3 + Math.floor(Math.random() * 5);     // 3-7
+            randomParams.crystalOpacity = 0.6 + Math.random() * 0.3;             // 0.6-0.9
+            randomParams.addGlow = false;  // Explicitly disable glow effect
+            randomParams.seedPattern = ['random', 'grid', 'spiral', 'radial'][Math.floor(Math.random() * 4)];
+            randomParams.template = ['hexagonal', 'irregular', 'angular', 'elongated'][Math.floor(Math.random() * 4)];
+        }
+        
+        // Generate collage with the selected effect and parameters
         this.collageGenerator.generate(
             this.imageCollection,
             null,  // No fortune text on the canvas
-            'tiling',
+            selectedEffect,
             randomParams
         );
     }
@@ -360,6 +412,153 @@ class App {
         
         // Generate collage
         this.generateCollage();
+    }
+
+    async generateNewCollage() {
+        console.log('[DEBUG] Starting new collage generation');
+        
+        // Clear canvas and set background
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const backgroundColor = this.generateBackgroundColor();
+        this.ctx.fillStyle = backgroundColor;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Select effect type
+        const effectType = this.selectEffectType();
+        console.log('[DEBUG] Selected effect type:', {
+            effectType,
+            isCrystal: effectType === 'crystal',
+            currentIsolatedMode: this.generator.parameters.isolatedMode
+        });
+        
+        // Get images for the effect
+        const numImages = this.getNumImagesForEffect(effectType);
+        const images = await this.getRandomImages(numImages);
+        
+        // Generate fortune text
+        const fortuneText = this.generateFortune();
+        
+        // Get effect settings
+        const settings = this.getEffectSettings(effectType);
+        console.log('[DEBUG] Effect settings:', {
+            effectType,
+            settings,
+            isolatedMode: settings.isolatedMode,
+            hasCrystalEffect: this.generator.hasCrystalEffect,
+            hasIsolatedGenerator: !!this.generator.isolatedCrystalGenerator
+        });
+        
+        // Set background color
+        const newBackgroundColor = this.generateBackgroundColor();
+        this.ctx.fillStyle = newBackgroundColor;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Generate collage
+        console.log('[DEBUG] Starting collage generation with settings:', {
+            effectType,
+            settings,
+            isolatedMode: settings.isolatedMode
+        });
+        
+        await this.generator.generate(images, fortuneText, effectType, settings);
+        
+        console.log('[DEBUG] Collage generation completed');
+    }
+
+    getEffectSettings(effectType) {
+        console.log('[DEBUG] Getting effect settings for:', {
+            effectType,
+            currentIsolatedMode: this.generator.parameters.isolatedMode
+        });
+        
+        const settings = {
+            complexity: this.getRandomComplexity(),
+            density: this.getRandomDensity(),
+            contrast: this.getRandomContrast(),
+            blendOpacity: this.getRandomBlendOpacity(),
+            cleanTiling: false
+        };
+        
+        if (effectType === 'crystal') {
+            // Crystal-specific parameters with detailed logging
+            console.log('[DEBUG] Generating randomized crystal parameters');
+            
+            // Complexity (3-7)
+            settings.crystalComplexity = 3 + Math.floor(Math.random() * 5);
+            console.log('[DEBUG] Generated crystalComplexity:', settings.crystalComplexity);
+            
+            // Density (3-7)
+            settings.crystalDensity = 3 + Math.floor(Math.random() * 5);
+            console.log('[DEBUG] Generated crystalDensity:', settings.crystalDensity);
+            
+            // Opacity (0.6-0.9)
+            settings.crystalOpacity = 0.6 + Math.random() * 0.3;
+            console.log('[DEBUG] Generated crystalOpacity:', settings.crystalOpacity);
+            
+            // Seed Pattern
+            const seedPatterns = ['random', 'grid', 'spiral', 'radial'];
+            settings.seedPattern = seedPatterns[Math.floor(Math.random() * seedPatterns.length)];
+            console.log('[DEBUG] Selected seedPattern:', settings.seedPattern);
+            
+            // Template
+            const templates = ['hexagonal', 'irregular', 'angular', 'elongated'];
+            settings.template = templates[Math.floor(Math.random() * templates.length)];
+            console.log('[DEBUG] Selected template:', settings.template);
+            
+            // Facets (6-24)
+            settings.maxFacets = 6 + Math.floor(Math.random() * 19);
+            console.log('[DEBUG] Generated maxFacets:', settings.maxFacets);
+            
+            // Blend Opacity (0.3-0.8)
+            settings.blendOpacity = 0.3 + Math.random() * 0.5;
+            console.log('[DEBUG] Generated blendOpacity:', settings.blendOpacity);
+            
+            // Crystal Size (0.4-0.8)
+            settings.crystalSize = 0.4 + Math.random() * 0.4;
+            console.log('[DEBUG] Generated crystalSize:', settings.crystalSize);
+            
+            // Crystal Count (1-3)
+            settings.crystalCount = 1 + Math.floor(Math.random() * 3);
+            console.log('[DEBUG] Generated crystalCount:', settings.crystalCount);
+            
+            // Boolean parameters
+            settings.preventOverlap = Math.random() < 0.7;  // 70% chance
+            settings.facetBorders = Math.random() < 0.8;    // 80% chance
+            settings.enableVisualEffects = Math.random() < 0.9; // 90% chance
+            console.log('[DEBUG] Generated boolean parameters:', {
+                preventOverlap: settings.preventOverlap,
+                facetBorders: settings.facetBorders,
+                enableVisualEffects: settings.enableVisualEffects
+            });
+            
+            // Image Mode (unique/single)
+            settings.imageMode = Math.random() < 0.5 ? 'unique' : 'single';
+            console.log('[DEBUG] Selected imageMode:', settings.imageMode);
+            
+            // Ensure isolated mode is set
+            settings.isolatedMode = true;
+            settings.isIsolated = true;
+            settings.variation = 'Isolated';
+            
+            // Add comprehensive debug logging for all crystal parameters
+            console.log('[DEBUG] Final crystal effect settings:', {
+                seedPattern: settings.seedPattern,
+                template: settings.template,
+                maxFacets: settings.maxFacets,
+                blendOpacity: settings.blendOpacity,
+                crystalSize: settings.crystalSize,
+                crystalCount: settings.crystalCount,
+                imageMode: settings.imageMode,
+                complexity: settings.crystalComplexity,
+                density: settings.crystalDensity,
+                opacity: settings.crystalOpacity,
+                preventOverlap: settings.preventOverlap,
+                facetBorders: settings.facetBorders,
+                enableVisualEffects: settings.enableVisualEffects
+            });
+        }
+        
+        return settings;
     }
 }
 
