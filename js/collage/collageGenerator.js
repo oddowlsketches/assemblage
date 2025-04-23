@@ -166,29 +166,25 @@ class CollageGenerator {
         this.canvas.style.width = viewportWidth + 'px';
         this.canvas.style.height = viewportHeight + 'px';
         
-        // CRITICAL FIX: For desktop browsers, ignore devicePixelRatio and use 1:1 mapping
-        // This ensures collages are properly sized on all devices
-        const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        const devicePixelRatio = isMobileDevice ? (window.devicePixelRatio || 1) : 1;
+        // Get the device pixel ratio but don't apply it to the canvas size
+        // Just use it for the context scaling on high-DPI devices
+        const devicePixelRatio = window.devicePixelRatio || 1;
         
-        console.log('Device detection:', {
-            userAgent: navigator.userAgent,
-            isMobileDevice,
-            devicePixelRatio,
-            viewportDimensions: `${viewportWidth}x${viewportHeight}`,
-        });
-        
-        // Set canvas dimensions with appropriate scaling
-        this.canvas.width = viewportWidth * devicePixelRatio;
-        this.canvas.height = viewportHeight * devicePixelRatio;
+        // Always use 1:1 mapping for canvas dimensions
+        this.canvas.width = viewportWidth;
+        this.canvas.height = viewportHeight;
         
         // Reset any existing transform
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         
-        // If mobile with high DPI, scale the context
-        if (devicePixelRatio > 1) {
-            this.ctx.scale(devicePixelRatio, devicePixelRatio);
-        }
+        // Log the configuration
+        console.log('Canvas configured with:', {
+            userAgent: navigator.userAgent,
+            devicePixelRatio,
+            viewportDimensions: `${viewportWidth}x${viewportHeight}`,
+            canvasDimensions: `${this.canvas.width}x${this.canvas.height}`,
+            cssSize: `${this.canvas.style.width}x${this.canvas.style.height}`,
+        });
         
         // Update narrative manager's canvas dimensions
         if (this.narrativeManager) {
