@@ -295,6 +295,15 @@ class CollageGenerator {
             // Save the current context state
             this.ctx.save();
             
+            // Get device pixel ratio for pixel-perfect positioning
+            const dpr = window.devicePixelRatio || 1;
+            
+            // Ensure pixel-perfect positioning
+            const pixelX = Math.round(x * dpr) / dpr;
+            const pixelY = Math.round(y * dpr) / dpr;
+            const pixelWidth = Math.round(width * dpr) / dpr;
+            const pixelHeight = Math.round(height * dpr) / dpr;
+            
             // --- Opacity Calculation Update ---
             let finalOpacity;
             if (forceOpacity !== null && forceOpacity >= 0 && forceOpacity <= 1) {
@@ -319,7 +328,7 @@ class CollageGenerator {
             if (crop) {
                 // For mosaic tiles, we want to ensure the image fills the entire tile
                 // Calculate the aspect ratio of the destination rectangle
-                const destRatio = width / height;
+                const destRatio = pixelWidth / pixelHeight;
                 
                 // Calculate the aspect ratio of the source image
                 const srcRatio = image.width / image.height;
@@ -335,66 +344,51 @@ class CollageGenerator {
                     
                     if (srcRatio > destRatio) {
                         // Image is wider than destination
-                        cropHeight = image.height * cropPercentage;
-                        cropWidth = cropHeight * destRatio;
-                        
-                        // Randomly position the crop horizontally
-                        const maxCropX = image.width - cropWidth;
-                        cropX = Math.random() * maxCropX;
-                        
-                        // Center vertically
+                        cropWidth = image.width * cropPercentage;
+                        cropHeight = cropWidth / destRatio;
+                        cropX = (image.width - cropWidth) / 2;
                         cropY = (image.height - cropHeight) / 2;
                     } else {
                         // Image is taller than destination
-                        cropWidth = image.width * cropPercentage;
-                        cropHeight = cropWidth / destRatio;
-                        
-                        // Center horizontally
-                        cropX = (image.width - cropWidth) / 2;
-                        
-                        // Randomly position the crop vertically
-                        const maxCropY = image.height - cropHeight;
-                        cropY = Math.random() * maxCropY;
-                    }
-                } else {
-                    // Standard cropping to fit the tile
-                    if (srcRatio > destRatio) {
-                        // Image is wider than destination - crop width to match aspect ratio
-                        cropHeight = image.height;
+                        cropHeight = image.height * cropPercentage;
                         cropWidth = cropHeight * destRatio;
                         cropX = (image.width - cropWidth) / 2;
-                        cropY = 0;
-                    } else {
-                        // Image is taller than destination - crop height to match aspect ratio
+                        cropY = (image.height - cropHeight) / 2;
+                    }
+                } else {
+                    // Standard crop to fill
+                    if (srcRatio > destRatio) {
                         cropWidth = image.width;
                         cropHeight = cropWidth / destRatio;
                         cropX = 0;
                         cropY = (image.height - cropHeight) / 2;
+                    } else {
+                        cropHeight = image.height;
+                        cropWidth = cropHeight * destRatio;
+                        cropX = (image.width - cropWidth) / 2;
+                        cropY = 0;
                     }
                 }
                 
+                // Draw the cropped portion with pixel-perfect coordinates
                 this.ctx.drawImage(
                     image,
-                    cropX, cropY, cropWidth, cropHeight,  // Source crop
-                    x, y, width, height  // Destination
+                    cropX, cropY, cropWidth, cropHeight,
+                    pixelX, pixelY, pixelWidth, pixelHeight
                 );
             } else {
-                const dimensions = this.calculateImageDimensions(image, width, height);
-                if (dimensions) {
-                    this.ctx.drawImage(
-                        image,
-                        dimensions.x + x,
-                        dimensions.y + y,
-                        dimensions.width,
-                        dimensions.height
-                    );
-                }
+                // Draw the full image with pixel-perfect coordinates
+                this.ctx.drawImage(
+                    image,
+                    0, 0, image.width, image.height,
+                    pixelX, pixelY, pixelWidth, pixelHeight
+                );
             }
-
-            // Restore the context state
+            
             this.ctx.restore();
         } catch (error) {
-            console.warn('Error drawing image:', error);
+            console.error('Error drawing image:', error);
+            this.ctx.restore();
         }
     }
     
