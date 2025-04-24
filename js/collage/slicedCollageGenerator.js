@@ -40,6 +40,29 @@ export class SlicedCollageGenerator {
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
+    // Calculate required scale for an image based on target dimensions
+    calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
+        const imgRatio = image.naturalWidth / image.naturalHeight;
+        const targetRatio = targetWidth / targetHeight;
+        
+        let scale;
+        if (imgRatio > targetRatio) {
+            // Image is wider than target
+            scale = targetHeight / image.naturalHeight;
+        } else {
+            // Image is taller than target
+            scale = targetWidth / image.naturalWidth;
+        }
+        
+        // Account for minimum visibility requirement
+        const minScale = Math.max(
+            minVisibility / imgRatio,
+            minVisibility * imgRatio
+        );
+        
+        return Math.max(scale, minScale);
+    }
+
     async generateSliced(images, fortuneText, parameters = {}) {
         // Clear canvas and set background
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -60,20 +83,6 @@ export class SlicedCollageGenerator {
         let secondImage = null;
         
         console.log('Slice behavior:', sliceBehavior);
-        
-        if (sliceBehavior === 'single-image' && validImages.length > 0) {
-            // Select a single image to use for all slices
-            selectedImage = validImages[Math.floor(Math.random() * validImages.length)];
-            console.log('Using single image for all slices:', selectedImage.src);
-        } else if (sliceBehavior === 'alternating' && validImages.length >= 2) {
-            // Select two images to alternate between
-            const randomIndex = Math.floor(Math.random() * validImages.length);
-            selectedImage = validImages[randomIndex];
-            secondImage = validImages[(randomIndex + 1) % validImages.length];
-            console.log('Using alternating images for slices:', selectedImage.src, secondImage.src);
-        } else {
-            console.log('Using random images for slices');
-        }
         
         // Calculate number of slices based on behavior
         let numSlices;
@@ -100,8 +109,52 @@ export class SlicedCollageGenerator {
             console.log('Alternating behavior: using', numSlices, 'slices');
         }
         
+        // Calculate base strip dimensions
+        const baseStripWidth = this.canvas.width / numSlices;
+        const baseStripHeight = this.canvas.height;
+        
+        // Filter images based on scaling requirements
+        const filteredImages = [];
+        const MAX_ATTEMPTS = 5;
+        
+        for (const image of validImages) {
+            // Calculate required scale for this image
+            const requiredScale = this.calculateRequiredScale(
+                image,
+                baseStripWidth,
+                baseStripHeight
+            );
+            
+            // Check if this scale is within our acceptable range
+            const maxAllowedScale = 2.0; // Maximum allowed scale for sliced effect
+            if (requiredScale <= maxAllowedScale) {
+                filteredImages.push(image);
+            }
+        }
+        
+        if (filteredImages.length === 0) {
+            console.warn('No images found that meet scaling requirements, using all valid images');
+            // If no images meet the scaling requirements, use all valid images
+            filteredImages.push(...validImages);
+        }
+        
+        // Select images based on slice behavior
+        if (sliceBehavior === 'single-image' && filteredImages.length > 0) {
+            // Select a single image to use for all slices
+            selectedImage = filteredImages[Math.floor(Math.random() * filteredImages.length)];
+            console.log('Using single image for all slices:', selectedImage.src);
+        } else if (sliceBehavior === 'alternating' && filteredImages.length >= 2) {
+            // Select two images to alternate between
+            const randomIndex = Math.floor(Math.random() * filteredImages.length);
+            selectedImage = filteredImages[randomIndex];
+            secondImage = filteredImages[(randomIndex + 1) % filteredImages.length];
+            console.log('Using alternating images for slices:', selectedImage.src, secondImage.src);
+        } else {
+            console.log('Using random images for slices');
+        }
+        
         // Create the sliced effect
-        const slices = this.createSlicedEffect(numSlices, validImages, selectedImage, secondImage, parameters);
+        const slices = this.createSlicedEffect(numSlices, filteredImages, selectedImage, secondImage, parameters);
         
         // Draw the slices
         this.drawSlices(slices);

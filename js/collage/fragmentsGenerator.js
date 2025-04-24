@@ -40,6 +40,28 @@ export class FragmentsGenerator {
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
+    calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
+        const imgRatio = image.naturalWidth / image.naturalHeight;
+        const targetRatio = targetWidth / targetHeight;
+        
+        let scale;
+        if (imgRatio > targetRatio) {
+            // Image is wider than target
+            scale = targetHeight / image.naturalHeight;
+        } else {
+            // Image is taller than target
+            scale = targetWidth / image.naturalWidth;
+        }
+        
+        // Account for minimum visibility requirement
+        const minScale = Math.max(
+            minVisibility / imgRatio,
+            minVisibility * imgRatio
+        );
+        
+        return Math.max(scale, minScale);
+    }
+
     async generateFragments(images, fortuneText, parameters = {}) {
         // console.log('Starting fragment generation with parameters:', {
         //     variation: parameters.variation,
@@ -54,42 +76,80 @@ export class FragmentsGenerator {
         this.ctx.fillStyle = this.generateBackgroundColor();
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Filter out invalid images
-        const validImages = images.filter(img => img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0);
-        // console.log('Valid images found:', validImages.length, 'out of', images.length);
+        // Filter out invalid images and check scaling requirements
+        const validImages = [];
+        const MAX_ATTEMPTS = 5;
+        
+        for (const image of images) {
+            if (!image || !image.complete || image.naturalWidth === 0) continue;
+            
+            // Calculate fragment dimensions based on variation
+            let fragmentWidth, fragmentHeight;
+            if (parameters.variation === 'Organic') {
+                const size = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else if (parameters.variation === 'Focal') {
+                const size = this.calculateFocalSize(this.canvas.width, this.canvas.height, this.canvas.width/2, this.canvas.height/2);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else {
+                const size = this.calculateClassicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            }
+            
+            // Calculate required scale for this image
+            const requiredScale = this.calculateRequiredScale(
+                image,
+                fragmentWidth,
+                fragmentHeight
+            );
+            
+            // Check if this scale is within our acceptable range
+            const maxAllowedScale = parameters.variation === 'Focal' ? 2.5 : 2.0;
+            if (requiredScale <= maxAllowedScale) {
+                validImages.push(image);
+            }
+        }
 
         if (validImages.length === 0) {
-            console.warn('No valid images provided for fragment generation');
+            console.warn('No valid images found that meet scaling requirements');
             return;
         }
 
-        // Slightly reduce the number of fragments to prevent crowding
-        // Slightly vary the fragment count to create more visual diversity between generations
-        const complexityVariation = 0.75 + Math.random() * 0.3; // 0.75-1.05 range
+        // Calculate number of fragments
+        const complexityVariation = 0.75 + Math.random() * 0.3;
         const numFragments = Math.min(
-            Math.max(3, Math.floor(validImages.length * parameters.complexity * 0.7 * complexityVariation)), // Reduced by 30%
-            parameters.maxFragments || 8 // Reduced from 10 to 8 max fragments
+            Math.max(3, Math.floor(validImages.length * parameters.complexity * 0.7 * complexityVariation)),
+            parameters.maxFragments || 8
         );
-        // console.log('Calculated number of fragments:', numFragments);
-
-        // Calculate fragment dimensions
-        const fragmentWidth = this.canvas.width / 4;
-        const fragmentHeight = this.canvas.height / 4;
-        // console.log('Fragment dimensions:', { width: fragmentWidth, height: fragmentHeight });
-
-        // Calculate maximum valid positions
-        const maxX = this.canvas.width - fragmentWidth;
-        const maxY = this.canvas.height - fragmentHeight;
-        // console.log('Maximum valid positions:', { maxX, maxY });
 
         const fragments = [];
-        const margin = 0; // Temporarily removed margin to test edge bleeding
+        const margin = 0;
 
         for (let i = 0; i < numFragments; i++) {
+            // Calculate fragment dimensions based on variation
+            let fragmentWidth, fragmentHeight;
+            if (parameters.variation === 'Organic') {
+                const size = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else if (parameters.variation === 'Focal') {
+                const size = this.calculateFocalSize(this.canvas.width, this.canvas.height, this.canvas.width/2, this.canvas.height/2);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else {
+                const size = this.calculateClassicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            }
+
             // Calculate position with margin
+            const maxX = this.canvas.width - fragmentWidth;
+            const maxY = this.canvas.height - fragmentHeight;
             const x = margin + Math.random() * (maxX - 2 * margin);
             const y = margin + Math.random() * (maxY - 2 * margin);
-            // console.log(`Fragment ${i} position:`, { x, y });
 
             // Create fragment with calculated position
             const fragment = {
@@ -98,26 +158,18 @@ export class FragmentsGenerator {
                 y: y,
                 width: fragmentWidth,
                 height: fragmentHeight,
-                rotation: Math.random() < 0.7 ? 0 : Math.random() * 0.2, // 70% zero rotation, 30% slight rotation (up to ~11 degrees)
+                rotation: Math.random() < 0.7 ? 0 : Math.random() * 0.2,
                 depth: Math.random(),
                 mask: {
                     enabled: Math.random() < 0.30,
-                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle' /* 'star' */][Math.floor(Math.random() * 11)]
+                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle'][Math.floor(Math.random() * 11)]
                 }
             };
-            // console.log(`Created fragment ${i}:`, {
-            //     position: { x: fragment.x, y: fragment.y },
-            //     dimensions: { width: fragment.width, height: fragment.height },
-            //     rotation: fragment.rotation,
-            //     depth: fragment.depth,
-            //     mask: fragment.mask
-            // });
             fragments.push(fragment);
         }
 
         // Sort fragments by depth
         fragments.sort((a, b) => a.depth - b.depth);
-        // console.log('Final fragments array:', fragments.length, 'fragments');
 
         return fragments;
     }
@@ -257,16 +309,18 @@ export class FragmentsGenerator {
         let baseSize;
         
         if (sizeCategory < 0.35) { // 35% chance of smaller fragments
-            baseSize = 0.4 + Math.random() * 0.3; // 0.4-0.7 range (smaller)
+            baseSize = 0.15 + Math.random() * 0.1; // 0.15-0.25 range (smaller)
         } else if (sizeCategory < 0.85) { // 50% chance of medium fragments
-            baseSize = 0.6 + Math.random() * 0.4; // 0.6-1.0 range (medium)
-        } else { // 15% chance of larger fragments
-            baseSize = 1.0 + Math.random() * 0.5; // 1.0-1.5 range (larger)
+            baseSize = 0.2 + Math.random() * 0.05; // 0.2-0.25 range (medium)
+        } else if (sizeCategory < 0.95) { // 10% chance of larger fragments
+            baseSize = 0.35 + Math.random() * 0.15; // 0.35-0.5 range (larger)
+        } else { // 5% chance of medium fragments (fallback)
+            baseSize = 0.2 + Math.random() * 0.05; // 0.2-0.25 range (medium)
         }
         
         // Add more dramatic variation to width and height
-        const widthVariation = 0.5 + Math.random() * 1.0; // 0.5-1.5 range
-        const heightVariation = 0.5 + Math.random() * 1.0; // 0.5-1.5 range
+        const widthVariation = 0.5 + Math.random() * 0.5; // 0.5-1.0 range
+        const heightVariation = 0.5 + Math.random() * 0.5; // 0.5-1.0 range
         
         return {
             width: width * baseSize * widthVariation,
@@ -283,26 +337,28 @@ export class FragmentsGenerator {
         );
         
         // More dramatic size difference between center and edges
-        // Central elements can be up to 3x the size of edge elements
+        // Central elements can be up to 2x the size of edge elements
         const sizeCategory = Math.random();
         let baseSize;
         
         if (distanceFromCenter < 0.3) { // Near center - bigger elements
-            if (sizeCategory < 0.6) { // 60% chance of very large focal elements
-                baseSize = 0.9 + (1 - distanceFromCenter) * 1.2; // 0.9-2.1 range
-            } else { // 40% chance of medium focal elements
-                baseSize = 0.7 + (1 - distanceFromCenter) * 0.8; // 0.7-1.5 range
+            if (sizeCategory < 0.6) { // 60% chance of medium focal elements
+                baseSize = 0.2 + (1 - distanceFromCenter) * 0.05; // 0.2-0.25 range
+            } else if (sizeCategory < 0.9) { // 30% chance of very large focal elements
+                baseSize = 0.35 + (1 - distanceFromCenter) * 0.15; // 0.35-0.5 range
+            } else { // 10% chance of medium focal elements (fallback)
+                baseSize = 0.2 + (1 - distanceFromCenter) * 0.05; // 0.2-0.25 range
             }
         } else { // Away from center - smaller elements
             if (sizeCategory < 0.7) { // 70% chance of small peripheral elements
-                baseSize = 0.4 + (1 - distanceFromCenter) * 0.4; // 0.4-0.8 range
+                baseSize = 0.15 + (1 - distanceFromCenter) * 0.1; // 0.15-0.25 range
             } else { // 30% chance of medium peripheral elements
-                baseSize = 0.6 + (1 - distanceFromCenter) * 0.5; // 0.6-1.1 range
+                baseSize = 0.2 + (1 - distanceFromCenter) * 0.05; // 0.2-0.25 range
             }
         }
         
         // Add variation with more range
-        const variation = 0.6 + Math.random() * 0.8; // 0.6-1.4 range
+        const variation = 0.6 + Math.random() * 0.4; // 0.6-1.0 range
         
         return {
             width: width * baseSize * variation,
@@ -316,15 +372,17 @@ export class FragmentsGenerator {
         let baseSize;
         
         if (sizeCategory < 0.3) { // 30% chance of smaller fragments
-            baseSize = 0.45 + Math.random() * 0.25; // 0.45-0.7 range (smaller)
+            baseSize = 0.15 + Math.random() * 0.1; // 0.15-0.25 range (smaller)
         } else if (sizeCategory < 0.8) { // 50% chance of medium fragments
-            baseSize = 0.65 + Math.random() * 0.35; // 0.65-1.0 range (medium)
-        } else { // 20% chance of larger fragments
-            baseSize = 0.95 + Math.random() * 0.4; // 0.95-1.35 range (larger)
+            baseSize = 0.2 + Math.random() * 0.05; // 0.2-0.25 range (medium)
+        } else if (sizeCategory < 0.9) { // 10% chance of larger fragments
+            baseSize = 0.35 + Math.random() * 0.15; // 0.35-0.5 range (larger)
+        } else { // 10% chance of medium fragments (fallback)
+            baseSize = 0.2 + Math.random() * 0.05; // 0.2-0.25 range (medium)
         }
         
         // Add more dramatic variation
-        const variation = 0.6 + Math.random() * 0.8; // 0.6-1.4 range
+        const variation = 0.6 + Math.random() * 0.4; // 0.6-1.0 range
         
         return {
             width: width * baseSize * variation,

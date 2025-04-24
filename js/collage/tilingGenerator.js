@@ -12,6 +12,28 @@ export class TilingGenerator {
         this.imageUsageCount = new Map(); // Track how many times each image is used
     }
 
+    calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
+        const imgRatio = image.naturalWidth / image.naturalHeight;
+        const targetRatio = targetWidth / targetHeight;
+        
+        let scale;
+        if (imgRatio > targetRatio) {
+            // Image is wider than target
+            scale = targetHeight / image.naturalHeight;
+        } else {
+            // Image is taller than target
+            scale = targetWidth / image.naturalWidth;
+        }
+        
+        // Account for minimum visibility requirement
+        const minScale = Math.max(
+            minVisibility / imgRatio,
+            minVisibility * imgRatio
+        );
+        
+        return Math.max(scale, minScale);
+    }
+
     // Helper function to shuffle arrays (used in multiple effects)
     shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
@@ -99,71 +121,77 @@ export class TilingGenerator {
             return null;
         }
 
-        // Determine if image repetition is allowed based on parameters
+        // Determine if image repetition is allowed
         const allowImageRepetition = this.parameters.allowImageRepetition !== null 
             ? this.parameters.allowImageRepetition 
-            : false; // Default to no repetition
-            
-        let imageIndex;
-        
-        if (preferredImageIndex !== null) {
-            // Use the preferred image if provided
-            imageIndex = preferredImageIndex;
-        } else if (allowImageRepetition) {
-            // Choose the least used image that hasn't hit the repetition limit
-            const availableImages = Array.from({length: images.length}, (_, i) => i)
-                .filter(idx => (this.imageUsageCount.get(idx) || 0) < 3); // Limit to max 3 repetitions
-            
-            if (availableImages.length === 0) {
-                // All images have hit the max usage limit, reset counts
-                this.imageUsageCount.clear();
-                imageIndex = Math.floor(Math.random() * images.length);
-            } else {
-                // Sort by usage count (least used first)
-                availableImages.sort((a, b) => 
-                    (this.imageUsageCount.get(a) || 0) - (this.imageUsageCount.get(b) || 0)
-                );
+            : false;
+
+        // Track attempts to find a suitable image
+        const MAX_ATTEMPTS = 5;
+        let attempts = 0;
+        let selectedImage = null;
+        let imageIndex = null;
+
+        while (!selectedImage && attempts < MAX_ATTEMPTS) {
+            // Select image index
+            if (preferredImageIndex !== null && attempts === 0) {
+                imageIndex = preferredImageIndex;
+            } else if (!allowImageRepetition) {
+                // No repetition - use each image only once
+                const unusedImages = Array.from({length: images.length}, (_, i) => i)
+                    .filter(idx => !(this.imageUsageCount.get(idx) || 0));
+                    
+                if (unusedImages.length === 0) {
+                    console.warn('No more unused images available');
+                    return null;
+                }
                 
-                // Prefer least used images (80% chance) or random from available (20% chance)
-                if (Math.random() < 0.8) {
-                    // Get all images with the minimum usage count
-                    const minUsage = this.imageUsageCount.get(availableImages[0]) || 0;
-                    const leastUsedImages = availableImages.filter(idx => 
-                        (this.imageUsageCount.get(idx) || 0) === minUsage
-                    );
-                    imageIndex = leastUsedImages[Math.floor(Math.random() * leastUsedImages.length)];
-                } else {
-                    // Choose randomly from all available images
-                    imageIndex = availableImages[Math.floor(Math.random() * availableImages.length)];
+                imageIndex = unusedImages[Math.floor(Math.random() * unusedImages.length)];
+            } else {
+                // Allow repetition with limits
+                imageIndex = Math.floor(Math.random() * images.length);
+                const currentCount = this.imageUsageCount.get(imageIndex) || 0;
+                if (currentCount >= this.ABSOLUTE_MAX_REPEATS) {
+                    attempts++;
+                    continue;
                 }
             }
-        } else {
-            // No repetition - use each image only once
-            const unusedImages = Array.from({length: images.length}, (_, i) => i)
-                .filter(idx => !(this.imageUsageCount.get(idx) || 0));
-                
-            if (unusedImages.length === 0) {
-                // No more unused images, can't create more tiles
-                return null;
-            }
+
+            const image = images[imageIndex];
             
-            imageIndex = unusedImages[Math.floor(Math.random() * unusedImages.length)];
+            // Basic image validation
+            if (!image || !image.complete || image.naturalWidth === 0) {
+                attempts++;
+                continue;
+            }
+
+            // Calculate required scale for this image
+            const requiredScale = this.calculateRequiredScale(
+                image,
+                size,
+                size
+            );
+
+            // Check if this scale is within our acceptable range
+            const maxAllowedScale = this.parameters.useDramaticScaling ? 3.0 : 2.5;
+            if (requiredScale <= maxAllowedScale) {
+                selectedImage = image;
+            } else {
+                attempts++;
+            }
         }
-        
+
+        if (!selectedImage) {
+            console.warn(`Could not find suitable image after ${MAX_ATTEMPTS} attempts`);
+            return null;
+        }
+
         // Update usage count
         const currentCount = this.imageUsageCount.get(imageIndex) || 0;
         this.imageUsageCount.set(imageIndex, currentCount + 1);
-        
-        const selectedImage = images[imageIndex];
-        
-        // Validate image
-        if (!selectedImage) {
-            console.warn(`Invalid image at index ${imageIndex}`);
-            return null;
-        }
-        
+
         // Calculate aspect-preserving dimensions
-        const imgRatio = selectedImage.width / selectedImage.height;
+        const imgRatio = selectedImage.naturalWidth / selectedImage.naturalHeight;
         let finalWidth, finalHeight;
         
         if (imgRatio > 1) {
@@ -175,42 +203,20 @@ export class TilingGenerator {
             finalHeight = size;
             finalWidth = size * imgRatio;
         }
-        
-        // Allow tiles to extend beyond canvas edges for full-bleed effect
-        // Only check if the tile would be completely off-canvas
-        const minVisiblePortion = 0.1; // At least 10% of the tile must be visible
-        
-        // Check if tile would be completely off canvas
-        const rightEdge = x + finalWidth;
-        const bottomEdge = y + finalHeight;
-        
-        // Calculate how much of the tile is visible on each edge
-        const visibleWidth = Math.min(finalWidth, 
-            Math.max(0, this.canvas.width - x), 
-            Math.max(0, rightEdge));
-        const visibleHeight = Math.min(finalHeight, 
-            Math.max(0, this.canvas.height - y), 
-            Math.max(0, bottomEdge));
-        
-        // Calculate the visible area percentage
-        const visibleArea = visibleWidth * visibleHeight;
-        const totalArea = finalWidth * finalHeight;
-        const visiblePercentage = visibleArea / totalArea;
-        
-        // If less than minVisiblePortion is visible, skip this tile
-        if (visiblePercentage < minVisiblePortion) {
-            return null;
-        }
-        
+
+        // Keep tiles within canvas bounds - allow partial overflow for full bleed
+        const boundedX = Math.min(x, this.canvas.width);
+        const boundedY = Math.min(y, this.canvas.height);
+
         return {
             image: selectedImage,
-            x: x,
-            y: y,
+            x: boundedX,
+            y: boundedY,
             width: finalWidth,
             height: finalHeight,
             rotation: 0,
             forceOpacity: null,
-            imageIndex: imageIndex // Track which image was used
+            imageIndex: imageIndex
         };
     }
 
