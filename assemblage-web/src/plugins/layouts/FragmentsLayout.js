@@ -4,6 +4,7 @@
  */
 
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
+import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
 
 // Helper function for seeded random number generation
 function seededRandom(seed) {
@@ -47,6 +48,10 @@ export default class FragmentsLayout {
     constructor(opts = {}) {
         this.opts = opts;
         this.generator = null;
+        this.compositionManager = new NarrativeCompositionManager({
+            canvasWidth: opts.canvas?.width || 1200,
+            canvasHeight: opts.canvas?.height || 800
+        });
     }
 
     async render(ctx, images, canvas, parameters = {}) {
@@ -93,8 +98,38 @@ export default class FragmentsLayout {
         );
         
         // Generate fragments with the new parameters and shapes
-        const fragments = this.generator.generateFragments(imgs, {...params, shapes});
+        let fragments = this.generator.generateFragments(imgs, {...params, shapes});
         console.log(`Generated ${fragments.length} fragments with shapes: ${shapes.join(', ')}`);
+        
+        // Apply narrative composition if available
+        try {
+            // Check if the composition manager has the enhanceComposition method
+            if (typeof this.compositionManager.enhanceComposition === 'function') {
+                const enhanced = this.compositionManager.enhanceComposition(fragments, {
+                    compositionType: 'multiple-actors',
+                    useGoldenRatio: true,
+                    useRuleOfThirds: true,
+                    depthOpacity: true
+                });
+                fragments = enhanced.fragments;
+                console.log('Enhanced composition:', enhanced.metadata);
+            } else if (typeof this.compositionManager.generate === 'function') {
+                // Use the generate method if enhanceComposition is not available
+                const enhanced = await this.compositionManager.generate(imgs, null, 'fragments', {
+                    ...params,
+                    shapes,
+                    compositionType: 'multiple-actors',
+                    useGoldenRatio: true,
+                    useRuleOfThirds: true,
+                    depthOpacity: true
+                });
+                fragments = enhanced.fragments || fragments;
+                console.log('Generated composition with narrative manager');
+            }
+        } catch (error) {
+            console.error('Error applying narrative composition:', error);
+            // Continue with original fragments if composition fails
+        }
         
         // Draw each fragment
         for (const fragment of fragments) {
