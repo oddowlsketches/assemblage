@@ -9,6 +9,13 @@ import { SlicedCollageGenerator } from '@legacy/collage/slicedCollageGenerator.j
 import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
 import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
+import FragmentsLayout from '../plugins/layouts/FragmentsLayout.js';
+
+// Initialize layouts
+const layouts = {
+    crystal: new CrystalLayout(),
+    fragments: new FragmentsLayout()
+};
 
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
@@ -102,75 +109,66 @@ export class CollageService {
         }
     }
 
+    selectImages(numImages) {
+        // Implement image selection logic based on the number of images
+        // This is a placeholder and should be replaced with actual implementation
+        return this.imagePool.slice(0, numImages);
+    }
+
     async createCollage(canvasRef) {
-        if (!canvasRef || !this.imagePool || this.imagePool.length === 0) {
-            console.error('Cannot generate collage: missing canvas or images');
-            return;
-        }
-
-        const canvas = canvasRef;
+        const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-
-        // Clear canvas and set background
+        
+        // Set canvas dimensions
+        canvas.width = 1200;
+        canvas.height = 800;
+        
+        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const backgroundColor = this.generateBackgroundColor();
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Select effect type
-        const effectType = this.selectEffectType();
-        console.log('[DEBUG] Selected effect type:', effectType);
-
-        // Get variation for the effect
-        const variation = this.getRandomVariation(effectType);
-        if (variation) {
-            this.parameters.variation = variation;
-            console.log('[DEBUG] Selected variation:', variation);
-        }
-
-        // Get images for the effect
+        
+        // Select effect type if random
+        const effectType = this.layoutName === 'random' ? this.selectEffectType() : this.layoutName;
+        
+        // Get number of images for this effect
         const numImages = this.getNumImagesForEffect(effectType);
-        const images = this.imagePool.slice(0, numImages);
-
-        // Set multiply blend mode for images
-        ctx.globalCompositeOperation = 'multiply';
-
-        // Initialize appropriate generator based on effect type
-        let generator;
+        
+        // Select images
+        const chosenImages = this.selectImages(numImages);
+        
+        // Get variation if applicable
+        const variation = this.getRandomVariation(effectType);
+        
+        // Create collage based on effect type
         switch (effectType) {
-            case 'tiling':
-                generator = new TilingGenerator(canvas, this.parameters);
-                await generator.generateTiles(images);
+            case 'crystal':
+                const crystalLayout = layouts.crystal;
+                await crystalLayout.render(ctx, chosenImages, { isolated: false });
                 break;
+                
             case 'fragments':
-                generator = new EnhancedFragmentsGenerator(ctx, canvas);
-                await generator.generate(images, null, effectType, this.parameters);
+                const fragmentsLayout = layouts.fragments;
+                await fragmentsLayout.render(ctx, chosenImages, {
+                    variation: variation,
+                    complexity: this.parameters.complexity,
+                    maxFragments: this.parameters.maxFragments
+                });
+                break;
+                
+            case 'tiling':
+                const tilingGenerator = new TilingGenerator(canvas, this.parameters);
+                await tilingGenerator.generateTiles(chosenImages);
                 break;
             case 'mosaic':
-                generator = new MosaicGenerator(canvas, this.parameters);
-                await generator.generateMosaic(images);
+                const mosaicGenerator = new MosaicGenerator(canvas, this.parameters);
+                await mosaicGenerator.generateMosaic(chosenImages);
                 break;
             case 'sliced':
-                generator = new SlicedCollageGenerator(ctx, canvas);
-                await generator.generateSliced(images, null, this.parameters);
+                const slicedCollageGenerator = new SlicedCollageGenerator(ctx, canvas);
+                await slicedCollageGenerator.generateSliced(chosenImages, null, this.parameters);
                 break;
             case 'narrative':
-                generator = new NarrativeCompositionManager({ctx, canvas, ...this.parameters});
-                await generator.generate(images, null, 'layers', this.parameters);
-                break;
-            case 'crystal':
-                // Add crystal-specific parameters
-                const crystalParams = {
-                    ...this.parameters,
-                    crystalComplexity: this.parameters.complexity || 5,
-                    crystalDensity: this.parameters.density || 5,
-                    crystalOpacity: 0.7,
-                    isolatedMode: Math.random() > 0.5, // Randomly choose between isolated and regular mode
-                    addGlow: Math.random() > 0.7, // Occasionally add glow effect
-                    rotationRange: 45 // Maximum rotation angle in degrees
-                };
-                generator = new CrystalLayout(crystalParams);
-                await generator.render(ctx, images, { isolated: crystalParams.isolatedMode });
+                const narrativeCompositionManager = new NarrativeCompositionManager({ctx, canvas, ...this.parameters});
+                await narrativeCompositionManager.generate(chosenImages, null, 'layers', this.parameters);
                 break;
             default:
                 console.error('Unknown effect type:', effectType);
