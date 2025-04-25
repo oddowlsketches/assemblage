@@ -12,6 +12,11 @@ export default class FragmentsLayout {
     }
 
     async render(ctx, images, canvas, parameters = {}) {
+        if (import.meta.env.DEV) {
+            window.__lastLayout = 'Fragments';
+            window.__fragmentsImgs = images;
+        }
+
         // Save context state and set multiply blend mode
         ctx.save();
         ctx.globalCompositeOperation = 'multiply';

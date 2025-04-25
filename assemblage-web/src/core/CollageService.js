@@ -201,6 +201,13 @@ export class CollageService {
         // For all layouts, use the standard render method
         await layout.render(ctx, chosenImages, canvas, { variation });
 
+        // Debug logging for layout issues
+        if (import.meta.env.DEV) {
+            console.log('debug → lastLayout', window.__lastLayout,
+                        'imgs', window.__fragmentsImgs?.length,
+                        'comp', ctx.globalCompositeOperation);
+        }
+
         // Restore context state after rendering
         ctx.restore();
     }

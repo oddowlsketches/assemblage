@@ -14,6 +14,10 @@ class CrystalLayout {
     }
 
     render(ctx, images, parameters = {}) {
+        if (import.meta.env.DEV) {
+            window.__lastLayout = 'Crystal';
+        }
+
         if (!ctx || !ctx.canvas) {
             console.error('Invalid canvas context provided to CrystalLayout');
             return;
