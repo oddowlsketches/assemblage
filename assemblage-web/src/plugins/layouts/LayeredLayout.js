@@ -3,6 +3,7 @@
  */
 
 import { LayeredGenerator } from '@legacy/collage/layeredGenerator.js';
+import { PluginRegistry } from '../../core/PluginRegistry.js';
 
 export default class LayeredLayout {
     constructor(options = {}) {
@@ -12,6 +13,13 @@ export default class LayeredLayout {
 
     async render(ctx, images, canvas, options = {}) {
         try {
+            // Check if we have enough images
+            if (images.length < 4) {
+                console.warn('Layered: not enough images, switching to Mosaic');
+                const mosaicLayout = new PluginRegistry().getLayout('mosaic');
+                return mosaicLayout.render(ctx, images, canvas, options);
+            }
+
             // Save context state
             ctx.save();
             

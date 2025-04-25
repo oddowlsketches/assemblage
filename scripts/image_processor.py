@@ -55,11 +55,20 @@ CORS(app, resources={
     r"/*": {
         "origins": ["http://localhost:5177", "http://localhost:5178", "http://localhost:5176", "http://localhost:5175", "http://localhost:5174", "http://localhost:5173"],
         "methods": ["GET", "POST", "OPTIONS"],
-        "allow_headers": ["Content-Type"]
+        "allow_headers": ["Content-Type", "Accept", "Origin"],
+        "supports_credentials": True,
+        "expose_headers": ["Content-Type", "Accept", "Origin"]
     }
 })
 
-# -------------------- Image Processing Functions --------------------
+# Add CORS headers to all responses
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', 'http://localhost:5177')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept,Origin')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+    response.headers.add('Access-Control-Allow-Credentials', 'true')
+    return response
 
 def process_image(image_path):
     """Process an image for web use."""

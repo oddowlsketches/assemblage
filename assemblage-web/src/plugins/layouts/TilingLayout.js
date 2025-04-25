@@ -11,18 +11,22 @@ export default class TilingLayout {
   }
 
   async render(ctx, images, canvas, opts = {}) {
+    ctx.save();
+    
     // Fill background
     ctx.fillStyle = opts.backgroundColor || '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Set multiply blend mode
     ctx.globalCompositeOperation = 'multiply';
 
-    ctx.save();
     if (!this.generator) {
       this.generator = new TilingGenerator(canvas, opts);
     }
 
     await this.generator.generateTiles(images);
     
+    // Restore context state at the end
     ctx.restore();
   }
 } 

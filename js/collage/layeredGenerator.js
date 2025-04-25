@@ -1,124 +1,175 @@
-class LayeredGenerator {
-    constructor(canvas, ctx) {
-        this.canvas = canvas;
+export class LayeredGenerator {
+    constructor(ctx, canvas) {
         this.ctx = ctx;
-    }
-
-    calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
-        const imgRatio = image.naturalWidth / image.naturalHeight;
-        const targetRatio = targetWidth / targetHeight;
+        this.canvas = canvas;
+        this.parameters = {};
         
-        let scale;
-        if (imgRatio > targetRatio) {
-            // Image is wider than target
-            scale = targetHeight / image.naturalHeight;
-        } else {
-            // Image is taller than target
-            scale = targetWidth / image.naturalWidth;
+        // Set default canvas dimensions if not provided
+        if (!this.canvas) {
+            this.canvas = {
+                width: 1200,
+                height: 800
+            };
         }
         
-        // Account for minimum visibility requirement
-        const minScale = Math.max(
-            minVisibility / imgRatio,
-            minVisibility * imgRatio
-        );
-        
-        return Math.max(scale, minScale);
+        // Ensure canvas has dimensions
+        if (!this.canvas.width || !this.canvas.height) {
+            this.canvas.width = 1200;
+            this.canvas.height = 800;
+        }
     }
 
-    generateLayers(images, parameters = {}) {
+    generateBackgroundColor() {
+        // Use the same background color set as the original app
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+            '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C'
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    async generateLayers(images, fortuneText, parameters = {}) {
         if (!images || images.length === 0) {
-            console.warn('No images provided for layered effect');
-            return;
+            console.error('No images provided for layered generation');
+            return [];
         }
 
-        console.log(`Generating layered effect with ${images.length} images`);
+        // Clear canvas and set background
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = this.generateBackgroundColor();
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Determine number of layers (2-5)
-        const numLayers = Math.floor(Math.random() * 4) + 2;
-        console.log(`Creating ${numLayers} layers`);
+        // Filter out invalid images
+        const validImages = images.filter(img => img && img.complete && img.naturalWidth > 0);
+        if (validImages.length === 0) {
+            console.warn('No valid images found for layered generation');
+            return [];
+        }
 
-        // Create layers with random images, scales, and positions
+        // Calculate number of layers based on complexity and available images
+        const complexity = parameters.complexity || 0.5;
+        const numLayers = Math.min(
+            Math.max(3, Math.floor(validImages.length * complexity)),
+            parameters.maxLayers || 6
+        );
+
         const layers = [];
-        const MAX_ATTEMPTS = 5; // Maximum number of attempts to find a suitable image
-        
+        const margin = 20; // Minimum margin from canvas edges
+
         for (let i = 0; i < numLayers; i++) {
-            let suitableImage = null;
-            let attempts = 0;
+            // Select image
+            const image = validImages[i % validImages.length];
             
-            while (!suitableImage && attempts < MAX_ATTEMPTS) {
-                const randomImage = images[Math.floor(Math.random() * images.length)];
-                
-                if (!randomImage || !randomImage.complete || randomImage.naturalWidth === 0) {
-                    attempts++;
-                    continue;
-                }
-                
-                // Calculate required scale for this image
-                const requiredScale = this.calculateRequiredScale(
-                    randomImage,
-                    this.canvas.width,
-                    this.canvas.height
-                );
-                
-                // Check if this scale is within our acceptable range (0.7 to 1.2)
-                if (requiredScale <= 1.2) {
-                    suitableImage = randomImage;
-                } else {
-                    attempts++;
-                }
+            // Calculate layer dimensions based on variation
+            let layerWidth, layerHeight;
+            if (parameters.variation === 'Organic') {
+                const size = this.calculateOrganicSize();
+                layerWidth = size.width;
+                layerHeight = size.height;
+            } else if (parameters.variation === 'Focal') {
+                const size = this.calculateFocalSize();
+                layerWidth = size.width;
+                layerHeight = size.height;
+            } else {
+                const size = this.calculateClassicSize();
+                layerWidth = size.width;
+                layerHeight = size.height;
             }
-            
-            if (!suitableImage) {
-                console.warn(`Could not find suitable image after ${MAX_ATTEMPTS} attempts`);
-                continue;
-            }
-            
-            const scale = 0.7 + Math.random() * 0.5; // Scale between 0.7 and 1.2
 
-            // Calculate position to ensure at least one layer bleeds off the edges
-            const x = Math.random() * this.canvas.width * 1.2 - this.canvas.width * 0.1;
-            const y = Math.random() * this.canvas.height * 1.2 - this.canvas.height * 0.1;
+            // Calculate position with margin and overlap consideration
+            const maxX = this.canvas.width - layerWidth - margin;
+            const maxY = this.canvas.height - layerHeight - margin;
+            const x = margin + Math.random() * maxX;
+            const y = margin + Math.random() * maxY;
 
-            layers.push({
-                image: suitableImage,
-                scale: scale,
+            // Create layer with calculated position
+            const layer = {
+                image: image,
                 x: x,
                 y: y,
-                opacity: i === 0 ? 1.0 : 0.3 + Math.random() * 0.4 // First layer full opacity, others 0.3-0.7
-            });
+                width: layerWidth,
+                height: layerHeight,
+                rotation: Math.random() < 0.8 ? Math.random() * 0.3 : Math.random() * 0.1, // More controlled rotation
+                depth: Math.random(),
+                opacity: 0.4 + Math.random() * 0.6,
+                blendMode: this.selectBlendMode(i)
+            };
+            layers.push(layer);
         }
 
-        // Sort layers by scale (smaller scales drawn first)
-        layers.sort((a, b) => a.scale - b.scale);
+        // Sort layers by depth for proper layering
+        layers.sort((a, b) => a.depth - b.depth);
 
         // Draw layers
         layers.forEach(layer => {
-            const { image, scale, x, y, opacity } = layer;
-
-            // Calculate dimensions maintaining aspect ratio
-            const aspectRatio = image.width / image.height;
-            let width = this.canvas.width * scale;
-            let height = width / aspectRatio;
-
-            // Ensure minimum visibility of 70%
-            if (height < this.canvas.height * 0.7) {
-                height = this.canvas.height * 0.7;
-                width = height * aspectRatio;
-            }
-
-            // Set opacity
-            this.ctx.globalAlpha = opacity;
-
-            // Draw the image
-            this.ctx.drawImage(image, x, y, width, height);
+            this.drawLayer(layer);
         });
-
-        // Reset opacity
-        this.ctx.globalAlpha = 1.0;
 
         return layers;
     }
-}
 
-export { LayeredGenerator }; 
+    selectBlendMode(layerIndex) {
+        const blendModes = [
+            'normal',
+            'multiply',
+            'screen',
+            'overlay',
+            'soft-light',
+            'hard-light',
+            'color-dodge',
+            'color-burn',
+            'difference',
+            'exclusion'
+        ];
+        return blendModes[layerIndex % blendModes.length];
+    }
+
+    calculateOrganicSize() {
+        const baseSize = Math.min(this.canvas.width, this.canvas.height) * 0.4;
+        return {
+            width: baseSize * (0.8 + Math.random() * 0.4),
+            height: baseSize * (0.8 + Math.random() * 0.4)
+        };
+    }
+
+    calculateFocalSize() {
+        const baseSize = Math.min(this.canvas.width, this.canvas.height) * 0.6;
+        return {
+            width: baseSize * (0.9 + Math.random() * 0.2),
+            height: baseSize * (0.9 + Math.random() * 0.2)
+        };
+    }
+
+    calculateClassicSize() {
+        const baseSize = Math.min(this.canvas.width, this.canvas.height) * 0.5;
+        return {
+            width: baseSize * (0.7 + Math.random() * 0.6),
+            height: baseSize * (0.7 + Math.random() * 0.6)
+        };
+    }
+
+    drawLayer(layer) {
+        this.ctx.save();
+
+        // Set opacity and blend mode
+        this.ctx.globalAlpha = layer.opacity;
+        this.ctx.globalCompositeOperation = layer.blendMode;
+
+        // Apply rotation around layer center
+        this.ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+        this.ctx.rotate(layer.rotation);
+        this.ctx.translate(-(layer.x + layer.width / 2), -(layer.y + layer.height / 2));
+
+        // Draw the image
+        this.ctx.drawImage(layer.image, layer.x, layer.y, layer.width, layer.height);
+
+        this.ctx.restore();
+    }
+
+    shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+} 

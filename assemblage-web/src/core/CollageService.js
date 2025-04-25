@@ -66,7 +66,6 @@ export class CollageService {
             { effect: 'tiling', weight: 15 },
             { effect: 'mosaic', weight: 15 },
             { effect: 'sliced', weight: 15 },
-            { effect: 'narrative', weight: 15 },
             { effect: 'fragments', weight: 15 },
             { effect: 'crystal', weight: 15 },
             { effect: 'layered', weight: 15 }
@@ -191,17 +190,24 @@ export class CollageService {
             const r = Math.random();
             if (r < 0.33) {
                 console.log('Using horizontal sliced layout');
-                return layout.renderHorizontal(ctx, chosenImages, canvas, { variation });
+                await layout.renderHorizontal(ctx, chosenImages, canvas, { variation });
             } else if (r < 0.66) {
                 console.log('Using vertical sliced layout');
-                return layout.renderVertical(ctx, chosenImages, canvas, { variation });
+                await layout.renderVertical(ctx, chosenImages, canvas, { variation });
             } else {
                 console.log('Using random sliced layout');
-                return layout.renderRandom(ctx, chosenImages, canvas, { variation });
+                await layout.renderRandom(ctx, chosenImages, canvas, { variation });
             }
         } else {
             // For all other layouts, use the standard render method
-            return layout.render(ctx, chosenImages, canvas, { variation });
+            await layout.render(ctx, chosenImages, canvas, { variation });
+        }
+
+        // Randomly apply narrative overlay (25% chance)
+        if (Math.random() < 0.25) {
+            console.log('Applying narrative overlay');
+            const narrativeLayout = pluginRegistry.getLayout('narrative');
+            await narrativeLayout.render(ctx, chosenImages, canvas, { variation });
         }
     }
 } 
