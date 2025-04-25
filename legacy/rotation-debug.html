@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotation Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .debug-panel {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px;
+        }
+        .controls {
+            margin: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #debugOutput {
+            background: #f8f8f8;
+            border: 1px solid #ddd;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Rotation Debug</h1>
+    
+    <div class="container">
+        <div class="debug-panel">
+            <h2>Debug Controls</h2>
+            <div class="controls">
+                <button onclick="generateCollage()">Generate Collage</button>
+                <button onclick="clearDebugOutput()">Clear Debug Output</button>
+                <button onclick="showStats()">Show Statistics</button>
+            </div>
+            <div id="debugOutput"></div>
+        </div>
+        
+        <div class="debug-panel">
+            <h2>Main Application</h2>
+            <div id="appContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // Override console.log to also display in the debug output
+        const originalConsoleLog = console.log;
+        const originalConsoleWarn = console.warn;
+        const originalConsoleError = console.error;
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            appendToDebugOutput('LOG', args);
+        };
+        
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            appendToDebugOutput('WARN', args);
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            appendToDebugOutput('ERROR', args);
+        };
+        
+        function appendToDebugOutput(type, args) {
+            const debugOutput = document.getElementById('debugOutput');
+            const message = args.map(arg => {
+                if (typeof arg === 'object') {
+                    return JSON.stringify(arg, null, 2);
+                }
+                return arg;
+            }).join(' ');
+            
+            const entry = document.createElement('div');
+            entry.className = `debug-entry ${type.toLowerCase()}`;
+            entry.textContent = `[${type}] ${message}`;
+            
+            debugOutput.appendChild(entry);
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+        
+        function clearDebugOutput() {
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.innerHTML = '';
+        }
+        
+        function showStats() {
+            if (window.stats) {
+                console.log('Current Rotation Statistics:');
+                console.log(`Total Collages: ${window.stats.totalCollages}`);
+                console.log(`Collages with No Rotation: ${window.stats.noRotationCollages} (${(window.stats.noRotationCollages / window.stats.totalCollages * 100).toFixed(1)}%)`);
+                console.log(`Expected No Rotation: 30%`);
+                console.log(`Difference from Expected: ${((window.stats.noRotationCollages / window.stats.totalCollages * 100) - 30).toFixed(1)}%`);
+                console.log(`Total Fragments: ${window.stats.totalFragments}`);
+                console.log(`Fragments with No Rotation: ${window.stats.noRotationFragments} (${(window.stats.noRotationFragments / window.stats.totalFragments * 100).toFixed(1)}%)`);
+            } else {
+                console.warn('Statistics not available yet. Generate a collage first.');
+            }
+        }
+        
+        function generateCollage() {
+            if (window.app && window.app.generator) {
+                console.log('Generating collage...');
+                window.app.generator.generate();
+            } else {
+                console.error('App not ready yet. Please wait for initialization.');
+            }
+        }
+    </script>
+
+    <!-- Load the main application scripts -->
+    <script src="js/main-mask-integration.js"></script>
+    <script src="js/collage/collageGenerator.js"></script>
+    <script src="js/backgroundManager.js"></script>
+    <script src="js/script.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/fortuneGenerator.js"></script>
+    <script src="js/maskImplementations.js"></script>
+    <script src="js/collage/tilingGenerator.js"></script>
+    <script src="js/collage/fragmentsGenerator.js"></script>
+    <script src="js/collage/mosaicGenerator.js"></script>
+    <script src="narrativeCompositionManager.js"></script>
+    <script src="js/llmCompositionEnhancer.js"></script>
+    
+    <!-- Load the rotation debug script -->
+    <script src="js/rotation-debug.js"></script>
+</body>
+</html> 

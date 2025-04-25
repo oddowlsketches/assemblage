@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Rotation Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .canvas-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        canvas {
+            border: 1px solid #ddd;
+            background: white;
+        }
+        .debug-output {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Global Rotation Test</h1>
+        
+        <div class="controls">
+            <div class="slider-container">
+                <label for="noRotationProb">No Rotation Probability: <span id="noRotationValue">30%</span></label>
+                <input type="range" id="noRotationProb" min="0" max="100" value="30" style="width: 200px;">
+            </div>
+            <button onclick="generateCollage()">Generate Collage</button>
+            <button onclick="clearCanvas()">Clear Canvas</button>
+            <button onclick="showStats()">Show Statistics</button>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+
+        <div class="debug-output" id="debugOutput"></div>
+    </div>
+
+    <script>
+        // Override console methods to show output in the debug panel
+        const debugOutput = document.getElementById('debugOutput');
+        const originalConsoleLog = console.log;
+        const originalConsoleWarn = console.warn;
+        const originalConsoleError = console.error;
+
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            appendToDebug('LOG', args);
+        };
+
+        console.warn = function(...args) {
+            originalConsoleWarn.apply(console, args);
+            appendToDebug('WARN', args);
+        };
+
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            appendToDebug('ERROR', args);
+        };
+
+        function appendToDebug(type, args) {
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+            ).join(' ');
+            
+            const entry = document.createElement('div');
+            entry.textContent = `[${type}] ${message}`;
+            debugOutput.appendChild(entry);
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        // Initialize canvas and context
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Statistics tracking
+        let stats = {
+            totalFragments: 0,
+            noRotationFragments: 0,
+            totalCollages: 0,
+            noRotationCollages: 0
+        };
+
+        // Update the no rotation probability display
+        document.getElementById('noRotationProb').addEventListener('input', function(e) {
+            document.getElementById('noRotationValue').textContent = e.target.value + '%';
+        });
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            console.log('Canvas cleared');
+        }
+
+        function showStats() {
+            console.log('Rotation Statistics:');
+            console.log(`Total Fragments: ${stats.totalFragments}`);
+            console.log(`Fragments with No Rotation: ${stats.noRotationFragments}`);
+            console.log(`No Rotation Percentage: ${((stats.noRotationFragments / stats.totalFragments) * 100).toFixed(1)}%`);
+            console.log(`Total Collages: ${stats.totalCollages}`);
+            console.log(`Collages with No Rotation: ${stats.noRotationCollages}`);
+        }
+
+        function generateCollage() {
+            const noRotationProb = parseInt(document.getElementById('noRotationProb').value) / 100;
+            console.log(`Generating collage with no rotation probability: ${noRotationProb}`);
+            
+            // Clear the canvas
+            clearCanvas();
+            
+            // First determine if this entire collage should have no rotation
+            const collageHasNoRotation = Math.random() < noRotationProb;
+            console.log(`Collage no rotation: ${collageHasNoRotation}`);
+            
+            // Generate random fragments
+            const fragments = [];
+            const numFragments = 10;
+            
+            for (let i = 0; i < numFragments; i++) {
+                const width = 50 + Math.random() * 100;
+                const height = 50 + Math.random() * 100;
+                const x = Math.random() * (canvas.width - width);
+                const y = Math.random() * (canvas.height - height);
+                
+                // If collage has no rotation, all fragments have no rotation
+                const rotation = collageHasNoRotation ? 0 : (Math.random() * 360);
+                
+                fragments.push({
+                    x, y, width, height, rotation,
+                    color: `hsl(${Math.random() * 360}, 70%, 70%)`
+                });
+                
+                // Update statistics
+                stats.totalFragments++;
+                if (rotation === 0) {
+                    stats.noRotationFragments++;
+                }
+            }
+            
+            // Draw fragments
+            fragments.forEach(fragment => {
+                ctx.save();
+                
+                // Translate to fragment center for rotation
+                ctx.translate(fragment.x + fragment.width/2, fragment.y + fragment.height/2);
+                ctx.rotate(fragment.rotation * Math.PI / 180);
+                
+                // Draw the fragment
+                ctx.fillStyle = fragment.color;
+                ctx.fillRect(-fragment.width/2, -fragment.height/2, fragment.width, fragment.height);
+                
+                // Draw rotation indicator
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(`${fragment.rotation.toFixed(1)}°`, 0, 0);
+                
+                ctx.restore();
+            });
+            
+            // Update collage statistics
+            stats.totalCollages++;
+            if (collageHasNoRotation) {
+                stats.noRotationCollages++;
+            }
+            
+            console.log('Collage generated with', fragments.length, 'fragments');
+            console.log('All fragments have no rotation:', collageHasNoRotation);
+        }
+    </script>
+</body>
+</html> 
