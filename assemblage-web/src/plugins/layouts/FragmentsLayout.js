@@ -17,8 +17,23 @@ export default class FragmentsLayout {
             window.__fragmentsImgs = images;
         }
 
-        // Save context state and set multiply blend mode
+        // Save context state and set initial composite operation
         ctx.save();
+        ctx.globalCompositeOperation = 'source-over';   // draw the BG first
+
+        // Initialize the generator if not already done
+        if (!this.generator) {
+            this.generator = new FragmentsGenerator(ctx, canvas);
+        }
+
+        // Clear and fill the background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const bg = this.generator.generateBackgroundColor();
+        window.__collageBgColor = bg;   // expose for generator
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Switch to multiply for the image drawing phase
         ctx.globalCompositeOperation = 'multiply';
 
         // Load images if they're not already Image objects
@@ -33,18 +48,6 @@ export default class FragmentsLayout {
         const imgs = await Promise.all(
             images.map(i => i instanceof Image ? i : load(i))
         );
-
-        // Initialize the generator if not already done
-        if (!this.generator) {
-            this.generator = new FragmentsGenerator(ctx, canvas);
-        }
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Set background color
-        ctx.fillStyle = this.generator.generateBackgroundColor();
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Generate fragments
         const fragments = this.generator.generateFragments(imgs, parameters.complexity || 0.5);
@@ -52,9 +55,12 @@ export default class FragmentsLayout {
         
         // Draw each fragment
         for (const fragment of fragments) {
-            // Set source-in composite operation before drawing each fragment
+            ctx.save();
+            ctx.beginPath();               // (clip path is in drawFragment)
+            // Set source-in **inside** the save/restore so it doesn't leak
             ctx.globalCompositeOperation = 'source-in';
             this.generator.drawFragment(fragment, ctx);
+            ctx.restore();                 // back to multiply for next fragment
         }
         
         // Restore context state

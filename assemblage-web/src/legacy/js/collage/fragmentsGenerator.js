@@ -493,9 +493,6 @@ export class FragmentsGenerator {
         ctx.arc(x + width / 2, y + height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
         ctx.clip();
         
-        // Now set to source-in for the mask
-        ctx.globalCompositeOperation = 'source-in';
-        
         // Position and rotate
         ctx.translate(x + width / 2, y + height / 2);
         ctx.rotate(rotation || 0);

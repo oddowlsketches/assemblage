@@ -8,7 +8,10 @@ export default function App() {
 
   //  ❶ resize canvas to full viewport and draw once on mount
   useEffect(() => {
+    console.log('App useEffect running');
     const cvs = canvasRef.current;
+    console.log('Canvas ref:', cvs);
+    
     const resize = () => {
       cvs.width  = window.innerWidth;
       cvs.height = window.innerHeight - cvs.getBoundingClientRect().top;
@@ -20,8 +23,16 @@ export default function App() {
     // Initialize the collage service
     const initCollage = async () => {
       try {
-        await serviceRef.current?.init();
-        // Shift perspective to create a collage on first load
+        console.log('Initializing collage service');
+        // Create the service if it doesn't exist
+        if (!serviceRef.current) {
+          console.log('Creating new CollageService');
+          serviceRef.current = new CollageService(cvs);
+        }
+        
+        // No need to call init() as it doesn't exist
+        // Instead, directly call shiftPerspective
+        console.log('Calling shiftPerspective');
         serviceRef.current?.shiftPerspective();
       } catch (error) {
         console.error('Failed to initialize collage service:', error);

@@ -78,20 +78,28 @@ export class CollageService {
     
     async loadImages() {
         try {
+            console.log('Starting to load images from server...');
             // Load metadata from the image processor server
             const response = await fetch('http://localhost:5001/images/metadata.json');
+            console.log('Metadata response status:', response.status);
             const metadata = await response.json();
+            console.log(`Loaded metadata with ${metadata.length} images`);
             
             // Load all images
+            console.log('Starting to load individual images...');
             const loadedImages = await Promise.all(
                 metadata.map(async (img) => {
+                    console.log(`Loading image: ${img.id}`);
                     const image = new Image();
                     // Use the full URL for images
                     image.src = `http://localhost:5001/images/collages/${img.id}.jpg`;
                     await new Promise((resolve, reject) => {
-                        image.onload = resolve;
-                        image.onerror = () => {
-                            console.warn(`Failed to load image: ${img.id}`);
+                        image.onload = () => {
+                            console.log(`Successfully loaded image: ${img.id}`);
+                            resolve();
+                        };
+                        image.onerror = (err) => {
+                            console.warn(`Failed to load image: ${img.id}`, err);
                             resolve(null); // Resolve with null instead of rejecting
                         };
                     });
@@ -101,11 +109,14 @@ export class CollageService {
             
             // Filter out any failed image loads
             this.imagePool = loadedImages.filter(img => img !== null);
-            console.log(`Loaded ${this.imagePool.length} images`);
+            console.log(`Loaded ${this.imagePool.length} images successfully`);
             
             // Generate first collage if we have images
             if (this.imagePool.length > 0) {
+                console.log('Generating first collage with loaded images');
                 this.shiftPerspective();
+            } else {
+                console.error('No images were loaded successfully');
             }
         } catch (error) {
             console.error('Error loading images:', error);
@@ -268,11 +279,29 @@ export class CollageService {
     }
 
     async shiftPerspective() {
-        if (!this.canvas || this.imagePool.length === 0) return;
+        console.log('shiftPerspective called');
+        if (!this.canvas) {
+            console.error('Canvas is not available');
+            return;
+        }
+        
+        if (this.imagePool.length === 0) {
+            console.error('No images available in the pool');
+            return;
+        }
+        
+        console.log(`Canvas dimensions: ${this.canvas.width}x${this.canvas.height}`);
+        console.log(`Image pool size: ${this.imagePool.length}`);
         
         const effectType = this.selectEffectType();
         console.log('Selected effect type:', effectType);
-        await this.createCollage(this.canvas, effectType);
+        
+        try {
+            await this.createCollage(this.canvas, effectType);
+            console.log('Collage created successfully');
+        } catch (error) {
+            console.error('Error creating collage:', error);
+        }
     }
     
     saveCollage() {
