@@ -486,7 +486,15 @@ export class FragmentsGenerator {
         ctx.save();
         ctx.translate(x + width / 2, y + height / 2);
         ctx.rotate(rotation || 0);
+        
+        // Set composite operation to source-in before drawing
+        ctx.globalCompositeOperation = 'source-in';
+        
         ctx.drawImage(tempCanvas, -width / 2, -height / 2);
+        
+        // Restore composite operation to multiply after drawing
+        ctx.globalCompositeOperation = 'multiply';
+        
         ctx.restore();
         
         console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height);
