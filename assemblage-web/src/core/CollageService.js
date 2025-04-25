@@ -10,6 +10,7 @@ import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositio
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
 import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
 import FragmentsLayout from '../plugins/layouts/FragmentsLayout.js';
+import TilingLayout from '../plugins/layouts/TilingLayout.js';
 
 // Initialize layouts
 const layouts = {
@@ -49,6 +50,13 @@ export class CollageService {
             // Additional parameters for better control
             maxFragments: 8,      // Maximum number of fragments
             minVisibility: 0.7    // Minimum visibility for fragments
+        };
+
+        // Initialize layouts
+        this.layouts = {
+            crystal: new CrystalLayout(),
+            fragments: new FragmentsLayout(),
+            tiling: new TilingLayout()
         };
     }
 
@@ -140,15 +148,21 @@ export class CollageService {
 
     async createCollage(canvas, layoutName = 'fragments', numImages = 4) {
         const ctx = canvas.getContext('2d');
-        const layout = this.layouts[layoutName];
+        
+        // Fill background
+        ctx.fillStyle = this.generateBackgroundColor();
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Get layout or fallback to fragments
+        const layout = this.layouts[layoutName] || this.layouts.fragments;
         if (!layout) {
-            throw new Error(`Layout ${layoutName} not found`);
+            console.error(`Layout ${layoutName} not found, falling back to fragments`);
         }
 
         const chosenImages = await this.selectImages(numImages);
         
         withDebug(layout.constructor.name, () =>
-            layout.render(ctx, chosenImages, canvas, this.opts)
+            layout.render(ctx, chosenImages, canvas, this.parameters)
         )();
 
         return canvas;
