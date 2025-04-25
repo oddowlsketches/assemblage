@@ -70,16 +70,19 @@ function App() {
   };
 
   return (
-    <div className="container">
-      <canvas id="canvas" ref={canvasRef} width={1080} height={1080}/>
-      <div className="controls">
-        <button onClick={handleShiftPerspective} disabled={!collageService}>
-          Shift Perspective
-        </button>
-        <button onClick={handleSaveCollage} disabled={!canvasRef.current}>
-          Save Collage
-        </button>
-      </div>
+    <div id="wrapper">
+      <header>
+        <h1>Assemblage</h1>
+        <h2>EPHEMERAL VISIONS, ASSEMBLED MEANINGS</h2>
+      </header>
+
+      <canvas ref={canvasRef} width={1080} height={1080} />
+
+      <footer>
+        <button onClick={handleShiftPerspective} disabled={!collageService}>Shift Perspective</button>
+        <button onClick={handleSaveCollage} disabled={!canvasRef.current}>Save Collage</button>
+        <p>© 2025 Assemblage by Emily Schwartzman. All rights reserved.</p>
+      </footer>
     </div>
   );
 }
