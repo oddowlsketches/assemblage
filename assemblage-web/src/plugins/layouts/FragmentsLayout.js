@@ -17,9 +17,12 @@ function pickComplexity(seed) {
     // Use seeded random for consistent results
     const r = () => seededRandom(seed++);
     
+    // Helper function for linear interpolation
+    const lerp = (min, max, t) => min + (max - min) * t;
+    
     return {
-        complexity: 0.3 + r() * 0.4,  // 0.3-0.7 range
-        density: 0.4 + r() * 0.3,     // 0.4-0.7 range
+        complexity: lerp(0.35, 0.85, r()),  // Increased range from 0.35-0.85
+        density: lerp(0.25, 0.75, r()),     // Increased range from 0.25-0.75
         variation: ['Classic', 'Organic', 'Focal'][Math.floor(r() * 3)]
     };
 }
@@ -54,97 +57,105 @@ export default class FragmentsLayout {
         });
     }
 
-    async render(ctx, images, canvas, parameters = {}) {
-        if (import.meta.env.DEV) {
-            window.__lastLayout = 'Fragments';
-            window.__fragmentsImgs = images;
-        }
-
-        // Generate seed and parameters
-        const seed = Math.floor(Math.random() * 1e9);
-        const params = pickComplexity(seed);
-        const shapes = getFragmentShapes(seed);
+    async render(canvas, images, params) {
+        // Generate seed and parameters if not provided
+        const seed = params?.seed || Math.floor(Math.random() * 1e9);
         
-        // Save context state and set initial composite operation
-        ctx.save();
-        ctx.globalCompositeOperation = 'source-over';   // draw the BG first
-
-        // Initialize the generator if not already done
-        if (!this.generator) {
-            this.generator = new FragmentsGenerator(ctx, canvas);
+        // Helper function for linear interpolation
+        const lerp = (min, max, t) => min + (max - min) * t;
+        
+        // Build a proper parameter object
+        const complexityParams = {
+            complexity: params?.complexity || lerp(0.35, 0.85, Math.random()),
+            density: params?.density || lerp(0.25, 0.75, Math.random()),
+            variation: params?.variation || ['Classic', 'Organic', 'Focal'][Math.floor(Math.random() * 3)],
+            shapes: params?.shapes || getFragmentShapes(seed),
+            imageMode: params?.imageMode || (Math.random() < 0.5 ? 'random' : 'cycle'),
+            background: params?.background || '#f2efe9'
+        };
+        
+        console.log('LAYOUT params→', complexityParams);
+        
+        // Handle different types of canvas input
+        let canvasElement;
+        let ctx;
+        
+        if (canvas instanceof CanvasRenderingContext2D) {
+            // If canvas is already a context
+            ctx = canvas;
+            canvasElement = ctx.canvas;
+        } else {
+            // If canvas is a ref or canvas element
+            canvasElement = canvas.current || canvas;
+            ctx = canvasElement.getContext('2d');
         }
-
-        // Clear and fill the background
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const bg = this.generator.generateBackgroundColor();
-        window.__collageBgColor = bg;   // expose for generator
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Switch to multiply for the image drawing phase
-        ctx.globalCompositeOperation = 'multiply';
-
+        
+        // Initialize the fragments generator with the canvas context
+        this.generator = new FragmentsGenerator(ctx, canvasElement);
+        
         // Load images if they're not already Image objects
-        const load = src => new Promise((res, rej) => {
-            const i = new Image();
-            i.crossOrigin = 'anonymous';
-            i.onload = () => res(i);
-            i.onerror = rej;
-            i.src = src;
-        });
-        
         const imgs = await Promise.all(
-            images.map(i => i instanceof Image ? i : load(i))
+            images.map(i => i instanceof Image ? i : this.loadImage(i))
         );
         
-        // Generate fragments with the new parameters and shapes
-        let fragments = this.generator.generateFragments(imgs, {...params, shapes});
-        console.log(`Generated ${fragments.length} fragments with shapes: ${shapes.join(', ')}`);
+        // Generate fragments with the provided parameters
+        let fragments = this.generator.generateFragments(imgs, complexityParams);
+        
+        console.log('Generated', fragments.length, 'fragments with shapes:', complexityParams.shapes.join(', '));
         
         // Apply narrative composition if available
         try {
-            // Check if the composition manager has the enhanceComposition method
-            if (typeof this.compositionManager.enhanceComposition === 'function') {
-                const enhanced = this.compositionManager.enhanceComposition(fragments, {
-                    compositionType: 'multiple-actors',
-                    useGoldenRatio: true,
-                    useRuleOfThirds: true,
-                    depthOpacity: true
-                });
-                fragments = enhanced.fragments;
-                console.log('Enhanced composition:', enhanced.metadata);
-            } else if (typeof this.compositionManager.generate === 'function') {
-                // Use the generate method if enhanceComposition is not available
-                const enhanced = await this.compositionManager.generate(imgs, null, 'fragments', {
-                    ...params,
-                    shapes,
-                    compositionType: 'multiple-actors',
-                    useGoldenRatio: true,
-                    useRuleOfThirds: true,
-                    depthOpacity: true
-                });
-                fragments = enhanced.fragments || fragments;
-                console.log('Generated composition with narrative manager');
-            }
+            // Legacy behaviour: fresh manager each render
+            // Pass the correct parameters to NarrativeCompositionManager
+            const narrative = new NarrativeCompositionManager({
+                ctx: ctx,
+                canvas: canvasElement,
+                canvasWidth: canvasElement.width,
+                canvasHeight: canvasElement.height
+            });
+            
+            // Call generate with the correct parameters
+            narrative.generate(imgs, null, null, complexityParams);
         } catch (error) {
             console.error('Error applying narrative composition:', error);
-            // Continue with original fragments if composition fails
         }
         
-        // Draw each fragment
-        for (const fragment of fragments) {
-            ctx.save();
-            ctx.beginPath();               // (clip path is in drawFragment)
-            // Set source-in **inside** the save/restore so it doesn't leak
-            ctx.globalCompositeOperation = 'source-in';
-            this.generator.drawFragment(fragment, ctx);
-            ctx.restore();                 // back to multiply for next fragment
-        }
-        
-        // Restore context state
-        ctx.restore();
+        // Draw the fragments
+        this.drawFragments(fragments, ctx, complexityParams);
         
         return fragments;
+    }
+
+    // Draw all fragments
+    drawFragments(fragments, ctx, params) {
+        if (!fragments || fragments.length === 0) return;
+        
+        const { width, height } = ctx.canvas;
+        
+        /* ---------- BACKDROP ---------- */
+        ctx.save();                              // Take a clean snapshot
+        ctx.globalCompositeOperation = 'source-over';   // Reset blend mode
+        ctx.clearRect(0, 0, width, height);      // Start from empty
+        ctx.fillStyle = params.background || '#f2efe9'; // Set background color
+        ctx.fillRect(0, 0, width, height);       // Draw solid color
+        ctx.restore();                           // Pop — ctx back to old state
+        
+        console.log('ctx after backdrop', ctx.globalCompositeOperation);
+        
+        /* ---------- IMAGE SHARDS ---------- */
+        ctx.save();                              // New snapshot
+        ctx.globalCompositeOperation = 'multiply';
+        
+        console.log('ctx while drawing', ctx.globalCompositeOperation);
+        
+        // Draw each fragment
+        fragments.forEach(fragment => {
+            ctx.save();
+            this.generator.drawFragment(fragment, ctx);
+            ctx.restore();
+        });
+        
+        ctx.restore();                           // Leave 'multiply' behind
     }
 
     // Simple image loading function to avoid circular dependency
