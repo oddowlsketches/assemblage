@@ -5,7 +5,7 @@
 
 import { SafeCrystalFormationGenerator } from './crystalFormationGenerator.js';
 
-class IsolatedCrystalGenerator {
+export class IsolatedCrystalGenerator {
     constructor(ctx, canvas) {
         // Store context and canvas
         this.ctx = ctx;
@@ -980,5 +980,3 @@ class IsolatedCrystalGenerator {
         this.ctx.restore();
     }
 }
-
-export default IsolatedCrystalGenerator;

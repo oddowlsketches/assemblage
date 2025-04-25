@@ -115,8 +115,7 @@ export class CollageService {
         return this.imagePool.slice(0, numImages);
     }
 
-    async createCollage(canvasRef) {
-        const canvas = canvasRef.current;
+    async createCollage(canvas) {
         const ctx = canvas.getContext('2d');
         
         // Set canvas dimensions

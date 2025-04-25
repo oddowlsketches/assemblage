@@ -3,7 +3,7 @@
  * Creates seamless crystal-like collage structures with interconnected facets
  */
 
-class CrystalFormationGenerator {
+export class CrystalFormationGenerator {
     constructor(ctx, canvas) {
         if (!ctx || !canvas) {
             throw new Error('Both canvas context and canvas element are required');
@@ -507,7 +507,7 @@ class CrystalFormationGenerator {
     }
 }
 
-class SafeCrystalFormationGenerator {
+export class SafeCrystalFormationGenerator {
     constructor(ctx, canvas) {
         try {
             if (!ctx || !canvas) {
@@ -556,6 +556,4 @@ class SafeCrystalFormationGenerator {
             return false;
         }
     }
-}
-
-export { CrystalFormationGenerator, SafeCrystalFormationGenerator }; 
+} 

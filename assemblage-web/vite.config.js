@@ -13,15 +13,15 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      '@legacy/collage/tilingGenerator.js',
-      '@legacy/collage/mosaicGenerator.js',
-      '@legacy/collage/slicedCollageGenerator.js',
-      '@legacy/collage/fragmentsGenerator.js',
-      '@legacy/collage/crystalGenerator.js',
-      '@legacy/collage/crystalFormationGenerator.js',
-      '@legacy/collage/isolatedCrystalGenerator.js',
-      '@legacy/collage/narrativeCompositionManager.js',
-      '@legacy/collage/maskImplementations.js'
+      './src/legacy/js/collage/tilingGenerator.js',
+      './src/legacy/js/collage/mosaicGenerator.js',
+      './src/legacy/js/collage/slicedCollageGenerator.js',
+      './src/legacy/js/collage/fragmentsGenerator.js',
+      './src/legacy/js/collage/crystalGenerator.js',
+      './src/legacy/js/collage/crystalFormationGenerator.js',
+      './src/legacy/js/collage/isolatedCrystalGenerator.js',
+      './src/legacy/js/collage/narrativeCompositionManager.js',
+      './src/legacy/js/collage/maskImplementations.js'
     ]
   }
 })
