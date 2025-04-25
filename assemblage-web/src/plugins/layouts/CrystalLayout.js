@@ -13,11 +13,14 @@ class CrystalLayout {
         this.crystalGenerator = null;
     }
 
-    render(ctx, images, { isolated = false } = {}) {
+    render(ctx, images, parameters = {}) {
         if (!ctx || !ctx.canvas) {
             console.error('Invalid canvas context provided to CrystalLayout');
             return;
         }
+
+        // Randomly choose between isolated and standard crystal layout (50/50 chance)
+        const isolated = Math.random() < 0.5;
 
         const prev = ctx.globalCompositeOperation;
         try {

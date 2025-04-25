@@ -7,10 +7,20 @@ import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositio
 
 export default class NarrativeLayout {
     constructor() {
-        this.generator = new NarrativeCompositionManager();
+        this.generator = null;
     }
 
     render(ctx, images, canvas, parameters = {}) {
+        // Initialize generator with canvas context and canvas
+        if (!this.generator) {
+            this.generator = new NarrativeCompositionManager({
+                ctx,
+                canvas,
+                canvasWidth: canvas.width,
+                canvasHeight: canvas.height
+            });
+        }
+        
         // Set up the canvas context
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         

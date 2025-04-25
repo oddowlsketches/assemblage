@@ -18,12 +18,12 @@ export default class FragmentsLayout {
             return;
         }
 
-        const prev = ctx.globalCompositeOperation;
-        try {
-            // Set up canvas context
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.save();
+        // Set multiply mode at the start
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+        try {
             // if images are already HTMLImageElement, skip re-loading
             const srcImgs = await Promise.all(
                 images.map(img =>
@@ -49,13 +49,15 @@ export default class FragmentsLayout {
                 });
             }
 
-            // Generate fragments effect
-            await this.fragmentsGenerator.generate(srcImgs);
+            // Generate fragments effect and await its completion
+            return await this.fragmentsGenerator.generate(srcImgs);
         } catch (error) {
             console.error('Error generating fragments effect:', error);
             throw error;
         } finally {
-            ctx.globalCompositeOperation = prev;
+            // Reset composite operation before restoring context
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.restore();
         }
     }
 } 

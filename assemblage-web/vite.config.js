@@ -21,7 +21,8 @@ export default defineConfig({
       './src/legacy/js/collage/crystalFormationGenerator.js',
       './src/legacy/js/collage/isolatedCrystalGenerator.js',
       './src/legacy/js/collage/narrativeCompositionManager.js',
-      './src/legacy/js/collage/maskImplementations.js'
+      './src/legacy/js/collage/maskImplementations.js',
+      './src/legacy/js/collage/layeredGenerator.js'
     ]
   }
 })

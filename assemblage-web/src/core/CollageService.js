@@ -11,23 +11,10 @@ import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
 import { CrystalFormationGenerator } from '@legacy/collage/crystalFormationGenerator.js';
 import { IsolatedCrystalGenerator } from '@legacy/collage/isolatedCrystalGenerator.js';
 import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
-import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
-import FragmentsLayout from '../plugins/layouts/FragmentsLayout.js';
-import TilingLayout from '../plugins/layouts/TilingLayout.js';
-import SlicedLayout from '../plugins/layouts/SlicedLayout.js';
-import NarrativeLayout from '../plugins/layouts/NarrativeLayout.js';
-import MosaicLayout from '../plugins/layouts/MosaicLayout.js';
 import { PluginRegistry } from './PluginRegistry.js';
 
-// Initialize layouts
-const layouts = {
-    crystal: new CrystalLayout(),
-    fragments: new FragmentsLayout(),
-    tiling: new TilingLayout(),
-    sliced: new SlicedLayout(),
-    narrative: new NarrativeLayout(),
-    mosaic: new MosaicLayout()
-};
+// Initialize plugin registry
+const pluginRegistry = new PluginRegistry();
 
 export function withDebug(label, fn) {
   return (...args) => {
@@ -62,9 +49,6 @@ export class CollageService {
             maxFragments: 8,      // Maximum number of fragments
             minVisibility: 0.7    // Minimum visibility for fragments
         };
-
-        // Initialize layouts
-        this.layouts = layouts;
     }
 
     generateBackgroundColor() {
@@ -84,7 +68,8 @@ export class CollageService {
             { effect: 'sliced', weight: 15 },
             { effect: 'narrative', weight: 15 },
             { effect: 'fragments', weight: 15 },
-            { effect: 'crystal', weight: 15 }
+            { effect: 'crystal', weight: 15 },
+            { effect: 'layered', weight: 15 }
         ];
         
         // Calculate total weight
@@ -119,6 +104,9 @@ export class CollageService {
             case 'sliced':
                 const slicedVariations = ['vertical', 'horizontal', 'diagonal'];
                 return slicedVariations[Math.floor(Math.random() * slicedVariations.length)];
+            case 'layered':
+                const layeredVariations = ['standard', 'overlapping', 'stacked'];
+                return layeredVariations[Math.floor(Math.random() * layeredVariations.length)];
             default:
                 return 'standard';
         }
@@ -136,7 +124,7 @@ export class CollageService {
                 return Math.max(4, Math.floor(Math.sqrt(baseCount * 2)));  // Square grid
             case 'sliced':
                 return baseCount;  // Sliced works well with base count
-            case 'layers':
+            case 'layered':
                 return Math.min(baseCount, 4);  // Layers work best with fewer images
             default:
                 return baseCount;
@@ -177,8 +165,8 @@ export class CollageService {
         
         console.log('Creating collage with layout:', layoutName);
         
-        // Get layout or fallback to fragments
-        const layout = layouts[layoutName];
+        // Get layout from plugin registry or fallback to fragments
+        const layout = pluginRegistry.getLayout(layoutName);
         if (!layout) {
             console.warn(`Layout ${layoutName} not found, falling back to fragments`);
             layoutName = 'fragments';
@@ -191,26 +179,29 @@ export class CollageService {
         const chosenImages = await this.selectImages(numImagesForEffect);
         
         // Ensure we have a valid layout before proceeding
-        if (!layouts[layoutName]) {
+        if (!layout) {
             throw new Error(`Layout ${layoutName} not found and fallback failed`);
         }
 
         const variation = this.getRandomVariation(layoutName);
         console.log(`Using variation: ${variation} for ${layoutName}`);
 
-        withDebug(layouts[layoutName].constructor.name, () => {
-            ctx.save();
-            layouts[layoutName].render(ctx, chosenImages, canvas, {
-                ...this.parameters,
-                variation,
-                isolated: variation === 'isolated',
-                rotation: variation === 'rotated',
-                overlapping: variation === 'overlapping',
-                direction: variation // for sliced layouts
-            });
-            ctx.restore();
-        })();
-
-        return canvas;
+        // Special handling for sliced layout to randomly select between variants
+        if (layoutName === 'sliced') {
+            const r = Math.random();
+            if (r < 0.33) {
+                console.log('Using horizontal sliced layout');
+                return layout.renderHorizontal(ctx, chosenImages, canvas, { variation });
+            } else if (r < 0.66) {
+                console.log('Using vertical sliced layout');
+                return layout.renderVertical(ctx, chosenImages, canvas, { variation });
+            } else {
+                console.log('Using random sliced layout');
+                return layout.renderRandom(ctx, chosenImages, canvas, { variation });
+            }
+        } else {
+            // For all other layouts, use the standard render method
+            return layout.render(ctx, chosenImages, canvas, { variation });
+        }
     }
 } 

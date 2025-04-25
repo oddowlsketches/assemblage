@@ -150,12 +150,18 @@ export class EnhancedFragmentsGenerator extends FragmentsGenerator {
             sourceHeight = image.naturalWidth / destRatio;
             sourceY = (image.naturalHeight - sourceHeight) / 2;
         }
+
+        // Set source-in composite operation before drawing
+        ctx.globalCompositeOperation = 'source-in';
         
         ctx.drawImage(
             image,
             sourceX, sourceY, sourceWidth, sourceHeight,
             -width/2, -height/2, width, height
         );
+        
+        // Reset composite operation after drawing
+        ctx.globalCompositeOperation = 'source-over';
         
         ctx.restore();
     }
