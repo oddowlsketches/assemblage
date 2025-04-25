@@ -3,7 +3,8 @@
  * Combines both standard and isolated crystal effects
  */
 
-import { SafeCrystalFormationGenerator } from '../../../legacy/js/collage/crystalFormationGenerator.js';
+import { SafeCrystalFormationGenerator } from '@legacy/collage/crystalFormationGenerator.js';
+import { IsolatedCrystalGenerator } from '@legacy/collage/isolatedCrystalGenerator.js';
 
 class CrystalLayout {
     constructor(opts = {}) {
@@ -48,9 +49,5 @@ class CrystalLayout {
         }
     }
 }
-
-// Re-export the legacy implementations for reference
-export { SafeCrystalFormationGenerator } from '../../../legacy/js/collage/crystalFormationGenerator.js';
-export { IsolatedCrystalGenerator } from '../../../legacy/js/collage/isolatedCrystalGenerator.js';
 
 export default CrystalLayout; 
