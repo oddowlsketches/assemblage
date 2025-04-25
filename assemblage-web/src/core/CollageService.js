@@ -17,11 +17,19 @@ import { PluginRegistry } from './PluginRegistry.js';
 const pluginRegistry = new PluginRegistry();
 
 // Default palette for background colors
-const PALETTE = ['#e3ded7','#d4cbc3','#d8dfe5','#f2e9dd',
-                 '#e5e7ec','#d6d6d6','#e5dfe1','#dadfe0'];
+const PALETTE = [
+  {bg:'#e3ded7', accent:'#c22f00'},
+  {bg:'#d4cbc3', accent:'#00a1cb'},
+  {bg:'#d8dfe5', accent:'#b40d7c'},
+  {bg:'#f2e9dd', accent:'#007c74'},
+  {bg:'#e5e7ec', accent:'#007571'},
+  {bg:'#d6d6d6', accent:'#1760a6'},
+  {bg:'#e5dfe1', accent:'#9f0062'},
+  {bg:'#dadfe0', accent:'#0074aa'}
+];
 
 export function generateBackgroundColor() {
-  return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)].bg;
 }
 
 export function withDebug(label, fn) {
@@ -231,13 +239,15 @@ export class CollageService {
         // Save context state before any rendering
         ctx.save();
 
+        // Choose a color palette and set CSS variables
+        const choice = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+        const {bg, accent} = choice;
+        const accentLight = '#ffffff';
+
+        document.documentElement.style.setProperty('--accent', accent);
+        document.documentElement.style.setProperty('--accent-light', accentLight);
+
         // Add background color and set multiply blend mode for all layouts
-        const PALETTE = [
-            '#e3ded7','#d4cbc3','#d8dfe5',
-            '#f2e9dd','#e5e7ec','#d6d6d6',
-            '#e5dfe1','#dadfe0'
-        ];
-        const bg = PALETTE[Math.floor(Math.random()*PALETTE.length)];
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = bg;
         ctx.fillRect(0,0,canvas.width,canvas.height);

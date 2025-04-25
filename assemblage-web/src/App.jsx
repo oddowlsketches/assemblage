@@ -17,9 +17,18 @@ export default function App() {
     window.addEventListener('resize', resize);
     resize();
 
-    // initialise CollageService + first collage
-    serviceRef.current = new CollageService(cvs);
-    serviceRef.current.shiftPerspective();
+    // Initialize the collage service
+    const initCollage = async () => {
+      try {
+        await serviceRef.current?.init();
+        // Shift perspective to create a collage on first load
+        serviceRef.current?.shiftPerspective();
+      } catch (error) {
+        console.error('Failed to initialize collage service:', error);
+      }
+    };
+
+    initCollage();
 
     return () => window.removeEventListener('resize', resize);
   }, []);
