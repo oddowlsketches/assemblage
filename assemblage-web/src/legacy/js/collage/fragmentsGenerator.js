@@ -62,28 +62,30 @@ export class FragmentsGenerator {
         return Math.max(scale, minScale);
     }
 
-    generateFragments(images, complexity = 0.5) {
-        console.log('Generating fragments with', images.length, 'images and complexity', complexity);
+    generateFragments(images, params = { complexity: 0.5 }) {
+        console.log('Generating fragments with', images.length, 'images and complexity', params);
         
         if (!images || images.length === 0) {
             console.error('No images provided for fragment generation');
             return [];
         }
         
-        // Calculate number of fragments based on complexity
+        // Extract parameters with defaults
+        const complexity = params.complexity || 0.5;
+        const density = params.density || 0.5;
+        const variation = params.variation || 'Classic';
+        const shapes = params.shapes || ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon'];
+        
+        // Calculate number of fragments based on complexity and density
         const minFragments = 10;
         const maxFragments = 50;
-        const numFragments = Math.floor(minFragments + (maxFragments - minFragments) * complexity);
+        const numFragments = Math.floor(minFragments + (maxFragments - minFragments) * complexity * density);
         
         // Calculate fragment size based on canvas dimensions
         const minSize = Math.min(this.canvas.width, this.canvas.height) / 10;
         const maxSize = Math.min(this.canvas.width, this.canvas.height) / 5;
         
-        // Set blend mode - commented out to allow top-level background/multiply to persist
-        // this.ctx.globalCompositeOperation = 'source-over';
-        
         const fragments = [];
-        const maskTypes = ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon'];
         
         for (let i = 0; i < numFragments; i++) {
             // Select a random image
@@ -102,6 +104,10 @@ export class FragmentsGenerator {
             const x = Math.random() * (this.canvas.width - size);
             const y = Math.random() * (this.canvas.height - size);
             
+            // Select a random shape from the provided shapes array
+            const shapeIndex = Math.floor(Math.random() * shapes.length);
+            const maskType = shapes[shapeIndex];
+            
             // Create fragment
             const fragment = {
                 x,
@@ -112,16 +118,13 @@ export class FragmentsGenerator {
                 rotation: Math.random() * 360,
                 mask: {
                     enabled: true,
-                    type: maskTypes[Math.floor(Math.random() * maskTypes.length)],
+                    type: maskType,
                     size: size
                 }
             };
             
             fragments.push(fragment);
         }
-        
-        // Reset blend mode - commented out to allow top-level background/multiply to persist
-        // this.ctx.globalCompositeOperation = 'source-over';
         
         console.log('Generated', fragments.length, 'fragments');
         return fragments;

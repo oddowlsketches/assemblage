@@ -5,6 +5,44 @@
 
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
 
+// Helper function for seeded random number generation
+function seededRandom(seed) {
+    const x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+}
+
+// Helper function to pick complexity parameters
+function pickComplexity(seed) {
+    // Use seeded random for consistent results
+    const r = () => seededRandom(seed++);
+    
+    return {
+        complexity: 0.3 + r() * 0.4,  // 0.3-0.7 range
+        density: 0.4 + r() * 0.3,     // 0.4-0.7 range
+        variation: ['Classic', 'Organic', 'Focal'][Math.floor(r() * 3)]
+    };
+}
+
+// Helper function to get fragment shapes
+function getFragmentShapes(seed) {
+    // Use seeded random for consistent results
+    const r = () => seededRandom(seed++);
+    
+    // Define available shapes
+    const allShapes = ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon'];
+    
+    // Select a subset of shapes based on the seed
+    const numShapes = 2 + Math.floor(r() * 3); // 2-4 shapes
+    const shapes = [];
+    
+    for (let i = 0; i < numShapes; i++) {
+        const shapeIndex = Math.floor(r() * allShapes.length);
+        shapes.push(allShapes[shapeIndex]);
+    }
+    
+    return shapes;
+}
+
 export default class FragmentsLayout {
     constructor(opts = {}) {
         this.opts = opts;
@@ -17,6 +55,11 @@ export default class FragmentsLayout {
             window.__fragmentsImgs = images;
         }
 
+        // Generate seed and parameters
+        const seed = Math.floor(Math.random() * 1e9);
+        const params = pickComplexity(seed);
+        const shapes = getFragmentShapes(seed);
+        
         // Save context state and set initial composite operation
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';   // draw the BG first
@@ -49,9 +92,9 @@ export default class FragmentsLayout {
             images.map(i => i instanceof Image ? i : load(i))
         );
         
-        // Generate fragments
-        const fragments = this.generator.generateFragments(imgs, parameters.complexity || 0.5);
-        console.log(`Generated ${fragments.length} fragments`);
+        // Generate fragments with the new parameters and shapes
+        const fragments = this.generator.generateFragments(imgs, {...params, shapes});
+        console.log(`Generated ${fragments.length} fragments with shapes: ${shapes.join(', ')}`);
         
         // Draw each fragment
         for (const fragment of fragments) {
@@ -104,8 +147,19 @@ export default class FragmentsLayout {
                 ctx.lineTo(0, height / 2);
                 ctx.closePath();
                 break;
+            case 'hexagon':
+                const angle = Math.PI / 3;
+                const radius = Math.min(width, height) / 2;
+                ctx.moveTo(width / 2 + radius * Math.cos(0), height / 2 + radius * Math.sin(0));
+                for (let i = 1; i <= 6; i++) {
+                    ctx.lineTo(
+                        width / 2 + radius * Math.cos(angle * i),
+                        height / 2 + radius * Math.sin(angle * i)
+                    );
+                }
+                ctx.closePath();
+                break;
             default:
-                // Default to rectangle if mask type is not recognized
                 ctx.rect(0, 0, width, height);
         }
     }
