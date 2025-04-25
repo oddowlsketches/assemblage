@@ -8,7 +8,7 @@ import { MosaicGenerator } from '@legacy/collage/mosaicGenerator.js';
 import { SlicedCollageGenerator } from '@legacy/collage/slicedCollageGenerator.js';
 import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
-import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
+import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
 
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
@@ -169,8 +169,8 @@ export class CollageService {
                     addGlow: Math.random() > 0.7, // Occasionally add glow effect
                     rotationRange: 45 // Maximum rotation angle in degrees
                 };
-                generator = new CrystalGenerator(canvas, crystalParams);
-                await generator.generateCrystalCollage(images);
+                generator = new CrystalLayout(crystalParams);
+                await generator.render(ctx, images, { isolated: crystalParams.isolatedMode });
                 break;
             default:
                 console.error('Unknown effect type:', effectType);
