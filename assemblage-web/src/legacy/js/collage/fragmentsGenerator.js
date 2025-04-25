@@ -484,15 +484,26 @@ export class FragmentsGenerator {
         
         // Draw the masked image onto the main canvas
         ctx.save();
+        
+        // Set composite operation to multiply first
+        ctx.globalCompositeOperation = 'multiply';
+        
+        // Create a clipping path for the fragment
+        ctx.beginPath();
+        ctx.arc(x + width / 2, y + height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+        ctx.clip();
+        
+        // Now set to source-in for the mask
+        ctx.globalCompositeOperation = 'source-in';
+        
+        // Position and rotate
         ctx.translate(x + width / 2, y + height / 2);
         ctx.rotate(rotation || 0);
         
-        // Set composite operation to source-in before drawing
-        ctx.globalCompositeOperation = 'source-in';
-        
+        // Draw the image
         ctx.drawImage(tempCanvas, -width / 2, -height / 2);
         
-        // Restore composite operation to multiply after drawing
+        // Restore composite operation to multiply
         ctx.globalCompositeOperation = 'multiply';
         
         ctx.restore();
