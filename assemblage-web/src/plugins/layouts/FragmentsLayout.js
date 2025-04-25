@@ -4,7 +4,7 @@
  */
 
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
-import { EnhancedFragmentsGenerator } from '@legacy/collage/enhancedFragmentsGenerator.js';
+import { EnhancedFragmentsGenerator } from '../../core/EnhancedFragmentsGenerator.js';
 
 export default class FragmentsLayout {
     constructor(opts = {}) {
