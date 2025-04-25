@@ -256,111 +256,43 @@ class MosaicGenerator {
      * @param {boolean} crop - Whether to crop the image
      * @param {number} forceOpacity - Forced opacity value (0-1)
      * @param {boolean} showCroppedPortion - Whether to show a cropped portion
+     * @param {number} rotation - Rotation angle in degrees
      */
-    drawImage(image, x, y, width, height, crop = false, forceOpacity = null, showCroppedPortion = false) {
-        if (!image || !image.complete) {
-            console.warn('Invalid or incomplete image provided to drawImage');
-            return;
-        }
+    drawImage(image, x, y, width, height, crop = false, forceOpacity = null, showCroppedPortion = false, rotation = 0) {
+        if (!this.ctx || !image) return;
 
         // Save the current context state
         this.ctx.save();
-        
-        // Set opacity
-        let finalOpacity;
-        if (forceOpacity !== null && forceOpacity >= 0 && forceOpacity <= 1) {
-            finalOpacity = forceOpacity;
-        } else {
-            // Higher default opacity range for better visibility (0.3 - 0.6)
-            const baseOpacity = this.parameters.blendOpacity || 0.45;
-            const opacityVariation = 0.15;
-            let randomOpacity = baseOpacity + (Math.random() * 2 * opacityVariation) - opacityVariation;
-            finalOpacity = Math.max(0.3, Math.min(0.6, randomOpacity));
-        }
-        this.ctx.globalAlpha = Math.max(0, Math.min(1, finalOpacity));
-        
-        // Apply contrast enhancement for better visual definition
-        const contrastLevel = this.parameters.contrast / 10;
-        this.ctx.filter = `contrast(${1 + contrastLevel})`;
 
-        if (crop) {
-            // For mosaic tiles, ensure the image fills the entire tile
-            const destRatio = width / height;
-            const srcRatio = image.width / image.height;
+        // Set opacity
+        const opacity = forceOpacity !== null ? forceOpacity : 1;
+        this.ctx.globalAlpha = opacity;
+
+        // Move to the center of where we want to draw
+        this.ctx.translate(x + width/2, y + height/2);
+        
+        // Rotate if specified
+        if (rotation) {
+            this.ctx.rotate(rotation * Math.PI / 180);
+        }
+
+        // Move back by half the width/height
+        this.ctx.translate(-width/2, -height/2);
+
+        if (showCroppedPortion) {
+            // Calculate random crop coordinates
+            const cropX = Math.random() * (image.width - width);
+            const cropY = Math.random() * (image.height - height);
             
-            let cropWidth, cropHeight, cropX, cropY;
-            
-            if (showCroppedPortion) {
-                // When showing a cropped portion, randomly select a portion of the image
-                const cropPercentage = 0.3 + Math.random() * 0.7;
-                
-                if (srcRatio > destRatio) {
-                    // Image is wider than destination
-                    cropHeight = image.height * cropPercentage;
-                    cropWidth = cropHeight * destRatio;
-                    
-                    // Randomly position the crop horizontally
-                    const maxCropX = image.width - cropWidth;
-                    cropX = Math.random() * maxCropX;
-                    
-                    // Center vertically
-                    cropY = (image.height - cropHeight) / 2;
-                } else {
-                    // Image is taller than destination
-                    cropWidth = image.width * cropPercentage;
-                    cropHeight = cropWidth / destRatio;
-                    
-                    // Center horizontally
-                    cropX = (image.width - cropWidth) / 2;
-                    
-                    // Randomly position the crop vertically
-                    const maxCropY = image.height - cropHeight;
-                    cropY = Math.random() * maxCropY;
-                }
-            } else {
-                // Standard cropping to fit the tile
-                if (srcRatio > destRatio) {
-                    // Image is wider than destination - crop width to match aspect ratio
-                    cropHeight = image.height;
-                    cropWidth = cropHeight * destRatio;
-                    cropX = (image.width - cropWidth) / 2;
-                    cropY = 0;
-                } else {
-                    // Image is taller than destination - crop height to match aspect ratio
-                    cropWidth = image.width;
-                    cropHeight = cropWidth / destRatio;
-                    cropX = 0;
-                    cropY = (image.height - cropHeight) / 2;
-                }
-            }
-            
+            // Draw the cropped portion
             this.ctx.drawImage(
                 image,
-                cropX, cropY, cropWidth, cropHeight,  // Source crop
-                x, y, width, height  // Destination
+                cropX, cropY, width, height,
+                0, 0, width, height
             );
         } else {
-            // Calculate dimensions to preserve aspect ratio
-            const srcRatio = image.width / image.height;
-            const destRatio = width / height;
-            
-            let drawWidth, drawHeight, drawX, drawY;
-            
-            if (srcRatio > destRatio) {
-                // Image is wider than destination
-                drawHeight = height;
-                drawWidth = drawHeight * srcRatio;
-                drawX = x - (drawWidth - width) / 2;
-                drawY = y;
-            } else {
-                // Image is taller than destination
-                drawWidth = width;
-                drawHeight = drawWidth / srcRatio;
-                drawX = x;
-                drawY = y - (drawHeight - height) / 2;
-            }
-            
-            this.ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
+            // Draw the full image
+            this.ctx.drawImage(image, 0, 0, width, height);
         }
 
         // Restore the context state

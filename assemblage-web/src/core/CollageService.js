@@ -14,12 +14,19 @@ import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
 import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
 import FragmentsLayout from '../plugins/layouts/FragmentsLayout.js';
 import TilingLayout from '../plugins/layouts/TilingLayout.js';
+import SlicedLayout from '../plugins/layouts/SlicedLayout.js';
+import NarrativeLayout from '../plugins/layouts/NarrativeLayout.js';
+import MosaicLayout from '../plugins/layouts/MosaicLayout.js';
 import { PluginRegistry } from './PluginRegistry.js';
 
 // Initialize layouts
 const layouts = {
     crystal: new CrystalLayout(),
-    fragments: new FragmentsLayout()
+    fragments: new FragmentsLayout(),
+    tiling: new TilingLayout(),
+    sliced: new SlicedLayout(),
+    narrative: new NarrativeLayout(),
+    mosaic: new MosaicLayout()
 };
 
 export function withDebug(label, fn) {
@@ -57,11 +64,7 @@ export class CollageService {
         };
 
         // Initialize layouts
-        this.layouts = {
-            crystal: new CrystalLayout(),
-            fragments: new FragmentsLayout(),
-            tiling: new TilingLayout()
-        };
+        this.layouts = layouts;
     }
 
     generateBackgroundColor() {
@@ -104,11 +107,21 @@ export class CollageService {
     }
 
     getRandomVariation(effect) {
-        if (effect === 'fragments') {
-            const variations = ['Classic', 'Organic', 'Focal'];
-            return variations[Math.floor(Math.random() * variations.length)];
+        switch (effect) {
+            case 'fragments':
+                const fragmentVariations = ['Classic', 'Organic', 'Focal'];
+                return fragmentVariations[Math.floor(Math.random() * fragmentVariations.length)];
+            case 'crystal':
+                return Math.random() < 0.5 ? 'standard' : 'isolated';
+            case 'mosaic':
+                const mosaicVariations = ['standard', 'rotated', 'overlapping'];
+                return mosaicVariations[Math.floor(Math.random() * mosaicVariations.length)];
+            case 'sliced':
+                const slicedVariations = ['vertical', 'horizontal', 'diagonal'];
+                return slicedVariations[Math.floor(Math.random() * slicedVariations.length)];
+            default:
+                return 'standard';
         }
-        return null;
     }
 
     getNumImagesForEffect(effectType) {
@@ -150,23 +163,45 @@ export class CollageService {
         ));
     }
 
-    async createCollage(canvas, layoutName = 'fragments', numImages = 4) {
+    async createCollage(canvas, layoutName = 'random', numImages = 4) {
         const ctx = canvas.getContext('2d');
         
-        // Fill background
-        ctx.fillStyle = this.generateBackgroundColor();
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (layoutName === 'random') {
+            layoutName = this.selectEffectType();
+        }
+        
+        console.log('Creating collage with layout:', layoutName);
         
         // Get layout or fallback to fragments
-        const layout = this.layouts[layoutName] || this.layouts.fragments;
+        const layout = layouts[layoutName];
         if (!layout) {
-            console.error(`Layout ${layoutName} not found, falling back to fragments`);
+            console.warn(`Layout ${layoutName} not found, falling back to fragments`);
+            layoutName = 'fragments';
         }
 
-        const chosenImages = await this.selectImages(numImages);
+        // Get appropriate number of images for the effect
+        const numImagesForEffect = this.getNumImagesForEffect(layoutName);
+        console.log(`Using ${numImagesForEffect} images for ${layoutName} effect`);
         
-        withDebug(layout.constructor.name, () =>
-            layout.render(ctx, chosenImages, canvas, this.parameters)
+        const chosenImages = await this.selectImages(numImagesForEffect);
+        
+        // Ensure we have a valid layout before proceeding
+        if (!layouts[layoutName]) {
+            throw new Error(`Layout ${layoutName} not found and fallback failed`);
+        }
+
+        const variation = this.getRandomVariation(layoutName);
+        console.log(`Using variation: ${variation} for ${layoutName}`);
+
+        withDebug(layouts[layoutName].constructor.name, () =>
+            layouts[layoutName].render(ctx, chosenImages, canvas, {
+                ...this.parameters,
+                variation,
+                isolated: variation === 'isolated',
+                rotation: variation === 'rotated',
+                overlapping: variation === 'overlapping',
+                direction: variation // for sliced layouts
+            })
         )();
 
         return canvas;

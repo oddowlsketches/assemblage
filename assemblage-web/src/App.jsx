@@ -53,7 +53,9 @@ function App() {
   // Generate a new collage when the "Shift Perspective" button is clicked
   const handleShiftPerspective = async () => {
     if (collageService && canvasRef.current) {
-      await collageService.createCollage(canvasRef.current);
+      const effectType = collageService.selectEffectType();
+      console.log('Selected effect type:', effectType);
+      await collageService.createCollage(canvasRef.current, effectType);
     }
   };
 

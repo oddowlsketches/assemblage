@@ -27,7 +27,7 @@ class CrystalLayout {
 
             // Initialize generator if needed
             if (!this.crystalGenerator) {
-                this.crystalGenerator = new SafeCrystalFormationGenerator(ctx, ctx.canvas);
+                this.crystalGenerator = new CrystalFormationGenerator(ctx, ctx.canvas);
             }
 
             // Generate crystal effect
