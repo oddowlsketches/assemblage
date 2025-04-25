@@ -8,9 +8,13 @@ import { MosaicGenerator } from '@legacy/collage/mosaicGenerator.js';
 import { SlicedCollageGenerator } from '@legacy/collage/slicedCollageGenerator.js';
 import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
+import { CrystalFormationGenerator } from '@legacy/collage/crystalFormationGenerator.js';
+import { IsolatedCrystalGenerator } from '@legacy/collage/isolatedCrystalGenerator.js';
+import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
 import CrystalLayout from '../plugins/layouts/CrystalLayout.js';
 import FragmentsLayout from '../plugins/layouts/FragmentsLayout.js';
 import TilingLayout from '../plugins/layouts/TilingLayout.js';
+import { PluginRegistry } from './PluginRegistry.js';
 
 // Initialize layouts
 const layouts = {

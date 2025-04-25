@@ -1,6 +1,6 @@
 /**
  * Fragments Layout for Assemblage
- * Port of legacy fragments generator with full parity
+ * Creates a fragmented collage effect from the input images
  */
 
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
@@ -36,7 +36,7 @@ export default class FragmentsLayout {
 
             // Initialize generator if needed
             if (!this.fragmentsGenerator) {
-                this.fragmentsGenerator = new EnhancedFragmentsGenerator(ctx.canvas, {
+                this.fragmentsGenerator = new EnhancedFragmentsGenerator(ctx, canvas, {
                     variation: opts.variation || 'Classic',
                     complexity: opts.complexity || 6,
                     maxFragments: opts.maxFragments || 8,

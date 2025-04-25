@@ -6,15 +6,8 @@
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
 
 export class EnhancedFragmentsGenerator extends FragmentsGenerator {
-    constructor(canvasOrContext, parameters = {}) {
-        // Handle both canvas element and context inputs
-        if (canvasOrContext instanceof CanvasRenderingContext2D) {
-            this.ctx = canvasOrContext;
-            this.canvas = canvasOrContext.canvas;
-        } else {
-            this.canvas = canvasOrContext;
-            this.ctx = this.canvas.getContext('2d');
-        }
+    constructor(ctx, canvas, parameters = {}) {
+        super(ctx, canvas);
         
         this.parameters = parameters;
     }

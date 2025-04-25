@@ -1,5 +1,6 @@
 /**
- * Tiling layout implementation
+ * Tiling Layout for Assemblage
+ * Creates a tiled pattern from the input images
  */
 
 import { TilingGenerator } from '@legacy/collage/tilingGenerator.js';
