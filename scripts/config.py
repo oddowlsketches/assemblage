@@ -13,6 +13,10 @@ load_dotenv(dotenv_path=env_path)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     raise ValueError("OPENAI_API_KEY not found in environment variables")
+if not OPENAI_API_KEY.startswith('sk-'):
+    raise ValueError("OPENAI_API_KEY appears to be invalid (should start with 'sk-')")
+if len(OPENAI_API_KEY) < 40:
+    raise ValueError("OPENAI_API_KEY appears to be too short (should be at least 40 characters)")
 
 # Server Configuration
 IMAGE_PROCESSOR_PORT = int(os.getenv('IMAGE_PROCESSOR_PORT', '5001'))
