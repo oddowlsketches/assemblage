@@ -1,0 +1,140 @@
+/**
+ * CollageService - Core service for generating collages
+ * Mirrors the functionality of the legacy generateNewCollage() method
+ */
+
+import { TilingGenerator } from '../../legacy/js/collage/tilingGenerator.js';
+import { FragmentsGenerator } from '../../legacy/js/collage/fragmentsGenerator.js';
+import { MosaicGenerator } from '../../legacy/js/collage/mosaicGenerator.js';
+import { SlicedCollageGenerator } from '../../legacy/js/collage/slicedCollageGenerator.js';
+import { NarrativeCompositionManager } from '../../legacy/js/collage/narrativeCompositionManager.js';
+
+export class CollageService {
+    constructor(imagePool, layoutName = 'random') {
+        this.imagePool = imagePool;
+        this.layoutName = layoutName;
+        this.parameters = {
+            // Base parameters
+            complexity: 6,        // Controls number of images (5-10 recommended)
+            density: 5,           // Controls spacing between images (3-8 recommended)
+            contrast: 6,          // Controls image contrast (5-7 recommended)
+            
+            // Tiling specific parameters
+            cleanTiling: false,   // Set to false for more artistic layouts
+            blendOpacity: 0.6,    // Increased for better visibility
+            
+            // Image repetition - key new feature
+            allowImageRepetition: true  // Allow some images to repeat
+        };
+    }
+
+    generateBackgroundColor() {
+        // Rich, vibrant colors that work well with multiply blend mode
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+            '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C'
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    selectEffectType() {
+        // Define available effects with weights
+        const effectWeights = [
+            { effect: 'tiling', weight: 20 },
+            { effect: 'fragments', weight: 20 },
+            { effect: 'mosaic', weight: 10 },
+            { effect: 'sliced', weight: 25 },
+            { effect: 'layers', weight: 15 }
+        ];
+        
+        // Calculate total weight
+        const totalWeight = effectWeights.reduce((sum, item) => sum + item.weight, 0);
+        
+        // Generate random number between 0 and total weight
+        let random = Math.random() * totalWeight;
+        
+        // Select effect based on weights
+        let selectedEffect = effectWeights[0].effect;
+        for (const item of effectWeights) {
+            if (random < item.weight) {
+                selectedEffect = item.effect;
+                break;
+            }
+            random -= item.weight;
+        }
+        
+        return selectedEffect;
+    }
+
+    getNumImagesForEffect(effectType) {
+        // Base number of images on effect type and complexity
+        const baseCount = this.parameters.complexity;
+        switch (effectType) {
+            case 'tiling':
+                return baseCount + 2;  // Tiling needs more images
+            case 'fragments':
+                return baseCount + 1;  // Fragments work well with slightly more images
+            case 'mosaic':
+                return Math.max(4, Math.floor(Math.sqrt(baseCount * 2)));  // Square grid
+            case 'sliced':
+                return baseCount;  // Sliced works well with base count
+            case 'layers':
+                return Math.min(baseCount, 4);  // Layers work best with fewer images
+            default:
+                return baseCount;
+        }
+    }
+
+    async createCollage(canvasRef) {
+        if (!canvasRef || !this.imagePool || this.imagePool.length === 0) {
+            console.error('Cannot generate collage: missing canvas or images');
+            return;
+        }
+
+        const canvas = canvasRef;
+        const ctx = canvas.getContext('2d');
+
+        // Clear canvas and set background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const backgroundColor = this.generateBackgroundColor();
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Select effect type
+        const effectType = this.selectEffectType();
+        console.log('[DEBUG] Selected effect type:', effectType);
+
+        // Get images for the effect
+        const numImages = this.getNumImagesForEffect(effectType);
+        const images = this.imagePool.slice(0, numImages);
+
+        // Set multiply blend mode for images
+        ctx.globalCompositeOperation = 'multiply';
+
+        // Initialize appropriate generator based on effect type
+        let generator;
+        switch (effectType) {
+            case 'tiling':
+                generator = new TilingGenerator(canvas, this.parameters);
+                break;
+            case 'fragments':
+                generator = new FragmentsGenerator(ctx, canvas);
+                break;
+            case 'mosaic':
+                generator = new MosaicGenerator(canvas, this.parameters);
+                break;
+            case 'sliced':
+                generator = new SlicedCollageGenerator(canvas, this.parameters);
+                break;
+            case 'layers':
+                generator = new NarrativeCompositionManager(canvas, this.parameters);
+                break;
+            default:
+                console.error('Unknown effect type:', effectType);
+                return;
+        }
+
+        // Generate the collage
+        await generator.generate(images, null, effectType, this.parameters);
+    }
+} 
