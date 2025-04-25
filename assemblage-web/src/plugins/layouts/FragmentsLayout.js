@@ -4,6 +4,7 @@
  */
 
 import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
+import { EnhancedFragmentsGenerator } from '@legacy/collage/enhancedFragmentsGenerator.js';
 
 export default class FragmentsLayout {
     constructor(opts = {}) {
@@ -11,22 +12,35 @@ export default class FragmentsLayout {
         this.generator = null;
     }
 
-    render(ctx, images, parameters = {}) {
-        // Initialize generator if needed
-        if (!this.generator) {
-            this.generator = new FragmentsGenerator(ctx, ctx.canvas);
+    render(ctx, images, { variation = 'Classic', complexity = 6, maxFragments = 8 } = {}) {
+        if (!ctx || !ctx.canvas) {
+            console.error('Invalid canvas context provided to FragmentsLayout');
+            return;
         }
 
-        // Set up canvas context
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        const prev = ctx.globalCompositeOperation;
+        try {
+            // Set up canvas context
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        // Generate fragments with default parameters if none provided
-        return this.generator.generateFragments(images, null, {
-            variation: parameters.variation || 'Classic',
-            complexity: parameters.complexity || 5,
-            maxFragments: parameters.maxFragments || 12,
-            ...parameters
-        });
+            // Initialize generator if needed
+            if (!this.fragmentsGenerator) {
+                this.fragmentsGenerator = new EnhancedFragmentsGenerator(ctx, ctx.canvas);
+            }
+
+            // Generate fragments effect
+            return this.fragmentsGenerator.generateFragments(images, {
+                variation,
+                complexity,
+                maxFragments,
+                minVisibility: 0.7
+            });
+        } catch (error) {
+            console.error('Error generating fragments effect:', error);
+            throw error;
+        } finally {
+            ctx.globalCompositeOperation = prev;
+        }
     }
 } 

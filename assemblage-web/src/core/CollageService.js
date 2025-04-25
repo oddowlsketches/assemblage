@@ -109,21 +109,37 @@ export class CollageService {
         }
     }
 
-    selectImages(numImages) {
-        // Implement image selection logic based on the number of images
-        // This is a placeholder and should be replaced with actual implementation
-        return this.imagePool.slice(0, numImages);
+    async loadImage(src) {
+        return new Promise((res, rej) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => res(img);
+            img.onerror = rej;
+            img.src = src;
+        });
+    }
+
+    async selectImages(numImages) {
+        const picks = this.imagePool
+            .sort(() => 0.5 - Math.random())
+            .slice(0, numImages);
+
+        return Promise.all(picks.map((p) => 
+            typeof p === 'string' ? this.loadImage(p) : p
+        ));
     }
 
     async createCollage(canvas) {
         const ctx = canvas.getContext('2d');
         
-        // Set canvas dimensions
-        canvas.width = 1200;
-        canvas.height = 800;
-        
-        // Clear canvas
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // ----- universal background fill -----
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = this.generateBackgroundColor();
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // prepare multiply blend for image drawing;
+        // Crystal & Fragments will override internally.
+        ctx.globalCompositeOperation = 'multiply';
         
         // Select effect type if random
         const effectType = this.layoutName === 'random' ? this.selectEffectType() : this.layoutName;
@@ -132,7 +148,7 @@ export class CollageService {
         const numImages = this.getNumImagesForEffect(effectType);
         
         // Select images
-        const chosenImages = this.selectImages(numImages);
+        const chosenImages = await this.selectImages(numImages);
         
         // Get variation if applicable
         const variation = this.getRandomVariation(effectType);

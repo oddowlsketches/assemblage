@@ -18,16 +18,17 @@ class CrystalLayout {
             return;
         }
 
-        // Set up canvas context
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-        // Initialize generator if needed
-        if (!this.crystalGenerator) {
-            this.crystalGenerator = new SafeCrystalFormationGenerator(ctx, ctx.canvas);
-        }
-
+        const prev = ctx.globalCompositeOperation;
         try {
+            // Set up canvas context
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+            // Initialize generator if needed
+            if (!this.crystalGenerator) {
+                this.crystalGenerator = new SafeCrystalFormationGenerator(ctx, ctx.canvas);
+            }
+
             // Generate crystal effect
             if (isolated) {
                 // Use isolated crystal implementation
@@ -56,6 +57,8 @@ class CrystalLayout {
         } catch (error) {
             console.error('Error generating crystal effect:', error);
             throw error;
+        } finally {
+            ctx.globalCompositeOperation = prev;
         }
     }
 }
