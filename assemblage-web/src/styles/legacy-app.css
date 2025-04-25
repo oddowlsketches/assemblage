@@ -2,8 +2,8 @@
   --bg-dark:#242424;
   --accent:#00a1cb;           /* will be overwritten per collage */
   --accent-light:#fff;        /* ditto */
-  --font-head:'Playfair Display',serif;
-  --font-body:'Open Sans',Arial,sans-serif;
+  --font-head: 'Playfair Display', serif;
+  --font-body: 'Open Sans', Arial, sans-serif;
 }
 html,body{margin:0;padding:0;height:100%;background:var(--bg-dark);}
 body{font-family:var(--font-body);}
@@ -15,7 +15,7 @@ header,footer{
 }
 header{top:0;padding:1rem 1.25rem;display:flex;justify-content:space-between;align-items:flex-start;}
 header h1{margin:0;font-size:2.75rem;color:var(--accent);font-family:var(--font-head);font-style:italic;font-weight:700;}
-header h2{margin:0;font-size:1rem;color:var(--accent-light);}
+header h2{margin:0;font-size:1rem;color:var(--accent);}
 .controls{pointer-events:auto;}
 .controls button{
   margin-left:0.75rem;padding:0.42rem 1.1rem;
@@ -25,7 +25,7 @@ header h2{margin:0;font-size:1rem;color:var(--accent-light);}
   transition:background .15s,color .15s;
 }
 .controls button:hover{
-  background:var(--accent-light);color:var(--accent);
+  background:var(--accent);color:var(--accent-light);
 }
 footer{bottom:0;padding:0.75rem 1.25rem;text-align:center;
        color:var(--accent-light);font-size:0.8rem;}
