@@ -166,6 +166,11 @@ export class CollageService {
     async createCollage(canvas, layoutName = 'random', numImages = 4) {
         const ctx = canvas.getContext('2d');
         
+        // ensure we start fresh for every effect
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.resetClip?.();        // if browser supports it
+        ctx.globalCompositeOperation = 'source-over';
+        
         if (layoutName === 'random') {
             layoutName = this.selectEffectType();
         }
@@ -193,7 +198,8 @@ export class CollageService {
         const variation = this.getRandomVariation(layoutName);
         console.log(`Using variation: ${variation} for ${layoutName}`);
 
-        withDebug(layouts[layoutName].constructor.name, () =>
+        withDebug(layouts[layoutName].constructor.name, () => {
+            ctx.save();
             layouts[layoutName].render(ctx, chosenImages, canvas, {
                 ...this.parameters,
                 variation,
@@ -201,8 +207,9 @@ export class CollageService {
                 rotation: variation === 'rotated',
                 overlapping: variation === 'overlapping',
                 direction: variation // for sliced layouts
-            })
-        )();
+            });
+            ctx.restore();
+        })();
 
         return canvas;
     }

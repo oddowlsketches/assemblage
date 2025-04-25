@@ -14,10 +14,9 @@ export default class TilingLayout {
     // Fill background
     ctx.fillStyle = opts.backgroundColor || '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
     ctx.globalCompositeOperation = 'multiply';
 
+    ctx.save();
     if (!this.generator) {
       this.generator = new TilingGenerator(canvas, opts);
     }

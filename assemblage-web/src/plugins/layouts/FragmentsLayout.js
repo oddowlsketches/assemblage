@@ -12,16 +12,6 @@ export default class FragmentsLayout {
         this.fragmentsGenerator = null;
     }
 
-    async loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    }
-
     async render(ctx, images, canvas, opts = {}) {
         if (!ctx || !ctx.canvas) {
             console.error('Invalid canvas context provided to FragmentsLayout');
@@ -34,6 +24,21 @@ export default class FragmentsLayout {
             ctx.globalCompositeOperation = 'multiply';
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+            // if images are already HTMLImageElement, skip re-loading
+            const srcImgs = await Promise.all(
+                images.map(img =>
+                    img instanceof HTMLImageElement
+                        ? img
+                        : new Promise((res, rej) => {
+                            const i = new Image();
+                            i.crossOrigin = 'anonymous';
+                            i.onload = () => res(i);
+                            i.onerror = rej;
+                            i.src = img;
+                        })
+                )
+            );
+
             // Initialize generator if needed
             if (!this.fragmentsGenerator) {
                 this.fragmentsGenerator = new EnhancedFragmentsGenerator(ctx, canvas, {
@@ -44,13 +49,8 @@ export default class FragmentsLayout {
                 });
             }
 
-            // skip legacy loader if we already have Image objects
-            const imgs = await Promise.all(images.map(img =>
-                img instanceof HTMLImageElement ? img : this.loadImage(img)
-            ));
-
             // Generate fragments effect
-            await this.fragmentsGenerator.generate(imgs);
+            await this.fragmentsGenerator.generate(srcImgs);
         } catch (error) {
             console.error('Error generating fragments effect:', error);
             throw error;
