@@ -387,7 +387,8 @@ export class IsolatedCrystalGenerator {
         // Set blend mode and draw fragments
         this.ctx.globalCompositeOperation = 'multiply';
         this.drawFragments(fragments);
-        this.ctx.globalCompositeOperation = 'source-over';
+        // Reset blend mode - commented out to allow top-level background/multiply to persist
+        // this.ctx.globalCompositeOperation = 'source-over';
         
         return true;
     }

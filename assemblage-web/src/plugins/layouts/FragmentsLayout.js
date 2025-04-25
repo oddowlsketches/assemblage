@@ -12,6 +12,23 @@ export default class FragmentsLayout {
     }
 
     async render(ctx, images, canvas, parameters = {}) {
+        // Save context state and set multiply blend mode
+        ctx.save();
+        ctx.globalCompositeOperation = 'multiply';
+
+        // Load images if they're not already Image objects
+        const load = src => new Promise((res, rej) => {
+            const i = new Image();
+            i.crossOrigin = 'anonymous';
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = src;
+        });
+        
+        const imgs = await Promise.all(
+            images.map(i => i instanceof Image ? i : load(i))
+        );
+
         // Initialize the generator if not already done
         if (!this.generator) {
             this.generator = new FragmentsGenerator(ctx, canvas);
@@ -25,13 +42,18 @@ export default class FragmentsLayout {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
         // Generate fragments
-        const fragments = this.generator.generateFragments(images, parameters.complexity || 0.5);
+        const fragments = this.generator.generateFragments(imgs, parameters.complexity || 0.5);
         console.log(`Generated ${fragments.length} fragments`);
         
         // Draw each fragment
         for (const fragment of fragments) {
+            // Set source-in composite operation before drawing each fragment
+            ctx.globalCompositeOperation = 'source-in';
             this.generator.drawFragment(fragment, ctx);
         }
+        
+        // Restore context state
+        ctx.restore();
         
         return fragments;
     }

@@ -595,8 +595,8 @@ class CollageGenerator {
             canvasSize: { width: this.canvas.width, height: this.canvas.height }
         });
         
-        // Reset blend mode
-        this.ctx.globalCompositeOperation = 'source-over';
+        // Reset blend mode - commented out to allow top-level background/multiply to persist
+        // this.ctx.globalCompositeOperation = 'source-over';
         
         // Add fortune text if provided
         if (fortuneText) {

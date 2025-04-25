@@ -184,8 +184,8 @@ class LayeredGenerator {
         // Restore context state
         this.ctx.restore();
         
-        // Reset blend mode
-        this.ctx.globalCompositeOperation = 'source-over';
+        // Reset blend mode - commented out to allow top-level background/multiply to persist
+        // this.ctx.globalCompositeOperation = 'source-over';
     }
 }
 

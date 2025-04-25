@@ -79,6 +79,9 @@ export class FragmentsGenerator {
         const minSize = Math.min(this.canvas.width, this.canvas.height) / 10;
         const maxSize = Math.min(this.canvas.width, this.canvas.height) / 5;
         
+        // Set blend mode - commented out to allow top-level background/multiply to persist
+        // this.ctx.globalCompositeOperation = 'source-over';
+        
         const fragments = [];
         const maskTypes = ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon'];
         
@@ -116,6 +119,9 @@ export class FragmentsGenerator {
             
             fragments.push(fragment);
         }
+        
+        // Reset blend mode - commented out to allow top-level background/multiply to persist
+        // this.ctx.globalCompositeOperation = 'source-over';
         
         console.log('Generated', fragments.length, 'fragments');
         return fragments;

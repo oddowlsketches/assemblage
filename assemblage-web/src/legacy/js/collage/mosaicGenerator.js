@@ -28,6 +28,30 @@ export class MosaicGenerator {
     }
 
     /**
+     * Configure parameters for mosaic generation
+     * @param {Object} opts - Options for configuration
+     * @returns {Object} - Configured parameters
+     */
+    configureParameters(opts = {}) {
+        const rotationRange = opts.rotationRange ?? 0;   // legacy default
+        const tileSize = opts.tileSize ?? 100;
+        const spacing = opts.spacing ?? 10;
+        const complexity = opts.complexity ?? 0.5;
+        const overlap = opts.overlap ?? false;
+        const rotateShards = opts.rotateShards ?? false;  // Default to no rotation
+        
+        return {
+            rotationRange,
+            tileSize,
+            spacing,
+            complexity,
+            overlap,
+            rotateShards,
+            opacity: opts.opacity ?? 0.8
+        };
+    }
+
+    /**
      * Generate a mosaic collage
      * @param {Array} images - Array of image objects
      * @param {Object} parameters - Parameters for mosaic generation
@@ -50,12 +74,15 @@ export class MosaicGenerator {
                 cancelAnimationFrame(this.animationFrame);
             }
 
+            // Configure parameters
+            const config = this.configureParameters(parameters);
+            
             const fragments = [];
-            const tileSize = parameters.tileSize || 100;
-            const spacing = parameters.spacing || 10;
-            const complexity = parameters.complexity || 0.5;
-            const overlap = parameters.overlap || false;
-            const rotateShards = parameters.rotateShards || true;
+            const tileSize = config.tileSize;
+            const spacing = config.spacing;
+            const complexity = config.complexity;
+            const overlap = config.overlap;
+            const rotateShards = config.rotateShards;
 
             // Calculate grid dimensions
             const cols = Math.ceil(this.canvas.width / tileSize);
@@ -87,7 +114,7 @@ export class MosaicGenerator {
                     const height = tileSize * (1 + (Math.random() - 0.5) * 0.2);
 
                     // Calculate rotation
-                    const rotation = rotateShards ? (Math.random() - 0.5) * 30 : 0; // ±15 degrees if rotation enabled
+                    const rotation = rotateShards ? (Math.random() - 0.5) * config.rotationRange : 0;
 
                     // Add tile to queue
                     tileQueue.push({
@@ -97,7 +124,7 @@ export class MosaicGenerator {
                         width,
                         height,
                         rotation,
-                        opacity: parameters.opacity || 0.8
+                        opacity: config.opacity
                     });
                 }
             }

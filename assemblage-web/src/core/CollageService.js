@@ -16,6 +16,14 @@ import { PluginRegistry } from './PluginRegistry.js';
 // Initialize plugin registry
 const pluginRegistry = new PluginRegistry();
 
+// Default palette for background colors
+const PALETTE = ['#e3ded7','#d4cbc3','#d8dfe5','#f2e9dd',
+                 '#e5e7ec','#d6d6d6','#e5dfe1','#dadfe0'];
+
+export function generateBackgroundColor() {
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+}
+
 export function withDebug(label, fn) {
   return (...args) => {
     if (import.meta.env.DEV) console.time(label);
@@ -97,15 +105,6 @@ export class CollageService {
                 return fragmentVariations[Math.floor(Math.random() * fragmentVariations.length)];
             case 'crystal':
                 return Math.random() < 0.5 ? 'standard' : 'isolated';
-            case 'mosaic':
-                const mosaicVariations = ['standard', 'rotated', 'overlapping'];
-                return mosaicVariations[Math.floor(Math.random() * mosaicVariations.length)];
-            case 'sliced':
-                const slicedVariations = ['vertical', 'horizontal', 'diagonal'];
-                return slicedVariations[Math.floor(Math.random() * slicedVariations.length)];
-            case 'layered':
-                const layeredVariations = ['standard', 'overlapping', 'stacked'];
-                return layeredVariations[Math.floor(Math.random() * layeredVariations.length)];
             default:
                 return 'standard';
         }
@@ -156,7 +155,6 @@ export class CollageService {
         // ensure we start fresh for every effect
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.resetClip?.();        // if browser supports it
-        ctx.globalCompositeOperation = 'source-over';
         
         if (layoutName === 'random') {
             layoutName = this.selectEffectType();
@@ -185,29 +183,25 @@ export class CollageService {
         const variation = this.getRandomVariation(layoutName);
         console.log(`Using variation: ${variation} for ${layoutName}`);
 
-        // Special handling for sliced layout to randomly select between variants
-        if (layoutName === 'sliced') {
-            const r = Math.random();
-            if (r < 0.33) {
-                console.log('Using horizontal sliced layout');
-                await layout.renderHorizontal(ctx, chosenImages, canvas, { variation });
-            } else if (r < 0.66) {
-                console.log('Using vertical sliced layout');
-                await layout.renderVertical(ctx, chosenImages, canvas, { variation });
-            } else {
-                console.log('Using random sliced layout');
-                await layout.renderRandom(ctx, chosenImages, canvas, { variation });
-            }
-        } else {
-            // For all other layouts, use the standard render method
-            await layout.render(ctx, chosenImages, canvas, { variation });
-        }
+        // Save context state before any rendering
+        ctx.save();
 
-        // Randomly apply narrative overlay (25% chance)
-        if (Math.random() < 0.25) {
-            console.log('Applying narrative overlay');
-            const narrativeLayout = pluginRegistry.getLayout('narrative');
-            await narrativeLayout.render(ctx, chosenImages, canvas, { variation });
-        }
+        // Add background color and set multiply blend mode for all layouts
+        const PALETTE = [
+            '#e3ded7','#d4cbc3','#d8dfe5',
+            '#f2e9dd','#e5e7ec','#d6d6d6',
+            '#e5dfe1','#dadfe0'
+        ];
+        const bg = PALETTE[Math.floor(Math.random()*PALETTE.length)];
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.fillStyle = bg;
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.globalCompositeOperation = 'multiply';
+
+        // For all layouts, use the standard render method
+        await layout.render(ctx, chosenImages, canvas, { variation });
+
+        // Restore context state after rendering
+        ctx.restore();
     }
 } 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { CollageService } from './core/CollageService'
-import './App.css'
+import './styles/legacy.css'
 
 function App() {
   const canvasRef = useRef(null);
@@ -70,40 +70,18 @@ function App() {
   };
 
   return (
-    <div className="app-container">
-      <h1>Assemblage Collage Generator</h1>
-      
-      <div className="canvas-container">
-        <canvas 
-          ref={canvasRef} 
-          width={800} 
-          height={600}
-          style={{ 
-            border: '1px solid #ccc',
-            backgroundColor: '#f5f5f5',
-            maxWidth: '100%',
-            height: 'auto'
-          }}
-        />
-      </div>
-      
-      <div className="button-container">
-        <button 
-          onClick={handleShiftPerspective}
-          disabled={!collageService}
-        >
+    <div className="container">
+      <canvas id="canvas" ref={canvasRef} width={1080} height={1080}/>
+      <div className="controls">
+        <button onClick={handleShiftPerspective} disabled={!collageService}>
           Shift Perspective
         </button>
-        
-        <button 
-          onClick={handleSaveCollage}
-          disabled={!canvasRef.current}
-        >
+        <button onClick={handleSaveCollage} disabled={!canvasRef.current}>
           Save Collage
         </button>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

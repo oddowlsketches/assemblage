@@ -52,8 +52,8 @@ export default class SlicedLayout {
         });
     }
 
-    // Main render method that only uses the random variant
-    async render(ctx, images, canvas, options = {}) {
+    // Main render method that implements random slices
+    render(ctx, images, canvas, options = {}) {
         return this.renderRandom(ctx, images, canvas, options);
     }
 
@@ -88,76 +88,6 @@ export default class SlicedLayout {
             ctx.restore();
         } catch (error) {
             console.error('Error in SlicedLayout renderRandom:', error);
-            throw error;
-        }
-    }
-
-    // Horizontal sliced layout
-    async renderHorizontal(ctx, images, canvas, options = {}) {
-        try {
-            // Save context state
-            ctx.save();
-            
-            // Initialize generator if not already done
-            if (!this.generator) {
-                this.generator = new SlicedCollageGenerator(ctx, canvas);
-            }
-
-            // Set up canvas context
-            ctx.globalCompositeOperation = 'multiply';
-            
-            // Configure parameters for horizontal slicing
-            const configuredOptions = {
-                ...this.configureParameters(options),
-                sliceBehavior: 'horizontal',
-                maxSlices: 10,
-                sliceWidthVariation: 0.15,
-                width: canvas.width,
-                height: canvas.height
-            };
-            
-            // Generate sliced effect
-            await this.generator.generateSliced(images, null, configuredOptions);
-
-            // Restore context state
-            ctx.restore();
-        } catch (error) {
-            console.error('Error in SlicedLayout renderHorizontal:', error);
-            throw error;
-        }
-    }
-
-    // Vertical sliced layout
-    async renderVertical(ctx, images, canvas, options = {}) {
-        try {
-            // Save context state
-            ctx.save();
-            
-            // Initialize generator if not already done
-            if (!this.generator) {
-                this.generator = new SlicedCollageGenerator(ctx, canvas);
-            }
-
-            // Set up canvas context
-            ctx.globalCompositeOperation = 'multiply';
-            
-            // Configure parameters for vertical slicing
-            const configuredOptions = {
-                ...this.configureParameters(options),
-                sliceBehavior: 'vertical',
-                maxSlices: 10,
-                sliceWidthVariation: 0.15,
-                width: canvas.width,
-                height: canvas.height
-            };
-            
-            // Generate sliced effect
-            await this.generator.generateSliced(images, null, configuredOptions);
-
-            // Restore context state
-            ctx.restore();
-        } catch (error) {
-            console.error('Error in SlicedLayout renderVertical:', error);
             throw error;
         }
     }
