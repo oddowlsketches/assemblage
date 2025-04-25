@@ -2,7 +2,7 @@
  * MosaicGenerator class for creating mosaic-style collages
  * This class handles the generation of mosaic-style collages with various composition styles
  */
-class MosaicGenerator {
+export class MosaicGenerator {
     /**
      * Create a new MosaicGenerator
      * @param {HTMLCanvasElement} canvas - The canvas to draw on
@@ -12,293 +12,202 @@ class MosaicGenerator {
         this.canvas = canvas;
         this.ctx = canvas ? canvas.getContext('2d') : null;
         this.parameters = parameters;
+        this.animationFrame = null;
         
         // Set default canvas dimensions if not provided
         if (!this.canvas) {
-            this.canvas = {
-                width: 1200,
-                height: 800
-            };
+            console.error('No canvas provided to MosaicGenerator');
+            return;
         }
         
         // Ensure canvas has dimensions
         if (!this.canvas.width || !this.canvas.height) {
-            this.canvas.width = 1200;
-            this.canvas.height = 800;
+            console.error('Canvas dimensions not set');
+            return;
         }
-    }
-
-    /**
-     * Shuffle an array using Fisher-Yates algorithm
-     * @param {Array} array - The array to shuffle
-     * @returns {Array} - The shuffled array
-     */
-    shuffleArray(array) {
-        const shuffled = [...array];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        return shuffled;
     }
 
     /**
      * Generate a mosaic collage
      * @param {Array} images - Array of image objects
      * @param {Object} parameters - Parameters for mosaic generation
-     * @returns {Promise<void>}
+     * @returns {Promise<Array>} - Array of fragment objects
      */
     async generateMosaic(images, parameters = {}) {
         if (!images || images.length === 0) {
-            console.warn('No images provided for mosaic generation');
+            console.error('No images provided for mosaic generation');
+            return [];
+        }
+
+        if (!this.ctx || !this.canvas) {
+            console.error('Canvas context not available');
             return [];
         }
 
         try {
-            // Calculate grid size based on number of images and complexity
-            const complexity = parameters.complexity || 0.5;
-            const baseGridSize = Math.ceil(Math.sqrt(images.length));
-            
-            // Create more varied tile sizes
-            let gridSize;
-            const rand = Math.random();
-            if (rand < 0.2) { // 20% chance for very large tiles
-                gridSize = Math.floor(Math.random() * 2) + 2; // 2-3 rows
-            } else if (rand < 0.4) { // 20% chance for large tiles
-                gridSize = Math.floor(Math.random() * 2) + 4; // 4-5 rows
-            } else if (rand < 0.7) { // 30% chance for medium tiles
-                gridSize = Math.floor(Math.random() * 2) + 6; // 6-7 rows
-            } else { // 30% chance for smaller tiles
-                gridSize = Math.max(8, Math.min(10, Math.ceil(baseGridSize * (1 + complexity))));
+            // Cancel any existing animation frame
+            if (this.animationFrame) {
+                cancelAnimationFrame(this.animationFrame);
             }
-            
-            // Calculate cell dimensions
-            const cellWidth = this.canvas.width / gridSize;
-            const cellHeight = this.canvas.height / gridSize;
-            
-            // Create shuffled array of image indices
-            const imageIndices = this.shuffleArray([...Array(images.length).keys()]);
-            let currentIndex = 0;
-            
-            // Determine how many tiles should have full opacity (at least 40%)
-            const totalTiles = gridSize * gridSize;
-            const fullOpacityCount = Math.max(1, Math.ceil(totalTiles * 0.4));
-            const fullOpacityTiles = new Array(totalTiles).fill(false);
-            
-            // Randomly select tiles for full opacity
-            for (let i = 0; i < fullOpacityCount; i++) {
-                const randomIndex = Math.floor(Math.random() * totalTiles);
-                fullOpacityTiles[randomIndex] = true;
-            }
-            
-            // Determine if tiles should touch without overlap
-            const tilesTouching = parameters.tilesTouching || false;
-            
-            // Array to store fragment information
+
             const fragments = [];
-            
-            // Apply composition style
-            if (parameters.compositionStyle === 'Focal') {
-                // For Focal style, create larger cells towards the center
-                const centerX = this.canvas.width / 2;
-                const centerY = this.canvas.height / 2;
-                
-                for (let i = 0; i < gridSize; i++) {
-                    for (let j = 0; j < gridSize; j++) {
-                        const x = i * cellWidth;
-                        const y = j * cellHeight;
-                        
-                        // Calculate distance from center
-                        const dx = x - centerX;
-                        const dy = y - centerY;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY);
-                        
-                        // Scale cell size based on distance from center
-                        // If tiles are touching, use a smaller scale factor to prevent overlap
-                        const scaleFactor = tilesTouching ? 0.5 : 1.0;
-                        const scale = 1 + (1 - distance / maxDistance) * 0.5 * scaleFactor;
-                        
-                        // Select image based on repetition setting
-                        let imageIndex;
-                        if (parameters.allowImageRepetition) {
-                            imageIndex = Math.floor(Math.random() * images.length);
-                        } else {
-                            imageIndex = imageIndices[currentIndex % imageIndices.length];
-                            currentIndex++;
-                        }
-                        const image = images[imageIndex];
-                        
-                        // Calculate tile index for opacity assignment
-                        const tileIndex = i * gridSize + j;
-                        
-                        // Determine opacity - at least 70% for all tiles, 100% for selected tiles
-                        const opacity = fullOpacityTiles[tileIndex] ? 1.0 : 0.7 + Math.random() * 0.3;
-                        
-                        // Determine if this tile should show a cropped portion of the image
-                        // 40% chance of showing a cropped portion
-                        const showCroppedPortion = Math.random() < 0.4;
-                        
-                        // Calculate final position and dimensions
-                        const finalX = x - (cellWidth * scale - cellWidth) / 2;
-                        const finalY = y - (cellHeight * scale - cellHeight) / 2;
-                        const finalWidth = cellWidth * scale;
-                        const finalHeight = cellHeight * scale;
-                        
-                        // Draw cell with scaled dimensions and proper cropping
-                        this.drawImage(
-                            image,
-                            finalX,
-                            finalY,
-                            finalWidth,
-                            finalHeight,
-                            true,
-                            opacity,
-                            showCroppedPortion
-                        );
-                        
-                        // Store fragment information
-                        fragments.push({
-                            image,
-                            x: finalX,
-                            y: finalY,
-                            width: finalWidth,
-                            height: finalHeight,
-                            opacity,
-                            showCroppedPortion
-                        });
+            const tileSize = parameters.tileSize || 100;
+            const spacing = parameters.spacing || 10;
+            const complexity = parameters.complexity || 0.5;
+            const overlap = parameters.overlap || false;
+            const rotateShards = parameters.rotateShards || true;
+
+            // Calculate grid dimensions
+            const cols = Math.ceil(this.canvas.width / tileSize);
+            const rows = Math.ceil(this.canvas.height / tileSize);
+
+            // Create a queue of tiles to render
+            const tileQueue = [];
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    // Calculate base position
+                    const x = i * tileSize;
+                    const y = j * tileSize;
+
+                    // Add randomness to position if not overlapping
+                    const offsetX = overlap ? 0 : (Math.random() - 0.5) * spacing;
+                    const offsetY = overlap ? 0 : (Math.random() - 0.5) * spacing;
+
+                    // Select random image
+                    const imageIndex = Math.floor(Math.random() * images.length);
+                    const image = images[imageIndex];
+
+                    if (!image || !image.complete || image.naturalWidth === 0) {
+                        console.warn('Invalid image at index', imageIndex);
+                        continue;
                     }
-                }
-            } else {
-                // For Field style, create more uniform cells with slight variations
-                for (let i = 0; i < gridSize; i++) {
-                    for (let j = 0; j < gridSize; j++) {
-                        const x = i * cellWidth;
-                        const y = j * cellHeight;
-                        
-                        // Add slight randomness to cell position and size
-                        // If tiles are touching, use smaller offsets to prevent overlap
-                        const offsetFactor = tilesTouching ? 0.05 : 0.1;
-                        const offsetX = (Math.random() - 0.5) * cellWidth * offsetFactor;
-                        const offsetY = (Math.random() - 0.5) * cellHeight * offsetFactor;
-                        
-                        // Scale factor for tile size
-                        const scaleFactor = tilesTouching ? 0.2 : 0.2;
-                        const scale = 1 + (Math.random() - 0.5) * scaleFactor;
-                        
-                        // Select image based on repetition setting
-                        let imageIndex;
-                        if (parameters.allowImageRepetition) {
-                            imageIndex = Math.floor(Math.random() * images.length);
-                        } else {
-                            imageIndex = imageIndices[currentIndex % imageIndices.length];
-                            currentIndex++;
-                        }
-                        const image = images[imageIndex];
-                        
-                        // Calculate tile index for opacity assignment
-                        const tileIndex = i * gridSize + j;
-                        
-                        // Determine opacity - at least 70% for all tiles, 100% for selected tiles
-                        const opacity = fullOpacityTiles[tileIndex] ? 1.0 : 0.7 + Math.random() * 0.3;
-                        
-                        // Determine if this tile should show a cropped portion of the image
-                        // 40% chance of showing a cropped portion
-                        const showCroppedPortion = Math.random() < 0.4;
-                        
-                        // Calculate final position and dimensions
-                        const finalX = x + offsetX;
-                        const finalY = y + offsetY;
-                        const finalWidth = cellWidth * scale;
-                        const finalHeight = cellHeight * scale;
-                        
-                        // Draw cell with slight variations and proper cropping
-                        this.drawImage(
-                            image,
-                            finalX,
-                            finalY,
-                            finalWidth,
-                            finalHeight,
-                            true,
-                            opacity,
-                            showCroppedPortion
-                        );
-                        
-                        // Store fragment information
-                        fragments.push({
-                            image,
-                            x: finalX,
-                            y: finalY,
-                            width: finalWidth,
-                            height: finalHeight,
-                            opacity,
-                            showCroppedPortion
-                        });
-                    }
+
+                    // Calculate tile dimensions
+                    const width = tileSize * (1 + (Math.random() - 0.5) * 0.2); // ±10% variation
+                    const height = tileSize * (1 + (Math.random() - 0.5) * 0.2);
+
+                    // Calculate rotation
+                    const rotation = rotateShards ? (Math.random() - 0.5) * 30 : 0; // ±15 degrees if rotation enabled
+
+                    // Add tile to queue
+                    tileQueue.push({
+                        image,
+                        x: x + offsetX,
+                        y: y + offsetY,
+                        width,
+                        height,
+                        rotation,
+                        opacity: parameters.opacity || 0.8
+                    });
                 }
             }
-            
-            // Return the array of fragments
+
+            // Function to render a batch of tiles
+            const renderBatch = (startIndex, batchSize = 5) => {
+                const endIndex = Math.min(startIndex + batchSize, tileQueue.length);
+                
+                for (let i = startIndex; i < endIndex; i++) {
+                    const tile = tileQueue[i];
+                    this.drawTile(tile);
+                    fragments.push(tile);
+                }
+
+                if (endIndex < tileQueue.length) {
+                    // Schedule next batch
+                    this.animationFrame = requestAnimationFrame(() => renderBatch(endIndex));
+                } else {
+                    // All tiles rendered, call the callback if provided
+                    if (parameters.callback) {
+                        parameters.callback(fragments);
+                    }
+                }
+            };
+
+            // Start rendering tiles in batches
+            renderBatch(0);
+
             return fragments;
         } catch (error) {
             console.error('Error generating mosaic:', error);
+            if (parameters.callback) {
+                parameters.callback([]);
+            }
             return [];
         }
     }
 
     /**
-     * Draw an image with optional cropping and opacity
-     * @param {HTMLImageElement} image - The image to draw
-     * @param {number} x - X position
-     * @param {number} y - Y position
-     * @param {number} width - Width of the destination rectangle
-     * @param {number} height - Height of the destination rectangle
-     * @param {boolean} crop - Whether to crop the image
-     * @param {number} forceOpacity - Forced opacity value (0-1)
-     * @param {boolean} showCroppedPortion - Whether to show a cropped portion
-     * @param {number} rotation - Rotation angle in degrees
+     * Draw a tile on the canvas
+     * @param {Object} tile - The tile object containing image and position data
      */
-    drawImage(image, x, y, width, height, crop = false, forceOpacity = null, showCroppedPortion = false, rotation = 0) {
-        if (!this.ctx || !image) return;
+    drawTile(tile) {
+        if (!this.ctx || !tile.image || !tile.image.complete || tile.image.naturalWidth === 0) {
+            return;
+        }
 
-        // Save the current context state
         this.ctx.save();
-
-        // Set opacity
-        const opacity = forceOpacity !== null ? forceOpacity : 1;
-        this.ctx.globalAlpha = opacity;
-
-        // Move to the center of where we want to draw
-        this.ctx.translate(x + width/2, y + height/2);
         
-        // Rotate if specified
-        if (rotation) {
-            this.ctx.rotate(rotation * Math.PI / 180);
-        }
-
-        // Move back by half the width/height
-        this.ctx.translate(-width/2, -height/2);
-
-        if (showCroppedPortion) {
-            // Calculate random crop coordinates
-            const cropX = Math.random() * (image.width - width);
-            const cropY = Math.random() * (image.height - height);
+        try {
+            // Set the opacity
+            this.ctx.globalAlpha = tile.opacity;
             
-            // Draw the cropped portion
+            // Move to the center of where we want to draw the tile
+            this.ctx.translate(tile.x + tile.width/2, tile.y + tile.height/2);
+            
+            // Rotate around the center point
+            if (tile.rotation !== 0) {
+                this.ctx.rotate((tile.rotation * Math.PI) / 180);
+            }
+            
+            // Move back to draw the tile
+            this.ctx.translate(-(tile.x + tile.width/2), -(tile.y + tile.height/2));
+            
+            // Calculate aspect ratios
+            const imageAspect = tile.image.naturalWidth / tile.image.naturalHeight;
+            const targetAspect = tile.width / tile.height;
+            
+            let sw, sh, sx, sy;
+            
+            // Maintain aspect ratio while filling the target area
+            if (imageAspect > targetAspect) {
+                // Image is wider than target
+                sw = tile.image.naturalHeight * targetAspect;
+                sh = tile.image.naturalHeight;
+                sx = (tile.image.naturalWidth - sw) / 2;
+                sy = 0;
+            } else {
+                // Image is taller than target
+                sw = tile.image.naturalWidth;
+                sh = tile.image.naturalWidth / targetAspect;
+                sx = 0;
+                sy = (tile.image.naturalHeight - sh) / 2;
+            }
+            
+            // Draw the image
             this.ctx.drawImage(
-                image,
-                cropX, cropY, width, height,
-                0, 0, width, height
+                tile.image,
+                sx, sy, sw, sh,
+                tile.x, tile.y, tile.width, tile.height
             );
-        } else {
-            // Draw the full image
-            this.ctx.drawImage(image, 0, 0, width, height);
+            
+            // Draw a subtle border
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            this.ctx.lineWidth = 1;
+            this.ctx.strokeRect(tile.x, tile.y, tile.width, tile.height);
+        } catch (error) {
+            console.error('Error drawing tile:', error);
         }
-
-        // Restore the context state
+        
         this.ctx.restore();
     }
-}
 
-// Export the MosaicGenerator class
-export { MosaicGenerator }; 
+    /**
+     * Clean up any resources
+     */
+    destroy() {
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+    }
+} 

@@ -1,7 +1,15 @@
 class LayeredGenerator {
-    constructor(canvas, ctx) {
-        this.canvas = canvas;
+    constructor(ctx, canvas) {
         this.ctx = ctx;
+        this.canvas = canvas;
+    }
+
+    generateBackgroundColor() {
+        // Generate a light, muted background color using HSL
+        const hue = Math.random() * 360;
+        const saturation = 20 + Math.random() * 30; // 20-50%
+        const lightness = 85 + Math.random() * 10; // 85-95%
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 
     calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
@@ -29,13 +37,18 @@ class LayeredGenerator {
     generateLayers(images, parameters = {}) {
         if (!images || images.length === 0) {
             console.warn('No images provided for layered effect');
-            return;
+            return [];
         }
 
         console.log(`Generating layered effect with ${images.length} images`);
 
-        // Determine number of layers (2-5)
-        const numLayers = Math.floor(Math.random() * 4) + 2;
+        // Set background color
+        this.ctx.fillStyle = this.generateBackgroundColor();
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Determine number of layers based on complexity
+        const complexity = parameters.complexity || 0.5;
+        const numLayers = Math.floor(2 + complexity * 3); // 2-5 layers based on complexity
         console.log(`Creating ${numLayers} layers`);
 
         // Create layers with random images, scales, and positions
@@ -74,50 +87,105 @@ class LayeredGenerator {
                 continue;
             }
             
-            const scale = 0.7 + Math.random() * 0.5; // Scale between 0.7 and 1.2
-
-            // Calculate position to ensure at least one layer bleeds off the edges
-            const x = Math.random() * this.canvas.width * 1.2 - this.canvas.width * 0.1;
-            const y = Math.random() * this.canvas.height * 1.2 - this.canvas.height * 0.1;
-
+            // Calculate layer size based on depth
+            const size = this.calculateLayerSize(i, numLayers);
+            
+            // Calculate position with margin for bleeding effect
+            const margin = this.canvas.width * 0.1; // 10% margin
+            const x = Math.random() * margin * 2 - margin;
+            const y = Math.random() * margin * 2 - margin;
+            
+            // Calculate rotation (more rotation for deeper layers)
+            const rotation = this.calculateRotation(i, numLayers);
+            
+            // Calculate opacity (deeper layers are more transparent)
+            const opacity = this.calculateOpacity(i, numLayers);
+            
+            // Select blend mode based on layer depth
+            const blendMode = this.selectBlendMode(i, numLayers);
+            
             layers.push({
                 image: suitableImage,
-                scale: scale,
+                size: size,
                 x: x,
                 y: y,
-                opacity: i === 0 ? 1.0 : 0.3 + Math.random() * 0.4 // First layer full opacity, others 0.3-0.7
+                rotation: rotation,
+                opacity: opacity,
+                blendMode: blendMode
             });
         }
 
-        // Sort layers by scale (smaller scales drawn first)
-        layers.sort((a, b) => a.scale - b.scale);
+        // Sort layers by size (smaller scales drawn first)
+        layers.sort((a, b) => a.size - b.size);
 
         // Draw layers
         layers.forEach(layer => {
-            const { image, scale, x, y, opacity } = layer;
-
-            // Calculate dimensions maintaining aspect ratio
-            const aspectRatio = image.width / image.height;
-            let width = this.canvas.width * scale;
-            let height = width / aspectRatio;
-
-            // Ensure minimum visibility of 70%
-            if (height < this.canvas.height * 0.7) {
-                height = this.canvas.height * 0.7;
-                width = height * aspectRatio;
-            }
-
-            // Set opacity
-            this.ctx.globalAlpha = opacity;
-
-            // Draw the image
-            this.ctx.drawImage(image, x, y, width, height);
+            this.drawLayer(layer);
         });
 
-        // Reset opacity
-        this.ctx.globalAlpha = 1.0;
-
         return layers;
+    }
+    
+    calculateLayerSize(layerIndex, totalLayers) {
+        // Base size decreases with layer depth
+        const baseSize = 0.7 + (1 - layerIndex / totalLayers) * 0.5;
+        // Add some randomness
+        return baseSize + (Math.random() - 0.5) * 0.2;
+    }
+    
+    calculateRotation(layerIndex, totalLayers) {
+        // Deeper layers have more rotation
+        const maxRotation = 15 * (layerIndex / totalLayers);
+        return (Math.random() - 0.5) * maxRotation * 2;
+    }
+    
+    calculateOpacity(layerIndex, totalLayers) {
+        // First layer is fully opaque, others decrease in opacity
+        return layerIndex === 0 ? 1.0 : 0.3 + (1 - layerIndex / totalLayers) * 0.4;
+    }
+    
+    selectBlendMode(layerIndex, totalLayers) {
+        const blendModes = ['normal', 'multiply', 'screen', 'overlay', 'soft-light'];
+        // Deeper layers use more interesting blend modes
+        const index = Math.min(Math.floor(layerIndex / 2), blendModes.length - 1);
+        return blendModes[index];
+    }
+    
+    drawLayer(layer) {
+        const { image, size, x, y, rotation, opacity, blendMode } = layer;
+        
+        // Calculate dimensions maintaining aspect ratio
+        const aspectRatio = image.width / image.height;
+        let width = this.canvas.width * size;
+        let height = width / aspectRatio;
+        
+        // Ensure minimum visibility of 70%
+        if (height < this.canvas.height * 0.7) {
+            height = this.canvas.height * 0.7;
+            width = height * aspectRatio;
+        }
+        
+        // Set opacity and blend mode
+        this.ctx.globalAlpha = opacity;
+        this.ctx.globalCompositeOperation = blendMode;
+        
+        // Save context state
+        this.ctx.save();
+        
+        // Translate to center of image position
+        this.ctx.translate(x + width/2, y + height/2);
+        
+        // Rotate
+        this.ctx.rotate(rotation * Math.PI / 180);
+        
+        // Draw the image
+        this.ctx.drawImage(image, -width/2, -height/2, width, height);
+        
+        // Restore context state
+        this.ctx.restore();
+        
+        // Reset blend mode
+        this.ctx.globalCompositeOperation = 'source-over';
     }
 }
 

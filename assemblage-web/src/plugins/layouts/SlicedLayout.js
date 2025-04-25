@@ -52,16 +52,9 @@ export default class SlicedLayout {
         });
     }
 
-    // Main render method that randomly selects between the three variants
+    // Main render method that only uses the random variant
     async render(ctx, images, canvas, options = {}) {
-        const r = Math.random();
-        if (r < 0.33) {
-            return this.renderHorizontal(ctx, images, canvas, options);
-        } else if (r < 0.66) {
-            return this.renderVertical(ctx, images, canvas, options);
-        } else {
-            return this.renderRandom(ctx, images, canvas, options);
-        }
+        return this.renderRandom(ctx, images, canvas, options);
     }
 
     // Random sliced layout

@@ -35,7 +35,7 @@ export class FragmentsGenerator {
             '#9B59B6', // Purple
             '#3498DB', // Blue
             '#E67E22', // Orange
-            '#2ECC71'  // Green
+            '#1ABC9C'  // Green
         ];
         return colors[Math.floor(Math.random() * colors.length)];
     }
@@ -62,115 +62,62 @@ export class FragmentsGenerator {
         return Math.max(scale, minScale);
     }
 
-    async generateFragments(images, fortuneText, parameters = {}) {
-        // console.log('Starting fragment generation with parameters:', {
-        //     variation: parameters.variation,
-        //     complexity: parameters.complexity,
-        //     maxFragments: parameters.maxFragments,
-        //     canvasWidth: this.canvas.width,
-        //     canvasHeight: this.canvas.height
-        // });
-
-        // Clear canvas and set background
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = this.generateBackgroundColor();
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Filter out invalid images and check scaling requirements
-        const validImages = [];
-        const MAX_ATTEMPTS = 5;
+    generateFragments(images, complexity = 0.5) {
+        console.log('Generating fragments with', images.length, 'images and complexity', complexity);
         
-        for (const image of images) {
-            if (!image || !image.complete || image.naturalWidth === 0) continue;
-            
-            // Calculate fragment dimensions based on variation
-            let fragmentWidth, fragmentHeight;
-            if (parameters.variation === 'Organic') {
-                const size = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
-            } else if (parameters.variation === 'Focal') {
-                const size = this.calculateFocalSize(this.canvas.width, this.canvas.height, this.canvas.width/2, this.canvas.height/2);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
-            } else {
-                const size = this.calculateClassicSize(this.canvas.width, this.canvas.height);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
-            }
-            
-            // Calculate required scale for this image
-            const requiredScale = this.calculateRequiredScale(
-                image,
-                fragmentWidth,
-                fragmentHeight
-            );
-            
-            // Check if this scale is within our acceptable range
-            const maxAllowedScale = parameters.variation === 'Focal' ? 2.5 : 2.0;
-            if (requiredScale <= maxAllowedScale) {
-                validImages.push(image);
-            }
+        if (!images || images.length === 0) {
+            console.error('No images provided for fragment generation');
+            return [];
         }
-
-        if (validImages.length === 0) {
-            console.warn('No valid images found that meet scaling requirements');
-            return;
-        }
-
-        // Calculate number of fragments
-        const complexityVariation = 0.75 + Math.random() * 0.3;
-        const numFragments = Math.min(
-            Math.max(3, Math.floor(validImages.length * parameters.complexity * 0.7 * complexityVariation)),
-            parameters.maxFragments || 8
-        );
-
+        
+        // Calculate number of fragments based on complexity
+        const minFragments = 10;
+        const maxFragments = 50;
+        const numFragments = Math.floor(minFragments + (maxFragments - minFragments) * complexity);
+        
+        // Calculate fragment size based on canvas dimensions
+        const minSize = Math.min(this.canvas.width, this.canvas.height) / 10;
+        const maxSize = Math.min(this.canvas.width, this.canvas.height) / 5;
+        
         const fragments = [];
-        const margin = 0;
-
+        const maskTypes = ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon'];
+        
         for (let i = 0; i < numFragments; i++) {
-            // Calculate fragment dimensions based on variation
-            let fragmentWidth, fragmentHeight;
-            if (parameters.variation === 'Organic') {
-                const size = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
-            } else if (parameters.variation === 'Focal') {
-                const size = this.calculateFocalSize(this.canvas.width, this.canvas.height, this.canvas.width/2, this.canvas.height/2);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
-            } else {
-                const size = this.calculateClassicSize(this.canvas.width, this.canvas.height);
-                fragmentWidth = size.width;
-                fragmentHeight = size.height;
+            // Select a random image
+            const imageIndex = Math.floor(Math.random() * images.length);
+            const image = images[imageIndex];
+            
+            if (!image || !image.complete || image.naturalWidth === 0) {
+                console.warn('Skipping invalid image at index', imageIndex);
+                continue;
             }
-
-            // Calculate position with margin
-            const maxX = this.canvas.width - fragmentWidth;
-            const maxY = this.canvas.height - fragmentHeight;
-            const x = margin + Math.random() * (maxX - 2 * margin);
-            const y = margin + Math.random() * (maxY - 2 * margin);
-
-            // Create fragment with calculated position
+            
+            // Calculate fragment size
+            const size = minSize + Math.random() * (maxSize - minSize);
+            
+            // Calculate position
+            const x = Math.random() * (this.canvas.width - size);
+            const y = Math.random() * (this.canvas.height - size);
+            
+            // Create fragment
             const fragment = {
-                image: validImages[i % validImages.length],
-                x: x,
-                y: y,
-                width: fragmentWidth,
-                height: fragmentHeight,
-                rotation: Math.random() < 0.7 ? 0 : Math.random() * 0.2,
-                depth: Math.random(),
+                x,
+                y,
+                width: size,
+                height: size,
+                image,
+                rotation: Math.random() * 360,
                 mask: {
-                    enabled: Math.random() < 0.30,
-                    type: ['circle', 'triangle', 'rectangle', 'ellipse', 'diamond', 'hexagon', 'arc', 'arch', 'circle', 'triangle', 'rectangle'][Math.floor(Math.random() * 11)]
+                    enabled: true,
+                    type: maskTypes[Math.floor(Math.random() * maskTypes.length)],
+                    size: size
                 }
             };
+            
             fragments.push(fragment);
         }
-
-        // Sort fragments by depth
-        fragments.sort((a, b) => a.depth - b.depth);
-
+        
+        console.log('Generated', fragments.length, 'fragments');
         return fragments;
     }
 
@@ -471,95 +418,71 @@ export class FragmentsGenerator {
             return;
         }
         
-        // Vary scale based on fragment size for more visual interest
-        // Smaller fragments get slightly larger scale, larger fragments get normal scale
-        const canvasArea = this.canvas.width * this.canvas.height;
-        const fragmentArea = width * height;
-        const fragmentSizeRatio = fragmentArea / canvasArea;
+        // Create a temporary canvas for the masked image
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
         
-        // Scale inversely proportional to fragment size
-        // Small fragments get scale up to 1.3, large fragments get scale around 1.0-1.1
-        const drawScale = 1.0 + Math.max(0, 0.3 - fragmentSizeRatio * 20);
+        // Draw the image onto the temporary canvas
+        tempCtx.drawImage(image, 0, 0, width, height);
         
-        // Force zero rotation when drawing to ensure stable presentation
-        const effectiveRotation = Math.abs(rotation) < 0.01 ? 0 : rotation; // Treat tiny rotations as zero
-        
-        ctx.save();
-        ctx.translate(x + width/2, y + height/2);
-        ctx.rotate(effectiveRotation);
-        ctx.scale(drawScale, drawScale);
-        
-        // Apply masking if enabled
+        // Apply mask if enabled
         if (mask && mask.enabled) {
-            // Create clipping path based on mask type
-            this.applyMask(ctx, mask.type, width, height);
-            ctx.clip();
+            tempCtx.globalCompositeOperation = 'destination-in';
+            tempCtx.beginPath();
+            
+            // Center the mask
+            tempCtx.translate(width / 2, height / 2);
+            
+            // Create the mask path based on type
+            switch (mask.type) {
+                case 'circle':
+                    tempCtx.arc(0, 0, Math.min(width, height) / 2, 0, Math.PI * 2);
+                    break;
+                case 'triangle':
+                    tempCtx.moveTo(0, -height / 2);
+                    tempCtx.lineTo(width / 2, height / 2);
+                    tempCtx.lineTo(-width / 2, height / 2);
+                    tempCtx.closePath();
+                    break;
+                case 'rectangle':
+                    tempCtx.rect(-width / 2, -height / 2, width, height);
+                    break;
+                case 'ellipse':
+                    tempCtx.ellipse(0, 0, width / 2, height / 3, 0, 0, Math.PI * 2);
+                    break;
+                case 'diamond':
+                    tempCtx.moveTo(0, -height / 2);
+                    tempCtx.lineTo(width / 2, 0);
+                    tempCtx.lineTo(0, height / 2);
+                    tempCtx.lineTo(-width / 2, 0);
+                    tempCtx.closePath();
+                    break;
+                case 'hexagon':
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI) / 3;
+                        const x = Math.cos(angle) * Math.min(width, height) / 2;
+                        const y = Math.sin(angle) * Math.min(width, height) / 2;
+                        if (i === 0) tempCtx.moveTo(x, y);
+                        else tempCtx.lineTo(x, y);
+                    }
+                    tempCtx.closePath();
+                    break;
+                default:
+                    tempCtx.arc(0, 0, Math.min(width, height) / 2, 0, Math.PI * 2);
+            }
+            
+            tempCtx.fill();
         }
         
-        // Draw image
-        ctx.drawImage(image, -width/2, -height/2, width, height);
+        // Draw the masked image onto the main canvas
+        ctx.save();
+        ctx.translate(x + width / 2, y + height / 2);
+        ctx.rotate(rotation || 0);
+        ctx.drawImage(tempCanvas, -width / 2, -height / 2);
         ctx.restore();
         
-        console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height, 'scale:', drawScale);
-    }
-    
-    applyMask(ctx, maskType, width, height) {
-        const centerX = 0;
-        const centerY = 0;
-        const size = Math.min(width, height) * 0.9; // Scale to 90% of the smaller dimension
-        
-        ctx.beginPath();
-        
-        switch (maskType) {
-            case 'circle':
-                ctx.arc(centerX, centerY, size/2, 0, Math.PI * 2);
-                break;
-                
-            case 'triangle':
-                ctx.moveTo(centerX, centerY - size/2); // Top
-                ctx.lineTo(centerX + size/2, centerY + size/2); // Bottom right
-                ctx.lineTo(centerX - size/2, centerY + size/2); // Bottom left
-                break;
-                
-            case 'rectangle':
-                ctx.rect(centerX - size/2, centerY - size/2, size, size);
-                break;
-                
-            case 'ellipse':
-                ctx.ellipse(centerX, centerY, size/2, size/3, 0, 0, Math.PI * 2);
-                break;
-                
-            case 'diamond':
-                ctx.moveTo(centerX, centerY - size/2); // Top
-                ctx.lineTo(centerX + size/2, centerY); // Right
-                ctx.lineTo(centerX, centerY + size/2); // Bottom
-                ctx.lineTo(centerX - size/2, centerY); // Left
-                break;
-                
-            case 'hexagon':
-                const hexAngle = (Math.PI * 2) / 6;
-                for (let i = 0; i < 6; i++) {
-                    const x = centerX + size/2 * Math.cos(hexAngle * i);
-                    const y = centerY + size/2 * Math.sin(hexAngle * i);
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                break;
-                
-            case 'arc':
-                ctx.arc(centerX, centerY, size/2, 0, Math.PI * 2);
-                break;
-                
-            case 'arch':
-                ctx.arc(centerX, centerY, size/2, Math.PI * 0.2, Math.PI * 1.8);
-                break;
-                
-            default:
-                // Default to rectangle if mask type is unknown
-                ctx.rect(centerX - size/2, centerY - size/2, size, size);
-                break;
-        }
-        
-        ctx.closePath();
+        console.log('Fragment drawn at position:', x, y, 'with dimensions:', width, height);
     }
 } 

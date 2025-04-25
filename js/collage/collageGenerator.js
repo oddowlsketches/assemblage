@@ -751,7 +751,9 @@ class CollageGenerator {
 
             console.log(`Generated ${fragments.length} fragments, ${validFragments.length} valid`);
 
+            // TEMPORARILY DISABLED: Narrative composition to fix collage effects
             // Randomly decide whether to apply narrative composition
+            /*
             const shouldApplyNarrative = Math.random() < 0.6; // 60% chance
             let compositionType = 'standard';
             let flowPattern = null;
@@ -761,7 +763,8 @@ class CollageGenerator {
                 flowPattern = this.getRandomFlowPattern();
                 console.log('Applying narrative composition with pattern:', flowPattern);
             }
-
+            */
+            
             // Draw each valid fragment
             for (const fragment of validFragments) {
                 await this.drawFragment(fragment, this.ctx);

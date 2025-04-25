@@ -7,7 +7,7 @@ import { MosaicGenerator } from '@legacy/collage/mosaicGenerator.js';
 
 export default class MosaicLayout {
     constructor() {
-        this.generator = new MosaicGenerator();
+        this.generator = null;
     }
 
     async render(ctx, images, canvas, parameters = {}) {
@@ -32,41 +32,38 @@ export default class MosaicLayout {
             return;
         }
 
-        // Configure parameters based on variation
-        const config = this.configureParameters(parameters);
-
-        // Use the mosaic generator to create the composition
-        return this.generator.generateMosaic(ctx, validImages, {
-            ...config,
+        // Create a new generator instance with the current canvas
+        this.generator = new MosaicGenerator(canvas, {
+            ...this.configureParameters(parameters),
             canvasWidth: canvas.width,
             canvasHeight: canvas.height
         });
-    }
 
-    configureParameters(parameters) {
-        const baseConfig = {
-            tileSize: parameters.tileSize || 50,
-            spacing: parameters.spacing || 2,
-            complexity: parameters.complexity || 0.5,
-            tilesTouching: parameters.tilesTouching || false
-        };
-
-        switch (parameters.variation) {
-            case 'overlapping':
-                return {
-                    ...baseConfig,
-                    spacing: -5,
-                    tilesTouching: true,
-                    complexity: 0.7
-                };
-            default: // standard
-                return baseConfig;
-        }
+        // Generate and draw the mosaic layout, wrapped in a Promise
+        return new Promise(resolve => {
+            this.generator.generateMosaic(validImages, {
+                ...this.configureParameters(parameters),
+                callback: resolve // Pass the resolve function as the callback
+            });
+        });
     }
 
     generateBackgroundColor() {
-        // Generate a dark background color
+        // Generate a light, muted background color
         const hue = Math.random() * 360;
-        return `hsl(${hue}, 30%, 15%)`;
+        return `hsl(${hue}, 20%, 95%)`;
+    }
+
+    configureParameters(parameters) {
+        return {
+            complexity: parameters.complexity || 0.5,
+            variation: parameters.variation || 'default',
+            gridSize: parameters.gridSize || 10,
+            opacity: parameters.opacity || 0.8,
+            blendMode: parameters.blendMode || 'multiply',
+            compositionStyle: parameters.compositionStyle || 'Field',
+            allowImageRepetition: parameters.allowImageRepetition || false,
+            tilesTouching: parameters.tilesTouching || false
+        };
     }
 } 

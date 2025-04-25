@@ -1,652 +1,240 @@
 /**
- * Improved Tiling Generator for Assemblage
- * Combines the working tiling functionality with the advanced features
+ * TilingGenerator class for creating tiling-style collages
+ * This class handles the generation of collages with border shards and tiling effects
  */
-
 export class TilingGenerator {
-    constructor(canvas, parameters) {
+    /**
+     * Create a new TilingGenerator
+     * @param {HTMLCanvasElement} canvas - The canvas to draw on
+     * @param {Object} parameters - Parameters for tiling generation
+     */
+    constructor(canvas, parameters = {}) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas ? canvas.getContext('2d') : null;
         this.parameters = parameters;
-        this.ABSOLUTE_MAX_REPEATS = 3; // Maximum number of times an image can be repeated
-        this.imageUsageCount = new Map(); // Track how many times each image is used
-    }
-
-    calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {
-        const imgRatio = image.naturalWidth / image.naturalHeight;
-        const targetRatio = targetWidth / targetHeight;
         
-        let scale;
-        if (imgRatio > targetRatio) {
-            // Image is wider than target
-            scale = targetHeight / image.naturalHeight;
-        } else {
-            // Image is taller than target
-            scale = targetWidth / image.naturalWidth;
+        // Set default canvas dimensions if not provided
+        if (!this.canvas) {
+            console.error('No canvas provided to TilingGenerator');
+            return;
         }
         
-        // Account for minimum visibility requirement
-        const minScale = Math.max(
-            minVisibility / imgRatio,
-            minVisibility * imgRatio
-        );
-        
-        return Math.max(scale, minScale);
-    }
-
-    // Helper function to shuffle arrays (used in multiple effects)
-    shuffleArray(array) {
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
+        // Ensure canvas has dimensions
+        if (!this.canvas.width || !this.canvas.height) {
+            console.error('Canvas dimensions not set');
+            return;
         }
-        return array;
     }
 
-    // Helper function to preserve aspect ratio when drawing tiles
-    preserveAspectRatio(image, x, y, targetWidth, targetHeight) {
-        if (!image || !image.complete) return false;
-        
-        const imgRatio = image.width / image.height;
-        const targetRatio = targetWidth / targetHeight;
-        
-        let drawWidth, drawHeight, drawX, drawY;
-        
-        if (imgRatio > targetRatio) {
-            // Image is wider - match width and center vertically
-            drawWidth = targetWidth;
-            drawHeight = drawWidth / imgRatio;
-            drawX = x;
-            drawY = y + (targetHeight - drawHeight) / 2;
-        } else {
-            // Image is taller - match height and center horizontally
-            drawHeight = targetHeight;
-            drawWidth = drawHeight * imgRatio;
-            drawX = x + (targetWidth - drawWidth) / 2;
-            drawY = y;
-        }
-        
-        // Draw with proper dimensions
-        this.ctx.drawImage(
-            image,
-            0, 0, image.width, image.height, // Source
-            drawX, drawY, drawWidth, drawHeight // Destination
-        );
-        
-        return true;
-    }
-
-    // Enhanced tile drawing with aspect ratio preservation
-    drawTileWithAspectRatio(image, x, y, width, height) {
-        // Skip missing or incomplete images
-        if (!image || !image.complete) return;
-        
-        // Save current context state
-        this.ctx.save();
-        
-        // Calculate aspect ratio
-        const imgAspectRatio = image.width / image.height;
-        let drawWidth, drawHeight, drawX, drawY;
-        
-        // Always preserve original aspect ratio
-        if (imgAspectRatio > 1) {
-            // Landscape image - match width
-            drawWidth = width;
-            drawHeight = width / imgAspectRatio;
-            drawX = x;
-            drawY = y + (height - drawHeight) / 2;
-        } else {
-            // Portrait image - match height
-            drawHeight = height;
-            drawWidth = height * imgAspectRatio;
-            drawX = x + (width - drawWidth) / 2;
-            drawY = y;
-        }
-        
-        // Draw with proper dimensions
-        this.ctx.drawImage(
-            image,
-            0, 0, image.width, image.height, // Source (full image)
-            drawX, drawY, drawWidth, drawHeight // Destination
-        );
-        
-        // Restore context
-        this.ctx.restore();
-    }
-
-    async generateTile(images, x, y, size, preferredImageIndex = null) {
-        // Validate inputs
+    /**
+     * Generate a tiling collage
+     * @param {Array} images - Array of image objects
+     * @param {Object} parameters - Parameters for tiling generation
+     * @returns {Promise<Array>} - Array of fragment objects
+     */
+    async generateTiling(images, parameters = {}) {
         if (!images || images.length === 0) {
-            console.warn('No images provided for tile generation');
-            return null;
+            console.error('No images provided for tiling generation');
+            return [];
         }
 
-        // Determine if image repetition is allowed
-        const allowImageRepetition = this.parameters.allowImageRepetition !== null 
-            ? this.parameters.allowImageRepetition 
-            : true; // Default to true to ensure we can always find an image
+        if (!this.ctx || !this.canvas) {
+            console.error('Canvas context not available');
+            return [];
+        }
 
-        // Track attempts to find a suitable image
-        const MAX_ATTEMPTS = 10; // Increased from 5 to 10
-        let attempts = 0;
-        let selectedImage = null;
-        let imageIndex = null;
+        try {
+            const fragments = [];
+            const tileSize = parameters.tileSize || 100;
+            const spacing = parameters.spacing || 10;
+            const complexity = parameters.complexity || 0.5;
+            const overlap = parameters.overlap || false;
+            const rotateShards = parameters.rotateShards || true;
 
-        while (!selectedImage && attempts < MAX_ATTEMPTS) {
-            // Select image index
-            if (preferredImageIndex !== null && attempts === 0) {
-                imageIndex = preferredImageIndex;
-            } else if (!allowImageRepetition) {
-                // No repetition - use each image only once
-                const unusedImages = Array.from({length: images.length}, (_, i) => i)
-                    .filter(idx => !(this.imageUsageCount.get(idx) || 0));
-                    
-                if (unusedImages.length === 0) {
-                    // If no unused images, fall back to allowing repetition
-                    imageIndex = Math.floor(Math.random() * images.length);
-                } else {
-                    imageIndex = unusedImages[Math.floor(Math.random() * unusedImages.length)];
+            // Calculate grid dimensions
+            const cols = Math.ceil(this.canvas.width / tileSize);
+            const rows = Math.ceil(this.canvas.height / tileSize);
+
+            // Create border shards
+            for (let i = 0; i < cols; i++) {
+                for (let j = 0; j < rows; j++) {
+                    // Calculate base position
+                    const x = i * tileSize;
+                    const y = j * tileSize;
+
+                    // Add randomness to position if not overlapping
+                    const offsetX = overlap ? 0 : (Math.random() - 0.5) * spacing;
+                    const offsetY = overlap ? 0 : (Math.random() - 0.5) * spacing;
+
+                    // Select random image
+                    const imageIndex = Math.floor(Math.random() * images.length);
+                    const image = images[imageIndex];
+
+                    if (!image || !image.complete || image.naturalWidth === 0) {
+                        console.warn('Invalid image at index', imageIndex);
+                        continue;
+                    }
+
+                    // Calculate shard dimensions
+                    const width = tileSize * (1 + (Math.random() - 0.5) * 0.2); // ±10% variation
+                    const height = tileSize * (1 + (Math.random() - 0.5) * 0.2);
+
+                    // Calculate rotation
+                    const rotation = rotateShards ? (Math.random() - 0.5) * 30 : 0; // ±15 degrees if rotation enabled
+
+                    // Create mask path for the shard
+                    const maskPath = this.generateShardPath(width, height, complexity);
+
+                    // Draw the shard
+                    this.drawShard(
+                        image,
+                        x + offsetX,
+                        y + offsetY,
+                        width,
+                        height,
+                        rotation,
+                        maskPath,
+                        parameters.opacity || 0.8
+                    );
+
+                    // Store fragment information
+                    fragments.push({
+                        image,
+                        x: x + offsetX,
+                        y: y + offsetY,
+                        width,
+                        height,
+                        rotation,
+                        maskPath,
+                        opacity: parameters.opacity || 0.8
+                    });
                 }
-            } else {
-                // Allow repetition with limits
-                imageIndex = Math.floor(Math.random() * images.length);
-                const currentCount = this.imageUsageCount.get(imageIndex) || 0;
-                if (currentCount >= this.ABSOLUTE_MAX_REPEATS) {
-                    attempts++;
-                    continue;
-                }
             }
 
-            const image = images[imageIndex];
-            
-            // Basic image validation
-            if (!image || !image.complete || image.naturalWidth === 0) {
-                attempts++;
-                continue;
-            }
-
-            // Calculate required scale for this image
-            const requiredScale = this.calculateRequiredScale(
-                image,
-                size,
-                size,
-                0.5 // Reduced minimum visibility requirement from 0.7 to 0.5
-            );
-
-            // Check if this scale is within our acceptable range
-            const maxAllowedScale = this.parameters.useDramaticScaling ? 4.0 : 3.0; // Increased from 3.0/2.5
-            if (requiredScale <= maxAllowedScale) {
-                selectedImage = image;
-            } else {
-                attempts++;
-            }
+            return fragments;
+        } catch (error) {
+            console.error('Error generating tiling:', error);
+            return [];
         }
-
-        if (!selectedImage) {
-            console.warn(`Could not find suitable image after ${MAX_ATTEMPTS} attempts. Falling back to first valid image.`);
-            // Fallback: use the first valid image we can find
-            for (let i = 0; i < images.length; i++) {
-                const image = images[i];
-                if (image && image.complete && image.naturalWidth > 0) {
-                    selectedImage = image;
-                    imageIndex = i;
-                    break;
-                }
-            }
-            
-            if (!selectedImage) {
-                console.error('No valid images found in the provided set');
-                return null;
-            }
-        }
-
-        // Update usage count
-        const currentCount = this.imageUsageCount.get(imageIndex) || 0;
-        this.imageUsageCount.set(imageIndex, currentCount + 1);
-
-        // Calculate aspect-preserving dimensions
-        const imgRatio = selectedImage.naturalWidth / selectedImage.naturalHeight;
-        let finalWidth, finalHeight;
-        
-        if (imgRatio > 1) {
-            // Landscape image
-            finalWidth = size;
-            finalHeight = size / imgRatio;
-        } else {
-            // Portrait image
-            finalHeight = size;
-            finalWidth = size * imgRatio;
-        }
-
-        // Center the image in the tile
-        const xOffset = (size - finalWidth) / 2;
-        const yOffset = (size - finalHeight) / 2;
-
-        return {
-            image: selectedImage,
-            x: x + xOffset,
-            y: y + yOffset,
-            width: finalWidth,
-            height: finalHeight
-        };
     }
 
-    async generateTiles(images) {
-        if (!images || images.length === 0) return [];
-        
-        // Reset image usage tracking at the start of each generation
-        this.imageUsageCount.clear();
-        
-        // Determine if image repetition is allowed based on parameters
-        const allowImageRepetition = this.parameters.allowImageRepetition !== null 
-            ? this.parameters.allowImageRepetition 
-            : false; // Default to no repetition
-        
-        console.log(`Image repetition ${allowImageRepetition ? 'enabled' : 'disabled'}`);
-        
-        const isFocalStyle = this.parameters.selectedCompositionStyle === 'Focal';
-        
-        // Enhanced mode selection with better crystal effect control
-        const useDramaticMode = Math.random() < 0.4; // Increased to 40% chance for dramatic scaling
-        const useFocalMode = isFocalStyle ? Math.random() < 0.8 : Math.random() < 0.4; // Increased focal mode probability
-        
-        // Log the selected mode combination
-        const modeDescription = useDramaticMode ? 'dramatic scaling' : 'uniform scaling';
-        console.log(`Generating tiles in ${useFocalMode ? 'focal' : 'field'} mode with ${modeDescription}`);
-        
-        const tiles = [];
-        
-        if (useFocalMode) {
-            // Focal mode: Few, larger images with enhanced crystal effects
-            await this.generateFocalTiles(images, tiles, allowImageRepetition, useDramaticMode);
-        } else {
-            // Field mode: Many smaller images with enhanced crystal effects
-            await this.generateFieldTiles(images, tiles, allowImageRepetition, useDramaticMode);
+    /**
+     * Generate a path for a shard shape
+     * @param {number} width - Width of the shard
+     * @param {number} height - Height of the shard
+     * @param {number} complexity - Complexity factor for the shard shape
+     * @returns {Path2D} - The path for the shard
+     */
+    generateShardPath(width, height, complexity) {
+        const path = new Path2D();
+        const numPoints = Math.max(3, Math.floor(6 * complexity)); // 3-6 points based on complexity
+        const points = [];
+
+        // Generate random points around the perimeter
+        for (let i = 0; i < numPoints; i++) {
+            const angle = (i / numPoints) * Math.PI * 2;
+            const radius = Math.min(width, height) / 2;
+            const variance = radius * 0.2; // 20% variance in radius
+
+            const r = radius + (Math.random() - 0.5) * variance;
+            const x = width/2 + Math.cos(angle) * r;
+            const y = height/2 + Math.sin(angle) * r;
+
+            points.push({ x, y });
         }
 
-        console.log(`Generated ${tiles.length} tiles`);
-        
-        // Clear the canvas and set background
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.fillStyle = this.generateBackgroundColor();
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw all tiles
-        for (const tile of tiles) {
-            this.drawTile(tile);
+        // Create the path
+        path.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            // Use quadratic curves between points for smoother edges
+            const xc = (points[i].x + points[i-1].x) / 2;
+            const yc = (points[i].y + points[i-1].y) / 2;
+            path.quadraticCurveTo(points[i-1].x, points[i-1].y, xc, yc);
         }
-        
-        return tiles;
+        // Close the path back to the first point
+        const xc = (points[0].x + points[points.length-1].x) / 2;
+        const yc = (points[0].y + points[points.length-1].y) / 2;
+        path.quadraticCurveTo(points[points.length-1].x, points[points.length-1].y, xc, yc);
+        path.closePath();
+
+        return path;
     }
 
-    drawTile(tile) {
-        if (!tile || !tile.image) return;
-        
+    /**
+     * Draw a shard on the canvas
+     * @param {HTMLImageElement} image - The image to draw
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {number} width - Width of the shard
+     * @param {number} height - Height of the shard
+     * @param {number} rotation - Rotation angle in degrees
+     * @param {Path2D} maskPath - The path to use as a mask
+     * @param {number} opacity - Opacity value (0-1)
+     */
+    drawShard(image, x, y, width, height, rotation, maskPath, opacity) {
+        if (!this.ctx || !image || !image.complete || image.naturalWidth === 0) {
+            return;
+        }
+
         this.ctx.save();
         
-        // Apply rotation if specified
-        if (tile.rotation) {
-            this.ctx.translate(tile.x + tile.width/2, tile.y + tile.height/2);
-            this.ctx.rotate(tile.rotation * Math.PI / 180);
-            this.ctx.translate(-(tile.x + tile.width/2), -(tile.y + tile.height/2));
+        try {
+            // Set the opacity
+            this.ctx.globalAlpha = opacity;
+            
+            // Move to the center of where we want to draw the shard
+            this.ctx.translate(x + width/2, y + height/2);
+            
+            // Rotate around the center point
+            if (rotation !== 0) {
+                this.ctx.rotate((rotation * Math.PI) / 180);
+            }
+            
+            // Move back to draw the shard
+            this.ctx.translate(-(x + width/2), -(y + height/2));
+            
+            // Create a clipping mask
+            this.ctx.save();
+            this.ctx.translate(x, y);
+            this.ctx.clip(maskPath);
+            
+            // Calculate aspect ratios
+            const imageAspect = image.naturalWidth / image.naturalHeight;
+            const targetAspect = width / height;
+            
+            let sw, sh, sx, sy;
+            
+            // Maintain aspect ratio while filling the target area
+            if (imageAspect > targetAspect) {
+                // Image is wider than target
+                sw = image.naturalHeight * targetAspect;
+                sh = image.naturalHeight;
+                sx = (image.naturalWidth - sw) / 2;
+                sy = 0;
+            } else {
+                // Image is taller than target
+                sw = image.naturalWidth;
+                sh = image.naturalWidth / targetAspect;
+                sx = 0;
+                sy = (image.naturalHeight - sh) / 2;
+            }
+            
+            // Draw the image within the clipping mask
+            this.ctx.drawImage(image, sx, sy, sw, sh, 0, 0, width, height);
+            
+            // Restore the clipping context
+            this.ctx.restore();
+            
+            // Draw a subtle border around the shard
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            this.ctx.lineWidth = 1;
+            this.ctx.translate(x, y);
+            this.ctx.stroke(maskPath);
+        } catch (error) {
+            console.error('Error drawing shard:', error);
         }
         
-        // Apply opacity if specified
-        if (tile.forceOpacity !== null) {
-            this.ctx.globalAlpha = tile.forceOpacity;
-        }
-        
-        // Draw the image
-        this.ctx.drawImage(
-            tile.image,
-            tile.x,
-            tile.y,
-            tile.width,
-            tile.height
-        );
-        
+        // Restore the main context
         this.ctx.restore();
-    }
-
-    generateBackgroundColor() {
-        // Generate a subtle background color
-        const hue = Math.random() * 360;
-        const saturation = 10 + Math.random() * 20; // 10-30%
-        const lightness = 85 + Math.random() * 10; // 85-95%
-        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    }
-
-    async generateFocalTiles(images, tiles, allowImageRepetition, useDramaticScaling) {
-        // Larger base size for focal tiles
-        const baseSize = Math.max(200, this.canvas.width / 3.5);
-        
-        // Enhanced scale ranges for crystal effects
-        let minScale, maxScale;
-        
-        if (useDramaticScaling) {
-            // Dramatic scaling - greater variation for crystal effect
-            minScale = 0.3; // Reduced from 0.4 for more dramatic small tiles
-            maxScale = 3.5; // Increased from 3.0 for more dramatic large tiles
-        } else {
-            // Uniform scaling - less variation
-            minScale = 0.6;
-            maxScale = 2.5;
-        }
-        
-        // Generate 3-7 focal points (more with dramatic scaling)
-        const minFocal = useDramaticScaling ? 4 : 3;
-        const maxFocal = useDramaticScaling ? 7 : 5;
-        const numFocal = minFocal + Math.floor(Math.random() * (maxFocal - minFocal + 1));
-        
-        console.log(`Generating ${numFocal} focal tiles with scale range: ${minScale}-${maxScale}`);
-        
-        // Prepare image selection
-        let imageSequence = [];
-        if (!allowImageRepetition) {
-            // Create a shuffled sequence of unique images
-            imageSequence = this.shuffleArray(Array.from({length: images.length}, (_, i) => i))
-                .slice(0, Math.min(numFocal, images.length));
-        }
-        
-        // Positioning strategy - more intentional with dramatic scaling
-        let positionStrategy;
-        if (useDramaticScaling) {
-            // Create a more curated layout for dramatic scaling
-            // Define important positions (rule of thirds, golden ratio points)
-            const w = this.canvas.width;
-            const h = this.canvas.height;
-            
-            positionStrategy = [
-                // Rule of thirds points
-                {x: w/3, y: h/3},
-                {x: 2*w/3, y: h/3},
-                {x: w/3, y: 2*h/3},
-                {x: 2*w/3, y: 2*h/3},
-                // Golden ratio points
-                {x: w * 0.382, y: h * 0.382},
-                {x: w * 0.618, y: h * 0.382},
-                {x: w * 0.382, y: h * 0.618},
-                {x: w * 0.618, y: h * 0.618},
-                // Center
-                {x: w/2, y: h/2}
-            ];
-            
-            // Shuffle the positions
-            this.shuffleArray(positionStrategy);
-        }
-        
-        // Process for creating tiles
-        for (let i = 0; i < numFocal; i++) {
-            // Determine position based on strategy
-            let x, y;
-            
-            if (useDramaticScaling && i < positionStrategy.length) {
-                // Use the strategic positions for dramatic scaling
-                const pos = positionStrategy[i];
-                // Add slight randomness to avoid perfectly aligned tiles
-                const jitter = baseSize * 0.1;
-                x = pos.x + (Math.random() - 0.5) * jitter;
-                y = pos.y + (Math.random() - 0.5) * jitter;
-            } else {
-                // Random position
-                x = Math.random() * (this.canvas.width - baseSize * minScale);
-                y = Math.random() * (this.canvas.height - baseSize * minScale);
-            }
-            
-            // Determine scale with weighted distribution based on dramatic setting
-            let scale;
-            if (useDramaticScaling) {
-                // In dramatic mode, bias toward extremes (very large or small)
-                const rand = Math.random();
-                if (rand < 0.4) {
-                    // 40% chance of large tile
-                    scale = maxScale - (Math.random() * 0.3); // 1.3-1.6
-                } else if (rand < 0.7) {
-                    // 30% chance of small tile
-                    scale = minScale + (Math.random() * 0.2); // 0.4-0.6
-                } else {
-                    // 30% chance of medium tile
-                    scale = 0.8 + (Math.random() * 0.4); // 0.8-1.2
-                }
-            } else {
-                // In uniform mode, use a more regular distribution
-                scale = minScale + Math.random() * (maxScale - minScale);
-            }
-            
-            // Determine rotation - more dramatic in dramatic mode
-            const maxRotation = useDramaticScaling ? 45 : 20;
-            const rotation = Math.random() < 0.7 ? (Math.random() - 0.5) * maxRotation : 0;
-            
-            // Determine preferred image index if not allowing repetition
-            const preferredIndex = !allowImageRepetition ? imageSequence[i % imageSequence.length] : null;
-            
-            // Generate the tile with these specifications
-            const tile = await this.generateTile(
-                images, 
-                x - (baseSize * scale / 2), // Center the tile at the determined position
-                y - (baseSize * scale / 2), 
-                baseSize * scale,
-                preferredIndex
-            );
-            
-            if (tile) {
-                // Apply the rotation
-                tile.rotation = rotation;
-                
-                // Set opacity based on settings
-                tile.forceOpacity = useDramaticScaling ? 
-                    (Math.random() < 0.3 ? 1.0 : 0.5 + Math.random() * 0.4) : // More full opacity tiles in dramatic mode
-                    (0.5 + Math.random() * 0.3); // Standard range
-                
-                tiles.push(tile);
-            }
-        }
-    }
-
-    async generateFieldTiles(images, tiles, allowImageRepetition, useDramaticScaling) {
-        if (!images || images.length === 0) return;
-        
-        const dpr = window.devicePixelRatio || 1;
-        
-        // Enhanced tile count variation for crystal effects
-        const minTiles = useDramaticScaling ? 20 : 40; // Reduced minimum for dramatic mode
-        const maxTiles = useDramaticScaling ? 80 : 120; // Increased maximum for dramatic mode
-        const targetTileCount = minTiles + Math.floor(Math.random() * (maxTiles - minTiles + 1));
-        
-        // Enhanced base size calculation for crystal effects
-        const baseSizeMultiplier = useDramaticScaling ? 3.5 : 6; // Reduced from 4 to allow for even larger tiles
-        const baseSize = Math.min(
-            this.canvas.width / (baseSizeMultiplier * dpr),
-            this.canvas.height / (5 * dpr)
-        );
-        
-        // Enhanced scale ranges for crystal effects
-        let minScale, maxScale;
-        
-        if (useDramaticScaling) {
-            // Dramatic scaling - greater variation
-            minScale = 0.6; // Reduced from 0.7 for more dramatic small tiles
-            maxScale = 3.5; // Increased from 3.0 for more dramatic large tiles
-        } else {
-            // Uniform scaling - less variation
-            minScale = 0.9;
-            maxScale = 2.5;
-        }
-        
-        // Calculate grid parameters for cell-based positioning
-        const overlapFactor = useDramaticScaling ? 0.75 : 0.65; // More overlap in dramatic mode
-        const numCols = Math.floor(this.canvas.width / (baseSize * overlapFactor * dpr)) + 1;
-        const numRows = Math.floor(this.canvas.height / (baseSize * overlapFactor * dpr)) + 1;
-        
-        // Calculate target number of tiles (but never more than available spaces)
-        const maxGridTiles = numCols * numRows;
-        const finalTargetTiles = Math.min(targetTileCount, maxGridTiles);
-        
-        console.log(`Generating field with ${finalTargetTiles} tiles (${numCols}x${numRows} grid)`);
-        console.log(`Base size: ${baseSize}, Scale: ${minScale}-${maxScale}`);
-        
-        // Calculate cell dimensions for positioning
-        const effectiveWidth = this.canvas.width / dpr;
-        const effectiveHeight = this.canvas.height / dpr;
-        const cellWidth = effectiveWidth / (numCols - 1);
-        const cellHeight = effectiveHeight / (numRows - 1);
-        
-        // Generate all possible positions based on the grid
-        const positions = [];
-        for (let row = -1; row < numRows + 1; row++) {
-            for (let col = -1; col < numCols + 1; col++) {
-                // Calculate base position
-                const baseX = col * cellWidth;
-                const baseY = row * cellHeight;
-                
-                // Add randomness based on scaling mode
-                const jitterRange = useDramaticScaling ? 
-                    Math.min(cellWidth, cellHeight) * 0.25 : // More randomness in dramatic mode
-                    Math.min(cellWidth, cellHeight) * 0.15;
-                    
-                const x = baseX + (Math.random() - 0.5) * jitterRange;
-                const y = baseY + (Math.random() - 0.5) * jitterRange;
-                
-                positions.push({x, y});
-            }
-        }
-        
-        // Shuffle and limit positions
-        this.shuffleArray(positions);
-        positions.length = Math.min(positions.length, finalTargetTiles);
-        
-        // Determine rotation settings
-        const useRotations = Math.random() < (useDramaticScaling ? 0.9 : 0.7); // Higher chance in dramatic mode
-        const maxRotation = useDramaticScaling ? 45 : 25; // More extreme rotations in dramatic mode
-        
-        // Prepare image selection (only matters for non-repetition mode)
-        let currentImageIndex = 0;
-        const uniqueImageIndices = this.shuffleArray(Array.from({length: images.length}, (_, i) => i));
-        
-        // Generate opacity distribution with proper variation
-        const opacityDistribution = {
-            // Percentage of tiles with full opacity (1.0)
-            fullOpacity: useDramaticScaling ? 0.2 : 0.15,
-            // Percentage of tiles with high opacity (0.7-0.9)
-            highOpacity: useDramaticScaling ? 0.5 : 0.35,
-            // Remaining tiles get medium opacity (0.3-0.6)
-        };
-        
-        // Generate tiles
-        let generatedTiles = 0;
-        for (let i = 0; i < positions.length; i++) {
-            // Stop when we've reached the target number
-            if (generatedTiles >= finalTargetTiles) break;
-            
-            const pos = positions[i];
-            
-            // Determine preferred image index for non-repetition mode
-            let preferredIndex = null;
-            if (!allowImageRepetition) {
-                // Use the next unique image
-                if (currentImageIndex >= uniqueImageIndices.length) {
-                    // We've used all unique images, can't add more
-                    if (generatedTiles < minTiles) {
-                        console.warn(`Ran out of unique images after ${generatedTiles} tiles (min: ${minTiles})`);
-                    }
-                    break;
-                }
-                preferredIndex = uniqueImageIndices[currentImageIndex++];
-            }
-            
-            // Calculate scale with distribution based on mode
-            let scale;
-            if (useDramaticScaling) {
-                // In dramatic mode, create more variance
-                const rand = Math.random();
-                if (rand < 0.3) {
-                    // 30% chance for large tiles
-                    scale = maxScale - Math.random() * 0.3; // 1.5-1.8
-                } else if (rand < 0.6) {
-                    // 30% chance for small tiles
-                    scale = minScale + Math.random() * 0.2; // 0.7-0.9
-                } else {
-                    // 40% chance for medium tiles
-                    scale = 1.0 + Math.random() * 0.3; // 1.0-1.3
-                }
-            } else {
-                // Regular scale distribution
-                scale = minScale + Math.random() * (maxScale - minScale);
-            }
-            
-            // Calculate final size with proper scaling
-            const finalSize = baseSize * scale;
-            
-            // Determine rotation
-            const shouldRotate = useRotations && Math.random() < (useDramaticScaling ? 0.5 : 0.3);
-            const rotation = shouldRotate ? (Math.random() - 0.5) * maxRotation : 0;
-            
-            // Generate the tile
-            const tile = await this.generateTile(
-                images,
-                (pos.x - finalSize/2) * dpr,
-                (pos.y - finalSize/2) * dpr,
-                finalSize * dpr,
-                preferredIndex
-            );
-            
-            if (tile) {
-                // Apply rotation
-                tile.rotation = rotation;
-                
-                // Determine opacity based on distribution
-                const opacityRand = Math.random();
-                if (opacityRand < opacityDistribution.fullOpacity) {
-                    tile.forceOpacity = 1.0; // Full opacity
-                } else if (opacityRand < (opacityDistribution.fullOpacity + opacityDistribution.highOpacity)) {
-                    tile.forceOpacity = 0.7 + Math.random() * 0.3; // High opacity (0.7-1.0)
-                } else {
-                    tile.forceOpacity = 0.3 + Math.random() * 0.4; // Medium opacity (0.3-0.7)
-                }
-                
-                tiles.push(tile);
-                generatedTiles++;
-            }
-        }
-        
-        // Log statistics
-        console.log(`Generated ${tiles.length} field tiles (target: ${finalTargetTiles})`);
-        
-        // Image usage stats
-        const imageStats = {
-            uniqueImagesUsed: new Set([...this.imageUsageCount.entries()]
-                .filter(([_, count]) => count > 0)
-                .map(([idx, _]) => idx)).size,
-            maxUsageCount: Math.max(...[...this.imageUsageCount.values(), 0]),
-            rotationsEnabled: useRotations,
-            maxRotation: maxRotation,
-            totalTiles: tiles.length
-        };
-        
-        console.log('Field tile generation stats:', imageStats);
-    }
-
-    createDramaticTile(baseSize, dramaticScale, isFocalStyle) {
-        const targetFocalPos = { x: this.canvas.width / 2, y: this.canvas.height / 2 };
-        const dramaticSize = baseSize * dramaticScale;
-        const offsetX = (Math.random() - 0.5) * dramaticSize * 0.3;
-        const offsetY = (Math.random() - 0.5) * dramaticSize * 0.3;
-        const dramaticX = targetFocalPos.x - dramaticSize / 2 + offsetX;
-        const dramaticY = targetFocalPos.y - dramaticSize / 2 + offsetY;
-
-        return {
-            x: dramaticX, y: dramaticY,
-            width: dramaticSize, height: dramaticSize,
-            scale: dramaticScale, isDramaticCandidate: true,
-            forceOpacity: 1.0
-        };
-    }
-
-    assignOpacity(tile, dramaticTileData) {
-        if (tile.isDramaticCandidate) return 1.0;
-        const rand = Math.random();
-        if (rand < 0.07) return 1.0;
-        if (rand < 0.30) return 0.5 + Math.random() * 0.3;
-        return null;
     }
 }

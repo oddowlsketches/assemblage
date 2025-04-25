@@ -14,10 +14,9 @@ export default class LayeredLayout {
     async render(ctx, images, canvas, options = {}) {
         try {
             // Check if we have enough images
-            if (images.length < 4) {
-                console.warn('Layered: not enough images, switching to Mosaic');
-                const mosaicLayout = new PluginRegistry().getLayout('mosaic');
-                return mosaicLayout.render(ctx, images, canvas, options);
+            if (images.length < 5) {
+                console.warn('Layered: fallback to Mosaic');
+                return PluginRegistry.get('mosaic').render(ctx, images, canvas);
             }
 
             // Save context state
