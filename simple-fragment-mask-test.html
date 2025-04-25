@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Assemblage | Simple Fragment Mask Test</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        /* Basic styles */
+        :root {
+            --background-color: #f5f5f5;
+            --text-color: #333;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Canvas and header */
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-family: 'Playfair Display', serif;
+            font-style: italic;
+            color: white;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+        }
+        
+        .tagline {
+            color: white;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            margin-top: 5px;
+        }
+        
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            width: 300px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        .form-row {
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-row label {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkbox-item label {
+            margin-left: 5px;
+            font-size: 12px;
+        }
+        
+        /* Test badge */
+        .test-badge {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 20;
+        }
+        
+        /* Loading indicator */
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            z-index: 30;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas for drawing -->
+    <canvas id="canvas"></canvas>
+    
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <h1>Assemblage</h1>
+            <p class="tagline">FRAGMENT MASK TEST</p>
+        </div>
+        <div>
+            <button id="generate">Generate Collage</button>
+            <button id="save">Save Image</button>
+        </div>
+    </div>
+    
+    <!-- Controls -->
+    <div class="controls">
+        <h3>Mask Settings</h3>
+        <div class="form-row">
+            <label for="probability">Mask Probability: <span id="probValue">20%</span></label>
+            <input type="range" id="probability" min="0" max="100" value="20" step="5">
+        </div>
+        <div class="form-row">
+            <div class="checkbox-item">
+                <input type="checkbox" id="consistent">
+                <label for="consistent">Use consistent mask type</label>
+            </div>
+        </div>
+        <div class="form-row">
+            <label>Available Mask Types:</label>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskCircle" checked>
+                    <label for="maskCircle">Circle</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskTriangle" checked>
+                    <label for="maskTriangle">Triangle</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskRectangle" checked>
+                    <label for="maskRectangle">Rectangle</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskEllipse" checked>
+                    <label for="maskEllipse">Ellipse</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskDiamond" checked>
+                    <label for="maskDiamond">Diamond</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskHexagon" checked>
+                    <label for="maskHexagon">Hexagon</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskStar" checked>
+                    <label for="maskStar">Star</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskArc" checked>
+                    <label for="maskArc">Arc</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="maskArch" checked>
+                    <label for="maskArch">Arch</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Test badge -->
+    <div class="test-badge">MASK TEST</div>
+    
+    <!-- Loading indicator -->
+    <div class="loading" id="loading">Generating collage...</div>
+    
+    <!-- Script -->
+    <script>
+        // Simple Fragment Mask Test
+        class MaskTest {
+            constructor() {
+                // Canvas setup
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                
+                // UI Elements
+                this.generateButton = document.getElementById('generate');
+                this.saveButton = document.getElementById('save');
+                this.loadingElement = document.getElementById('loading');
+                this.probabilitySlider = document.getElementById('probability');
+                this.probValueLabel = document.getElementById('probValue');
+                this.consistentCheckbox = document.getElementById('consistent');
+                
+                // Mask checkboxes
+                this.maskCheckboxes = {
+                    circle: document.getElementById('maskCircle'),
+                    triangle: document.getElementById('maskTriangle'),
+                    rectangle: document.getElementById('maskRectangle'),
+                    ellipse: document.getElementById('maskEllipse'),
+                    diamond: document.getElementById('maskDiamond'),
+                    hexagon: document.getElementById('maskHexagon'),
+                    star: document.getElementById('maskStar'),
+                    arc: document.getElementById('maskArc'),
+                    arch: document.getElementById('maskArch')
+                };
+                
+                // State
+                this.images = [];
+                this.fragments = [];
+                this.maskSettings = {
+                    probability: 0.2,
+                    maskTypes: ['circle', 'triangle', 'rectangle', 'ellipse'],
+                    consistent: false
+                };
+                
+                // Event listeners
+                this.generateButton.addEventListener('click', () => this.generateCollage());
+                this.saveButton.addEventListener('click', () => this.saveCollage());
+                this.probabilitySlider.addEventListener('input', () => this.updateSettings());
+                this.consistentCheckbox.addEventListener('change', () => this.updateSettings());
+                
+                // Add listeners to all checkboxes
+                Object.keys(this.maskCheckboxes).forEach(key => {
+                    const checkbox = this.maskCheckboxes[key];
+                    if (checkbox) {
+                        checkbox.addEventListener('change', () => this.updateSettings());
+                    }
+                });
+                
+                // Initialize
+                this.init();
+            }
+            
+            async init() {
+                this.showLoading(true);
+                
+                // Load test images
+                await this.loadTestImages();
+                
+                // Update settings
+                this.updateSettings();
+                
+                // Generate initial collage
+                this.generateCollage();
+                
+                this.showLoading(false);
+            }
+            
+            resizeCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                this.canvas.width = window.innerWidth * dpr;
+                this.canvas.height = window.innerHeight * dpr;
+                this.canvas.style.width = window.innerWidth + 'px';
+                this.canvas.style.height = window.innerHeight + 'px';
+                this.ctx.scale(dpr, dpr);
+            }
+            
+            async loadTestImages() {
+                try {
+                    console.log('Loading images from metadata...');
+                    const response = await fetch('/images/metadata.json');
+                    const metadata = await response.json();
+                    
+                    // Get a random selection of images
+                    const imageCount = 10; // Load 10 random images
+                    const shuffled = [...metadata].sort(() => 0.5 - Math.random());
+                    const selectedImages = shuffled.slice(0, imageCount);
+                    
+                    this.images = [];
+                    
+                    for (const meta of selectedImages) {
+                        const img = new Image();
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = (error) => {
+                                console.warn(`Failed to load image: ${meta.src}`, error);
+                                resolve(); // Continue even if load fails
+                            };
+                            img.src = `/images/collages/${meta.src}`;
+                        });
+                        if (img.complete) {
+                            this.images.push(img);
+                            console.log(`Loaded image: ${meta.src}`);
+                        }
+                    }
+                    
+                    console.log(`Successfully loaded ${this.images.length} images from metadata`);
+                    
+                    // If no images loaded, fall back to test images
+                    if (this.images.length === 0) {
+                        console.warn('No images loaded from metadata, using fallback test images');
+                        const fallbackUrls = [
+                            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iODAiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+                            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+                            'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDIwIDIwLDE4MCAxODAsMTgwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
+                        ];
+                        
+                        for (const url of fallbackUrls) {
+                            const img = new Image();
+                            await new Promise(resolve => {
+                                img.onload = resolve;
+                                img.onerror = resolve;
+                                img.src = url;
+                            });
+                            this.images.push(img);
+                        }
+                        
+                        console.log(`Loaded ${this.images.length} fallback test images`);
+                    }
+                } catch (error) {
+                    console.error('Error loading images:', error);
+                    // Fall back to test images if there's an error
+                    const fallbackUrls = [
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iODAiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjEyMCIgaGVpZ2h0PSIxMjAiIGZpbGw9IiNmZmYiLz48L3N2Zz4=',
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzMyIvPjxwb2x5Z29uIHBvaW50cz0iMTAwLDIwIDIwLDE4MCAxODAsMTgwIiBmaWxsPSIjZmZmIi8+PC9zdmc+'
+                    ];
+                    
+                    for (const url of fallbackUrls) {
+                        const img = new Image();
+                        await new Promise(resolve => {
+                            img.onload = resolve;
+                            img.onerror = resolve;
+                            img.src = url;
+                        });
+                        this.images.push(img);
+                    }
+                    
+                    console.log(`Loaded ${this.images.length} fallback test images after error`);
+                }
+            }
+            
+            updateSettings() {
+                // Update probability
+                const probability = parseInt(this.probabilitySlider.value) / 100;
+                this.maskSettings.probability = probability;
+                this.probValueLabel.textContent = `${this.probabilitySlider.value}%`;
+                
+                // Update consistent setting
+                this.maskSettings.consistent = this.consistentCheckbox.checked;
+                
+                // Update mask types
+                this.maskSettings.maskTypes = [];
+                Object.keys(this.maskCheckboxes).forEach(key => {
+                    if (this.maskCheckboxes[key] && this.maskCheckboxes[key].checked) {
+                        this.maskSettings.maskTypes.push(key);
+                    }
+                });
+                
+                console.log('Updated mask settings:', this.maskSettings);
+            }
+            
+            generateCollage() {
+                this.showLoading(true);
+                
+                // Clear canvas
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Generate background color
+                const backgroundColor = this.generateRandomColor();
+                document.documentElement.style.setProperty('--background-color', backgroundColor);
+                
+                // Set background
+                this.ctx.fillStyle = backgroundColor;
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                // Generate fragments
+                this.fragments = this.generateFragments();
+                
+                // Apply masks
+                this.fragments = this.applyMasks(this.fragments, this.maskSettings);
+                
+                // Draw fragments
+                this.drawFragments();
+                
+                this.showLoading(false);
+            }
+            
+            generateFragments() {
+                const fragments = [];
+                const count = 10 + Math.floor(Math.random() * 10); // 10-19 fragments
+                
+                for (let i = 0; i < count; i++) {
+                    // Select a random image
+                    const imgIndex = Math.floor(Math.random() * this.images.length);
+                    
+                    // Calculate size
+                    const minSize = Math.min(this.canvas.width, this.canvas.height) * 0.1;
+                    const maxSize = Math.min(this.canvas.width, this.canvas.height) * 0.3;
+                    const size = minSize + Math.random() * (maxSize - minSize);
+                    
+                    // Calculate position
+                    const x = Math.random() * (this.canvas.width - size);
+                    const y = Math.random() * (this.canvas.height - size);
+                    
+                    // Add fragment
+                    fragments.push({
+                        img: imgIndex,
+                        x: x,
+                        y: y,
+                        width: size,
+                        height: size,
+                        rotation: Math.random() * 360,
+                        depth: Math.random()
+                    });
+                }
+                
+                // Sort by depth
+                fragments.sort((a, b) => a.depth - b.depth);
+                
+                return fragments;
+            }
+            
+            applyMasks(fragments, settings) {
+                if (!fragments || !Array.isArray(fragments) || fragments.length === 0) {
+                    return fragments;
+                }
+                
+                // Skip if no mask types enabled or probability is 0
+                if (settings.probability <= 0 || settings.maskTypes.length === 0) {
+                    return fragments;
+                }
+                
+                // Create a copy to avoid modifying the original
+                const maskedFragments = JSON.parse(JSON.stringify(fragments));
+                
+                // Select a single mask type for consistency if enabled
+                let consistentMaskType = null;
+                if (settings.consistent) {
+                    const index = Math.floor(Math.random() * settings.maskTypes.length);
+                    consistentMaskType = settings.maskTypes[index];
+                }
+                
+                // Apply masks based on probability
+                maskedFragments.forEach(fragment => {
+                    if (Math.random() < settings.probability) {
+                        // Use consistent mask or random mask
+                        const maskType = consistentMaskType || 
+                            settings.maskTypes[Math.floor(Math.random() * settings.maskTypes.length)];
+                        
+                        // Apply mask
+                        fragment.maskType = maskType;
+                    }
+                });
+                
+                return maskedFragments;
+            }
+            
+            drawFragments() {
+                // Set blend mode
+                this.ctx.globalCompositeOperation = 'multiply';
+                
+                // Draw each fragment
+                this.fragments.forEach(fragment => {
+                    try {
+                        // Skip invalid fragments
+                        if (!fragment) return;
+                        
+                        // Get image
+                        const img = this.images[fragment.img];
+                        if (!img || !img.complete) return;
+                        
+                        // Save context state
+                        this.ctx.save();
+                        
+                        // Set opacity based on depth
+                        this.ctx.globalAlpha = 0.3 + fragment.depth * 0.6;
+                        
+                        // Apply rotation
+                        if (fragment.rotation) {
+                            const centerX = fragment.x + fragment.width / 2;
+                            const centerY = fragment.y + fragment.height / 2;
+                            this.ctx.translate(centerX, centerY);
+                            this.ctx.rotate(fragment.rotation * Math.PI / 180);
+                            this.ctx.translate(-centerX, -centerY);
+                        }
+                        
+                        // Apply mask if specified
+                        if (fragment.maskType) {
+                            this.applyMaskPath(fragment);
+                        }
+                        
+                        // Draw the image
+                        this.ctx.drawImage(img, fragment.x, fragment.y, fragment.width, fragment.height);
+                        
+                        // Restore context state
+                        this.ctx.restore();
+                    } catch (error) {
+                        console.error('Error drawing fragment:', error);
+                    }
+                });
+                
+                // Reset blend mode
+                this.ctx.globalCompositeOperation = 'source-over';
+            }
+            
+            applyMaskPath(fragment) {
+                if (!fragment.maskType) return;
+                
+                this.ctx.beginPath();
+                
+                switch (fragment.maskType) {
+                    case 'circle':
+                        const radius = Math.min(fragment.width, fragment.height) / 2;
+                        this.ctx.arc(
+                            fragment.x + fragment.width / 2,
+                            fragment.y + fragment.height / 2,
+                            radius,
+                            0,
+                            Math.PI * 2
+                        );
+                        break;
+                        
+                    case 'triangle':
+                        this.ctx.moveTo(fragment.x + fragment.width / 2, fragment.y);
+                        this.ctx.lineTo(fragment.x + fragment.width, fragment.y + fragment.height);
+                        this.ctx.lineTo(fragment.x, fragment.y + fragment.height);
+                        this.ctx.closePath();
+                        break;
+                        
+                    case 'rectangle':
+                        this.ctx.rect(fragment.x, fragment.y, fragment.width, fragment.height);
+                        break;
+                        
+                    case 'ellipse':
+                        this.ctx.ellipse(
+                            fragment.x + fragment.width / 2,
+                            fragment.y + fragment.height / 2,
+                            fragment.width / 2,
+                            fragment.height / 2,
+                            0,
+                            0,
+                            Math.PI * 2
+                        );
+                        break;
+                        
+                    case 'diamond':
+                        this.ctx.moveTo(fragment.x + fragment.width / 2, fragment.y);
+                        this.ctx.lineTo(fragment.x + fragment.width, fragment.y + fragment.height / 2);
+                        this.ctx.lineTo(fragment.x + fragment.width / 2, fragment.y + fragment.height);
+                        this.ctx.lineTo(fragment.x, fragment.y + fragment.height / 2);
+                        this.ctx.closePath();
+                        break;
+                        
+                    case 'hexagon':
+                        const hexRadius = Math.min(fragment.width, fragment.height) / 2;
+                        const centerX = fragment.x + fragment.width / 2;
+                        const centerY = fragment.y + fragment.height / 2;
+                        
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i * Math.PI * 2) / 6;
+                            const x = centerX + hexRadius * Math.cos(angle);
+                            const y = centerY + hexRadius * Math.sin(angle);
+                            
+                            if (i === 0) this.ctx.moveTo(x, y);
+                            else this.ctx.lineTo(x, y);
+                        }
+                        this.ctx.closePath();
+                        break;
+                        
+                    case 'star':
+                        const starRadius = Math.min(fragment.width, fragment.height) / 2;
+                        const starCenterX = fragment.x + fragment.width / 2;
+                        const starCenterY = fragment.y + fragment.height / 2;
+                        const outerRadius = starRadius;
+                        const innerRadius = starRadius * 0.4;
+                        const spikes = 5;
+                        
+                        for (let i = 0; i < spikes * 2; i++) {
+                            const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                            const angle = (i * Math.PI) / spikes;
+                            const x = starCenterX + radius * Math.cos(angle);
+                            const y = starCenterY + radius * Math.sin(angle);
+                            
+                            if (i === 0) this.ctx.moveTo(x, y);
+                            else this.ctx.lineTo(x, y);
+                        }
+                        this.ctx.closePath();
+                        break;
+                        
+                    case 'arc':
+                        const arcCenterX = fragment.x + fragment.width / 2;
+                        const arcCenterY = fragment.y + fragment.height / 2;
+                        const arcRadius = Math.min(fragment.width, fragment.height) / 2;
+                        const arcWidth = arcRadius * 0.3;
+                        
+                        // Draw the outer arc
+                        this.ctx.arc(arcCenterX, arcCenterY, arcRadius, 0, Math.PI, false);
+                        
+                        // Draw the inner arc in reverse to create the arc shape
+                        this.ctx.arc(arcCenterX, arcCenterY, arcRadius - arcWidth, Math.PI, 0, true);
+                        this.ctx.closePath();
+                        break;
+                        
+                    case 'arch':
+                        const archCenterX = fragment.x + fragment.width / 2;
+                        const archTopY = fragment.y;
+                        const archBottomY = fragment.y + fragment.height;
+                        const archWidth = fragment.width;
+                        const archRadius = archWidth / 2;
+                        
+                        // Start at bottom left corner
+                        this.ctx.moveTo(fragment.x, archBottomY);
+                        
+                        // Draw left side (vertical line)
+                        this.ctx.lineTo(fragment.x, archTopY + archRadius);
+                        
+                        // Draw the arch (half-circle) at the top
+                        this.ctx.arc(archCenterX, archTopY + archRadius, archRadius, Math.PI, 0, false);
+                        
+                        // Draw right side (vertical line)
+                        this.ctx.lineTo(fragment.x + archWidth, archBottomY);
+                        
+                        // Close path (bottom line)
+                        this.ctx.closePath();
+                        break;
+                }
+                
+                // Apply the clip
+                this.ctx.clip();
+            }
+            
+            generateRandomColor() {
+                // Pastel colors
+                const colors = [
+                    '#f8f9fa', // White
+                    '#e9ecef', // Light Gray
+                    '#f0f5e9', // Soft Mint
+                    '#f5efed', // Pale Pink
+                    '#e9f0f5', // Light Blue
+                    '#f5f0e9', // Warm Beige
+                    '#eff5f0', // Sage Green
+                    '#f5e9f0', // Lavender
+                    '#f0e9f5', // Soft Purple
+                    '#e9f5f0', // Mint Green
+                    '#f5e9e9'  // Soft Rose
+                ];
+                return colors[Math.floor(Math.random() * colors.length)];
+            }
+            
+            saveCollage() {
+                const link = document.createElement('a');
+                link.download = 'assemblage-mask-test.png';
+                link.href = this.canvas.toDataURL('image/png');
+                link.click();
+            }
+            
+            showLoading(show) {
+                this.loadingElement.style.display = show ? 'block' : 'none';
+            }
+        }
+        
+        // Initialize when the document is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            window.app = new MaskTest();
+        });
+    </script>
+    
+    <!-- Debug Integration Script -->
+    <script src="js/debug-mask-integration.js"></script>
+</body>
+</html>

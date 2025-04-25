@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Narrative Composition Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .canvas-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .canvas-wrapper {
+            flex: 1;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        canvas {
+            width: 100%;
+            height: 400px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: white;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        #statusMessage {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .info {
+            background: #e3f2fd;
+            color: #0d47a1;
+        }
+
+        .success {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #b71c1c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Narrative Composition Test</h1>
+        
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <h3>Standard Composition</h3>
+                <canvas id="standardCanvas" width="800" height="600"></canvas>
+            </div>
+            <div class="canvas-wrapper">
+                <h3>Narrative Composition</h3>
+                <canvas id="narrativeCanvas" width="800" height="600"></canvas>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="compositionType">Composition Type:</label>
+                <select id="compositionType">
+                    <option value="multiple-actors">Multiple Actors</option>
+                    <option value="journey">Journey</option>
+                    <option value="conflict">Conflict</option>
+                    <option value="hierarchy">Hierarchy</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="flowPattern">Flow Pattern:</label>
+                <select id="flowPattern">
+                    <option value="circular">Circular</option>
+                    <option value="spiral">Spiral</option>
+                    <option value="wave">Wave</option>
+                    <option value="linear">Linear</option>
+                    <option value="zigzag">Zigzag</option>
+                </select>
+            </div>
+
+            <button id="generateBtn">Generate New Collage</button>
+            <div id="statusMessage"></div>
+        </div>
+    </div>
+
+    <script type="module" src="narrative-test.js"></script>
+</body>
+</html>
