@@ -4,10 +4,10 @@
  */
 
 import { TilingGenerator } from '../../legacy/js/collage/tilingGenerator.js';
-import { FragmentsGenerator } from '../../legacy/js/collage/fragmentsGenerator.js';
 import { MosaicGenerator } from '../../legacy/js/collage/mosaicGenerator.js';
 import { SlicedCollageGenerator } from '../../legacy/js/collage/slicedCollageGenerator.js';
 import { NarrativeCompositionManager } from '../../legacy/js/collage/narrativeCompositionManager.js';
+import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
 
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
@@ -24,7 +24,14 @@ export class CollageService {
             blendOpacity: 0.6,    // Increased for better visibility
             
             // Image repetition - key new feature
-            allowImageRepetition: true  // Allow some images to repeat
+            allowImageRepetition: true,  // Allow some images to repeat
+            
+            // Variation for fragments effect
+            variation: 'Classic',  // Default variation
+            
+            // Additional parameters for better control
+            maxFragments: 8,      // Maximum number of fragments
+            minVisibility: 0.7    // Minimum visibility for fragments
         };
     }
 
@@ -66,6 +73,14 @@ export class CollageService {
         return selectedEffect;
     }
 
+    getRandomVariation(effect) {
+        if (effect === 'fragments') {
+            const variations = ['Classic', 'Organic', 'Focal'];
+            return variations[Math.floor(Math.random() * variations.length)];
+        }
+        return null;
+    }
+
     getNumImagesForEffect(effectType) {
         // Base number of images on effect type and complexity
         const baseCount = this.parameters.complexity;
@@ -104,6 +119,13 @@ export class CollageService {
         const effectType = this.selectEffectType();
         console.log('[DEBUG] Selected effect type:', effectType);
 
+        // Get variation for the effect
+        const variation = this.getRandomVariation(effectType);
+        if (variation) {
+            this.parameters.variation = variation;
+            console.log('[DEBUG] Selected variation:', variation);
+        }
+
         // Get images for the effect
         const numImages = this.getNumImagesForEffect(effectType);
         const images = this.imagePool.slice(0, numImages);
@@ -118,7 +140,7 @@ export class CollageService {
                 generator = new TilingGenerator(canvas, this.parameters);
                 break;
             case 'fragments':
-                generator = new FragmentsGenerator(ctx, canvas);
+                generator = new EnhancedFragmentsGenerator(ctx, canvas);
                 break;
             case 'mosaic':
                 generator = new MosaicGenerator(canvas, this.parameters);
