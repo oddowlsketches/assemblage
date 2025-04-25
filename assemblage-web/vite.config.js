@@ -1,24 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@legacy': path.resolve(__dirname, './src/legacy')
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@legacy': fileURLToPath(new URL('../legacy/js', import.meta.url))
     }
   },
   optimizeDeps: {
     include: [
-      './src/legacy/js/collage/tilingGenerator.js',
-      './src/legacy/js/collage/fragmentsGenerator.js',
-      './src/legacy/js/collage/mosaicGenerator.js',
-      './src/legacy/js/collage/slicedCollageGenerator.js',
-      './src/legacy/js/collage/narrativeCompositionManager.js',
-      './src/legacy/js/collage/crystalGenerator.js'
+      '@legacy/collage/tilingGenerator.js',
+      '@legacy/collage/mosaicGenerator.js',
+      '@legacy/collage/slicedCollageGenerator.js',
+      '@legacy/collage/fragmentsGenerator.js',
+      '@legacy/collage/crystalGenerator.js',
+      '@legacy/collage/narrativeCompositionManager.js',
+      '@legacy/collage/maskImplementations.js'
     ]
   }
 })

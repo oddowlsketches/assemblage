@@ -3,7 +3,7 @@
  * Extends the legacy fragments generator with improved validation and scaling
  */
 
-import { FragmentsGenerator } from '../legacy/js/collage/fragmentsGenerator.js';
+import { FragmentsGenerator } from '@legacy/collage/fragmentsGenerator.js';
 
 export class EnhancedFragmentsGenerator extends FragmentsGenerator {
     constructor(canvas, parameters = {}) {

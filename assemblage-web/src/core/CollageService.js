@@ -3,12 +3,12 @@
  * Mirrors the functionality of the legacy generateNewCollage() method
  */
 
-import { TilingGenerator } from '../legacy/js/collage/tilingGenerator.js';
-import { MosaicGenerator } from '../legacy/js/collage/mosaicGenerator.js';
-import { SlicedCollageGenerator } from '../legacy/js/collage/slicedCollageGenerator.js';
-import { NarrativeCompositionManager } from '../legacy/js/collage/narrativeCompositionManager.js';
+import { TilingGenerator } from '@legacy/collage/tilingGenerator.js';
+import { MosaicGenerator } from '@legacy/collage/mosaicGenerator.js';
+import { SlicedCollageGenerator } from '@legacy/collage/slicedCollageGenerator.js';
+import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
-import { CrystalGenerator } from '../legacy/js/collage/crystalGenerator.js';
+import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
 
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
