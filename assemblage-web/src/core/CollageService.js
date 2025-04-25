@@ -34,9 +34,10 @@ export function withDebug(label, fn) {
 }
 
 export class CollageService {
-    constructor(imagePool, layoutName = 'random') {
-        this.imagePool = imagePool;
-        this.layoutName = layoutName;
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.imagePool = [];
         this.parameters = {
             // Base parameters
             complexity: 6,        // Controls number of images (5-10 recommended)
@@ -57,6 +58,50 @@ export class CollageService {
             maxFragments: 8,      // Maximum number of fragments
             minVisibility: 0.7    // Minimum visibility for fragments
         };
+        
+        // Load images on initialization
+        this.loadImages();
+    }
+    
+    setCanvas(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+    }
+    
+    async loadImages() {
+        try {
+            // Load metadata from the image processor server
+            const response = await fetch('http://localhost:5001/images/metadata.json');
+            const metadata = await response.json();
+            
+            // Load all images
+            const loadedImages = await Promise.all(
+                metadata.map(async (img) => {
+                    const image = new Image();
+                    // Use the full URL for images
+                    image.src = `http://localhost:5001/images/collages/${img.id}.jpg`;
+                    await new Promise((resolve, reject) => {
+                        image.onload = resolve;
+                        image.onerror = () => {
+                            console.warn(`Failed to load image: ${img.id}`);
+                            resolve(null); // Resolve with null instead of rejecting
+                        };
+                    });
+                    return image;
+                })
+            );
+            
+            // Filter out any failed image loads
+            this.imagePool = loadedImages.filter(img => img !== null);
+            console.log(`Loaded ${this.imagePool.length} images`);
+            
+            // Generate first collage if we have images
+            if (this.imagePool.length > 0) {
+                this.shiftPerspective();
+            }
+        } catch (error) {
+            console.error('Error loading images:', error);
+        }
     }
 
     generateBackgroundColor() {
@@ -210,5 +255,22 @@ export class CollageService {
 
         // Restore context state after rendering
         ctx.restore();
+    }
+
+    async shiftPerspective() {
+        if (!this.canvas || this.imagePool.length === 0) return;
+        
+        const effectType = this.selectEffectType();
+        console.log('Selected effect type:', effectType);
+        await this.createCollage(this.canvas, effectType);
+    }
+    
+    saveCollage() {
+        if (!this.canvas) return;
+        
+        const link = document.createElement('a');
+        link.download = 'assemblage-collage.png';
+        link.href = this.canvas.toDataURL('image/png');
+        link.click();
     }
 } 
