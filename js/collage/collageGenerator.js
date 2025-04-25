@@ -1577,35 +1577,35 @@ class CollageGenerator {
         // Get crystal settings from effect settings or parameters
         const crystalSettings = this.effectSettings?.crystal || {};
         
-        // Map parameters to crystal generator format with direct mapping for critical parameters
+        // Map parameters to crystal generator format with proper scaling
         const crystalParams = {
-            // Direct mapping from app parameters to generator parameters
-            complexity: parameters.crystalComplexity / 10, // Convert 3-7 scale to 0.3-0.7 scale
-            density: parameters.crystalDensity / 10, // Convert 3-7 scale to 0.3-0.7 scale
-            opacity: parameters.crystalOpacity,
-            seedPattern: parameters.seedPattern,
-            rotationRange: parameters.rotationRange,
+            // Base parameters with proper scaling
+            complexity: Math.max(3, Math.min(7, parameters.crystalComplexity || 5)) / 10,
+            density: Math.max(3, Math.min(7, parameters.crystalDensity || 5)) / 10,
+            opacity: Math.max(0.3, Math.min(0.9, parameters.crystalOpacity || 0.7)),
+            
+            // Template and pattern settings
+            template: parameters.template || this.getRandomTemplate(),
+            seedPattern: parameters.seedPattern || this.getRandomSeedPattern(),
+            
+            // Crystal formation parameters
+            maxFacets: Math.max(15, Math.min(35, parameters.maxFacets || 25)),
+            blendOpacity: Math.max(0.3, Math.min(0.9, parameters.blendOpacity || 0.7)),
+            crystalSize: Math.max(0.4, Math.min(0.8, parameters.crystalSize || 0.6)),
+            crystalCount: Math.max(1, Math.min(5, parameters.crystalCount || 1)),
+            
+            // Visual effect parameters
+            preventOverlap: parameters.preventOverlap !== false,
+            facetBorders: parameters.facetBorders !== false,
+            enableVisualEffects: parameters.enableVisualEffects !== false,
+            
+            // Mode settings
             isolatedMode: parameters.variation === 'Isolated',
-            imageMode: parameters.imageMode,
-            maxFacets: parameters.maxFacets,
-            blendOpacity: parameters.blendOpacity,
-            crystalSize: parameters.crystalSize,
-            crystalCount: parameters.crystalCount,
-            preventOverlap: parameters.preventOverlap,
-            facetBorders: parameters.facetBorders,
-            enableVisualEffects: parameters.enableVisualEffects,
-            template: parameters.template
+            imageMode: parameters.imageMode || 'fit',
+            rotationRange: Math.max(0, Math.min(45, parameters.rotationRange || 15))
         };
 
-        console.log('[DEBUG] Direct crystal parameter mapping:', {
-            originalComplexity: parameters.crystalComplexity,
-            mappedComplexity: crystalParams.complexity,
-            originalDensity: parameters.crystalDensity,
-            mappedDensity: crystalParams.density,
-            imageMode: crystalParams.imageMode,
-            template: crystalParams.template,
-            maxFacets: crystalParams.maxFacets
-        });
+        console.log('[DEBUG] Mapped crystal parameters:', crystalParams);
 
         try {
             // Use appropriate generator based on variation
@@ -1619,15 +1619,13 @@ class CollageGenerator {
                 result = await generator.generateCrystal(image, crystalParams);
             }
             
-            console.log('[DEBUG] Crystal generation result:', {
+            console.log('[DEBUG] Crystal generation completed:', {
                 success: !!result,
                 isolatedMode: crystalParams.isolatedMode,
-                variation: parameters.variation,
-                imageMode: crystalParams.imageMode,
+                template: crystalParams.template,
                 complexity: crystalParams.complexity,
                 density: crystalParams.density,
-                maxFacets: crystalParams.maxFacets,
-                template: crystalParams.template
+                maxFacets: crystalParams.maxFacets
             });
             
             return result;

@@ -3,77 +3,160 @@
  * Extends the legacy fragments generator with improved validation and scaling
  */
 
-import { FragmentsGenerator } from '../../legacy/js/collage/fragmentsGenerator.js';
+import { FragmentsGenerator } from '../legacy/js/collage/fragmentsGenerator.js';
 
 export class EnhancedFragmentsGenerator extends FragmentsGenerator {
-    constructor(ctx, canvas) {
-        super(ctx, canvas);
+    constructor(canvas, parameters = {}) {
+        super(canvas, parameters);
+        this.parameters = parameters;
     }
 
-    async generate(images, fortuneText, effect, parameters = {}) {
-        // Validate and filter images
-        const validImages = this.validateAndFilterImages(images, parameters);
-        if (validImages.length === 0) {
-            console.error('No valid images found after validation');
+    generate(images, fortuneText) {
+        // First validate and filter images
+        const validImages = this.validateAndFilterImages(images);
+        
+        if (!validImages || validImages.length === 0) {
+            console.warn('No valid images found for fragments generation');
+            return null;
+        }
+
+        // Clear canvas and set background
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillStyle = this.generateBackgroundColor();
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Calculate number of fragments based on complexity
+        const complexity = this.parameters.complexity || 0.5;
+        const numFragments = Math.max(3, Math.floor(validImages.length * complexity * 0.7));
+        
+        // Generate fragments
+        const fragments = [];
+        for (let i = 0; i < numFragments; i++) {
+            const image = validImages[i % validImages.length];
+            
+            // Calculate fragment dimensions based on variation
+            let fragmentWidth, fragmentHeight;
+            if (this.parameters.variation === 'Organic') {
+                const size = this.calculateOrganicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else if (this.parameters.variation === 'Focal') {
+                const size = this.calculateFocalSize(this.canvas.width, this.canvas.height, this.canvas.width/2, this.canvas.height/2);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            } else {
+                const size = this.calculateClassicSize(this.canvas.width, this.canvas.height);
+                fragmentWidth = size.width;
+                fragmentHeight = size.height;
+            }
+
+            // Calculate position
+            const x = Math.random() * (this.canvas.width - fragmentWidth);
+            const y = Math.random() * (this.canvas.height - fragmentHeight);
+
+            // Create fragment
+            fragments.push({
+                image,
+                x,
+                y,
+                width: fragmentWidth,
+                height: fragmentHeight,
+                rotation: Math.random() < 0.7 ? 0 : Math.random() * 0.2,
+                depth: Math.random()
+            });
+        }
+
+        // Sort fragments by depth
+        fragments.sort((a, b) => a.depth - b.depth);
+
+        // Draw fragments
+        fragments.forEach(fragment => {
+            this.drawFragment(fragment, this.ctx);
+        });
+
+        return fragments;
+    }
+
+    validateAndFilterImages(images) {
+        if (!images || images.length === 0) {
+            console.warn('No images provided for fragments generation');
             return [];
         }
 
-        // Generate fragments with the validated images
-        return super.generate(validImages, fortuneText, effect, parameters);
-    }
+        const validImages = [];
+        const MIN_WIDTH = 100;
+        const MIN_HEIGHT = 100;
+        const MAX_SCALE = 2.0;
 
-    validateAndFilterImages(images, parameters) {
-        return images.filter(image => {
-            // Basic image validation
+        for (const image of images) {
             if (!image || !image.complete || image.naturalWidth === 0) {
-                console.warn('Skipping invalid image:', image);
-                return false;
+                console.warn('Invalid or incomplete image:', image);
+                continue;
             }
 
-            // Calculate maximum allowed dimensions based on canvas size
-            const maxWidth = this.canvas.width * 0.5;  // Max 50% of canvas width
-            const maxHeight = this.canvas.height * 0.5; // Max 50% of canvas height
+            // Calculate required scale to fit the image
+            const scale = Math.max(
+                MIN_WIDTH / image.naturalWidth,
+                MIN_HEIGHT / image.naturalHeight
+            );
 
-            // Check if image dimensions are within acceptable range
-            const imageRatio = image.naturalWidth / image.naturalHeight;
-            const canvasRatio = this.canvas.width / this.canvas.height;
-
-            // Calculate scaling factors
-            let scaleX = maxWidth / image.naturalWidth;
-            let scaleY = maxHeight / image.naturalHeight;
-            let scale = Math.min(scaleX, scaleY);
-
-            // Additional checks based on variation
-            if (parameters.variation === 'Focal') {
-                // Focal variation allows slightly larger images
-                scale *= 1.2;
-            } else if (parameters.variation === 'Organic') {
-                // Organic variation prefers more varied sizes
-                scale *= 0.8 + Math.random() * 0.4; // 0.8-1.2 range
-            }
-
-            // Final validation
-            const finalWidth = image.naturalWidth * scale;
-            const finalHeight = image.naturalHeight * scale;
-
-            // Check if the scaled dimensions are acceptable
-            const minDimension = Math.min(this.canvas.width, this.canvas.height) * 0.1;
-            const isAcceptableSize = 
-                finalWidth >= minDimension &&
-                finalHeight >= minDimension &&
-                finalWidth <= maxWidth &&
-                finalHeight <= maxHeight;
-
-            if (!isAcceptableSize) {
-                console.warn('Image dimensions not suitable:', {
-                    original: { width: image.naturalWidth, height: image.naturalHeight },
-                    scaled: { width: finalWidth, height: finalHeight },
-                    limits: { min: minDimension, maxWidth, maxHeight }
+            if (scale <= MAX_SCALE) {
+                validImages.push(image);
+            } else {
+                console.debug('Image dimensions not suitable:', {
+                    original: {
+                        width: image.naturalWidth,
+                        height: image.naturalHeight
+                    },
+                    scaled: {
+                        width: image.naturalWidth * scale,
+                        height: image.naturalHeight * scale
+                    },
+                    limits: {
+                        minWidth: MIN_WIDTH,
+                        minHeight: MIN_HEIGHT,
+                        maxScale: MAX_SCALE
+                    }
                 });
             }
+        }
 
-            return isAcceptableSize;
-        });
+        return validImages;
+    }
+
+    drawFragment(fragment, ctx) {
+        const { image, x, y, width, height, rotation } = fragment;
+        
+        ctx.save();
+        ctx.translate(x + width/2, y + height/2);
+        ctx.rotate(rotation);
+        
+        // Calculate source dimensions to maintain aspect ratio
+        const imgRatio = image.naturalWidth / image.naturalHeight;
+        const destRatio = width / height;
+        
+        let sourceX = 0;
+        let sourceY = 0;
+        let sourceWidth = image.naturalWidth;
+        let sourceHeight = image.naturalHeight;
+        
+        if (imgRatio > destRatio) {
+            // Image is wider than destination
+            sourceWidth = image.naturalHeight * destRatio;
+            sourceX = (image.naturalWidth - sourceWidth) / 2;
+        } else {
+            // Image is taller than destination
+            sourceHeight = image.naturalWidth / destRatio;
+            sourceY = (image.naturalHeight - sourceHeight) / 2;
+        }
+        
+        ctx.drawImage(
+            image,
+            sourceX, sourceY, sourceWidth, sourceHeight,
+            -width/2, -height/2, width, height
+        );
+        
+        ctx.restore();
     }
 
     calculateRequiredScale(image, targetWidth, targetHeight, minVisibility = 0.7) {

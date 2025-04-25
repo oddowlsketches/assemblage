@@ -3,11 +3,12 @@
  * Mirrors the functionality of the legacy generateNewCollage() method
  */
 
-import { TilingGenerator } from '../../legacy/js/collage/tilingGenerator.js';
-import { MosaicGenerator } from '../../legacy/js/collage/mosaicGenerator.js';
-import { SlicedCollageGenerator } from '../../legacy/js/collage/slicedCollageGenerator.js';
-import { NarrativeCompositionManager } from '../../legacy/js/collage/narrativeCompositionManager.js';
+import { TilingGenerator } from '../legacy/js/collage/tilingGenerator.js';
+import { MosaicGenerator } from '../legacy/js/collage/mosaicGenerator.js';
+import { SlicedCollageGenerator } from '../legacy/js/collage/slicedCollageGenerator.js';
+import { NarrativeCompositionManager } from '../legacy/js/collage/narrativeCompositionManager.js';
 import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
+import { CrystalGenerator } from '../legacy/js/collage/crystalGenerator.js';
 
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
@@ -47,11 +48,12 @@ export class CollageService {
     selectEffectType() {
         // Define available effects with weights
         const effectWeights = [
-            { effect: 'tiling', weight: 20 },
-            { effect: 'fragments', weight: 20 },
-            { effect: 'mosaic', weight: 10 },
-            { effect: 'sliced', weight: 25 },
-            { effect: 'layers', weight: 15 }
+            { effect: 'tiling', weight: 15 },
+            { effect: 'mosaic', weight: 15 },
+            { effect: 'sliced', weight: 15 },
+            { effect: 'narrative', weight: 15 },
+            { effect: 'fragments', weight: 15 },
+            { effect: 'crystal', weight: 15 }
         ];
         
         // Calculate total weight
@@ -138,25 +140,41 @@ export class CollageService {
         switch (effectType) {
             case 'tiling':
                 generator = new TilingGenerator(canvas, this.parameters);
+                await generator.generateTiles(images);
                 break;
             case 'fragments':
                 generator = new EnhancedFragmentsGenerator(ctx, canvas);
+                await generator.generate(images, null, effectType, this.parameters);
                 break;
             case 'mosaic':
                 generator = new MosaicGenerator(canvas, this.parameters);
+                await generator.generateMosaic(images);
                 break;
             case 'sliced':
-                generator = new SlicedCollageGenerator(canvas, this.parameters);
+                generator = new SlicedCollageGenerator(ctx, canvas);
+                await generator.generateSliced(images, null, this.parameters);
                 break;
-            case 'layers':
-                generator = new NarrativeCompositionManager(canvas, this.parameters);
+            case 'narrative':
+                generator = new NarrativeCompositionManager({ctx, canvas, ...this.parameters});
+                await generator.generate(images, null, 'layers', this.parameters);
+                break;
+            case 'crystal':
+                // Add crystal-specific parameters
+                const crystalParams = {
+                    ...this.parameters,
+                    crystalComplexity: this.parameters.complexity || 5,
+                    crystalDensity: this.parameters.density || 5,
+                    crystalOpacity: 0.7,
+                    isolatedMode: Math.random() > 0.5, // Randomly choose between isolated and regular mode
+                    addGlow: Math.random() > 0.7, // Occasionally add glow effect
+                    rotationRange: 45 // Maximum rotation angle in degrees
+                };
+                generator = new CrystalGenerator(canvas, crystalParams);
+                await generator.generateCrystalCollage(images);
                 break;
             default:
                 console.error('Unknown effect type:', effectType);
                 return;
         }
-
-        // Generate the collage
-        await generator.generate(images, null, effectType, this.parameters);
     }
 } 

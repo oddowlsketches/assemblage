@@ -49,6 +49,16 @@ UPLOAD_FOLDER = os.path.join(ROOT_DIR, "uploads")
 os.makedirs(COLLAGES_DIR, exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# Initialize Flask app with CORS
+app = Flask(__name__)
+CORS(app, resources={
+    r"/*": {
+        "origins": ["http://localhost:5177", "http://localhost:5178", "http://localhost:5176", "http://localhost:5175", "http://localhost:5174", "http://localhost:5173"],
+        "methods": ["GET", "POST", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
+
 # -------------------- Image Processing Functions --------------------
 
 def process_image(image_path):
@@ -332,30 +342,20 @@ def cleanup_duplicates():
 
 # -------------------- Flask Application --------------------
 
-app = Flask(__name__, static_folder=ROOT_DIR, static_url_path='')
-CORS(app)  # Enable CORS for all routes
-
 @app.route('/')
 def index():
-    return send_from_directory(ROOT_DIR, 'index.html')
-
-@app.route('/upload.html')
-def upload_page():
-    return send_from_directory(ROOT_DIR, 'upload.html')
+    return "Assemblage Image Processor"
 
 @app.route('/images/metadata.json')
 def serve_metadata():
-    """Serve the metadata.json file"""
     return send_from_directory(IMAGES_DIR, 'metadata.json')
 
 @app.route('/images/collages/<path:filename>')
 def serve_collage(filename):
-    """Serve collage images from the collages directory"""
     return send_from_directory(COLLAGES_DIR, filename)
 
 @app.route('/images/<path:filename>')
 def serve_image(filename):
-    """Serve images from the images directory"""
     return send_from_directory(IMAGES_DIR, filename)
 
 @app.route('/upload', methods=['POST'])
@@ -434,9 +434,16 @@ def upload_images():
 
 # Start the server if run directly
 if __name__ == '__main__':
-    print(f"Starting Assemblage Image Processor server on http://localhost:{IMAGE_PROCESSOR_PORT}")
-    print(f"Images will be saved to: {os.path.abspath(UPLOAD_FOLDER)}")
-    print(f"Metadata will be updated at: {os.path.abspath(METADATA_FILE)}")
-    cleanup_metadata()  # Clean up metadata before starting server
-    cleanup_duplicates()  # Clean up duplicates before starting server
-    app.run(host='0.0.0.0', port=IMAGE_PROCESSOR_PORT, debug=True)
+    print(f"Starting Assemblage Image Processor server on http://localhost:5001")
+    print(f"Images will be saved to: {UPLOAD_FOLDER}")
+    print(f"Metadata will be updated at: {METADATA_FILE}")
+    
+    # Clean up metadata and check for duplicates
+    print("Cleaning up metadata...")
+    cleanup_metadata()
+    print("Cleanup complete. Removed 0 entries for missing images.")
+    
+    print("Checking for duplicate images...")
+    cleanup_duplicates()
+    
+    app.run(host='0.0.0.0', port=5001, debug=True)
