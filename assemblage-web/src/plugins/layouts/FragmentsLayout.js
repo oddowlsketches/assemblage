@@ -12,7 +12,7 @@ export default class FragmentsLayout {
         this.generator = null;
     }
 
-    render(ctx, images, { variation = 'Classic', complexity = 6, maxFragments = 8 } = {}) {
+    async render(ctx, images, canvas, opts = {}) {
         if (!ctx || !ctx.canvas) {
             console.error('Invalid canvas context provided to FragmentsLayout');
             return;
@@ -29,11 +29,16 @@ export default class FragmentsLayout {
                 this.fragmentsGenerator = new EnhancedFragmentsGenerator(ctx, ctx.canvas);
             }
 
+            // skip legacy loader if we already have Image objects
+            const imgs = await Promise.all(images.map(img =>
+                img instanceof HTMLImageElement ? img : this.loadImage(img)
+            ));
+
             // Generate fragments effect
-            return this.fragmentsGenerator.generateFragments(images, {
-                variation,
-                complexity,
-                maxFragments,
+            return this.fragmentsGenerator.generateFragments(imgs, {
+                variation: opts.variation || 'Classic',
+                complexity: opts.complexity || 6,
+                maxFragments: opts.maxFragments || 8,
                 minVisibility: 0.7
             });
         } catch (error) {

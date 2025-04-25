@@ -17,6 +17,15 @@ const layouts = {
     fragments: new FragmentsLayout()
 };
 
+export function withDebug(label, fn) {
+  return (...args) => {
+    if (import.meta.env.DEV) console.time(label);
+    const out = fn(...args);
+    if (import.meta.env.DEV) console.timeEnd(label);
+    return out;
+  };
+}
+
 export class CollageService {
     constructor(imagePool, layoutName = 'random') {
         this.imagePool = imagePool;
@@ -129,65 +138,19 @@ export class CollageService {
         ));
     }
 
-    async createCollage(canvas) {
+    async createCollage(canvas, layoutName = 'fragments', numImages = 4) {
         const ctx = canvas.getContext('2d');
-        
-        // ----- universal background fill -----
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = this.generateBackgroundColor();
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const layout = this.layouts[layoutName];
+        if (!layout) {
+            throw new Error(`Layout ${layoutName} not found`);
+        }
 
-        // prepare multiply blend for image drawing;
-        // Crystal & Fragments will override internally.
-        ctx.globalCompositeOperation = 'multiply';
-        
-        // Select effect type if random
-        const effectType = this.layoutName === 'random' ? this.selectEffectType() : this.layoutName;
-        
-        // Get number of images for this effect
-        const numImages = this.getNumImagesForEffect(effectType);
-        
-        // Select images
         const chosenImages = await this.selectImages(numImages);
         
-        // Get variation if applicable
-        const variation = this.getRandomVariation(effectType);
-        
-        // Create collage based on effect type
-        switch (effectType) {
-            case 'crystal':
-                const crystalLayout = layouts.crystal;
-                await crystalLayout.render(ctx, chosenImages, { isolated: false });
-                break;
-                
-            case 'fragments':
-                const fragmentsLayout = layouts.fragments;
-                await fragmentsLayout.render(ctx, chosenImages, {
-                    variation: variation,
-                    complexity: this.parameters.complexity,
-                    maxFragments: this.parameters.maxFragments
-                });
-                break;
-                
-            case 'tiling':
-                const tilingGenerator = new TilingGenerator(canvas, this.parameters);
-                await tilingGenerator.generateTiles(chosenImages);
-                break;
-            case 'mosaic':
-                const mosaicGenerator = new MosaicGenerator(canvas, this.parameters);
-                await mosaicGenerator.generateMosaic(chosenImages);
-                break;
-            case 'sliced':
-                const slicedCollageGenerator = new SlicedCollageGenerator(ctx, canvas);
-                await slicedCollageGenerator.generateSliced(chosenImages, null, this.parameters);
-                break;
-            case 'narrative':
-                const narrativeCompositionManager = new NarrativeCompositionManager({ctx, canvas, ...this.parameters});
-                await narrativeCompositionManager.generate(chosenImages, null, 'layers', this.parameters);
-                break;
-            default:
-                console.error('Unknown effect type:', effectType);
-                return;
-        }
+        withDebug(layout.constructor.name, () =>
+            layout.render(ctx, chosenImages, canvas, this.opts)
+        )();
+
+        return canvas;
     }
 } 
