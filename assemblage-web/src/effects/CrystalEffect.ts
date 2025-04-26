@@ -1,13 +1,5 @@
 import { EffectBase } from './EffectBase';
-import { CrystalParams, defaultCrystalParams } from './randomCrystal';
-
-interface CrystalOpts {
-  maxFacets?: number;
-  blendOpacity?: number;
-  complexity?: number;
-  imageMode?: 'single' | 'unique';
-  variant?: 'standard' | 'isolated';
-}
+import { CrystalSettings, getRandomCrystalSettings } from './randomCrystal';
 
 interface Point {
   x: number;
@@ -26,7 +18,7 @@ interface Fragment {
 
 export class CrystalEffect extends EffectBase {
   static id = "crystal";
-  static defaultOptions: CrystalOpts = {
+  static defaultOptions = {
     complexity: 1,
     maxFacets: 12,
     blendOpacity: 0.7,
@@ -35,17 +27,17 @@ export class CrystalEffect extends EffectBase {
 
   private fragments: Fragment[] = [];
   private crystalOutline: Point[] = [];
-  protected params: CrystalParams;
+  protected settings: CrystalSettings;
   private singleImage?: HTMLImageElement;
 
   constructor(
     ctx: CanvasRenderingContext2D,
     images: HTMLImageElement[],
-    params: CrystalParams = defaultCrystalParams
+    settings: CrystalSettings = getRandomCrystalSettings()
   ) {
     super(ctx, images);
-    this.params = params;
-    console.log('[CrystalEffect] ctor imageMode =', this.params?.imageMode);
+    this.settings = settings;
+    console.log('[CrystalEffect] settings →', this.settings);
   }
 
   // Helper functions ported from legacy code
@@ -88,28 +80,116 @@ export class CrystalEffect extends EffectBase {
 
   private generateCrystalOutline(centerX: number, centerY: number, size: number): Point[] {
     const points: Point[] = [];
-    const sides = 5 + Math.floor(Math.random() * 3); // 5-7 sides
+    let sides = 5 + Math.floor(Math.random() * 3); // 5-7 sides
+    
+    // Apply template-specific modifications
+    let variance = 0.8;
+    let angleOffset = 0;
+    
+    switch (this.settings.template) {
+      case 'hexagonal':
+        sides = 6;
+        variance = 0.9;
+        break;
+      case 'irregular':
+        variance = 0.6 + Math.random() * 0.4; // More irregular
+        break;
+      case 'angular':
+        variance = 0.7;
+        angleOffset = Math.PI / 6; // Makes it more angular
+        break;
+      case 'elongated':
+        variance = 0.9;
+        // Stretch horizontally
+        for (let i = 0; i < sides; i++) {
+          const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2) + angleOffset;
+          const stretchFactor = Math.abs(Math.cos(angle)) < 0.5 ? 1.3 : 0.9;
+          points.push({
+            x: centerX + size * variance * stretchFactor * Math.cos(angle),
+            y: centerY + size * variance * Math.sin(angle)
+          });
+        }
+        return points;
+    }
+    
+    // Default case or non-elongated templates
     for (let i = 0; i < sides; i++) {
-      const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2);
-      const variance = 0.8 + Math.random() * 0.4; // 80-120% of size
+      const angle = (i * 2 * Math.PI / sides) - (Math.PI / 2) + angleOffset;
       points.push({
         x: centerX + size * variance * Math.cos(angle),
         y: centerY + size * variance * Math.sin(angle)
       });
     }
+    
     return points;
   }
 
   private generateSeedPoints(centerX: number, centerY: number, radius: number, count: number): Point[] {
     const points: Point[] = [];
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const distance = radius * Math.random();
-      points.push({
-        x: centerX + Math.cos(angle) * distance,
-        y: centerY + Math.sin(angle) * distance
-      });
+    
+    switch (this.settings.seedPattern) {
+      case 'random':
+        // Original random distribution
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = radius * Math.random();
+          points.push({
+            x: centerX + Math.cos(angle) * distance,
+            y: centerY + Math.sin(angle) * distance
+          });
+        }
+        break;
+        
+      case 'grid':
+        // Grid-like pattern
+        const gridSize = Math.ceil(Math.sqrt(count));
+        const cellSize = (radius * 2) / gridSize;
+        for (let i = 0; i < gridSize; i++) {
+          for (let j = 0; j < gridSize; j++) {
+            if (points.length >= count) break;
+            const x = centerX - radius + (i + 0.5) * cellSize;
+            const y = centerY - radius + (j + 0.5) * cellSize;
+            // Add some jitter
+            points.push({
+              x: x + (Math.random() - 0.5) * cellSize * 0.3,
+              y: y + (Math.random() - 0.5) * cellSize * 0.3
+            });
+          }
+        }
+        break;
+        
+      case 'spiral':
+        // Spiral pattern
+        const spiralCount = Math.min(count, 100);
+        for (let i = 0; i < spiralCount; i++) {
+          const t = i / spiralCount;
+          const angle = t * Math.PI * 8;
+          const distance = radius * t;
+          points.push({
+            x: centerX + Math.cos(angle) * distance,
+            y: centerY + Math.sin(angle) * distance
+          });
+        }
+        break;
+        
+      case 'radial':
+        // Radial pattern
+        const radialCount = Math.min(count, 100);
+        const rings = 5;
+        for (let ring = 0; ring < rings; ring++) {
+          const ringRadius = (ring + 1) * radius / rings;
+          const pointsInRing = Math.floor(radialCount / rings);
+          for (let i = 0; i < pointsInRing; i++) {
+            const angle = (i / pointsInRing) * Math.PI * 2;
+            points.push({
+              x: centerX + Math.cos(angle) * ringRadius,
+              y: centerY + Math.sin(angle) * ringRadius
+            });
+          }
+        }
+        break;
     }
+    
     return points;
   }
 
@@ -170,7 +250,7 @@ export class CrystalEffect extends EffectBase {
           vertices,
           x: center.x,
           y: center.y,
-          opacity: this.params.blendOpacity || 0.7,
+          opacity: this.settings.blendOpacity || 0.7,
           rotation: (Math.random() * 20 - 10),
           size: Math.max(bounds.width, bounds.height) / 4
         });
@@ -307,7 +387,7 @@ export class CrystalEffect extends EffectBase {
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
     // Initialize fragments based on variant
-    if (this.params.variant === 'isolated') {
+    if (this.settings.variant === 'Isolated') {
       this.drawIsolatedCrystal();
     } else {
       this.drawStandardCrystal();
@@ -327,26 +407,26 @@ export class CrystalEffect extends EffectBase {
     const centerX = this.ctx.canvas.width / 2;
     const centerY = this.ctx.canvas.height / 2;
     
-    // Randomize size between 70% and 90% of max canvas dimension
+    // Calculate size based on canvas dimensions
     const size = Math.max(this.ctx.canvas.width, this.ctx.canvas.height) * 
       (0.7 + Math.random() * 0.2);
 
-    // Randomize number of facets between 8 and 20
-    const facets = 8 + Math.floor(Math.random() * 13);
-
-    // Generate a larger crystal outline for standard variant
+    // Use complexity from settings to determine facets
+    const facets = this.settings.complexity * 2;
+    
+    // Generate crystal outline based on template
     this.crystalOutline = this.generateCrystalOutline(centerX, centerY, size * 1.2);
     
-    // Generate seed points with randomized density
+    // Generate seed points with density from settings
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
       size, 
-      facets * (1.5 + Math.random())  // Randomize density multiplier
+      facets * this.settings.density
     );
     
-    // Create fragments with randomized resolution
-    const resolution = 75 + Math.floor(Math.random() * 50);  // Random resolution between 75-125
+    // Create fragments with resolution based on complexity
+    const resolution = 50 + this.settings.complexity * 5;
     this.fragments = this.createVoronoiCells(seedPoints, this.crystalOutline, resolution);
 
     // Draw all fragments
@@ -380,30 +460,30 @@ export class CrystalEffect extends EffectBase {
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     this.ctx.restore();
 
-    // Initialize isolated crystal with randomized parameters
+    // Initialize isolated crystal with settings
     const centerX = this.ctx.canvas.width / 2;
     const centerY = this.ctx.canvas.height / 2;
     
-    // Randomize size between 30% and 50% of canvas
+    // Calculate size based on canvas dimensions
     const size = Math.min(this.ctx.canvas.width, this.ctx.canvas.height) * 
       (0.3 + Math.random() * 0.2);
     
-    // Randomize number of facets between 6 and 14
-    const facets = 6 + Math.floor(Math.random() * 9);
+    // Use complexity from settings to determine facets
+    const facets = this.settings.complexity;
     
-    // Generate crystal outline
+    // Generate crystal outline based on template
     this.crystalOutline = this.generateCrystalOutline(centerX, centerY, size);
     
-    // Generate seed points with randomized density
+    // Generate seed points with density from settings
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
       size * 0.8, 
-      facets * (0.8 + Math.random() * 0.4)  // Randomize density multiplier
+      facets * this.settings.density
     );
     
-    // Create fragments with randomized resolution
-    const resolution = 40 + Math.floor(Math.random() * 40);  // Random resolution between 40-80
+    // Create fragments with resolution based on complexity
+    const resolution = 30 + this.settings.complexity * 3;
     this.fragments = this.createVoronoiCells(seedPoints, this.crystalOutline, resolution);
 
     // Draw all fragments
@@ -414,7 +494,7 @@ export class CrystalEffect extends EffectBase {
   }
 
   private pickImageForCollage(): HTMLImageElement {
-    if (this.params.imageMode === 'single') {
+    if (this.settings.imageMode === 'single') {
       // Cache one image for the whole collage
       if (!this.singleImage) {
         this.singleImage = this.images[Math.floor(Math.random() * this.images.length)];
