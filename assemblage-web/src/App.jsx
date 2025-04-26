@@ -6,7 +6,9 @@ export default function App() {
   const canvasRef = useRef(null);
   const serviceRef = useRef(null);
   const [effect, setEffect] = useState('crystal');
+  const [crystalVariant, setCrystalVariant] = useState('standard');
   const [isLoading, setIsLoading] = useState(true);
+  const showDevUI = import.meta.env.MODE === 'development';
 
   //  ❶ resize canvas to full viewport and draw once on mount
   useEffect(() => {
@@ -66,6 +68,12 @@ export default function App() {
     serviceRef.current?.generateCollage();
   };
 
+  const handleCrystalVariantChange = (variant) => {
+    setCrystalVariant(variant);
+    serviceRef.current?.setCrystalVariant(variant);
+    serviceRef.current?.generateCollage();
+  };
+
   return (
     <div id="wrapper">
       <header>
@@ -74,29 +82,47 @@ export default function App() {
           <p className="tagline">EPHEMERAL VISIONS, ASSEMBLED MEANINGS</p>
         </div>
         <div className="header-controls">
-          <div className="effect-buttons">
-            <button 
-              className={`effect-button ${effect === 'crystal' ? 'active' : ''}`}
-              data-effect="crystal"
-              onClick={() => handleEffectChange('crystal')}
-            >
-              Crystal
-            </button>
-            <button 
-              className={`effect-button ${effect === 'mosaic' ? 'active' : ''}`}
-              data-effect="mosaic"
-              onClick={() => handleEffectChange('mosaic')}
-            >
-              Mosaic
-            </button>
-            <button 
-              className={`effect-button ${effect === 'fragments' ? 'active' : ''}`}
-              data-effect="fragments"
-              onClick={() => handleEffectChange('fragments')}
-            >
-              Fragments
-            </button>
-          </div>
+          {showDevUI && (
+            <div className="effect-buttons">
+              <button 
+                className={`effect-button ${effect === 'crystal' ? 'active' : ''}`}
+                data-effect="crystal"
+                onClick={() => handleEffectChange('crystal')}
+              >
+                Crystal
+              </button>
+              {effect === 'crystal' && (
+                <>
+                  <button 
+                    className={`effect-button ${crystalVariant === 'standard' ? 'active' : ''}`}
+                    onClick={() => handleCrystalVariantChange('standard')}
+                  >
+                    Standard
+                  </button>
+                  <button 
+                    className={`effect-button ${crystalVariant === 'isolated' ? 'active' : ''}`}
+                    onClick={() => handleCrystalVariantChange('isolated')}
+                  >
+                    Isolated
+                  </button>
+                </>
+              )}
+              <button 
+                className={`effect-button ${effect === 'mosaic' ? 'active' : ''}`}
+                data-effect="mosaic"
+                onClick={() => handleEffectChange('mosaic')}
+              >
+                Mosaic
+              </button>
+              <button 
+                className={`effect-button ${effect === 'fragments' ? 'active' : ''}`}
+                data-effect="fragments"
+                onClick={() => handleEffectChange('fragments')}
+              >
+                Fragments
+              </button>
+            </div>
+          )}
           <div className="action-buttons">
             <button id="generateButton" onClick={handleShift}>Shift Perspective</button>
             <button id="saveButton" onClick={handleSave}>Save Collage</button>

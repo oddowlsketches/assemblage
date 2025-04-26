@@ -2,6 +2,7 @@
 import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGenerator.js';
 import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
 import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
+import { CrystalEffect } from '../effects/CrystalEffect';
 
 export class CollageService {
     constructor(canvas) {
@@ -9,12 +10,14 @@ export class CollageService {
         this.ctx = canvas.getContext('2d');
         this.images = [];
         this.currentEffect = null;
+        this.crystalVariant = 'standard';
         
         // Initialize the legacy collage generator
         this.generator = new CollageGenerator(this.canvas);
         this.legacyAdapter = new LegacyCollageAdapter(this.generator);
         
-        // Initialize the crystal generator
+        // Initialize the crystal generators
+        this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
         this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
         
         // Set default parameters
@@ -78,6 +81,11 @@ export class CollageService {
         this.generator.currentEffect = effect;
     }
 
+    setCrystalVariant(variant) {
+        this.crystalVariant = variant;
+        this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant });
+    }
+
     async generateCollage() {
         if (!this.ctx || this.images.length === 0) {
             console.error('Canvas or images not initialized');
@@ -98,8 +106,14 @@ export class CollageService {
 
     async applyCrystalEffect() {
         try {
-            // Use the crystal generator to create a crystal field
-            await this.crystalGenerator.generateCrystalField(this.images);
+            if (this.crystalVariant === 'isolated') {
+                // Use the legacy isolated crystal generator
+                await this.crystalGenerator.generateCrystalField(this.images);
+            } else {
+                // Use the new CrystalEffect class
+                this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant: 'standard' });
+                this.crystalEffect.draw();
+            }
         } catch (error) {
             console.error('Error applying crystal effect:', error);
         }

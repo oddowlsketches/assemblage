@@ -1,8 +1,11 @@
 import { EffectBase, EffectParams } from './EffectBase';
 
+export type CrystalVariant = 'standard' | 'isolated';
+
 interface CrystalOpts extends EffectParams {
   maxFacets?: number;   // default 12
   blendOpacity?: number; // default 0.7
+  variant?: CrystalVariant; // default 'standard'
 }
 
 interface Point {
@@ -25,7 +28,8 @@ export class CrystalEffect extends EffectBase {
   static defaultOptions: CrystalOpts = {
     complexity: 1,
     maxFacets: 12,
-    blendOpacity: 0.7
+    blendOpacity: 0.7,
+    variant: 'standard'
   };
 
   protected override params: CrystalOpts;
@@ -230,6 +234,9 @@ export class CrystalEffect extends EffectBase {
 
     this.ctx.save();
 
+    // Set blend mode to multiply for all fragments
+    this.ctx.globalCompositeOperation = 'multiply';
+
     // Set opacity
     this.ctx.globalAlpha = fragment.opacity;
 
@@ -279,37 +286,123 @@ export class CrystalEffect extends EffectBase {
     this.ctx.restore();
   }
 
-  draw(): void {
-    const { width, height } = this.ctx.canvas;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const maxSize = Math.min(width, height) * 0.45;
+  public draw(): void {
+    // Clear canvas
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    
+    // Draw backdrop using one of the vibrant colors from legacy code
+    const colors = [
+      '#FF6B6B', // Coral Red
+      '#4ECDC4', // Turquoise
+      '#45B7D1', // Sky Blue
+      '#96CEB4', // Sage Green
+      '#FFEEAD', // Cream
+      '#D4A5A5', // Dusty Rose
+      '#9B59B6', // Purple
+      '#3498DB', // Blue
+      '#E67E22', // Orange
+      '#2ECC71'  // Green
+    ];
+    this.ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+    this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-    // Generate crystal outline
-    this.crystalOutline = this.generateCrystalOutline(centerX, centerY, maxSize);
+    // Draw the appropriate crystal variant
+    if (this.params.variant === 'isolated') {
+      this.drawIsolatedCrystal();
+    } else {
+      this.drawStandardCrystal();
+    }
+  }
 
-    // Generate seed points for facets
-    const facetCount = this.params.maxFacets || 12;
-    const seedPoints = this.generateSeedPoints(centerX, centerY, maxSize * 0.75, facetCount);
+  private drawStandardCrystal(): void {
+    // Initialize fragments for standard crystal with randomized parameters
+    const centerX = this.ctx.canvas.width / 2;
+    const centerY = this.ctx.canvas.height / 2;
+    
+    // Randomize size between 70% and 90% of max canvas dimension
+    const size = Math.max(this.ctx.canvas.width, this.ctx.canvas.height) * 
+      (0.7 + Math.random() * 0.2);
 
-    // Create Voronoi cells/fragments
-    this.fragments = this.createVoronoiCells(seedPoints, this.crystalOutline);
+    // Randomize number of facets between 8 and 20
+    const facets = 8 + Math.floor(Math.random() * 13);
 
-    // Assign images to fragments
-    const singleImage = this.images[Math.floor(Math.random() * this.images.length)];
+    // Generate a larger crystal outline for standard variant
+    this.crystalOutline = this.generateCrystalOutline(centerX, centerY, size * 1.2);
+    
+    // Generate seed points with randomized density
+    const seedPoints = this.generateSeedPoints(
+      centerX, 
+      centerY, 
+      size, 
+      facets * (1.5 + Math.random())  // Randomize density multiplier
+    );
+    
+    // Create fragments with randomized resolution
+    const resolution = 75 + Math.floor(Math.random() * 50);  // Random resolution between 75-125
+    this.fragments = this.createVoronoiCells(seedPoints, this.crystalOutline, resolution);
+
+    // Draw all fragments
     this.fragments.forEach(fragment => {
-      fragment.image = singleImage;
+      // Assign a random image to each fragment
+      if (this.images.length > 0) {
+        fragment.image = this.images[Math.floor(Math.random() * this.images.length)];
+      }
+      this.drawFragment(fragment);
     });
+  }
 
-    // Sort fragments by distance from center
-    this.fragments.sort((a, b) => {
-      const distA = Math.sqrt(Math.pow(a.x - centerX, 2) + Math.pow(a.y - centerY, 2));
-      const distB = Math.sqrt(Math.pow(b.x - centerX, 2) + Math.pow(b.y - centerY, 2));
-      return distA - distB;
+  private drawIsolatedCrystal(): void {
+    // Clear canvas and set background color
+    this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    
+    // Draw backdrop using one of the vibrant colors from legacy code
+    const colors = [
+      '#FF6B6B', // Coral Red
+      '#4ECDC4', // Turquoise
+      '#45B7D1', // Sky Blue
+      '#96CEB4', // Sage Green
+      '#FFEEAD', // Cream
+      '#D4A5A5', // Dusty Rose
+      '#9B59B6', // Purple
+      '#3498DB', // Blue
+      '#E67E22', // Orange
+      '#2ECC71'  // Green
+    ];
+    this.ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
+    this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+
+    // Initialize isolated crystal with randomized parameters
+    const centerX = this.ctx.canvas.width / 2;
+    const centerY = this.ctx.canvas.height / 2;
+    
+    // Randomize size between 30% and 50% of canvas
+    const size = Math.min(this.ctx.canvas.width, this.ctx.canvas.height) * 
+      (0.3 + Math.random() * 0.2);
+    
+    // Randomize number of facets between 6 and 14
+    const facets = 6 + Math.floor(Math.random() * 9);
+    
+    // Generate crystal outline
+    this.crystalOutline = this.generateCrystalOutline(centerX, centerY, size);
+    
+    // Generate seed points with randomized density
+    const seedPoints = this.generateSeedPoints(
+      centerX, 
+      centerY, 
+      size * 0.8, 
+      facets * (0.8 + Math.random() * 0.4)  // Randomize density multiplier
+    );
+    
+    // Create fragments with randomized resolution
+    const resolution = 40 + Math.floor(Math.random() * 40);  // Random resolution between 40-80
+    this.fragments = this.createVoronoiCells(seedPoints, this.crystalOutline, resolution);
+
+    // Draw all fragments
+    this.fragments.forEach(fragment => {
+      if (this.images.length > 0) {
+        fragment.image = this.images[Math.floor(Math.random() * this.images.length)];
+      }
+      this.drawFragment(fragment);
     });
-
-    // Draw fragments
-    this.ctx.globalCompositeOperation = 'multiply';
-    this.fragments.forEach(fragment => this.drawFragment(fragment));
   }
 } 

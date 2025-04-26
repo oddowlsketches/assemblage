@@ -73,7 +73,8 @@ header {
   width: 100%;
   padding: 1.5rem;
   z-index: 10;
-  background-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .header-content {
@@ -177,7 +178,8 @@ footer {
   padding: 0.5rem;
   text-align: center;
   z-index: 10;
-  background-color: transparent;
+  background: transparent;
+  backdrop-filter: none;
 }
 
 .copyright {
@@ -227,7 +229,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f5f5;
+  background-color: transparent;
   color: #333;
 }
 
@@ -242,8 +244,8 @@ header {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background-color: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: transparent;
+  backdrop-filter: none;
   z-index: 10;
 }
 
@@ -299,9 +301,10 @@ canvas {
 
 footer {
   padding: 1rem 2rem;
-  background-color: #fff;
+  background: transparent;
+  backdrop-filter: none;
   text-align: center;
   font-size: 0.8rem;
   color: #666;
-  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 } 

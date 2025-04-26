@@ -11,5 +11,10 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src')
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx']
+  },
+  esbuild: {
+    loader: 'tsx',
+    include: /\.(tsx|ts|jsx|js)$/,
+    exclude: [],
   }
 }) 
