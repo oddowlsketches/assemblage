@@ -18,6 +18,13 @@
   --color-botanical: #2ecc71;
   --color-architectural: #34495e;
   --color-scientific: #3498db;
+  
+  /* Dynamic UI Colors */
+  --background-color: #f5f5f5;
+  --text-color: #333;
+  --button-border-color: #333;
+  --button-hover-bg: #333;
+  --transition-speed: 0.3s;
 }
 
 /* CSS Reset and Variables */
@@ -87,7 +94,7 @@ header {
   font-family: 'Playfair Display', serif;
   font-style: italic;
   font-size: 2.5rem;
-  color: white;
+  color: var(--text-color);
   margin: 0;
   line-height: 1;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -97,8 +104,7 @@ header {
   font-family: 'Space Grotesk', sans-serif;
   font-size: 1rem;
   margin: 0.5rem 0;
-  color: white;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  color: var(--text-color);
 }
 
 /* Buttons */
@@ -109,18 +115,19 @@ header {
 
 .header-controls button {
   background: white;
+  border: 1px solid var(--button-border-color);
   color: var(--text-color);
-  border: 1px solid var(--text-color);
   padding: 0.5rem 1rem;
+  margin-left: 0.5rem;
+  cursor: pointer;
   font-family: 'Space Grotesk', sans-serif;
   font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-speed) ease;
 }
 
 .header-controls button:hover {
-  background: var(--text-color);
-  color: white !important;
+  background-color: var(--button-hover-bg);
+  color: white;
 }
 
 .header-controls button:disabled {

@@ -87,20 +87,28 @@ export class CollageService {
     }
 
     async generateCollage() {
-        if (!this.ctx || this.images.length === 0) {
-            console.error('Canvas or images not initialized');
+        if (!this.canvas || this.images.length === 0) {
+            console.warn('Cannot generate collage: canvas or images not available');
             return;
         }
 
-        // Clear the canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Apply the current effect
+        // Randomize crystal variant if crystal effect is selected
         if (this.currentEffect === 'crystal') {
-            await this.applyCrystalEffect();
+            const variant = Math.random() > 0.5 ? 'standard' : 'isolated';
+            this.setCrystalVariant(variant);
+            console.log(`Using ${variant} crystal variant`);
+        }
+
+        // Generate the collage using the current effect
+        if (this.currentEffect === 'crystal') {
+            this.crystalEffect.draw();
+            
+            // Get the background color from the canvas and update UI colors
+            const bgColor = this.getBackgroundColor();
+            this.updateUIColors(bgColor);
         } else {
-            // Use the legacy generator for other effects
-            await this.generator.generate(this.images);
+            // Use legacy collage generator for other effects
+            await this.legacyAdapter.generateCollage(this.images);
         }
     }
 
@@ -137,5 +145,65 @@ export class CollageService {
         link.download = 'assemblage-collage.png';
         link.href = this.canvas.toDataURL('image/png');
         link.click();
+    }
+
+    // Get the background color from the canvas
+    getBackgroundColor() {
+        // Get a sample of the background color from the center of the canvas
+        const centerX = Math.floor(this.canvas.width / 2);
+        const centerY = Math.floor(this.canvas.height / 2);
+        const pixelData = this.ctx.getImageData(centerX, centerY, 1, 1).data;
+        return `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
+    }
+    
+    // Update UI colors based on the background color
+    updateUIColors(bgColor) {
+        // Convert RGB to HSL for easier color manipulation
+        const rgbToHsl = (r, g, b) => {
+            r /= 255;
+            g /= 255;
+            b /= 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            
+            if (max === min) {
+                h = s = 0; // achromatic
+            } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    case b: h = (r - g) / d + 4; break;
+                }
+                h /= 6;
+            }
+            
+            return [h * 360, s * 100, l * 100];
+        };
+        
+        // Extract RGB values from the background color
+        const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+        if (!rgbMatch) return;
+        
+        const r = parseInt(rgbMatch[1]);
+        const g = parseInt(rgbMatch[2]);
+        const b = parseInt(rgbMatch[3]);
+        
+        // Convert to HSL
+        const [h, s, l] = rgbToHsl(r, g, b);
+        
+        // Create complementary color (opposite on the color wheel)
+        const complementaryH = (h + 180) % 360;
+        
+        // Create a complementary color with good contrast
+        const complementaryColor = `hsl(${complementaryH}, ${Math.min(s + 20, 100)}%, ${Math.max(l - 20, 20)}%)`;
+        
+        // Update CSS variables
+        document.documentElement.style.setProperty('--background-color', bgColor);
+        document.documentElement.style.setProperty('--text-color', complementaryColor);
+        document.documentElement.style.setProperty('--button-border-color', complementaryColor);
+        document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
     }
 } 

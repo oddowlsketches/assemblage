@@ -306,12 +306,20 @@ export class CrystalEffect extends EffectBase {
     this.ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
-    // Draw the appropriate crystal variant
+    // Initialize fragments based on variant
     if (this.params.variant === 'isolated') {
       this.drawIsolatedCrystal();
     } else {
       this.drawStandardCrystal();
     }
+
+    // Draw all fragments with proper blend mode
+    this.ctx.globalCompositeOperation = 'multiply';
+    this.fragments.forEach(fragment => {
+      if (fragment.image) {
+        this.drawFragment(fragment);
+      }
+    });
   }
 
   private drawStandardCrystal(): void {
@@ -356,6 +364,8 @@ export class CrystalEffect extends EffectBase {
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     
     // Draw backdrop using one of the vibrant colors from legacy code
+    this.ctx.save();
+    this.ctx.globalCompositeOperation = 'source-over';
     const colors = [
       '#FF6B6B', // Coral Red
       '#4ECDC4', // Turquoise
@@ -370,6 +380,7 @@ export class CrystalEffect extends EffectBase {
     ];
     this.ctx.fillStyle = colors[Math.floor(Math.random() * colors.length)];
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    this.ctx.restore();
 
     // Initialize isolated crystal with randomized parameters
     const centerX = this.ctx.canvas.width / 2;

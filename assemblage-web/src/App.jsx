@@ -82,47 +82,6 @@ export default function App() {
           <p className="tagline">EPHEMERAL VISIONS, ASSEMBLED MEANINGS</p>
         </div>
         <div className="header-controls">
-          {showDevUI && (
-            <div className="effect-buttons">
-              <button 
-                className={`effect-button ${effect === 'crystal' ? 'active' : ''}`}
-                data-effect="crystal"
-                onClick={() => handleEffectChange('crystal')}
-              >
-                Crystal
-              </button>
-              {effect === 'crystal' && (
-                <>
-                  <button 
-                    className={`effect-button ${crystalVariant === 'standard' ? 'active' : ''}`}
-                    onClick={() => handleCrystalVariantChange('standard')}
-                  >
-                    Standard
-                  </button>
-                  <button 
-                    className={`effect-button ${crystalVariant === 'isolated' ? 'active' : ''}`}
-                    onClick={() => handleCrystalVariantChange('isolated')}
-                  >
-                    Isolated
-                  </button>
-                </>
-              )}
-              <button 
-                className={`effect-button ${effect === 'mosaic' ? 'active' : ''}`}
-                data-effect="mosaic"
-                onClick={() => handleEffectChange('mosaic')}
-              >
-                Mosaic
-              </button>
-              <button 
-                className={`effect-button ${effect === 'fragments' ? 'active' : ''}`}
-                data-effect="fragments"
-                onClick={() => handleEffectChange('fragments')}
-              >
-                Fragments
-              </button>
-            </div>
-          )}
           <div className="action-buttons">
             <button id="generateButton" onClick={handleShift}>Shift Perspective</button>
             <button id="saveButton" onClick={handleSave}>Save Collage</button>
