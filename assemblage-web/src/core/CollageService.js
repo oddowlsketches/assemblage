@@ -3,6 +3,7 @@ import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGe
 import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
 import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
 import { CrystalEffect } from '../effects/CrystalEffect';
+import { getRandomCrystalSettings } from '../effects/randomCrystal';
 
 export class CollageService {
     constructor(canvas) {
@@ -97,10 +98,13 @@ export class CollageService {
             const variant = Math.random() > 0.5 ? 'standard' : 'isolated';
             this.setCrystalVariant(variant);
             console.log(`Using ${variant} crystal variant`);
-        }
-
-        // Generate the collage using the current effect
-        if (this.currentEffect === 'crystal') {
+            
+            // Get random crystal settings and log the imageMode
+            const params = getRandomCrystalSettings();
+            console.log('[CollageService] passing imageMode →', params.imageMode);
+            
+            // Create new crystal effect with the settings
+            this.crystalEffect = new CrystalEffect(this.ctx, this.images, params);
             this.crystalEffect.draw();
             
             // Get the background color from the canvas and update UI colors

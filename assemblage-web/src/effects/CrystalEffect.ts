@@ -1,11 +1,12 @@
-import { EffectBase, EffectParams } from './EffectBase';
+import { EffectBase } from './EffectBase';
+import { CrystalParams, defaultCrystalParams } from './randomCrystal';
 
-export type CrystalVariant = 'standard' | 'isolated';
-
-interface CrystalOpts extends EffectParams {
-  maxFacets?: number;   // default 12
-  blendOpacity?: number; // default 0.7
-  variant?: CrystalVariant; // default 'standard'
+interface CrystalOpts {
+  maxFacets?: number;
+  blendOpacity?: number;
+  complexity?: number;
+  imageMode?: 'single' | 'unique';
+  variant?: 'standard' | 'isolated';
 }
 
 interface Point {
@@ -32,20 +33,19 @@ export class CrystalEffect extends EffectBase {
     variant: 'standard'
   };
 
-  protected override params: CrystalOpts;
-  private crystalOutline: Point[] = [];
   private fragments: Fragment[] = [];
+  private crystalOutline: Point[] = [];
+  protected params: CrystalParams;
+  private singleImage?: HTMLImageElement;
 
   constructor(
     ctx: CanvasRenderingContext2D,
     images: HTMLImageElement[],
-    params: Partial<CrystalOpts> = {}
+    params: CrystalParams = defaultCrystalParams
   ) {
-    super(ctx, images, params);
-    this.params = {
-      ...CrystalEffect.defaultOptions,
-      ...params
-    } as CrystalOpts;
+    super(ctx, images);
+    this.params = params;
+    console.log('[CrystalEffect] ctor imageMode =', this.params?.imageMode);
   }
 
   // Helper functions ported from legacy code
@@ -352,9 +352,7 @@ export class CrystalEffect extends EffectBase {
     // Draw all fragments
     this.fragments.forEach(fragment => {
       // Assign a random image to each fragment
-      if (this.images.length > 0) {
-        fragment.image = this.images[Math.floor(Math.random() * this.images.length)];
-      }
+      this.assignImageToFragment(fragment);
       this.drawFragment(fragment);
     });
   }
@@ -410,10 +408,24 @@ export class CrystalEffect extends EffectBase {
 
     // Draw all fragments
     this.fragments.forEach(fragment => {
-      if (this.images.length > 0) {
-        fragment.image = this.images[Math.floor(Math.random() * this.images.length)];
-      }
+      this.assignImageToFragment(fragment);
       this.drawFragment(fragment);
     });
+  }
+
+  private pickImageForCollage(): HTMLImageElement {
+    if (this.params.imageMode === 'single') {
+      // Cache one image for the whole collage
+      if (!this.singleImage) {
+        this.singleImage = this.images[Math.floor(Math.random() * this.images.length)];
+      }
+      return this.singleImage;
+    }
+    // unique mode → random every time
+    return this.images[Math.floor(Math.random() * this.images.length)];
+  }
+
+  private assignImageToFragment(fragment: Fragment) {
+    fragment.image = this.pickImageForCollage();
   }
 } 
