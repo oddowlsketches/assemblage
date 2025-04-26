@@ -1,0 +1,259 @@
+/**
+ * CollageService - Core service for generating collages
+ * Mirrors the functionality of the legacy generateNewCollage() method
+ */
+
+import { TilingGenerator } from '@legacy/collage/tilingGenerator.js';
+import { MosaicGenerator } from '@legacy/collage/mosaicGenerator.js';
+import { SlicedCollageGenerator } from '@legacy/collage/slicedCollageGenerator.js';
+import { NarrativeCompositionManager } from '@legacy/collage/narrativeCompositionManager.js';
+import { EnhancedFragmentsGenerator } from './EnhancedFragmentsGenerator.js';
+import { CrystalFormationGenerator } from '@legacy/collage/crystalFormationGenerator.js';
+import { IsolatedCrystalGenerator } from '@legacy/collage/isolatedCrystalGenerator.js';
+import { CrystalGenerator } from '@legacy/collage/crystalGenerator.js';
+import { PluginRegistry } from './PluginRegistry.js';
+
+// Initialize plugin registry
+const pluginRegistry = new PluginRegistry();
+
+// Default palette for background colors
+const PALETTE = [
+  {bg:'#e3ded7', accent:'#c22f00'},
+  {bg:'#d4cbc3', accent:'#00a1cb'},
+  {bg:'#d8dfe5', accent:'#b40d7c'},
+  {bg:'#f2e9dd', accent:'#007c74'},
+  {bg:'#e5e7ec', accent:'#007571'},
+  {bg:'#d6d6d6', accent:'#1760a6'},
+  {bg:'#e5dfe1', accent:'#9f0062'},
+  {bg:'#dadfe0', accent:'#0074aa'}
+];
+
+export function generateBackgroundColor() {
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)].bg;
+}
+
+export function withDebug(label, fn) {
+  return (...args) => {
+    if (import.meta.env.DEV) console.time(label);
+    const out = fn(...args);
+    if (import.meta.env.DEV) console.timeEnd(label);
+    return out;
+  };
+}
+
+export class CollageService {
+    constructor(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+        this.imagePool = [];
+        this.parameters = {
+            // Base parameters
+            complexity: 6,        // Controls number of images (5-10 recommended)
+            density: 5,           // Controls spacing between images (3-8 recommended)
+            contrast: 6,          // Controls image contrast (5-7 recommended)
+            
+            // Tiling specific parameters
+            cleanTiling: false,   // Set to false for more artistic layouts
+            blendOpacity: 0.6,    // Increased for better visibility
+            
+            // Image repetition - key new feature
+            allowImageRepetition: true,  // Allow some images to repeat
+            
+            // Variation for fragments effect
+            variation: 'Classic',  // Default variation
+            
+            // Additional parameters for better control
+            maxFragments: 8,      // Maximum number of fragments
+            minVisibility: 0.7    // Minimum visibility for fragments
+        };
+        
+        // Load images on initialization
+        this.loadImages();
+    }
+    
+    setCanvas(canvas) {
+        this.canvas = canvas;
+        this.ctx = canvas.getContext('2d');
+    }
+    
+    async loadImages() {
+        try {
+            console.log('Starting to load images from server...');
+            // Load metadata from the image processor server
+            const response = await fetch('http://localhost:5001/images/metadata.json');
+            console.log('Metadata response status:', response.status);
+            const metadata = await response.json();
+            console.log(`Loaded metadata with ${metadata.length} images`);
+            
+            // Load all images
+            console.log('Starting to load individual images...');
+            const loadedImages = await Promise.all(
+                metadata.map(async (img) => {
+                    const image = new Image();
+                    // Use the full URL for images
+                    image.src = `http://localhost:5001/images/collages/${img.id}.jpg`;
+                    await new Promise((resolve, reject) => {
+                        image.onload = () => {
+                            resolve();
+                        };
+                        image.onerror = (err) => {
+                            console.warn(`Failed to load image: ${img.id}`, err);
+                            resolve(null); // Resolve with null instead of rejecting
+                        };
+                    });
+                    return image;
+                })
+            );
+            
+            // Filter out any failed image loads
+            this.imagePool = loadedImages.filter(img => img !== null);
+            console.log(`Loaded ${this.imagePool.length} images successfully`);
+            
+            // Generate first collage if we have images
+            if (this.imagePool.length > 0) {
+                console.log('Generating first collage with loaded images');
+                this.shiftPerspective();
+            } else {
+                console.error('No images were loaded successfully');
+            }
+        } catch (error) {
+            console.error('Error loading images:', error);
+        }
+    }
+
+    generateBackgroundColor() {
+        // Rich, vibrant colors that work well with multiply blend mode
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+            '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#1ABC9C'
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    getSelectedImages() {
+        // If we have a selection mechanism, use it
+        if (this.selectedImages && this.selectedImages.length > 0) {
+            return this.selectedImages;
+        }
+        
+        // Otherwise, select a random subset of images from the pool
+        const numImages = Math.min(
+            Math.floor(Math.random() * 5) + 3, // 3-7 images
+            this.imagePool.length
+        );
+        
+        // Shuffle the image pool and take the first numImages
+        const shuffled = [...this.imagePool].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, numImages);
+    }
+
+    selectEffectType() {
+        // Define available effects with weights
+        const effectWeights = [
+            { effect: 'tiling', weight: 15 },
+            { effect: 'mosaic', weight: 15 },
+            { effect: 'sliced', weight: 15 },
+            { effect: 'fragments', weight: 15 },
+            { effect: 'crystal', weight: 15 },
+            { effect: 'layered', weight: 15 }
+        ];
+        
+        // Calculate total weight
+        const totalWeight = effectWeights.reduce((sum, item) => sum + item.weight, 0);
+        
+        // Generate random number between 0 and total weight
+        let random = Math.random() * totalWeight;
+        
+        // Select effect based on weights
+        let selectedEffect = effectWeights[0].effect;
+        for (const item of effectWeights) {
+            if (random < item.weight) {
+                selectedEffect = item.effect;
+                break;
+            }
+            random -= item.weight;
+        }
+        
+        return selectedEffect;
+    }
+
+    getRandomVariation(effect) {
+        switch (effect) {
+            case 'fragments':
+                const fragmentVariations = ['Classic', 'Organic', 'Focal'];
+                return fragmentVariations[Math.floor(Math.random() * fragmentVariations.length)];
+            case 'crystal':
+                return Math.random() < 0.5 ? 'standard' : 'isolated';
+            default:
+                return 'standard';
+        }
+    }
+
+    getNumImagesForEffect(effectType) {
+        // Base number of images on effect type and complexity
+        const baseCount = this.parameters.complexity;
+        switch (effectType) {
+            case 'tiling':
+                return baseCount + 2;  // Tiling needs more images
+            case 'fragments':
+                return baseCount + 1;  // Fragments work well with slightly more images
+            case 'mosaic':
+                return Math.max(4, Math.floor(Math.sqrt(baseCount * 2)));  // Square grid
+            case 'sliced':
+                return baseCount;  // Sliced works well with base count
+            case 'layered':
+                return Math.min(baseCount, 4);  // Layers work best with fewer images
+            default:
+                return baseCount;
+        }
+    }
+
+    async loadImage(src) {
+        return new Promise((res, rej) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => res(img);
+            img.onerror = rej;
+            img.src = src;
+        });
+    }
+
+    async selectImages(numImages) {
+        const picks = this.imagePool
+            .sort(() => 0.5 - Math.random())
+            .slice(0, numImages);
+
+        return Promise.all(picks.map((p) => 
+            typeof p === 'string' ? this.loadImage(p) : p
+        ));
+    }
+
+    async createCollage(canvas, layoutName = 'random', numImages = 4) {
+        const ctx = canvas.getContext('2d');
+        
+        // ensure we start fresh for every effect
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.resetClip?.();        // if browser supports it
+        
+        if (layoutName === 'random') {
+            layoutName = this.selectEffectType();
+        }
+        
+        console.log('Creating collage with layout:', layoutName);
+        
+        // Get layout from plugin registry or fallback to fragments
+        const layout = pluginRegistry.getLayout(layoutName);
+        if (!layout) {
+            console.warn(`Layout ${layoutName} not found, falling back to fragments`);
+            layoutName = 'fragments';
+        }
+
+        // Get appropriate number of images for the effect
+        const numImagesForEffect = this.getNumImagesForEffect(layoutName);
+        console.log(`Using ${numImagesForEffect} images for ${layoutName} effect`);
+        
+        const chosenImages = await this.selectImages(numImagesForEffect);
+        
+        // Ensure we have a valid layout before proceeding
+        if (!layout) {
+            throw new Error(`
