@@ -50,24 +50,24 @@ html, body {
 }
 
 /* Canvas Container */
-#canvas-container {
+.canvas-container {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  overflow: hidden;
   background-color: var(--background-color);
   transition: background-color var(--transition-speed) ease;
 }
 
-/* Canvas Element */
-#collageCanvas {
-  display: block;
+canvas {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  object-fit: contain;
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
 }
@@ -110,7 +110,9 @@ header {
 /* Buttons */
 .header-controls {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 }
 
 .header-controls button {
@@ -314,4 +316,55 @@ footer {
   font-size: 0.8rem;
   color: #666;
   box-shadow: none;
+}
+
+.effect-controls {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.effect-controls select {
+  padding: 0.5rem;
+  border: 1px solid var(--button-border-color, #666);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-color, #333);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.effect-controls select:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.effect-controls select:focus {
+  outline: none;
+  border-color: var(--text-color, #333);
+}
+
+.prompt-input-container {
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+#prompt-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--button-border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: rgba(255, 255, 255, 0.8);
+  color: var(--text-color);
+  transition: all var(--transition-speed) ease;
+}
+
+#prompt-input:focus {
+  outline: none;
+  border-color: var(--color-architectural);
+  box-shadow: 0 0 0 2px rgba(52, 73, 94, 0.2);
+}
+
+#prompt-input::placeholder {
+  color: #999;
 } 

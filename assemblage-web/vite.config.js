@@ -12,6 +12,9 @@ export default defineConfig({
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx']
   },
+  optimizeDeps: {
+    include: ['paper']
+  },
   esbuild: {
     loader: 'tsx',
     include: /\.(tsx|ts|jsx|js)$/,

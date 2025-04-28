@@ -1318,231 +1318,60 @@ class CollageGenerator {
         });
     }
 
-    drawFragment(fragment, ctx) {
-        console.log('Drawing fragment:', {
-            image: fragment.image ? 'valid' : 'invalid',
-            position: { x: fragment.x, y: fragment.y },
-            dimensions: { width: fragment.width, height: fragment.height },
-            rotation: fragment.rotation,
-            depth: fragment.depth,
-            mask: fragment.mask
-        });
+    drawFragment(ctx, fragment) {
+        const { x, y, width, height, image, rotation = 0, opacity = 1, mask } = fragment;
 
-        // Validate fragment dimensions
-        if (!fragment.width || !fragment.height || isNaN(fragment.width) || isNaN(fragment.height)) {
-            console.warn('Invalid fragment dimensions, skipping draw:', fragment);
-            return;
-        }
-
-        // Use logical (CSS) pixel coordinates to work with the scaled canvas
-        const x = fragment.x;
-        const y = fragment.y;
-        const width = fragment.width;
-        const height = fragment.height;
-        
-        // Save the current context state
+        // Save context state
         ctx.save();
 
-        // Set opacity based on depth with added variance
-        const opacityVariation = 0.05; // Reduced from 0.1 to create more full opacity fragments
-        const randomOpacity = (Math.random() * 2 - 1) * opacityVariation;
-        const opacity = Math.min(Math.max(fragment.depth + randomOpacity, 0.5), 1.0);
-        
-        // Increase chance of full opacity based on fragment size and position
-        const isLargeFragment = width * height > (this.canvas.width * this.canvas.height * 0.15);
-        const isCentralFragment = Math.abs(x - this.canvas.width/2) < this.canvas.width * 0.3 && 
-                                 Math.abs(y - this.canvas.height/2) < this.canvas.height * 0.3;
-        
-        // 40% chance of full opacity for large fragments, 30% for central fragments, 20% for others
-        const fullOpacityChance = isLargeFragment ? 0.4 : (isCentralFragment ? 0.3 : 0.2);
-        if (Math.random() < fullOpacityChance) {
-            ctx.globalAlpha = 1.0;
-        } else {
-            ctx.globalAlpha = opacity;
-        }
+        // Get the current device pixel ratio
+        const dpr = window.devicePixelRatio || 1;
 
-        // Move to fragment center for rotation
-        const centerX = x + width / 2;
-        const centerY = y + height / 2;
-        ctx.translate(centerX, centerY);
-        ctx.rotate(fragment.rotation);
+        // Apply transformations using logical (CSS) pixels
+        ctx.translate(x, y);
+        ctx.rotate(rotation * Math.PI / 180);
 
-        // Apply mask if specified
-        if (fragment.mask && fragment.mask.enabled) {
-            console.log('Applying mask to fragment:', {
-                type: fragment.mask.type,
-                scale: fragment.mask.scale,
-                rotation: fragment.mask.rotation,
-                fragmentDimensions: { width, height }
-            });
-            
-            // Create clipping path based on mask type
+        // Set opacity
+        ctx.globalAlpha = opacity;
+
+        // Create clipping path if mask is enabled
+        if (mask && mask.enabled && mask.implementation) {
             ctx.beginPath();
-            
-            // Calculate dimensions for mask
-            const maskScale = fragment.mask.scale || 1.0;
-            const scaledWidth = width * maskScale;
-            const scaledHeight = height * maskScale;
-            
-            // Apply mask rotation if specified
-            if (fragment.mask.rotation) {
-                ctx.rotate((fragment.mask.rotation * Math.PI) / 180);
-            }
-            
-            // Draw the mask shape
-            switch (fragment.mask.type) {
-                case 'circle':
-                    ctx.arc(0, 0, Math.min(scaledWidth, scaledHeight) / 2, 0, Math.PI * 2);
-                    break;
-                    
-                case 'triangle':
-                    ctx.moveTo(0, -scaledHeight / 2);
-                    ctx.lineTo(scaledWidth / 2, scaledHeight / 2);
-                    ctx.lineTo(-scaledWidth / 2, scaledHeight / 2);
-                    ctx.closePath();
-                    break;
-                    
-                case 'rectangle':
-                    ctx.rect(-scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
-                    break;
-                    
-                case 'ellipse':
-                    ctx.ellipse(0, 0, scaledWidth / 2, scaledHeight / 2, 0, 0, Math.PI * 2);
-                    break;
-                    
-                case 'diamond':
-                    ctx.moveTo(0, -scaledHeight / 2);
-                    ctx.lineTo(scaledWidth / 2, 0);
-                    ctx.lineTo(0, scaledHeight / 2);
-                    ctx.lineTo(-scaledWidth / 2, 0);
-                    ctx.closePath();
-                    break;
-                    
-                case 'hexagon':
-                    const hexRadius = Math.min(scaledWidth, scaledHeight) / 2;
-                    for (let i = 0; i < 6; i++) {
-                        const angle = (i * Math.PI) / 3;
-                        const x = hexRadius * Math.cos(angle);
-                        const y = hexRadius * Math.sin(angle);
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-                    ctx.closePath();
-                    break;
-                    
-                case 'star':
-                    const outerRadius = Math.min(scaledWidth, scaledHeight) / 2;
-                    const innerRadius = outerRadius * 0.4;
-                    for (let i = 0; i < 10; i++) {
-                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
-                        const angle = (i * Math.PI) / 5;
-                        const x = radius * Math.cos(angle);
-                        const y = radius * Math.sin(angle);
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
-                    ctx.closePath();
-                    break;
-                    
-                case 'arc':
-                    const arcRadius = Math.min(scaledWidth, scaledHeight) / 2;
-                    console.log('Drawing arc mask:', {
-                        center: { x: 0, y: 0 },
-                        radius: arcRadius,
-                        innerRadius: arcRadius * 0.7,
-                        dimensions: { width: scaledWidth, height: scaledHeight }
-                    });
-                    ctx.beginPath();
-                    // Draw the outer arc
-                    ctx.arc(0, 0, arcRadius, 0, Math.PI, false);
-                    // Draw the inner arc in reverse to create the arc shape
-                    ctx.arc(0, 0, arcRadius * 0.7, Math.PI, 0, true);
-                    ctx.closePath();
-                    console.log('Arc mask path completed');
-                    break;
-                    
-                case 'arch':
-                    console.log('Drawing arch mask:', {
-                        dimensions: { width: scaledWidth, height: scaledHeight }
-                    });
-                    ctx.beginPath();
-                    
-                    // Calculate arch dimensions
-                    const archWidth = scaledWidth;
-                    const archHeight = scaledHeight;
-                    const archRadius = archWidth / 2;
-                    
-                    // Draw the arch path
-                    ctx.moveTo(-archWidth / 2, archHeight / 2);
-                    ctx.lineTo(-archWidth / 2, -archHeight / 2 + archRadius);
-                    ctx.arc(0, -archHeight / 2 + archRadius, archRadius, Math.PI, 0, false);
-                    ctx.lineTo(archWidth / 2, archHeight / 2);
-                    ctx.closePath();
-                    
-                    console.log('Arch mask path completed');
-                    break;
-            }
-            
-            // Apply the clipping path
+            mask.implementation(ctx, 0, 0, width, height);
             ctx.clip();
         }
 
-        // Calculate image dimensions to ensure it completely fills the mask
-        const imageAspectRatio = fragment.image.width / fragment.image.height;
-        const fragmentAspectRatio = width / height;
-        
-        // Calculate the base scaling factor needed to cover the fragment
-        let scaleFactor;
-        
-        if (imageAspectRatio > fragmentAspectRatio) {
-            // Image is wider than fragment - scale based on height
-            scaleFactor = height / fragment.image.height;
-        } else {
-            // Image is taller than fragment - scale based on width
-            scaleFactor = width / fragment.image.width;
-        }
-        
-        // Apply a minimal buffer to prevent edge clipping
-        const bufferFactor = 1.15; // Increased from 1.05 to allow more edge bleeding
-        
-        // Get mask scale if applicable
-        const maskScale = fragment.mask && fragment.mask.enabled ? (fragment.mask.scale || 1.0) : 1.0;
-        
-        // Calculate final scale factor with minimal adjustments
-        scaleFactor = scaleFactor * bufferFactor;
-        
-        // Add random variation to scale factor (minimal change)
-        const randomScaleVariation = 0.85 + Math.random() * 0.3; // Random value between 0.85 and 1.15 (increased from 0.95-1.05)
-        scaleFactor *= randomScaleVariation;
-        
-        // Ensure scale factor stays within reasonable bounds
-        scaleFactor = Math.min(Math.max(scaleFactor, 0.9), 1.5); // Increased range from 1.0-1.3 to 0.9-1.5
-        
-        // Calculate the dimensions of the scaled image
-        const drawWidth = fragment.image.width * scaleFactor;
-        const drawHeight = fragment.image.height * scaleFactor;
-        
-        // Calculate the offset to center the image
-        const offsetX = (drawWidth - fragment.width) / 2;
-        const offsetY = (drawHeight - fragment.height) / 2;
-        
-        console.log('Drawing image with dimensions:', {
-            original: { width: fragment.image.width, height: fragment.image.height },
-            scaled: { width: drawWidth, height: drawHeight },
-            scaleFactor: scaleFactor,
-            offset: { x: offsetX, y: offsetY }
-        });
+        // Calculate image dimensions to ensure proper scaling
+        const imgWidth = image.naturalWidth || image.width;
+        const imgHeight = image.naturalHeight || image.height;
+        const imgRatio = imgWidth / imgHeight;
+        const fragmentRatio = width / height;
 
-        // Draw the image perfectly centered within the fragment
+        let drawWidth, drawHeight;
+        if (imgRatio > fragmentRatio) {
+            // Image is wider - scale to height
+            drawHeight = height;
+            drawWidth = drawHeight * imgRatio;
+        } else {
+            // Image is taller - scale to width
+            drawWidth = width;
+            drawHeight = drawWidth / imgRatio;
+        }
+
+        // Center the image within the fragment
+        const offsetX = (drawWidth - width) / 2;
+        const offsetY = (drawHeight - height) / 2;
+
+        // Draw image at the correct scale
         ctx.drawImage(
-            fragment.image,
-            -width / 2 - offsetX,
-            -height / 2 - offsetY,
+            image,
+            -offsetX,
+            -offsetY,
             drawWidth,
             drawHeight
         );
 
-        // Restore the context state
+        // Restore context state
         ctx.restore();
     }
 

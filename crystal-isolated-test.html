@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Isolated Crystal Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            background: #2a2a2a;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #2a2a2a;
+        }
+        
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #3a3a3a;
+            color: #fff;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+        }
+        
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #357abd;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        
+        .image-grid img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .image-grid img:hover {
+            transform: scale(1.05);
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #333;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Isolated Crystal Generator Test</h1>
+        
+        <div class="canvas-container">
+            <canvas id="crystalCanvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="complexity">Complexity:</label>
+                <input type="range" id="complexity" min="1" max="10" value="5">
+            </div>
+            
+            <div class="control-group">
+                <label for="maxFacets">Max Facets:</label>
+                <input type="range" id="maxFacets" min="5" max="50" value="25">
+            </div>
+            
+            <div class="control-group">
+                <label for="opacity">Opacity:</label>
+                <input type="range" id="opacity" min="0" max="100" value="70">
+            </div>
+            
+            <div class="control-group">
+                <label for="seedPattern">Seed Pattern:</label>
+                <select id="seedPattern">
+                    <option value="random">Random</option>
+                    <option value="grid">Grid</option>
+                    <option value="radial">Radial</option>
+                    <option value="clusters">Clusters</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="imageMode">Image Mode:</label>
+                <select id="imageMode">
+                    <option value="unique">Unique Images</option>
+                    <option value="single">Single Image</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="addGlow" checked>
+                    Add Glow Effect
+                </label>
+            </div>
+            
+            <div class="control-group">
+                <label for="crystalCount">Crystal Count:</label>
+                <input type="range" id="crystalCount" min="1" max="10" value="1">
+                <span id="crystalCountValue">1</span>
+            </div>
+            
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="preventOverlap" checked>
+                    Prevent Crystal Overlap
+                </label>
+            </div>
+            
+            <button id="generateBtn">Generate New Crystal</button>
+            
+            <div class="status" id="status">Ready to generate</div>
+        </div>
+        
+        <div class="image-grid" id="imageGrid"></div>
+    </div>
+
+    <script type="module">
+        import { loadImageCollection } from '../js/data.js';
+        import IsolatedCrystalGenerator from '../js/collage/isolatedCrystalGenerator.js';
+
+        // Initialize canvas
+        const canvas = document.getElementById('crystalCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const size = Math.min(container.clientWidth, 800);
+            const oldWidth = canvas.width;
+            const oldHeight = canvas.height;
+            
+            canvas.width = size;
+            canvas.height = size;
+            
+            console.log('Canvas resized:', {
+                container: {
+                    width: container.clientWidth,
+                    height: container.clientHeight
+                },
+                oldDimensions: {
+                    width: oldWidth,
+                    height: oldHeight
+                },
+                newDimensions: {
+                    width: canvas.width,
+                    height: canvas.height
+                }
+            });
+        }
+        
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Initialize crystal generator
+        const crystalGenerator = new IsolatedCrystalGenerator(ctx, canvas);
+        
+        // Create a simple app object for mask integration
+        window.app = {
+            generator: {
+                fragmentsGenerator: {
+                    generateFragments: async function(images, fortuneText, parameters = {}) {
+                        // This is a dummy implementation for mask integration
+                        return [];
+                    }
+                },
+                generate: async function(images, fortuneText, effect, settings = {}) {
+                    // This is a dummy implementation for mask integration
+                    return [];
+                }
+            },
+            _initializing: false
+        };
+        
+        // Load images
+        let loadedImages = [];
+        const imageGrid = document.getElementById('imageGrid');
+        const status = document.getElementById('status');
+        
+        async function loadImages() {
+            status.textContent = 'Loading images...';
+            try {
+                const imageMetadata = await loadImageCollection();
+                console.log('Loaded image collection:', imageMetadata.length, 'images');
+                
+                // Convert metadata to actual HTMLImageElement objects
+                const imagePromises = imageMetadata.map(imgData => {
+                    return new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            console.log(`Loaded image: ${img.src}`, {
+                                width: img.naturalWidth,
+                                height: img.naturalHeight,
+                                complete: img.complete
+                            });
+                            resolve(img);
+                        };
+                        img.onerror = () => {
+                            console.warn(`Failed to load image: ${imgData.src}`);
+                            resolve(null); // Resolve with null for failed images
+                        };
+                        img.src = imgData.src;
+                    });
+                });
+                
+                // Wait for all images to load
+                loadedImages = (await Promise.all(imagePromises)).filter(img => img !== null);
+                console.log('Successfully loaded images:', {
+                    count: loadedImages.length,
+                    firstImage: loadedImages[0] ? {
+                        src: loadedImages[0].src,
+                        width: loadedImages[0].naturalWidth,
+                        height: loadedImages[0].naturalHeight
+                    } : null
+                });
+                
+                // Display loaded images in grid
+                imageGrid.innerHTML = '';
+                loadedImages.forEach(img => {
+                    const clone = img.cloneNode();
+                    imageGrid.appendChild(clone);
+                });
+                
+                status.textContent = `Loaded ${loadedImages.length} images`;
+                
+                // Generate initial crystal
+                generateCrystal();
+            } catch (error) {
+                console.error('Error loading images:', error);
+                status.textContent = 'Error loading images';
+            }
+        }
+        
+        // Function to generate crystal
+        async function generateCrystal() {
+            if (loadedImages.length === 0) {
+                status.textContent = 'No images available';
+                return;
+            }
+            
+            status.textContent = 'Generating crystal...';
+            
+            const parameters = {
+                complexity: parseInt(document.getElementById('complexity').value),
+                maxFacets: parseInt(document.getElementById('maxFacets').value),
+                blendOpacity: parseInt(document.getElementById('opacity').value) / 100,
+                addGlow: document.getElementById('addGlow').checked,
+                seedPattern: document.getElementById('seedPattern').value,
+                imageMode: document.getElementById('imageMode').value,
+                crystalCount: parseInt(document.getElementById('crystalCount').value),
+                preventOverlap: document.getElementById('preventOverlap').checked
+            };
+            
+            console.log('Generating crystal with parameters:', parameters);
+            
+            try {
+                const success = await crystalGenerator.generateIsolatedCrystal(loadedImages, '', parameters);
+                status.textContent = success ? 'Crystal generated successfully' : 'Failed to generate crystal';
+            } catch (error) {
+                console.error('Error generating crystal:', error);
+                status.textContent = 'Error generating crystal';
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('generateBtn').addEventListener('click', generateCrystal);
+        document.getElementById('crystalCount').addEventListener('input', function() {
+            document.getElementById('crystalCountValue').textContent = this.value;
+        });
+        
+        // Load images when page loads
+        loadImages();
+    </script>
+</body>
+</html> 

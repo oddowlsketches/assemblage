@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Formation Generator Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background-color: rgba(255,255,255,0.9);
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background-color: #4a90e2;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        
+        button:hover {
+            background-color: #357abd;
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        #complexity {
+            width: 120px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+        
+        label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        #status {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 14px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+    
+    <div id="status">Loading images...</div>
+    
+    <div id="controls">
+        <button id="generate">Generate New Collage</button>
+        <button id="save">Save Collage</button>
+        <label>
+            Complexity:
+            <input type="range" id="complexity" min="1" max="10" value="5">
+            <span id="complexity-value">5</span>
+        </label>
+    </div>
+
+    <script type="module">
+        import { CrystalFormationGenerator } from './js/collage/crystalFormationGenerator.js';
+        
+        // Initialize canvas and context
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const statusElement = document.getElementById('status');
+        
+        // Initialize generator first
+        const generator = new CrystalFormationGenerator(ctx, canvas);
+        
+        // Set canvas size to match window size
+        function resizeCanvas() {
+            // Set both the canvas element size and the drawing surface size
+            canvas.style.width = window.innerWidth + 'px';
+            canvas.style.height = window.innerHeight + 'px';
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            // Regenerate the collage to fill the new size
+            generateCollage();
+        }
+        
+        // Handle window resize with debouncing
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(resizeCanvas, 250); // Debounce resize events
+        });
+        
+        // Initial resize
+        resizeCanvas();
+        
+        // Fallback test images if metadata loading fails
+        const fallbackImages = [
+            '/images/collages/img07371eeb.jpg',
+            '/images/collages/img6d025915.jpg',
+            '/images/collages/img21d91b65.jpg',
+            '/images/collages/imgd9d60ab4.jpg',
+            '/images/collages/imgd54c212e.jpg',
+            '/images/collages/imga13399f4.jpg'
+        ];
+        
+        // Load images
+        async function loadImages() {
+            try {
+                statusElement.textContent = 'Loading images...';
+                
+                // Try to load from metadata first
+                const response = await fetch('/images/metadata.json');
+                if (!response.ok) {
+                    throw new Error('Failed to load metadata');
+                }
+                
+                const metadata = await response.json();
+                if (!metadata || !metadata.images || !Array.isArray(metadata.images)) {
+                    throw new Error('Invalid metadata format');
+                }
+                
+                // Get random subset of images
+                const numImages = 10;
+                const shuffled = metadata.images.sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, numImages);
+                
+                // Load images
+                const images = await Promise.all(
+                    selected.map(img => {
+                        return new Promise((resolve, reject) => {
+                            const image = new Image();
+                            image.onload = () => resolve(image);
+                            image.onerror = () => {
+                                console.warn(`Failed to load image: ${img.filename}`);
+                                reject(new Error(`Failed to load image: ${img.filename}`));
+                            };
+                            image.src = `/images/collages/${img.filename}`;
+                        });
+                    })
+                );
+                
+                statusElement.textContent = `Loaded ${images.length} images`;
+                return images;
+            } catch (error) {
+                console.warn('Error loading from metadata, using fallback images:', error);
+                
+                // Use fallback images
+                const images = await Promise.all(
+                    fallbackImages.map(src => {
+                        return new Promise((resolve, reject) => {
+                            const image = new Image();
+                            image.onload = () => resolve(image);
+                            image.onerror = () => {
+                                console.warn(`Failed to load fallback image: ${src}`);
+                                reject(new Error(`Failed to load fallback image: ${src}`));
+                            };
+                            image.src = src;
+                        });
+                    })
+                );
+                
+                statusElement.textContent = `Using ${images.length} fallback images`;
+                return images;
+            }
+        }
+        
+        // Generate new collage
+        async function generateCollage() {
+            try {
+                statusElement.textContent = 'Generating new collage...';
+                const images = await loadImages();
+                
+                if (images.length === 0) {
+                    throw new Error('No images available');
+                }
+                
+                const complexity = parseInt(document.getElementById('complexity').value);
+                await generator.generateCrystal(images, null, { complexity });
+                statusElement.textContent = `Generated collage with ${images.length} images`;
+            } catch (error) {
+                console.error('Error generating collage:', error);
+                statusElement.textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        // Save collage
+        function saveCollage() {
+            try {
+                const link = document.createElement('a');
+                link.download = `crystal-collage-${Date.now()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                statusElement.textContent = 'Collage saved';
+            } catch (error) {
+                console.error('Error saving collage:', error);
+                statusElement.textContent = `Error saving: ${error.message}`;
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('generate').addEventListener('click', generateCollage);
+        document.getElementById('save').addEventListener('click', saveCollage);
+        
+        // Update complexity value display
+        document.getElementById('complexity').addEventListener('input', (e) => {
+            document.getElementById('complexity-value').textContent = e.target.value;
+        });
+        
+        // Generate initial collage
+        generateCollage();
+    </script>
+</body>
+</html> 

@@ -73,6 +73,77 @@ const maskImplementations = {
             ctx.arc(centerX, centerY, radius, Math.PI * 0.2, Math.PI * 1.8);
             ctx.closePath();
         }
+    },
+    window: {
+        draw: (ctx, width, height) => {
+            const x = width * 0.1;
+            const y = height * 0.1;
+            const w = width * 0.8;
+            const h = height * 0.8;
+            
+            ctx.beginPath();
+            // Main window frame
+            ctx.rect(x, y, w, h);
+            // Window panes
+            ctx.moveTo(x + w/2, y);
+            ctx.lineTo(x + w/2, y + h);
+            ctx.moveTo(x, y + h/2);
+            ctx.lineTo(x + w, y + h/2);
+            ctx.closePath();
+        }
+    },
+    door: {
+        draw: (ctx, width, height) => {
+            const x = width * 0.2;
+            const y = height * 0.1;
+            const w = width * 0.6;
+            const h = height * 0.8;
+            
+            ctx.beginPath();
+            // Door frame
+            ctx.rect(x, y, w, h);
+            // Door panel details
+            ctx.rect(x + w*0.1, y + h*0.1, w*0.8, h*0.8);
+            ctx.closePath();
+        }
+    },
+    column: {
+        draw: (ctx, width, height) => {
+            const x = width * 0.3;
+            const y = height * 0.1;
+            const w = width * 0.4;
+            const h = height * 0.8;
+            
+            ctx.beginPath();
+            // Column shaft
+            ctx.rect(x, y, w, h);
+            // Capital
+            ctx.rect(x - w*0.2, y, w*1.4, h*0.1);
+            // Base
+            ctx.rect(x - w*0.2, y + h*0.9, w*1.4, h*0.1);
+            ctx.closePath();
+        }
+    },
+    cornice: {
+        draw: (ctx, width, height) => {
+            const x = width * 0.1;
+            const y = height * 0.4;
+            const w = width * 0.8;
+            const h = height * 0.2;
+            
+            ctx.beginPath();
+            // Main cornice band
+            ctx.rect(x, y, w, h);
+            // Decorative top edge
+            ctx.moveTo(x, y);
+            for(let i = 0; i <= 10; i++) {
+                const px = x + (w/10) * i;
+                const py = i % 2 === 0 ? y - h*0.2 : y;
+                if(i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        }
     }
 };
 

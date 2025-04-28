@@ -1,4 +1,4 @@
-import { EffectBase } from './EffectBase';
+import { EffectBase, MaskPlacement } from './EffectBase';
 import { CrystalSettings, getRandomCrystalSettings } from './randomCrystal';
 
 interface Point {
@@ -548,5 +548,14 @@ export class CrystalEffect extends EffectBase {
 
   private assignImageToFragment(fragment: Fragment) {
     fragment.image = this.pickImageForCollage();
+  }
+
+  /**
+   * Called by CollageService after draw() when a user prompt is present.
+   * We're just logging the plan right now to confirm it arrives properly.
+   */
+  public async drawPlan(plan: MaskPlacement[]): Promise<void> {
+    console.log('[CrystalEffect] drawPlan plan:', plan);
+    // no-op for now
   }
 } 

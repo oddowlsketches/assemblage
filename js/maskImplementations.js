@@ -148,16 +148,9 @@ export const maskImplementations = {
             const centerY = y + height/2;
             const radius = Math.min(width, height) / 2;
             
-            console.log('Drawing arc mask:', {
-                center: { x: centerX, y: centerY },
-                radius,
-                dimensions: { width, height }
-            });
-
             ctx.beginPath();
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
             ctx.closePath();
-            console.log('Arc mask path completed');
         } catch (error) {
             console.error('Error drawing arc mask:', error);
         }
@@ -170,10 +163,6 @@ export const maskImplementations = {
                 return;
             }
             
-            console.log('Drawing arch mask:', {
-                dimensions: { width, height }
-            });
-
             ctx.beginPath();
             
             // Calculate arch dimensions
@@ -197,7 +186,6 @@ export const maskImplementations = {
             ctx.lineTo(x, y + archHeight);
             
             ctx.closePath();
-            console.log('Arch mask path completed');
         } catch (error) {
             console.error('Error drawing arch mask:', error);
         }
@@ -214,14 +202,7 @@ export const maskImplementations = {
             const centerY = height / 2;
             const radius = Math.min(width, height) / 2;
 
-            console.log('Drawing circle mask:', {
-                center: { x: centerX, y: centerY },
-                radius,
-                dimensions: { width, height }
-            });
-
             ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            console.log('Circle mask path completed');
         } catch (error) {
             console.error('Error drawing circle mask:', error);
         }
@@ -234,12 +215,7 @@ export const maskImplementations = {
                 return;
             }
 
-            console.log('Drawing rectangle mask:', {
-                dimensions: { width, height }
-            });
-
             ctx.rect(0, 0, width, height);
-            console.log('Rectangle mask path completed');
         } catch (error) {
             console.error('Error drawing rectangle mask:', error);
         }
@@ -256,18 +232,10 @@ export const maskImplementations = {
             const topY = height * 0.1;
             const bottomY = height * 0.9;
 
-            console.log('Drawing triangle mask:', {
-                center: { x: centerX },
-                topY,
-                bottomY,
-                dimensions: { width, height }
-            });
-
             ctx.moveTo(centerX, topY);
             ctx.lineTo(width * 0.1, bottomY);
             ctx.lineTo(width * 0.9, bottomY);
             ctx.closePath();
-            console.log('Triangle mask path completed');
         } catch (error) {
             console.error('Error drawing triangle mask:', error);
         }
@@ -285,14 +253,7 @@ export const maskImplementations = {
             const radiusX = width / 2;
             const radiusY = height / 2;
 
-            console.log('Drawing ellipse mask:', {
-                center: { x: centerX, y: centerY },
-                radius: { x: radiusX, y: radiusY },
-                dimensions: { width, height }
-            });
-
             ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2);
-            console.log('Ellipse mask path completed');
         } catch (error) {
             console.error('Error drawing ellipse mask:', error);
         }
@@ -310,18 +271,11 @@ export const maskImplementations = {
             const halfWidth = width / 2;
             const halfHeight = height / 2;
 
-            console.log('Drawing diamond mask:', {
-                center: { x: centerX, y: centerY },
-                halfDimensions: { width: halfWidth, height: halfHeight },
-                dimensions: { width, height }
-            });
-
             ctx.moveTo(centerX, 0);
             ctx.lineTo(width, centerY);
             ctx.lineTo(centerX, height);
             ctx.lineTo(0, centerY);
             ctx.closePath();
-            console.log('Diamond mask path completed');
         } catch (error) {
             console.error('Error drawing diamond mask:', error);
         }
@@ -340,14 +294,6 @@ export const maskImplementations = {
             const sides = 6;
             const angle = (Math.PI * 2) / sides;
 
-            console.log('Drawing hexagon mask:', {
-                center: { x: centerX, y: centerY },
-                radius,
-                sides,
-                angle,
-                dimensions: { width, height }
-            });
-
             ctx.moveTo(centerX + radius, centerY);
             for (let i = 1; i <= sides; i++) {
                 const x = centerX + radius * Math.cos(angle * i);
@@ -355,7 +301,6 @@ export const maskImplementations = {
                 ctx.lineTo(x, y);
             }
             ctx.closePath();
-            console.log('Hexagon mask path completed');
         } catch (error) {
             console.error('Error drawing hexagon mask:', error);
         }
@@ -375,15 +320,6 @@ export const maskImplementations = {
             const spikes = 5;
             const angle = (Math.PI * 2) / spikes;
 
-            console.log('Drawing star mask:', {
-                center: { x: centerX, y: centerY },
-                outerRadius,
-                innerRadius,
-                spikes,
-                angle,
-                dimensions: { width, height }
-            });
-
             ctx.moveTo(centerX + outerRadius, centerY);
             for (let i = 1; i <= spikes * 2; i++) {
                 const radius = i % 2 === 0 ? outerRadius : innerRadius;
@@ -392,7 +328,6 @@ export const maskImplementations = {
                 ctx.lineTo(x, y);
             }
             ctx.closePath();
-            console.log('Star mask path completed');
         } catch (error) {
             console.error('Error drawing star mask:', error);
         }

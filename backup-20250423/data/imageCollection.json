@@ -1,0 +1,17 @@
+[
+    {
+        "id": "1",
+        "src": "images/sample1.jpg",
+        "tags": ["technical", "geometric", "wisdom"]
+    },
+    {
+        "id": "2",
+        "src": "images/sample2.jpg",
+        "tags": ["botanical", "reflection", "clarity"]
+    },
+    {
+        "id": "3",
+        "src": "images/sample3.jpg",
+        "tags": ["architectural", "mystery", "insight"]
+    }
+] 

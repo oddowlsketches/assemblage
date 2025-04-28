@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Integration Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            background: #2a2a2a;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            background: #2a2a2a;
+        }
+        
+        .controls {
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+        }
+        
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background: #357abd;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #333;
+            color: #ccc;
+        }
+        
+        .test-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Crystal Integration Test</h1>
+        
+        <div class="canvas-container">
+            <canvas id="collageCanvas"></canvas>
+        </div>
+        
+        <div class="controls">
+            <div class="test-buttons">
+                <button id="generateCrystalBtn">Generate Crystal</button>
+                <button id="generateIsolatedCrystalBtn">Generate Isolated Crystal</button>
+                <button id="generateTilingBtn">Generate Tiling (Reference)</button>
+                <button id="generateFragmentsBtn">Generate Fragments (Reference)</button>
+            </div>
+            
+            <div class="status" id="status">Ready to test integration...</div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { loadImageCollection } from './js/data.js';
+        import CollageGenerator from './js/collage/collageGenerator.js';
+        import { enableCrystalEffect } from './js/enableCrystalEffect.js';
+        
+        // Initialize variables
+        let collageGenerator;
+        let loadedImages = [];
+        const status = document.getElementById('status');
+        
+        // Initialize canvas
+        const canvas = document.getElementById('collageCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set up canvas size
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const width = container.clientWidth;
+            const height = Math.min(width, 600); // Cap height at 600px
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            console.log('Canvas resized:', {
+                width: canvas.width,
+                height: canvas.height
+            });
+            
+            // Trigger redraw if we have a generator
+            if (collageGenerator && loadedImages.length > 0) {
+                generateCollage('tiling');
+            }
+        }
+        
+        // Initialize app
+        async function init() {
+            status.textContent = 'Initializing...';
+            
+            try {
+                // Resize canvas
+                resizeCanvas();
+                
+                // Initialize collage generator
+                collageGenerator = new CollageGenerator(canvas);
+                
+                // Create a simple app object for the integration
+                window.app = {
+                    collageGenerator: collageGenerator,
+                    availableEffects: ['tiling', 'fragments', 'mosaic', 'sliced']
+                };
+                
+                // Enable crystal effect
+                enableCrystalEffect(window.app);
+                
+                // Load images
+                status.textContent = 'Loading images...';
+                const imageMetadata = await loadImageCollection();
+                
+                // Handle image loading success
+                if (imageMetadata && imageMetadata.length > 0) {
+                    // Convert metadata to actual Image objects
+                    const imagePromises = imageMetadata.map(imgData => {
+                        return new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => resolve(img);
+                            img.onerror = () => resolve(null);
+                            img.src = imgData.src;
+                        });
+                    });
+                    
+                    // Wait for all images to load
+                    loadedImages = (await Promise.all(imagePromises)).filter(img => img !== null);
+                    
+                    status.textContent = `Loaded ${loadedImages.length} images. Ready to test.`;
+                    
+                    // Generate initial tiling collage
+                    generateCollage('tiling');
+                } else {
+                    status.textContent = 'No images available. Check data.js.';
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                status.textContent = 'Error initializing: ' + error.message;
+            }
+        }
+        
+        // Generate collage with specific effect
+        async function generateCollage(effect) {
+            if (!collageGenerator || loadedImages.length === 0) {
+                status.textContent = 'Cannot generate: missing generator or images';
+                return;
+            }
+            
+            status.textContent = `Generating ${effect} effect...`;
+            
+            try {
+                // Randomize parameters
+                const parameters = {
+                    complexity: 5 + Math.floor(Math.random() * 5),
+                    density: 3 + Math.floor(Math.random() * 5),
+                    crystalComplexity: 5 + Math.floor(Math.random() * 5),
+                    crystalDensity: 3 + Math.floor(Math.random() * 5)
+                };
+                
+                // Special case for isolated crystal
+                if (effect === 'isolated-crystal') {
+                    parameters.isolatedMode = true;
+                    effect = 'crystal'; // Use the standard crystal effect with isolatedMode parameter
+                }
+                
+                // Generate collage
+                await collageGenerator.generate(loadedImages, null, effect, parameters);
+                
+                status.textContent = `Generated ${effect} effect successfully`;
+            } catch (error) {
+                console.error(`Error generating ${effect}:`, error);
+                status.textContent = `Error generating ${effect}: ${error.message}`;
+            }
+        }
+        
+        // Set up event listeners
+        document.getElementById('generateCrystalBtn').addEventListener('click', () => generateCollage('crystal'));
+        document.getElementById('generateIsolatedCrystalBtn').addEventListener('click', () => generateCollage('isolated-crystal'));
+        document.getElementById('generateTilingBtn').addEventListener('click', () => generateCollage('tiling'));
+        document.getElementById('generateFragmentsBtn').addEventListener('click', () => generateCollage('fragments'));
+        
+        // Handle window resize
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
