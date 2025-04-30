@@ -219,9 +219,14 @@ export class CollageService {
         }
 
         // Determine which effect to use based on the prompt
-        if (userPrompt.toLowerCase().includes('arch')) {
+        const lowerPrompt = userPrompt.toLowerCase();
+        if (lowerPrompt.includes('arch') || 
+            lowerPrompt.includes('window') || 
+            lowerPrompt.includes('door') || 
+            lowerPrompt.includes('building') || 
+            lowerPrompt.includes('facade')) {
             this.setEffect('architectural');
-        } else if (userPrompt.toLowerCase().includes('crystal')) {
+        } else if (lowerPrompt.includes('crystal')) {
             this.setEffect('crystal');
         } else {
             // Randomly select an effect if no specific keyword is found
@@ -253,8 +258,12 @@ export class CollageService {
                 break;
 
             case 'architectural':
-                // Create new architectural effect instance with current images
-                this.architecturalEffect = new ArchitecturalEffect(this.ctx, this.images);
+                // Create new architectural effect instance with current images and prompt
+                this.architecturalEffect = new ArchitecturalEffect(this.ctx, this.images, {
+                    promptText: userPrompt,
+                    useMixedBlending: true,
+                    useComplementaryShapes: true
+                });
                 this.currentEffect = this.architecturalEffect; // Update the current effect instance
                 this.architecturalEffect.draw();
                 break;

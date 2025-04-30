@@ -7,8 +7,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@legacy': path.resolve(__dirname, 'src/legacy/js'),
-      '@': path.resolve(__dirname, 'src')
+      '@': path.resolve(__dirname, './src'),
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx']
   },
@@ -19,5 +18,16 @@ export default defineConfig({
     loader: 'tsx',
     include: /\.(tsx|ts|jsx|js)$/,
     exclude: [],
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        maskReview: path.resolve(__dirname, 'mask-review.html'),
+      }
+    }
+  },
+  server: {
+    open: '/mask-review.html'
   }
 }) 

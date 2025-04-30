@@ -108,6 +108,7 @@ export abstract class EffectBase {
     // Capture the main canvas dimensions
     const width = this.ctx.canvas.width;
     const height = this.ctx.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
     
     // Create an offscreen canvas for the collage
     const offscreen = document.createElement('canvas');
@@ -118,6 +119,9 @@ export abstract class EffectBase {
       console.error('Failed to get offscreen context');
       return;
     }
+    
+    // Set up the offscreen context with proper DPR scaling
+    offscreenCtx.scale(dpr, dpr);
     
     // Fill the main canvas background
     this.ctx.fillStyle = '#ffffff';
@@ -133,8 +137,8 @@ export abstract class EffectBase {
       // Draw images in a grid pattern
       const cols = Math.ceil(Math.sqrt(numImages));
       const rows = Math.ceil(numImages / cols);
-      const cellWidth = width / cols;
-      const cellHeight = height / rows;
+      const cellWidth = width / dpr / cols;
+      const cellHeight = height / dpr / rows;
       
       for (let i = 0; i < numImages; i++) {
         const col = i % cols;

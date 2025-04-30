@@ -1,0 +1,512 @@
+// maskRegistry.ts
+/**
+ * Parameterized SVG mask generators for all collage mask families.
+ * Each generator returns an SVG string (viewBox 0 0 100 100, white fill, no stroke).
+ * All masks are grouped in the exported maskRegistry object for easy lookup.
+ */
+
+export type MaskParams = {
+  offset?: number; // percent offset (e.g. 0 to 15)
+  rotation?: number; // degrees
+  count?: number; // for multi-slice/grouped masks
+  spacing?: number; // percent spacing for groups
+  align?: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  random?: boolean;
+  width?: number;
+  height?: number;
+  legHeight?: number;
+  [key: string]: any;
+};
+
+// --- SLICED FAMILY ---
+function sliceHorizontalWide({ offset = 0, rotation = 0 }: MaskParams = {}) {
+  const y = 40 + offset;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='0' y='${y}' width='100' height='20' fill='white'/></g></svg>`;
+}
+
+function sliceHorizontalNarrow({ offset = 0, rotation = 0 }: MaskParams = {}) {
+  const y = 60 + offset;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='0' y='${y}' width='100' height='8' fill='white'/></g></svg>`;
+}
+
+function slice3xHorizontal({ spacing = 10, random = false }: MaskParams = {}) {
+  // Three horizontal bands, spaced evenly or randomly in thirds
+  const ys = random
+    ? [20, 45, 70].map(y => y + (Math.random() - 0.5) * spacing)
+    : [20, 45, 70];
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${ys.map(y => `<rect x='0' y='${y}' width='100' height='8' fill='white'/>`).join('')}</svg>`;
+}
+
+function sliceVerticalWide({ offset = 0, rotation = 0 }: MaskParams = {}) {
+  const x = 40 + offset;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='${x}' y='0' width='20' height='100' fill='white'/></g></svg>`;
+}
+
+function sliceVerticalNarrow({ offset = 0, rotation = 0 }: MaskParams = {}) {
+  const x = 70 + offset;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='${x}' y='0' width='8' height='100' fill='white'/></g></svg>`;
+}
+
+function slice4xMixed({}: MaskParams = {}) {
+  // Two horizontal + two vertical slices
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <rect x='0' y='25' width='100' height='10' fill='white'/>
+    <rect x='0' y='65' width='100' height='10' fill='white'/>
+    <rect x='30' y='0' width='10' height='100' fill='white'/>
+    <rect x='60' y='0' width='10' height='100' fill='white'/>
+  </svg>`;
+}
+
+function sliceAngled({ angle = 15 }: MaskParams = {}) {
+  // Angled horizontal slice
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${angle},50,50)'><rect x='0' y='40' width='100' height='15' fill='white'/></g></svg>`;
+}
+
+// --- ARCHITECTURAL FAMILY ---
+function archClassical({ width = 60, height = 40, legHeight = 30 }: MaskParams = {}) {
+  // Architectural arch: variable width, height, and vertical legs
+  // width: total width of arch opening, height: height of arch curve, legHeight: height of vertical sides
+  // Center arch horizontally in 100x100 viewBox
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - legHeight - height;
+  const legBottom = 100;
+  // Move to left leg bottom, up to top of leg, arc to right leg top, down right leg
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <path d='
+      M${left},${legBottom}
+      L${left},${top + height}
+      A${width / 2},${height} 0 0,1 ${right},${top + height}
+      L${right},${legBottom}
+      Z
+    ' fill='white'/>
+  </svg>`;
+}
+
+function archFlat({}: MaskParams = {}) {
+  // Segmental (flatter) arch: base from (20,100) to (80,100), radius 30 (horizontal), 15 (vertical)
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <path d='M20,100 A30,15 0 0,1 80,100 L80,100 L20,100 Z' fill='white'/>
+  </svg>`;
+}
+
+function triptychArch({ archWidth = 18, archHeight = 24, spacing = 5 }: MaskParams = {}) {
+  // Three arches side by side, variable width, height, and spacing
+  // Center group in 100x100 viewBox
+  const totalWidth = archWidth * 3 + spacing * 2;
+  const leftStart = 50 - totalWidth / 2;
+  let svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>`;
+  for (let i = 0; i < 3; i++) {
+    const left = leftStart + i * (archWidth + spacing);
+    const right = left + archWidth;
+    const top = 100 - archHeight;
+    svg += `<path d='M${left},100 L${left},${top + archHeight} A${archWidth / 2},${archHeight} 0 0,1 ${right},${top + archHeight} L${right},100 Z' fill='white'/>`;
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+function windowRect({}: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='25' y='20' width='50' height='60' fill='white'/></svg>`;
+}
+
+function windowGrid({}: MaskParams = {}) {
+  // 2x3 grid
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <rect x='15' y='15' width='20' height='20' fill='white'/>
+    <rect x='40' y='15' width='20' height='20' fill='white'/>
+    <rect x='65' y='15' width='20' height='20' fill='white'/>
+    <rect x='15' y='40' width='20' height='20' fill='white'/>
+    <rect x='40' y='40' width='20' height='20' fill='white'/>
+    <rect x='65' y='40' width='20' height='20' fill='white'/>
+  </svg>`;
+}
+
+function columnPair({}: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='20' y='10' width='15' height='80' fill='white'/><rect x='65' y='10' width='15' height='80' fill='white'/></svg>`;
+}
+
+function columnSingle({}: MaskParams = {}) {
+  // Single column
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='42' y='10' width='16' height='80' fill='white'/></svg>`;
+}
+
+function columnTriplet({}: MaskParams = {}) {
+  // Three columns
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='15' height='80' fill='white'/><rect x='42' y='10' width='16' height='80' fill='white'/><rect x='75' y='10' width='15' height='80' fill='white'/></svg>`;
+}
+
+function facadeGrid({}: MaskParams = {}) {
+  // Composite: 2 columns + 4 windows in a grid
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <rect x='20' y='10' width='10' height='80' fill='white'/>
+    <rect x='70' y='10' width='10' height='80' fill='white'/>
+    <rect x='35' y='20' width='12' height='18' fill='white'/>
+    <rect x='53' y='20' width='12' height='18' fill='white'/>
+    <rect x='35' y='50' width='12' height='18' fill='white'/>
+    <rect x='53' y='50' width='12' height='18' fill='white'/>
+  </svg>`;
+}
+
+function houseGable({ width = 30, baseHeight = 40, roofHeight = 20 }: MaskParams = {}) {
+  // House shape: rectangle with triangle roof
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const baseTop = 100 - baseHeight;
+  const roofPeakY = baseTop - roofHeight;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <rect x='${left}' y='${baseTop}' width='${width}' height='${baseHeight}' fill='white'/>
+    <polygon points='${left},${baseTop} ${right},${baseTop} 50,${roofPeakY}' fill='white'/>
+  </svg>`;
+}
+
+// --- ABSTRACT FAMILY ---
+function blobIrregular({ rotation = 0 }: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><path d='M30,60 Q10,40 30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,60 Z' fill='white'/></g></svg>`;
+}
+
+function blobCrescent({}: MaskParams = {}) {
+  // Two overlapping circles
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='white'/><circle cx='65' cy='50' r='25' fill='gray'/></svg>`;
+}
+
+function polygonSoft({ rotation = 0 }: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='20,60 40,20 80,30 70,80 30,90' fill='white'/></g></svg>`;
+}
+
+function cloudLike({ count = 3, minR = 12, maxR = 22, seed = 1 }: MaskParams = {}) {
+  // More random cloud: 3-5 overlapping blobs, random positions and radii
+  function seededRandom(s) {
+    let x = Math.sin(s) * 10000;
+    return x - Math.floor(x);
+  }
+  const blobs = [];
+  const cx = 50, cy = 60;
+  const n = count + Math.floor((seededRandom(seed) * 3)); // 3-5 blobs
+  for (let i = 0; i < n; i++) {
+    const angle = (i / n) * Math.PI * 2 + (seededRandom(seed + i) - 0.5) * 0.5;
+    const r = minR + seededRandom(seed * (i + 1)) * (maxR - minR);
+    const x = cx + Math.cos(angle) * 18 + (seededRandom(seed * (i + 2)) - 0.5) * 8;
+    const y = cy + Math.sin(angle) * 10 + (seededRandom(seed * (i + 3)) - 0.5) * 8;
+    blobs.push(`<ellipse cx='${x}' cy='${y}' rx='${r}' ry='${r * (0.7 + seededRandom(seed * (i + 4)) * 0.6)}' fill='white'/>`);
+  }
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${blobs.join('')}</svg>`;
+}
+
+function archBlob({ width = 60, height = 30, baseHeight = 15, archiness = 0.5 }: MaskParams = {}) {
+  // Organic arch/bridge: variable width, height, and base height
+  // archiness: 0 (flat) to 1 (pointy)
+  // Center arch horizontally in 100x100 viewBox
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - baseHeight - height;
+  const baseY = 100 - baseHeight;
+  const mid = 50;
+  const archPeak = top - archiness * 10;
+  // Use a smooth curve for the arch span, and a wavy base
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <path d='
+      M${left},${baseY}
+      L${left},${top + height}
+      Q${mid},${archPeak} ${right},${top + height}
+      L${right},${baseY}
+      Q${mid},${baseY + 8} ${left},${baseY}
+      Z
+    ' fill='white'/>
+  </svg>`;
+}
+
+function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}) {
+  // Randomly rotate any abstract mask by a multiple of 30°
+  const masks = ['blobIrregular', 'blobCrescent', 'polygonSoft', 'cloudLike', 'archBlob'];
+  const chosen = mask && masks.includes(mask) ? mask : masks[Math.floor(Math.random() * masks.length)];
+  const angle = typeof rotation === 'number' ? rotation : Math.floor(Math.random() * 12) * 30;
+  // Call the chosen mask function with rotation param
+  if (chosen === 'blobCrescent' || chosen === 'cloudLike' || chosen === 'archBlob') {
+    // These masks don't use rotation param
+    return maskRegistry.abstract[chosen]();
+  }
+  return maskRegistry.abstract[chosen]({ rotation: angle });
+}
+
+// --- ALTAR FAMILY ---
+function nicheArch({ width = 28, height = 44, legHeight = 30 }: MaskParams = {}) {
+  // Tall niche: vertical sides, rounded top
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - legHeight - height;
+  const legBottom = 100;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <path d='
+      M${left},${legBottom}
+      L${left},${top + height}
+      A${width / 2},${height} 0 0,1 ${right},${top + height}
+      L${right},${legBottom}
+      Z
+    ' fill='white'/>
+  </svg>`;
+}
+
+function nicheCluster({ width = 12, height = 20, legHeight = 12, spacing = 6 }: MaskParams = {}) {
+  // Three tall niches side by side
+  const totalWidth = width * 3 + spacing * 2;
+  const leftStart = 50 - totalWidth / 2;
+  let svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>`;
+  for (let i = 0; i < 3; i++) {
+    const left = leftStart + i * (width + spacing);
+    const right = left + width;
+    const top = 100 - legHeight - height;
+    const legBottom = 100;
+    svg += `<path d='M${left},${legBottom} L${left},${top + height} A${width / 2},${height} 0 0,1 ${right},${top + height} L${right},${legBottom} Z' fill='white'/>`;
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+function circleInset({}: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='60' r='20' fill='white'/></svg>`;
+}
+
+function nicheStack({ width = 36, height = 28, legHeight = 18, smallWidth = 10, smallHeight = 10, smallLeg = 6, spacing = 2 }: MaskParams = {}) {
+  // Large arch + row of three small niches, all with vertical sides and rounded tops
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - legHeight - height;
+  const legBottom = 100 - (smallHeight + smallLeg + spacing);
+  let svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>`;
+  // Large arch
+  svg += `<path d='M${left},${legBottom} L${left},${top + height} A${width / 2},${height} 0 0,1 ${right},${top + height} L${right},${legBottom} Z' fill='white'/>`;
+  // Three small niches
+  const totalWidth = smallWidth * 3 + spacing * 2;
+  const leftStart = 50 - totalWidth / 2;
+  for (let i = 0; i < 3; i++) {
+    const l = leftStart + i * (smallWidth + spacing);
+    const r = l + smallWidth;
+    const t = 100 - smallLeg - smallHeight;
+    const b = 100 - smallLeg;
+    svg += `<path d='M${l},${b} L${l},${t + smallHeight} A${smallWidth / 2},${smallHeight} 0 0,1 ${r},${t + smallHeight} L${r},${b} Z' fill='white'/>`;
+  }
+  svg += `</svg>`;
+  return svg;
+}
+
+function circleAboveArch({ width = 28, height = 44, legHeight = 30, circleY = 30, circleR = 10 }: MaskParams = {}) {
+  // Circle above a tall niche arch
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - legHeight - height;
+  const legBottom = 100;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <circle cx='50' cy='${circleY}' r='${circleR}' fill='white'/>
+    <path d='
+      M${left},${legBottom}
+      L${left},${top + height}
+      A${width / 2},${height} 0 0,1 ${right},${top + height}
+      L${right},${legBottom}
+      Z
+    ' fill='white'/>
+  </svg>`;
+}
+
+function nicheOffset({ offset = 10, width = 28, height = 44, legHeight = 30, smallWidth = 14, smallHeight = 20, smallLeg = 16 }: MaskParams = {}) {
+  // Main arch and two small offset arches, all with vertical sides and rounded tops
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const top = 100 - legHeight - height;
+  const legBottom = 100;
+  let svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>`;
+  // Main arch
+  svg += `<path d='M${left},${legBottom} L${left},${top + height} A${width / 2},${height} 0 0,1 ${right},${top + height} L${right},${legBottom} Z' fill='white'/>`;
+  // Left offset niche
+  const l2 = left + offset;
+  const r2 = l2 + smallWidth;
+  const t2 = 100 - smallLeg - smallHeight;
+  const b2 = 100 - smallLeg;
+  svg += `<path d='M${l2},${b2} L${l2},${t2 + smallHeight} A${smallWidth / 2},${smallHeight} 0 0,1 ${r2},${t2 + smallHeight} L${r2},${b2} Z' fill='white'/>`;
+  // Right offset niche
+  const l3 = right - offset - smallWidth;
+  const r3 = l3 + smallWidth;
+  const t3 = 100 - smallLeg - smallHeight;
+  const b3 = 100 - smallLeg;
+  svg += `<path d='M${l3},${b3} L${l3},${t3 + smallHeight} A${smallWidth / 2},${smallHeight} 0 0,1 ${r3},${t3 + smallHeight} L${r3},${b3} Z' fill='white'/>`;
+  svg += `</svg>`;
+  return svg;
+}
+
+function gableAltar({ width = 40, baseHeight = 40, gableHeight = 30 }: MaskParams = {}) {
+  // Altar with rectangular base and triangular gable top
+  const left = 50 - width / 2;
+  const right = 50 + width / 2;
+  const baseTop = 100 - baseHeight;
+  const gablePeakY = baseTop - gableHeight;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <rect x='${left}' y='${baseTop}' width='${width}' height='${baseHeight}' fill='white'/>
+    <polygon points='${left},${baseTop} ${right},${baseTop} 50,${gablePeakY}' fill='white'/>
+  </svg>`;
+}
+
+// --- NARRATIVE FAMILY ---
+function panelRectWide({ align = 'center' }: MaskParams = {}) {
+  const y = align === 'top' ? 10 : align === 'bottom' ? 60 : 35;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='${y}' width='80' height='30' fill='white'/></svg>`;
+}
+
+function panelRectTall({ align = 'left' }: MaskParams = {}) {
+  const x = align === 'right' ? 70 : align === 'center' ? 40 : 10;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='10' width='20' height='80' fill='white'/></svg>`;
+}
+
+function panelSquare({ align = 'center' }: MaskParams = {}) {
+  const x = align === 'right' ? 60 : align === 'left' ? 10 : 20;
+  const y = align === 'bottom' ? 60 : align === 'top' ? 10 : 20;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='${y}' width='60' height='60' fill='white'/></svg>`;
+}
+
+function panelOverlap({ angle = 10 }: MaskParams = {}) {
+  // Two overlapping panels
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='30' width='60' height='40' fill='white'/><g transform='rotate(${angle},60,70)'><rect x='30' y='50' width='60' height='40' fill='white'/></g></svg>`;
+}
+
+function panelLShape({}: MaskParams = {}) {
+  // L-shaped panel (two rectangles)
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='60' height='20' fill='white'/><rect x='10' y='30' width='20' height='60' fill='white'/></svg>`;
+}
+
+function panelGutter({ margin = 10 }: MaskParams = {}) {
+  // Panel inset by margin
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${margin}' y='${margin}' width='${100 - 2 * margin}' height='${100 - 2 * margin}' fill='white'/></svg>`;
+}
+
+// --- BASIC FAMILY ---
+function circleMask({ cx = 50, cy = 50, r = 30 }: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='${cx}' cy='${cy}' r='${r}' fill='white'/></svg>`;
+}
+
+function ovalMask({ cx = 50, cy = 50, rx = 32, ry = 20 }: MaskParams = {}) {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='white'/></svg>`;
+}
+
+function diamondMask({ cx = 50, cy = 50, w = 40, h = 40 }: MaskParams = {}) {
+  const points = `${cx},${cy - h / 2} ${cx + w / 2},${cy} ${cx},${cy + h / 2} ${cx - w / 2},${cy}`;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
+}
+
+function hexagonMask({ cx = 50, cy = 50, r = 28 }: MaskParams = {}) {
+  const points = Array.from({ length: 6 }, (_, i) => {
+    const angle = Math.PI / 3 * i - Math.PI / 6;
+    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
+  }).join(' ');
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
+}
+
+function semiCircleMask({ cx = 50, cy = 50, r = 30, orientation = 'up' }: MaskParams = {}) {
+  // orientation: 'up', 'down', 'left', 'right'
+  let d = '';
+  if (orientation === 'up') {
+    d = `M${cx - r},${cy} A${r},${r} 0 0,1 ${cx + r},${cy} L${cx},${cy} Z`;
+  } else if (orientation === 'down') {
+    d = `M${cx - r},${cy} A${r},${r} 0 0,0 ${cx + r},${cy} L${cx},${cy} Z`;
+  } else if (orientation === 'left') {
+    d = `M${cx},${cy - r} A${r},${r} 0 0,1 ${cx},${cy + r} L${cx},${cy} Z`;
+  } else if (orientation === 'right') {
+    d = `M${cx},${cy - r} A${r},${r} 0 0,0 ${cx},${cy + r} L${cx},${cy} Z`;
+  }
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${d}' fill='white'/></svg>`;
+}
+
+function triangleMask({ cx = 50, cy = 50, size = 40, orientation = 'up' }: MaskParams = {}) {
+  let points = '';
+  if (orientation === 'up') {
+    points = `${cx},${cy - size / 2} ${cx + size / 2},${cy + size / 2} ${cx - size / 2},${cy + size / 2}`;
+  } else if (orientation === 'down') {
+    points = `${cx},${cy + size / 2} ${cx + size / 2},${cy - size / 2} ${cx - size / 2},${cy - size / 2}`;
+  } else if (orientation === 'left') {
+    points = `${cx - size / 2},${cy} ${cx + size / 2},${cy - size / 2} ${cx + size / 2},${cy + size / 2}`;
+  } else if (orientation === 'right') {
+    points = `${cx + size / 2},${cy} ${cx - size / 2},${cy - size / 2} ${cx - size / 2},${cy + size / 2}`;
+  }
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
+}
+
+function beamMask({ widthTop = 80, widthBottom = 40, height = 80, angle = 0, offsetX = 50, offsetY = 60 }: MaskParams = {}) {
+  // Quadrilateral beam/path, can be a parallelogram, trapezoid, or wedge
+  // Centered by default, angle in degrees
+  const rad = (angle * Math.PI) / 180;
+  // Top left and right
+  const tlx = offsetX - widthTop / 2 * Math.cos(rad);
+  const tly = offsetY - height / 2;
+  const trx = offsetX + widthTop / 2 * Math.cos(rad);
+  const try_ = offsetY - height / 2;
+  // Bottom left and right
+  const blx = offsetX - widthBottom / 2 * Math.cos(rad);
+  const bly = offsetY + height / 2;
+  const brx = offsetX + widthBottom / 2 * Math.cos(rad);
+  const bry = offsetY + height / 2;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+    <polygon points='
+      ${tlx},${tly}
+      ${trx},${try_}
+      ${brx},${bry}
+      ${blx},${bly}
+    ' fill='white'/>
+  </svg>`;
+}
+
+// --- REGISTRY ---
+export const maskRegistry = {
+  sliced: {
+    sliceHorizontalWide,
+    sliceHorizontalNarrow,
+    slice3xHorizontal,
+    sliceVerticalWide,
+    sliceVerticalNarrow,
+    slice4xMixed,
+    sliceAngled,
+  },
+  architectural: {
+    archClassical,
+    archFlat,
+    triptychArch,
+    windowRect,
+    windowGrid,
+    columnPair,
+    columnSingle,
+    columnTriplet,
+    facadeGrid,
+    houseGable,
+  },
+  abstract: {
+    blobIrregular,
+    blobCrescent,
+    polygonSoft,
+    cloudLike,
+    archBlob,
+    abstractRotated,
+  },
+  altar: {
+    nicheArch,
+    nicheCluster,
+    circleInset,
+    nicheStack,
+    circleAboveArch,
+    nicheOffset,
+    gableAltar,
+  },
+  basic: {
+    circleMask,
+    ovalMask,
+    diamondMask,
+    hexagonMask,
+    semiCircleMask,
+    triangleMask,
+    beamMask,
+  },
+  narrative: {
+    panelRectWide,
+    panelRectTall,
+    panelSquare,
+    panelOverlap,
+    panelLShape,
+    panelGutter,
+  },
+}; 
