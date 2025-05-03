@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mask Review</title>
+    <style>
+      /* --- gallery grid --- */
+      #gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 16px;
+        padding: 16px;
+      }
+      /* headings span full width */
+      #gallery h2 {
+        grid-column: 1 / -1;
+        margin: 24px 0 8px;
+        font-size: 1.2rem;
+        color: #333;
+      }
+      /* each mask tile */
+      figure {
+        margin: 0;
+        background: #40E0D0;
+        padding: 8px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      canvas {
+        width: 100%;
+        height: auto;
+        background: white; /* fallback if mask fails */
+      }
+      figcaption {
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: #111;
+        text-align: center;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="gallery"></div>
+    <script type="module">
+      import registry, { getMaskDescriptor } from '/src/masks/maskRegistry.ts';
+
+      const gallery = document.getElementById('gallery');
+      
+      // Dynamically get all mask names from all families in the registry
+      const maskEntries = [];
+      for (const family in registry) {
+        for (const name in registry[family]) {
+          maskEntries.push({ family, name });
+        }
+      }
+
+      // Get descriptors for all masks
+      const maskDescriptors = maskEntries.map(({ family, name }) => {
+        const descriptor = getMaskDescriptor(family, name);
+        if (!descriptor) {
+          console.warn(`Could not find mask descriptor for: ${family}/${name}`);
+          return null;
+        }
+        return { name: `${family}/${name}`, descriptor };
+      }).filter(Boolean);
+
+      // Load a test image and render all masks when ready
+      const testImg = new window.Image();
+      testImg.src = '/src/assets/gallery/sample1.jpg'; // Update path if needed
+      testImg.onload = () => {
+        maskDescriptors.forEach(({ name, descriptor }) => {
+          if (descriptor.kind !== 'svg') return;
+          const svgString = descriptor.getSvg();
+
+          const figure = document.createElement('figure');
+          const canvas = document.createElement('canvas');
+          const figcaption = document.createElement('figcaption');
+          canvas.width = 250;
+          canvas.height = 250;
+          const ctx = canvas.getContext('2d');
+
+          // Fill background with turquoise
+          ctx.fillStyle = '#40E0D0';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // Create Path2D from SVG and scale to canvas
+          const path = svgToPath2D(svgString);
+          ctx.save();
+          ctx.scale(canvas.width / 100, canvas.height / 100);
+          ctx.beginPath();
+          ctx.clip(path);
+          ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
+
+          // --- Aspect ratio preserving, cover logic ---
+          const imgAspect = testImg.width / testImg.height;
+          const canvasAspect = canvas.width / canvas.height;
+          let drawWidth, drawHeight, offsetX, offsetY;
+          if (imgAspect > canvasAspect) {
+            // Image is wider: scale by height, crop sides
+            drawHeight = canvas.height;
+            drawWidth = imgAspect * drawHeight;
+            offsetX = (canvas.width - drawWidth) / 2;
+            offsetY = 0;
+          } else {
+            // Image is taller: scale by width, crop top/bottom
+            drawWidth = canvas.width;
+            drawHeight = drawWidth / imgAspect;
+            offsetX = 0;
+            offsetY = (canvas.height - drawHeight) / 2;
+          }
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.drawImage(testImg, offsetX, offsetY, drawWidth, drawHeight);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.restore();
+
+          figcaption.textContent = name;
+          figure.appendChild(canvas);
+          figure.appendChild(figcaption);
+          gallery.appendChild(figure);
+        });
+      };
+
+      function svgToPath2D(svgString) {
+        const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+        const p = new Path2D();
+        // All <path>
+        doc.querySelectorAll('path[d]').forEach(path => {
+          p.addPath(new Path2D(path.getAttribute('d')));
+        });
+        // All <rect>
+        doc.querySelectorAll('rect').forEach(rect => {
+          p.rect(+rect.x.baseVal.value, +rect.y.baseVal.value,
+                 +rect.width.baseVal.value, +rect.height.baseVal.value);
+        });
+        // All <polygon> & <polyline>
+        doc.querySelectorAll('polygon, polyline').forEach(poly => {
+          const pts = poly.getAttribute('points').trim().split(/\s+|,/).map(Number);
+          p.moveTo(pts[0], pts[1]);
+          for (let i = 2; i < pts.length; i += 2) {
+            p.lineTo(pts[i], pts[i+1]);
+          }
+          if (poly.tagName === 'polygon') p.closePath();
+        });
+        // All <circle>
+        doc.querySelectorAll('circle').forEach(circle => {
+          p.arc(+circle.cx.baseVal.value, +circle.cy.baseVal.value,
+                +circle.r.baseVal.value, 0, 2*Math.PI);
+        });
+        // All <ellipse>
+        doc.querySelectorAll('ellipse').forEach(ellipse => {
+          p.ellipse(
+            +ellipse.cx.baseVal.value,
+            +ellipse.cy.baseVal.value,
+            +ellipse.rx.baseVal.value,
+            +ellipse.ry.baseVal.value,
+            0, 0, 2 * Math.PI
+          );
+        });
+        return p;
+      }
+    </script>
+  </body>
+</html> 

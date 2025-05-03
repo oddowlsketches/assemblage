@@ -373,184 +373,55 @@ export const templates = [
         defaultBG: "#f0f8ff"
     },
     {
-        key: 'scrambled-mosaic',
+        key: 'scrambledMosaic',
         name: 'Scrambled Mosaic',
         defaultBG: '#FFFFFF',
         placements: [
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.167,
-                y: 0.25,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.333,
-                y: 0.25,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.5,
-                y: 0.25,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.7,
-                y: 0.15,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.167,
-                y: 0.5,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.4,
-                y: 0.45,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.5,
-                y: 0.5,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.667,
-                y: 0.5,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.2,
-                y: 0.8,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.333,
-                y: 0.75,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.5,
-                y: 0.75,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            },
-            {
-                maskName: 'architectural/windowRect',
-                x: 0.65,
-                y: 0.85,
-                width: 0.167,
-                height: 0.25,
-                rotation: 0
-            }
+            { maskName: 'architectural/windowRect', x: 0.167, y: 0.125, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'architectural/windowRect', x: 0.333, y: 0.125, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'basic/diamondMask',       x: 0.500, y: 0.125, width: 0.167, height: 0.25, rotation: 15 },
+            { maskName: 'architectural/windowRect', x: 0.667, y: 0.125, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'basic/circleMask',        x: 0.833, y: 0.125, width: 0.167, height: 0.25, rotation: 0 },
+
+            { maskName: 'architectural/windowRect', x: 0.167, y: 0.375, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'basic/hexagonMask',       x: 0.333, y: 0.375, width: 0.167, height: 0.25, rotation: 30 },
+            { maskName: 'architectural/windowRect', x: 0.500, y: 0.375, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'basic/triangleMask',      x: 0.667, y: 0.375, width: 0.167, height: 0.25, rotation: -15 },
+            // blank at 0.833,0.375
+
+            { maskName: 'basic/circleMask',        x: 0.167, y: 0.625, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'architectural/windowRect', x: 0.333, y: 0.625, width: 0.167, height: 0.25, rotation: 0 },
+            { maskName: 'basic/diamondMask',       x: 0.500, y: 0.625, width: 0.167, height: 0.25, rotation: 20 },
+            // blank at 0.667,0.625
+            { maskName: 'architectural/windowRect', x: 0.833, y: 0.625, width: 0.167, height: 0.25, rotation: 0 },
+
+            { maskName: 'architectural/windowRect', x: 0.167, y: 0.875, width: 0.167, height: 0.25, rotation: 0 },
+            // blank at 0.333,0.875
+            { maskName: 'basic/hexagonMask',       x: 0.500, y: 0.875, width: 0.167, height: 0.25, rotation: 40 },
+            { maskName: 'basic/triangleMask',      x: 0.667, y: 0.875, width: 0.167, height: 0.25, rotation: 10 },
+            { maskName: 'architectural/windowRect', x: 0.833, y: 0.875, width: 0.167, height: 0.25, rotation: 0 }
         ]
     },
     {
-        key: 'paired-crop-abstraction',
+        key: 'pairedCropAbstraction',
         name: 'Paired Crop Abstraction',
         defaultBG: '#F0F5FA',
         placements: [
-            {
-                maskName: 'abstract/blobIrregular',
-                x: 0.4,
-                y: 0.45,
-                width: 0.5,
-                height: 0.5,
-                rotation: 0
-            },
-            {
-                maskName: 'abstract/archBlob',
-                x: 0.6,
-                y: 0.55,
-                width: 0.25,
-                height: 0.25,
-                rotation: 12
-            },
-            {
-                maskName: 'abstract/polygonSoft',
-                x: 0.35,
-                y: 0.3,
-                width: 0.12,
-                height: 0.12,
-                rotation: 8
-            }
+            { maskName: 'abstract/blobIrregular', x: 0.40, y: 0.45, width: 0.50, height: 0.50, rotation: 0 },
+            { maskName: 'abstract/archBlob',      x: 0.60, y: 0.55, width: 0.25, height: 0.25, rotation: 12 },
+            { maskName: 'abstract/polygonSoft',   x: 0.35, y: 0.30, width: 0.12, height: 0.12, rotation: 8 }
         ]
     },
     {
-        key: 'floating-forms',
+        key: 'floatingForms',
         name: 'Floating Forms',
         defaultBG: '#F7F7F7',
         placements: [
-            {
-                maskName: 'abstract/blobIrregular',
-                x: 0.35,
-                y: 0.4,
-                width: 0.35,
-                height: 0.35,
-                rotation: 45
-            },
-            {
-                maskName: 'abstract/cloudLike',
-                x: 0.55,
-                y: 0.5,
-                width: 0.2,
-                height: 0.2,
-                rotation: 180
-            },
-            {
-                maskName: 'abstract/archBlob',
-                x: 0.25,
-                y: 0.6,
-                width: 0.2,
-                height: 0.2,
-                rotation: 270
-            },
-            {
-                maskName: 'abstract/polygonSoft',
-                x: 0.45,
-                y: 0.25,
-                width: 0.1,
-                height: 0.1,
-                rotation: 90
-            },
-            {
-                maskName: 'abstract/circleInset',
-                x: 0.7,
-                y: 0.3,
-                width: 0.1,
-                height: 0.1,
-                rotation: 135
-            }
+            { maskName: 'abstract/blobIrregular', x: 0.35, y: 0.40, width: 0.35, height: 0.35, rotation: 45 },
+            { maskName: 'abstract/cloudLike',     x: 0.55, y: 0.50, width: 0.20, height: 0.20, rotation: 180 },
+            { maskName: 'abstract/archBlob',      x: 0.25, y: 0.60, width: 0.20, height: 0.20, rotation: 270 },
+            { maskName: 'abstract/polygonSoft',   x: 0.70, y: 0.20, width: 0.10, height: 0.10, rotation: 90 },
+            { maskName: 'basic/circleMask',       x: 0.80, y: 0.30, width: 0.10, height: 0.10, rotation: 135 }
         ]
     }
 ]; 

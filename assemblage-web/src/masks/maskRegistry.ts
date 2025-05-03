@@ -5,6 +5,13 @@
  * All masks are grouped in the exported maskRegistry object for easy lookup.
  */
 
+export type MaskDescriptor =
+  | { kind: 'svg';    getSvg: () => string }
+  | { kind: 'path2d'; getPath: () => Path2D }
+  | { kind: 'bitmap'; getBitmap: () => Promise<ImageBitmap> };
+
+export type MaskGenerator = () => MaskDescriptor;
+
 export type MaskParams = {
   offset?: number; // percent offset (e.g. 0 to 15)
   rotation?: number; // degrees
@@ -19,36 +26,31 @@ export type MaskParams = {
 };
 
 // --- SLICED FAMILY ---
-function sliceHorizontalWide({ offset = 0, rotation = 0 }: MaskParams = {}) {
-  const y = 40 + offset;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='0' y='${y}' width='100' height='20' fill='white'/></g></svg>`;
+function sliceHorizontalWide(params: MaskParams = {}) {
+  const y = 40 + (params.offset ?? 0);
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='0' y='${y}' width='100' height='20' fill='white'/></g></svg>`;
 }
-
-function sliceHorizontalNarrow({ offset = 0, rotation = 0 }: MaskParams = {}) {
-  const y = 60 + offset;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='0' y='${y}' width='100' height='8' fill='white'/></g></svg>`;
+function sliceHorizontalNarrow(params: MaskParams = {}) {
+  const y = 60 + (params.offset ?? 0);
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='0' y='${y}' width='100' height='8' fill='white'/></g></svg>`;
 }
-
-function slice3xHorizontal({ spacing = 10, random = false }: MaskParams = {}) {
-  // Three horizontal bands, spaced evenly or randomly in thirds
+function slice3xHorizontal(params: MaskParams = {}) {
+  const spacing = params.spacing ?? 10;
+  const random = params.random ?? false;
   const ys = random
     ? [20, 45, 70].map(y => y + (Math.random() - 0.5) * spacing)
     : [20, 45, 70];
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${ys.map(y => `<rect x='0' y='${y}' width='100' height='8' fill='white'/>`).join('')}</svg>`;
 }
-
-function sliceVerticalWide({ offset = 0, rotation = 0 }: MaskParams = {}) {
-  const x = 40 + offset;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='${x}' y='0' width='20' height='100' fill='white'/></g></svg>`;
+function sliceVerticalWide(params: MaskParams = {}) {
+  const x = 40 + (params.offset ?? 0);
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='${x}' y='0' width='20' height='100' fill='white'/></g></svg>`;
 }
-
-function sliceVerticalNarrow({ offset = 0, rotation = 0 }: MaskParams = {}) {
-  const x = 70 + offset;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><rect x='${x}' y='0' width='8' height='100' fill='white'/></g></svg>`;
+function sliceVerticalNarrow(params: MaskParams = {}) {
+  const x = 70 + (params.offset ?? 0);
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='${x}' y='0' width='8' height='100' fill='white'/></g></svg>`;
 }
-
-function slice4xMixed({}: MaskParams = {}) {
-  // Two horizontal + two vertical slices
+function slice4xMixed(params: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
     <rect x='0' y='25' width='100' height='10' fill='white'/>
     <rect x='0' y='65' width='100' height='10' fill='white'/>
@@ -56,9 +58,8 @@ function slice4xMixed({}: MaskParams = {}) {
     <rect x='60' y='0' width='10' height='100' fill='white'/>
   </svg>`;
 }
-
-function sliceAngled({ angle = 15 }: MaskParams = {}) {
-  // Angled horizontal slice
+function sliceAngled(params: MaskParams = {}) {
+  const angle = params.angle ?? 15;
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${angle},50,50)'><rect x='0' y='40' width='100' height='15' fill='white'/></g></svg>`;
 }
 
@@ -224,9 +225,10 @@ function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}) 
   // Call the chosen mask function with rotation param
   if (chosen === 'blobCrescent' || chosen === 'cloudLike' || chosen === 'archBlob') {
     // These masks don't use rotation param
-    return maskRegistry.abstract[chosen]();
+    return registry.abstract[chosen as keyof typeof registry.abstract]();
   }
-  return maskRegistry.abstract[chosen]({ rotation: angle });
+  // For rotation, wrap the SVG string in a MaskDescriptor
+  return { kind: 'svg', getSvg: () => polygonSoft({ rotation: angle }) };
 }
 
 // --- ALTAR FAMILY ---
@@ -452,61 +454,93 @@ function beamMask({ widthTop = 80, widthBottom = 40, height = 80, angle = 0, off
   </svg>`;
 }
 
-// --- REGISTRY ---
-export const maskRegistry = {
+const registry: Record<string, Record<string, MaskGenerator>> = {
   sliced: {
-    sliceHorizontalWide,
-    sliceHorizontalNarrow,
-    slice3xHorizontal,
-    sliceVerticalWide,
-    sliceVerticalNarrow,
-    slice4xMixed,
-    sliceAngled,
+    sliceHorizontalWide: () => ({ kind: 'svg', getSvg: () => sliceHorizontalWide() }),
+    sliceHorizontalNarrow: () => ({ kind: 'svg', getSvg: () => sliceHorizontalNarrow() }),
+    slice3xHorizontal: () => ({ kind: 'svg', getSvg: () => slice3xHorizontal() }),
+    sliceVerticalWide: () => ({ kind: 'svg', getSvg: () => sliceVerticalWide() }),
+    sliceVerticalNarrow: () => ({ kind: 'svg', getSvg: () => sliceVerticalNarrow() }),
+    slice4xMixed: () => ({ kind: 'svg', getSvg: () => slice4xMixed() }),
+    sliceAngled: () => ({ kind: 'svg', getSvg: () => sliceAngled() }),
   },
   architectural: {
-    archClassical,
-    archFlat,
-    triptychArch,
-    windowRect,
-    windowGrid,
-    columnPair,
-    columnSingle,
-    columnTriplet,
-    facadeGrid,
-    houseGable,
+    archClassical: () => ({ kind: 'svg', getSvg: () => archClassical() }),
+    archFlat: () => ({ kind: 'svg', getSvg: () => archFlat() }),
+    triptychArch: () => ({ kind: 'svg', getSvg: () => triptychArch() }),
+    windowRect: () => ({ kind: 'svg', getSvg: () => windowRect() }),
+    windowGrid: () => ({ kind: 'svg', getSvg: () => windowGrid() }),
+    columnPair: () => ({ kind: 'svg', getSvg: () => columnPair() }),
+    columnSingle: () => ({ kind: 'svg', getSvg: () => columnSingle() }),
+    columnTriplet: () => ({ kind: 'svg', getSvg: () => columnTriplet() }),
+    facadeGrid: () => ({ kind: 'svg', getSvg: () => facadeGrid() }),
+    houseGable: () => ({ kind: 'svg', getSvg: () => houseGable() }),
   },
   abstract: {
-    blobIrregular,
-    blobCrescent,
-    polygonSoft,
-    cloudLike,
-    archBlob,
-    abstractRotated,
+    blobIrregular: () => ({ kind: 'svg', getSvg: () => blobIrregular() }),
+    blobCrescent: () => ({ kind: 'svg', getSvg: () => blobCrescent() }),
+    polygonSoft: () => ({ kind: 'svg', getSvg: () => polygonSoft() }),
+    cloudLike: () => ({ kind: 'svg', getSvg: () => cloudLike() }),
+    archBlob: () => ({ kind: 'svg', getSvg: () => archBlob() }),
+    abstractRotated: () => ({ kind: 'svg', getSvg: () => abstractRotated() }),
   },
   altar: {
-    nicheArch,
-    nicheCluster,
-    circleInset,
-    nicheStack,
-    circleAboveArch,
-    nicheOffset,
-    gableAltar,
+    nicheArch: () => ({ kind: 'svg', getSvg: () => nicheArch() }),
+    nicheCluster: () => ({ kind: 'svg', getSvg: () => nicheCluster() }),
+    circleInset: () => ({ kind: 'svg', getSvg: () => circleInset() }),
+    nicheStack: () => ({ kind: 'svg', getSvg: () => nicheStack() }),
+    circleAboveArch: () => ({ kind: 'svg', getSvg: () => circleAboveArch() }),
+    nicheOffset: () => ({ kind: 'svg', getSvg: () => nicheOffset() }),
+    gableAltar: () => ({ kind: 'svg', getSvg: () => gableAltar() }),
   },
   basic: {
-    circleMask,
-    ovalMask,
-    diamondMask,
-    hexagonMask,
-    semiCircleMask,
-    triangleMask,
-    beamMask,
+    circleMask: () => ({ kind: 'svg', getSvg: () => circleMask() }),
+    ovalMask: () => ({ kind: 'svg', getSvg: () => ovalMask() }),
+    diamondMask: () => ({ kind: 'svg', getSvg: () => diamondMask() }),
+    hexagonMask: () => ({ kind: 'svg', getSvg: () => hexagonMask() }),
+    semiCircleMask: () => ({ kind: 'svg', getSvg: () => semiCircleMask() }),
+    triangleMask: () => ({ kind: 'svg', getSvg: () => triangleMask() }),
+    beamMask: () => ({ kind: 'svg', getSvg: () => beamMask() }),
   },
   narrative: {
-    panelRectWide,
-    panelRectTall,
-    panelSquare,
-    panelOverlap,
-    panelLShape,
-    panelGutter,
+    panelRectWide: () => ({ kind: 'svg', getSvg: () => panelRectWide() }),
+    panelRectTall: () => ({ kind: 'svg', getSvg: () => panelRectTall() }),
+    panelSquare: () => ({ kind: 'svg', getSvg: () => panelSquare() }),
+    panelOverlap: () => ({ kind: 'svg', getSvg: () => panelOverlap() }),
+    panelLShape: () => ({ kind: 'svg', getSvg: () => panelLShape() }),
+    panelGutter: () => ({ kind: 'svg', getSvg: () => panelGutter() }),
   },
-}; 
+};
+
+export function registerMask(
+  family: string,
+  name: string,
+  generator: MaskGenerator
+) {
+  if (!registry[family]) registry[family] = {};
+  registry[family][name] = generator;
+}
+
+export function getMaskDescriptor(
+  nameOrFamily: string,
+  name?: string
+): MaskDescriptor | undefined {
+  // If only one parameter is provided, treat it as a full mask name
+  if (!name) {
+    // Try to find the mask in any family
+    for (const family of Object.keys(registry)) {
+      if (registry[family][nameOrFamily]) {
+        return registry[family][nameOrFamily]();
+      }
+    }
+    return undefined;
+  }
+  
+  // If two parameters are provided, treat them as family and name
+  if (!registry[nameOrFamily] || !registry[nameOrFamily][name]) {
+    return undefined;
+  }
+  return registry[nameOrFamily][name]();
+}
+
+export default registry; 

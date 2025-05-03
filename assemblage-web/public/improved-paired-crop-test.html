@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Paired Crop Abstraction - Assemblage</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .canvas-container {
+            width: 100%;
+            height: 600px;
+            background: #232323;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .feedback-button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .feedback-good {
+            background: #4CAF50;
+            color: white;
+        }
+        .feedback-bad {
+            background: #F44336;
+            color: white;
+        }
+        .template-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .option-group {
+            margin-bottom: 20px;
+        }
+        .option-group h3 {
+            margin-bottom: 10px;
+        }
+        .option-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .option-row label {
+            min-width: 150px;
+        }
+        .option-row input, .option-row select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Improved Paired Crop Abstraction</h1>
+        
+        <div class="option-group">
+            <h3>Template Options</h3>
+            <div class="option-row">
+                <label for="compositionType">Composition Type:</label>
+                <select id="compositionType">
+                    <option value="overlapping" selected>Overlapping Forms</option>
+                    <option value="touching">Touching Edges</option>
+                    <option value="organic">Organic Blend</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label for="numShapes">Number of Shapes:</label>
+                <input type="range" id="numShapes" min="2" max="5" value="3" step="1">
+                <span id="numShapesValue">3</span>
+            </div>
+            <div class="option-row">
+                <label for="useMultiplyBlend">Use Multiply Blend:</label>
+                <input type="checkbox" id="useMultiplyBlend" checked>
+            </div>
+            <div class="option-row">
+                <label for="backgroundColor">Background Color:</label>
+                <input type="color" id="backgroundColor" value="#F0F5FA">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateBtn">Generate New Composition</button>
+            <button id="saveBtn">Save Image</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="feedback-buttons">
+            <button id="feedbackGood" class="feedback-button feedback-good">👍 Good Composition</button>
+            <button id="feedbackBad" class="feedback-button feedback-bad">👎 Poor Composition</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Controls
+        const generateBtn = document.getElementById('generateBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const compositionType = document.getElementById('compositionType');
+        const numShapesInput = document.getElementById('numShapes');
+        const numShapesValue = document.getElementById('numShapesValue');
+        const useMultiplyBlend = document.getElementById('useMultiplyBlend');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const feedbackGood = document.getElementById('feedbackGood');
+        const feedbackBad = document.getElementById('feedbackBad');
+        
+        // Feedback history
+        const feedbackHistory = [];
+        
+        // Array of images
+        const images = [];
+        
+        // Current config
+        const config = {
+            compositionType: compositionType.value,
+            numShapes: parseInt(numShapesInput.value),
+            useMultiplyBlend: useMultiplyBlend.checked,
+            backgroundColor: backgroundColor.value
+        };
+        
+        // Update config display
+        numShapesInput.addEventListener('input', () => {
+            config.numShapes = parseInt(numShapesInput.value);
+            numShapesValue.textContent = config.numShapes;
+        });
+        
+        compositionType.addEventListener('change', () => {
+            config.compositionType = compositionType.value;
+        });
+        
+        useMultiplyBlend.addEventListener('change', () => {
+            config.useMultiplyBlend = useMultiplyBlend.checked;
+        });
+        
+        backgroundColor.addEventListener('input', () => {
+            config.backgroundColor = backgroundColor.value;
+        });
+        
+        // Function to load images
+        async function loadImages() {
+            // Load 10 placeholders
+            for (let i = 0; i < 10; i++) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                // Use placeholder images
+                img.src = `https://picsum.photos/seed/${i}/800/600`;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if load fails
+                });
+                if (img.complete) {
+                    images.push(img);
+                }
+            }
+            console.log(`Loaded ${images.length} images`);
+            
+            // Generate initial composition
+            if (images.length > 0) {
+                generateComposition();
+            }
+        }
+        
+        // Define shapes for the composition
+        function generateShapes() {
+            const shapes = [];
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            // Calculate center region (to keep shapes from going off-canvas)
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
+            const safeRadius = Math.min(canvasWidth, canvasHeight) * 0.4;
+            
+            // Generate base shapes based on composition type
+            switch (config.compositionType) {
+                case 'overlapping':
+                    // Create overlapping forms
+                    for (let i = 0; i < config.numShapes; i++) {
+                        // Calculate position near center
+                        const angle = (i / config.numShapes) * Math.PI * 2;
+                        const distance = safeRadius * 0.5 * Math.random(); // Keep shapes clustered
+                        const x = centerX + Math.cos(angle) * distance;
+                        const y = centerY + Math.sin(angle) * distance;
+                        
+                        // Determine shape size
+                        const size = safeRadius * (0.4 + Math.random() * 0.3);
+                        
+                        // Randomly choose a shape type
+                        const shapeTypes = ['blob', 'polygon', 'circle'];
+                        const shapeType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+                        
+                        shapes.push({
+                            type: shapeType,
+                            x,
+                            y,
+                            size,
+                            rotation: Math.random() * 360,
+                            imageIndex: Math.floor(Math.random() * images.length)
+                        });
+                    }
+                    break;
+                    
+                case 'touching':
+                    // Create shapes with touching edges
+                    // Start with a central shape
+                    const centralShape = {
+                        type: Math.random() < 0.5 ? 'blob' : 'polygon',
+                        x: centerX,
+                        y: centerY,
+                        size: safeRadius * 0.4,
+                        rotation: Math.random() * 360,
+                        imageIndex: Math.floor(Math.random() * images.length)
+                    };
+                    shapes.push(centralShape);
+                    
+                    // Add additional shapes that touch the edges
+                    for (let i = 1; i < config.numShapes; i++) {
+                        const angle = (i / (config.numShapes - 1)) * Math.PI * 2;
+                        
+                        // Calculate position at the edge of the central shape
+                        const distance = centralShape.size * 0.9; // Overlap slightly
+                        const x = centerX + Math.cos(angle) * distance;
+                        const y = centerY + Math.sin(angle) * distance;
+                        
+                        // Determine shape size
+                        const size = safeRadius * (0.25 + Math.random() * 0.2);
+                        
+                        // Choose a shape type
+                        const shapeTypes = ['blob', 'polygon', 'circle'];
+                        const shapeType = shapeTypes[Math.floor(Math.random() * shapeTypes.length)];
+                        
+                        shapes.push({
+                            type: shapeType,
+                            x,
+                            y,
+                            size,
+                            rotation: Math.random() * 360,
+                            imageIndex: Math.floor(Math.random() * images.length)
+                        });
+                    }
+                    break;
+                    
+                case 'organic':
+                    // Create a unified organic composition
+                    // Start with a large central shape
+                    shapes.push({
+                        type: 'blob',
+                        x: centerX,
+                        y: centerY,
+                        size: safeRadius * 0.7,
+                        rotation: Math.random() * 360,
+                        imageIndex: Math.floor(Math.random() * images.length)
+                    });
+                    
+                    // Add smaller complementary shapes that overlap with the central one
+                    for (let i = 1; i < config.numShapes; i++) {
+                        // Calculate position to partially overlap with the central shape
+                        const angle = (i / (config.numShapes - 1)) * Math.PI * 2;
+                        const distance = safeRadius * 0.4; 
+                        const x = centerX + Math.cos(angle) * distance;
+                        const y = centerY + Math.sin(angle) * distance;
+                        
+                        // Alternate between shape types
+                        const shapeType = i % 2 === 0 ? 'polygon' : 'blob';
+                        
+                        // Size inversely proportional to distance from center
+                        const size = safeRadius * (0.3 - (distance / safeRadius) * 0.1 + Math.random() * 0.1);
+                        
+                        shapes.push({
+                            type: shapeType,
+                            x,
+                            y,
+                            size,
+                            rotation: Math.random() * 360,
+                            imageIndex: Math.floor(Math.random() * images.length)
+                        });
+                    }
+                    break;
+            }
+            
+            return shapes;
+        }
+        
+        // Function to draw a complex shape and crop an image into it
+        function drawShape(shape) {
+            const { type, x, y, size, rotation, imageIndex } = shape;
+            const img = images[imageIndex];
+            
+            ctx.save();
+            
+            // Move to shape position
+            ctx.translate(x, y);
+            ctx.rotate(rotation * Math.PI / 180);
+            
+            // Draw shape path for clipping
+            ctx.beginPath();
+            
+            switch (type) {
+                case 'circle':
+                    ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
+                    break;
+                    
+                case 'polygon':
+                    // Create an irregular polygon
+                    const sides = 5 + Math.floor(Math.random() * 3); // 5-7 sides
+                    
+                    for (let i = 0; i < sides; i++) {
+                        const angle = (Math.PI * 2 * i) / sides;
+                        const radius = size / 2 * (0.8 + Math.random() * 0.2); // Vary the radius
+                        const px = Math.cos(angle) * radius;
+                        const py = Math.sin(angle) * radius;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(px, py);
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    ctx.closePath();
+                    break;
+                    
+                case 'blob':
+                    // Create an organic blob using bezier curves
+                    const points = 8;
+                    const angles = [];
+                    const radii = [];
+                    
+                    // Generate random points for the blob
+                    for (let i = 0; i < points; i++) {
+                        angles.push((Math.PI * 2 * i) / points);
+                        // Random radius between 0.5 and 1.0 of the total radius
+                        radii.push(size / 2 * (0.7 + Math.random() * 0.3));
+                    }
+                    
+                    // Start at the first point
+                    const startX = Math.cos(angles[0]) * radii[0];
+                    const startY = Math.sin(angles[0]) * radii[0];
+                    ctx.moveTo(startX, startY);
+                    
+                    // Draw bezier curves between points
+                    for (let i = 0; i < points; i++) {
+                        const j = (i + 1) % points; // Next point index
+                        
+                        // Current and next points
+                        const x1 = Math.cos(angles[i]) * radii[i];
+                        const y1 = Math.sin(angles[i]) * radii[i];
+                        const x2 = Math.cos(angles[j]) * radii[j];
+                        const y2 = Math.sin(angles[j]) * radii[j];
+                        
+                        // Control points for bezier curve
+                        const cp1x = x1 + (x2 - x1) * 0.2 + (Math.random() - 0.5) * size * 0.05;
+                        const cp1y = y1 + (y2 - y1) * 0.3 + (Math.random() - 0.5) * size * 0.05;
+                        const cp2x = x1 + (x2 - x1) * 0.8 + (Math.random() - 0.5) * size * 0.05;
+                        const cp2y = y1 + (y2 - y1) * 0.7 + (Math.random() - 0.5) * size * 0.05;
+                        
+                        ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x2, y2);
+                    }
+                    break;
+            }
+            
+            // Apply the clipping path
+            ctx.closePath();
+            ctx.clip();
+            
+            // Set blend mode
+            if (config.useMultiplyBlend) {
+                ctx.globalCompositeOperation = 'multiply';
+            }
+            
+            // Draw the image inside the shape
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            const scale = Math.max(size / imgWidth, size / imgHeight) * 1.5; // Scale to ensure coverage
+            
+            ctx.drawImage(
+                img,
+                -imgWidth * scale / 2,
+                -imgHeight * scale / 2,
+                imgWidth * scale,
+                imgHeight * scale
+            );
+            
+            ctx.restore();
+        }
+        
+        // Generate the composition
+        function generateComposition() {
+            if (images.length === 0) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fill with background color
+            ctx.fillStyle = config.backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Generate shapes
+            const shapes = generateShapes();
+            
+            // Draw shapes in order (back to front)
+            shapes.forEach(shape => {
+                drawShape(shape);
+            });
+        }
+        
+        // Record feedback
+        function recordFeedback(isPositive) {
+            // Create feedback entry
+            const feedback = {
+                timestamp: new Date().toISOString(),
+                isPositive: isPositive,
+                config: { ...config }
+            };
+            
+            // Add to history
+            feedbackHistory.push(feedback);
+            
+            console.log('Feedback recorded:', feedback);
+            
+            // Generate a new composition
+            generateComposition();
+        }
+        
+        // Save the current composition
+        function saveComposition() {
+            const link = document.createElement('a');
+            link.download = 'assemblage-paired-crop.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', generateComposition);
+        saveBtn.addEventListener('click', saveComposition);
+        feedbackGood.addEventListener('click', () => recordFeedback(true));
+        feedbackBad.addEventListener('click', () => recordFeedback(false));
+        
+        // Load images
+        loadImages();
+    </script>
+</body>
+</html>

@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react'
 import { CollageService } from './core/CollageService'
 import './styles/legacy-app.css'
-import { maskRegistry } from './masks/maskRegistry';
+import { getMaskDescriptor } from './masks/maskRegistry';
+import { TemplateReview } from './components/TemplateReview';
 
 function MaskReview() {
   // Parameter presets for each mask type
@@ -55,32 +56,41 @@ function MaskReview() {
     panelGutter: [ { margin: 10 }, { margin: 20 } ],
   };
 
+  // Get all mask names and their descriptors
+  const maskNames = Object.keys(paramPresets);
+  const maskDescriptors = maskNames.map(name => ({
+    name,
+    descriptor: getMaskDescriptor(name)
+  }));
+
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
       <h1 style={{ textAlign: 'center', marginBottom: '2rem' }}>SVG Mask System Review</h1>
-      {Object.entries(maskRegistry).map(([family, types]) => (
-        <div key={family} style={{ marginBottom: '3rem', background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px #0001', padding: '1.5rem' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '0.2rem' }}>{family}</div>
-          {Object.entries(types).map(([type, fn]) => (
-            <div key={type}>
-              <div style={{ fontSize: '1.1rem', margin: '1.2rem 0 0.5rem 0', color: '#444' }}>{type}</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                {(paramPresets[type] || [{}]).map((params, i) => (
-                  <div key={i} style={{ width: '150px', background: '#f4f4f4', borderRadius: '8px', boxShadow: '0 1px 4px #0001', padding: '1rem 0.5rem 0.5rem 0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <div style={{ width: '120px', height: '120px', background: '#e0e0e0', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <div dangerouslySetInnerHTML={{ __html: fn(params) }} />
-                    </div>
-                    <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.2rem', textAlign: 'center' }}>{type}</div>
-                    <div style={{ color: '#555', fontSize: '0.95rem', textAlign: 'center', wordBreak: 'break-all' }}>
-                      {JSON.stringify(params)}
-                    </div>
+      {maskDescriptors.map(({ name, descriptor }) => {
+        if (!descriptor || descriptor.kind !== 'svg') {
+          console.error(`Invalid or missing mask: ${name}`);
+          return null;
+        }
+        const svgString = descriptor.getSvg();
+        return (
+          <div key={name} style={{ marginBottom: '3rem', background: '#fff', borderRadius: '12px', boxShadow: '0 2px 8px #0001', padding: '1.5rem' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.2rem' }}>{name}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem', marginBottom: '1.5rem' }}>
+              {(paramPresets[name] || [{}]).map((params, i) => (
+                <div key={i} style={{ width: '150px', background: '#f4f4f4', borderRadius: '8px', boxShadow: '0 1px 4px #0001', padding: '1rem 0.5rem 0.5rem 0.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ width: '120px', height: '120px', background: '#e0e0e0', borderRadius: '6px', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div dangerouslySetInnerHTML={{ __html: svgString(params) }} />
                   </div>
-                ))}
-              </div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1rem', marginBottom: '0.2rem', textAlign: 'center' }}>{name}</div>
+                  <div style={{ color: '#555', fontSize: '0.95rem', textAlign: 'center', wordBreak: 'break-all' }}>
+                    {JSON.stringify(params)}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -129,6 +139,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [prompt, setPrompt] = useState('');
   const [showMaskReview, setShowMaskReview] = useState(false);
+  const [view, setView] = useState('main'); // 'main' or 'template-review'
 
   useEffect(() => {
     const cvs = canvasRef.current;
@@ -177,23 +188,33 @@ export default function App() {
   const handleSave = () => serviceRef.current?.saveCollage();
 
   return (
-    <div>
-      <div style={{ padding: '1rem', textAlign: 'center' }}>
-        <button 
-          onClick={() => setShowMaskReview(!showMaskReview)}
-          style={{ 
-            padding: '0.5rem 1rem',
-            fontSize: '1rem',
-            backgroundColor: showMaskReview ? '#4CAF50' : '#2196F3',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer'
-          }}
-        >
-          {showMaskReview ? 'Show Main App' : 'Show Mask Review'}
-        </button>
-      </div>
+    <div className="app">
+      <nav>
+        <button onClick={() => setView('main')}>Main App</button>
+        <button onClick={() => setView('template-review')}>Template Review</button>
+      </nav>
+
+      {view === 'main' ? (
+        <div style={{ padding: '1rem', textAlign: 'center' }}>
+          <button 
+            onClick={() => setShowMaskReview(!showMaskReview)}
+            style={{ 
+              padding: '0.5rem 1rem',
+              fontSize: '1rem',
+              backgroundColor: showMaskReview ? '#4CAF50' : '#2196F3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            {showMaskReview ? 'Show Main App' : 'Show Mask Review'}
+          </button>
+        </div>
+      ) : (
+        <TemplateReview />
+      )}
+
       {showMaskReview ? (
         <MaskReview />
       ) : (
@@ -208,6 +229,30 @@ export default function App() {
           handleSave={handleSave}
         />
       )}
+
+      <style jsx>{`
+        .app {
+          min-height: 100vh;
+          display: flex;
+          flex-direction: column;
+        }
+        nav {
+          padding: 10px;
+          background: #f5f5f5;
+          border-bottom: 1px solid #ddd;
+        }
+        nav button {
+          margin-right: 10px;
+          padding: 5px 10px;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          background: white;
+          cursor: pointer;
+        }
+        nav button:hover {
+          background: #eee;
+        }
+      `}</style>
     </div>
   );
 } 

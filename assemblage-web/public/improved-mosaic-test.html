@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Scrambled Mosaic Test - Assemblage</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .canvas-container {
+            width: 100%;
+            height: 600px;
+            background: #232323;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .feedback-button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .feedback-good {
+            background: #4CAF50;
+            color: white;
+        }
+        .feedback-bad {
+            background: #F44336;
+            color: white;
+        }
+        .template-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .option-group {
+            margin-bottom: 20px;
+        }
+        .option-group h3 {
+            margin-bottom: 10px;
+        }
+        .option-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .option-row label {
+            min-width: 150px;
+        }
+        .option-row input, .option-row select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Improved Scrambled Mosaic</h1>
+        
+        <div class="option-group">
+            <h3>Template Options</h3>
+            <div class="option-row">
+                <label for="gridSize">Grid Size:</label>
+                <input type="range" id="gridSize" min="4" max="16" value="10" step="1">
+                <span id="gridSizeValue">10×10</span>
+            </div>
+            <div class="option-row">
+                <label for="revealPercentage">Reveal Percentage:</label>
+                <input type="range" id="revealPercentage" min="40" max="90" value="70" step="5">
+                <span id="revealPercentageValue">70%</span>
+            </div>
+            <div class="option-row">
+                <label for="gridPatternType">Grid Pattern:</label>
+                <select id="gridPatternType">
+                    <option value="random">Random</option>
+                    <option value="cluster" selected>Clustered</option>
+                    <option value="silhouette">Silhouette</option>
+                    <option value="portrait">Portrait (Face)</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label for="useMultiplyBlend">Use Multiply Blend:</label>
+                <input type="checkbox" id="useMultiplyBlend" checked>
+            </div>
+            <div class="option-row">
+                <label for="backgroundColor">Background Color:</label>
+                <input type="color" id="backgroundColor" value="#FFFFFF">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateBtn">Generate New Mosaic</button>
+            <button id="saveBtn">Save Image</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="feedback-buttons">
+            <button id="feedbackGood" class="feedback-button feedback-good">👍 Good Composition</button>
+            <button id="feedbackBad" class="feedback-button feedback-bad">👎 Poor Composition</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Controls
+        const generateBtn = document.getElementById('generateBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const gridSizeInput = document.getElementById('gridSize');
+        const gridSizeValue = document.getElementById('gridSizeValue');
+        const revealPercentageInput = document.getElementById('revealPercentage');
+        const revealPercentageValue = document.getElementById('revealPercentageValue');
+        const gridPatternType = document.getElementById('gridPatternType');
+        const useMultiplyBlend = document.getElementById('useMultiplyBlend');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const feedbackGood = document.getElementById('feedbackGood');
+        const feedbackBad = document.getElementById('feedbackBad');
+        
+        // Feedback history
+        const feedbackHistory = [];
+        
+        // Array of images
+        const images = [];
+        
+        // Current config
+        const config = {
+            gridSize: parseInt(gridSizeInput.value),
+            revealPercentage: parseInt(revealPercentageInput.value),
+            gridPatternType: gridPatternType.value,
+            useMultiplyBlend: useMultiplyBlend.checked,
+            backgroundColor: backgroundColor.value
+        };
+        
+        // Update config display
+        gridSizeInput.addEventListener('input', () => {
+            config.gridSize = parseInt(gridSizeInput.value);
+            gridSizeValue.textContent = `${config.gridSize}×${config.gridSize}`;
+        });
+        
+        revealPercentageInput.addEventListener('input', () => {
+            config.revealPercentage = parseInt(revealPercentageInput.value);
+            revealPercentageValue.textContent = `${config.revealPercentage}%`;
+        });
+        
+        gridPatternType.addEventListener('change', () => {
+            config.gridPatternType = gridPatternType.value;
+        });
+        
+        useMultiplyBlend.addEventListener('change', () => {
+            config.useMultiplyBlend = useMultiplyBlend.checked;
+        });
+        
+        backgroundColor.addEventListener('input', () => {
+            config.backgroundColor = backgroundColor.value;
+        });
+        
+        // Function to load images
+        async function loadImages() {
+            // Load 10 placeholders
+            for (let i = 0; i < 10; i++) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                // Use placeholder images
+                img.src = `https://picsum.photos/seed/${i}/800/600`;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if load fails
+                });
+                if (img.complete) {
+                    images.push(img);
+                }
+            }
+            console.log(`Loaded ${images.length} images`);
+            
+            // Generate initial mosaic
+            if (images.length > 0) {
+                generateMosaic();
+            }
+        }
+        
+        // Function to create a clustered reveal pattern
+        function createClusteredPattern(gridSize, revealPercentage) {
+            const grid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+            
+            // Start with random seeds
+            const numSeeds = Math.max(1, Math.floor((gridSize * gridSize) * 0.05));
+            for (let i = 0; i < numSeeds; i++) {
+                const x = Math.floor(Math.random() * gridSize);
+                const y = Math.floor(Math.random() * gridSize);
+                grid[y][x] = true;
+            }
+            
+            // Grow clusters until we reach desired percentage
+            let revealed = numSeeds;
+            const targetRevealed = Math.floor((gridSize * gridSize) * (revealPercentage / 100));
+            
+            while (revealed < targetRevealed) {
+                // Find a cell that's not revealed but adjacent to a revealed cell
+                const candidates = [];
+                
+                for (let y = 0; y < gridSize; y++) {
+                    for (let x = 0; x < gridSize; x++) {
+                        if (grid[y][x]) continue; // Skip already revealed cells
+                        
+                        // Check if adjacent to a revealed cell
+                        const hasRevealedNeighbor = (
+                            (x > 0 && grid[y][x-1]) || 
+                            (x < gridSize-1 && grid[y][x+1]) || 
+                            (y > 0 && grid[y-1][x]) || 
+                            (y < gridSize-1 && grid[y+1][x])
+                        );
+                        
+                        if (hasRevealedNeighbor) {
+                            candidates.push({x, y});
+                        }
+                    }
+                }
+                
+                if (candidates.length === 0) {
+                    // No candidates found, add a new random seed
+                    let newSeedFound = false;
+                    while (!newSeedFound) {
+                        const x = Math.floor(Math.random() * gridSize);
+                        const y = Math.floor(Math.random() * gridSize);
+                        if (!grid[y][x]) {
+                            grid[y][x] = true;
+                            revealed++;
+                            newSeedFound = true;
+                        }
+                    }
+                } else {
+                    // Pick a random candidate and reveal it
+                    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+                    grid[candidate.y][candidate.x] = true;
+                    revealed++;
+                }
+                
+                if (revealed >= targetRevealed) break;
+            }
+            
+            return grid;
+        }
+        
+        // Function to create a portrait/face pattern
+        function createPortraitPattern(gridSize) {
+            const grid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+            
+            // Create a face-like pattern (eyes, nose, mouth)
+            const centerX = Math.floor(gridSize / 2);
+            const centerY = Math.floor(gridSize / 2);
+            
+            // Face outline (roughly oval)
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    // Calculate distance from center (normalized to 0-1)
+                    const dx = (x - centerX) / (gridSize / 2);
+                    const dy = (y - centerY) / (gridSize / 2);
+                    
+                    // Oval equation: (x/a)² + (y/b)² <= 1
+                    // We make it slightly taller (b=1.2) than wide (a=1.0)
+                    const inFace = (dx*dx) + (dy*dy / 1.44) <= 1;
+                    
+                    // Randomly reveal parts of the face
+                    if (inFace && Math.random() < 0.7) {
+                        grid[y][x] = true;
+                    }
+                }
+            }
+            
+            // Ensure certain facial features are revealed
+            
+            // Left eye region
+            const leftEyeX = centerX - Math.floor(gridSize / 5);
+            const eyeY = centerY - Math.floor(gridSize / 5);
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const x = leftEyeX + dx;
+                    const y = eyeY + dy;
+                    if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
+                        grid[y][x] = true;
+                    }
+                }
+            }
+            
+            // Right eye region
+            const rightEyeX = centerX + Math.floor(gridSize / 5);
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    const x = rightEyeX + dx;
+                    const y = eyeY + dy;
+                    if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
+                        grid[y][x] = true;
+                    }
+                }
+            }
+            
+            // Nose
+            const noseY = centerY;
+            for (let dy = 0; dy <= Math.floor(gridSize / 10) + 1; dy++) {
+                const y = noseY + dy;
+                if (y < gridSize) {
+                    grid[y][centerX] = true;
+                }
+            }
+            
+            // Mouth
+            const mouthY = centerY + Math.floor(gridSize / 3);
+            for (let dx = -Math.floor(gridSize / 6); dx <= Math.floor(gridSize / 6); dx++) {
+                const x = centerX + dx;
+                if (x >= 0 && x < gridSize && mouthY < gridSize) {
+                    grid[mouthY][x] = true;
+                }
+            }
+            
+            return grid;
+        }
+        
+        // Function to create a silhouette pattern
+        function createSilhouettePattern(gridSize) {
+            const grid = Array(gridSize).fill().map(() => Array(gridSize).fill(false));
+            
+            // Create a centered silhouette (e.g., a figure)
+            const centerX = Math.floor(gridSize / 2);
+            
+            // Define a rough human silhouette
+            for (let y = 0; y < gridSize; y++) {
+                const normalizedY = y / gridSize; // 0 to 1 from top to bottom
+                
+                // Width of the silhouette at this y-position
+                let width;
+                
+                if (normalizedY < 0.2) {
+                    // Head (0-20% of height)
+                    width = 0.15;
+                } else if (normalizedY < 0.4) {
+                    // Shoulders and upper torso (20-40% of height)
+                    width = 0.25;
+                } else if (normalizedY < 0.6) {
+                    // Torso (40-60% of height)
+                    width = 0.2;
+                } else {
+                    // Legs (60-100% of height)
+                    width = 0.15 + (normalizedY - 0.6) * 0.1; // Widen slightly toward bottom
+                }
+                
+                // Convert width from percentage to grid units
+                const halfWidth = Math.ceil(width * gridSize / 2);
+                
+                // Fill in the silhouette
+                for (let x = centerX - halfWidth; x <= centerX + halfWidth; x++) {
+                    if (x >= 0 && x < gridSize) {
+                        // Add some randomness to the edges
+                        if (x === centerX - halfWidth || x === centerX + halfWidth) {
+                            if (Math.random() < 0.7) {
+                                grid[y][x] = true;
+                            }
+                        } else {
+                            grid[y][x] = true;
+                        }
+                    }
+                }
+            }
+            
+            return grid;
+        }
+        
+        // Function to create a grid reveal pattern based on selected type
+        function createGridPattern(type, gridSize, revealPercentage) {
+            switch (type) {
+                case 'random':
+                    return Array(gridSize).fill().map(() => 
+                        Array(gridSize).fill().map(() => 
+                            Math.random() * 100 < revealPercentage
+                        )
+                    );
+                case 'cluster':
+                    return createClusteredPattern(gridSize, revealPercentage);
+                case 'portrait':
+                    return createPortraitPattern(gridSize);
+                case 'silhouette':
+                    return createSilhouettePattern(gridSize);
+                default:
+                    return createClusteredPattern(gridSize, revealPercentage);
+            }
+        }
+        
+        // Generate the mosaic
+        function generateMosaic() {
+            if (images.length === 0) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fill with background color
+            ctx.fillStyle = config.backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Select a random image
+            const img = images[Math.floor(Math.random() * images.length)];
+            
+            // Create grid pattern
+            const gridPattern = createGridPattern(
+                config.gridPatternType,
+                config.gridSize,
+                config.revealPercentage
+            );
+            
+            // Calculate cell size
+            const cellWidth = canvas.width / config.gridSize;
+            const cellHeight = canvas.height / config.gridSize;
+            
+            // Draw the mosaic
+            for (let y = 0; y < config.gridSize; y++) {
+                for (let x = 0; x < config.gridSize; x++) {
+                    if (gridPattern[y][x]) {
+                        // Calculate cell position
+                        const cellX = x * cellWidth;
+                        const cellY = y * cellHeight;
+                        
+                        // Save context for clipping
+                        ctx.save();
+                        
+                        // Create clipping rectangle for this cell
+                        ctx.beginPath();
+                        ctx.rect(cellX, cellY, cellWidth, cellHeight);
+                        ctx.clip();
+                        
+                        // Set blend mode if enabled
+                        if (config.useMultiplyBlend) {
+                            ctx.globalCompositeOperation = 'multiply';
+                        }
+                        
+                        // Calculate source rectangle in the image
+                        // This ensures we're showing the correct portion of the image in each cell
+                        const srcX = (x / config.gridSize) * img.width;
+                        const srcY = (y / config.gridSize) * img.height;
+                        const srcWidth = img.width / config.gridSize;
+                        const srcHeight = img.height / config.gridSize;
+                        
+                        // Draw the image portion for this cell
+                        ctx.drawImage(
+                            img,
+                            srcX, srcY, srcWidth, srcHeight,
+                            cellX, cellY, cellWidth, cellHeight
+                        );
+                        
+                        // Restore context
+                        ctx.restore();
+                    }
+                }
+            }
+        }
+        
+        // Record feedback
+        function recordFeedback(isPositive) {
+            // Create feedback entry
+            const feedback = {
+                timestamp: new Date().toISOString(),
+                isPositive: isPositive,
+                config: { ...config }
+            };
+            
+            // Add to history
+            feedbackHistory.push(feedback);
+            
+            console.log('Feedback recorded:', feedback);
+            
+            // Generate a new mosaic
+            generateMosaic();
+        }
+        
+        // Save the current mosaic
+        function saveMosaic() {
+            const link = document.createElement('a');
+            link.download = 'assemblage-mosaic.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', generateMosaic);
+        saveBtn.addEventListener('click', saveMosaic);
+        feedbackGood.addEventListener('click', () => recordFeedback(true));
+        feedbackBad.addEventListener('click', () => recordFeedback(false));
+        
+        // Load images
+        loadImages();
+    </script>
+</body>
+</html>

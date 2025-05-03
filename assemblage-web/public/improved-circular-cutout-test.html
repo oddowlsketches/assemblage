@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Circular Cutout - Assemblage</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .canvas-container {
+            width: 100%;
+            height: 600px;
+            background: #232323;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .feedback-button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .feedback-good {
+            background: #4CAF50;
+            color: white;
+        }
+        .feedback-bad {
+            background: #F44336;
+            color: white;
+        }
+        .template-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .option-group {
+            margin-bottom: 20px;
+        }
+        .option-group h3 {
+            margin-bottom: 10px;
+        }
+        .option-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .option-row label {
+            min-width: 150px;
+        }
+        .option-row input, .option-row select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Improved Circular Cutout</h1>
+        
+        <div class="option-group">
+            <h3>Template Options</h3>
+            <div class="option-row">
+                <label for="cutoutShape">Cutout Shape:</label>
+                <select id="cutoutShape">
+                    <option value="circle" selected>Circle</option>
+                    <option value="oval">Oval</option>
+                    <option value="ring">Ring (Donut)</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label for="cutoutSize">Cutout Size:</label>
+                <input type="range" id="cutoutSize" min="10" max="60" value="30" step="5">
+                <span id="cutoutSizeValue">30%</span>
+            </div>
+            <div class="option-row">
+                <label for="cutoutPosition">Position:</label>
+                <select id="cutoutPosition">
+                    <option value="center" selected>Center</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                    <option value="left">Left</option>
+                    <option value="right">Right</option>
+                    <option value="random">Random</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label for="useMultiplyBlend">Use Multiply Blend:</label>
+                <input type="checkbox" id="useMultiplyBlend" checked>
+            </div>
+            <div class="option-row">
+                <label for="backgroundColor">Background Color:</label>
+                <input type="color" id="backgroundColor" value="#FFFFFF">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateBtn">Generate New Cutout</button>
+            <button id="saveBtn">Save Image</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="feedback-buttons">
+            <button id="feedbackGood" class="feedback-button feedback-good">👍 Good Composition</button>
+            <button id="feedbackBad" class="feedback-button feedback-bad">👎 Poor Composition</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Controls
+        const generateBtn = document.getElementById('generateBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const cutoutShape = document.getElementById('cutoutShape');
+        const cutoutSizeInput = document.getElementById('cutoutSize');
+        const cutoutSizeValue = document.getElementById('cutoutSizeValue');
+        const cutoutPosition = document.getElementById('cutoutPosition');
+        const useMultiplyBlend = document.getElementById('useMultiplyBlend');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const feedbackGood = document.getElementById('feedbackGood');
+        const feedbackBad = document.getElementById('feedbackBad');
+        
+        // Feedback history
+        const feedbackHistory = [];
+        
+        // Array of images
+        const images = [];
+        
+        // Current config
+        const config = {
+            cutoutShape: cutoutShape.value,
+            cutoutSize: parseInt(cutoutSizeInput.value),
+            cutoutPosition: cutoutPosition.value,
+            useMultiplyBlend: useMultiplyBlend.checked,
+            backgroundColor: backgroundColor.value
+        };
+        
+        // Update config display
+        cutoutSizeInput.addEventListener('input', () => {
+            config.cutoutSize = parseInt(cutoutSizeInput.value);
+            cutoutSizeValue.textContent = `${config.cutoutSize}%`;
+        });
+        
+        cutoutShape.addEventListener('change', () => {
+            config.cutoutShape = cutoutShape.value;
+        });
+        
+        cutoutPosition.addEventListener('change', () => {
+            config.cutoutPosition = cutoutPosition.value;
+        });
+        
+        useMultiplyBlend.addEventListener('change', () => {
+            config.useMultiplyBlend = useMultiplyBlend.checked;
+        });
+        
+        backgroundColor.addEventListener('input', () => {
+            config.backgroundColor = backgroundColor.value;
+        });
+        
+        // Function to load images
+        async function loadImages() {
+            // Load 10 placeholders
+            for (let i = 0; i < 10; i++) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                // Use placeholder images
+                img.src = `https://picsum.photos/seed/${i}/800/600`;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if load fails
+                });
+                if (img.complete) {
+                    images.push(img);
+                }
+            }
+            console.log(`Loaded ${images.length} images`);
+            
+            // Generate initial cutout
+            if (images.length > 0) {
+                generateCutout();
+            }
+        }
+        
+        // Generate cutout configuration
+        function generateCutoutConfig() {
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            // Calculate size in pixels
+            const size = Math.min(canvasWidth, canvasHeight) * (config.cutoutSize / 100);
+            
+            // Calculate position based on selection
+            let x, y;
+            
+            switch (config.cutoutPosition) {
+                case 'center':
+                    x = canvasWidth / 2;
+                    y = canvasHeight / 2;
+                    break;
+                case 'top':
+                    x = canvasWidth / 2;
+                    y = size / 2 + 20;
+                    break;
+                case 'bottom':
+                    x = canvasWidth / 2;
+                    y = canvasHeight - size / 2 - 20;
+                    break;
+                case 'left':
+                    x = size / 2 + 20;
+                    y = canvasHeight / 2;
+                    break;
+                case 'right':
+                    x = canvasWidth - size / 2 - 20;
+                    y = canvasHeight / 2;
+                    break;
+                case 'random':
+                    // Random position (ensuring the cutout stays within canvas)
+                    x = size / 2 + (canvasWidth - size) * Math.random();
+                    y = size / 2 + (canvasHeight - size) * Math.random();
+                    break;
+                default:
+                    x = canvasWidth / 2;
+                    y = canvasHeight / 2;
+            }
+            
+            // Select a random image
+            const imageIndex = Math.floor(Math.random() * images.length);
+            
+            return {
+                shape: config.cutoutShape,
+                x,
+                y,
+                size,
+                imageIndex
+            };
+        }
+        
+        // Function to draw a cutout
+        function drawCutout(cutout) {
+            const { shape, x, y, size, imageIndex } = cutout;
+            const img = images[imageIndex];
+            
+            ctx.save();
+            
+            // Create clipping path for the cutout
+            ctx.beginPath();
+            
+            switch (shape) {
+                case 'circle':
+                    // Simple circle
+                    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+                    break;
+                case 'oval':
+                    // Oval (ellipse)
+                    ctx.ellipse(x, y, size / 2, size / 3, 0, 0, Math.PI * 2);
+                    break;
+                case 'ring':
+                    // Ring (donut shape)
+                    // Outer circle
+                    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+                    // Inner circle (counter-clockwise to create hole)
+                    ctx.arc(x, y, size / 3, 0, Math.PI * 2, true);
+                    break;
+            }
+            
+            ctx.closePath();
+            ctx.clip();
+            
+            // Set blend mode
+            if (config.useMultiplyBlend) {
+                ctx.globalCompositeOperation = 'multiply';
+            }
+            
+            // Calculate image dimensions to maintain aspect ratio
+            const imgAspect = img.width / img.height;
+            const canvasAspect = canvas.width / canvas.height;
+            
+            let drawWidth, drawHeight, drawX, drawY;
+            
+            if (imgAspect > canvasAspect) {
+                // Image is wider than canvas
+                drawHeight = canvas.height;
+                drawWidth = canvas.height * imgAspect;
+                drawX = (canvas.width - drawWidth) / 2;
+                drawY = 0;
+            } else {
+                // Image is taller than canvas
+                drawWidth = canvas.width;
+                drawHeight = canvas.width / imgAspect;
+                drawX = 0;
+                drawY = (canvas.height - drawHeight) / 2;
+            }
+            
+            // Draw the image
+            ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+            
+            ctx.restore();
+        }
+        
+        // Generate cutout
+        function generateCutout() {
+            if (images.length === 0) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fill with background color
+            ctx.fillStyle = config.backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Generate cutout configuration
+            const cutout = generateCutoutConfig();
+            
+            // Draw cutout
+            drawCutout(cutout);
+        }
+        
+        // Record feedback
+        function recordFeedback(isPositive) {
+            // Create feedback entry
+            const feedback = {
+                timestamp: new Date().toISOString(),
+                isPositive: isPositive,
+                config: { ...config }
+            };
+            
+            // Add to history
+            feedbackHistory.push(feedback);
+            
+            console.log('Feedback recorded:', feedback);
+            
+            // Generate new cutout
+            generateCutout();
+        }
+        
+        // Save the current cutout
+        function saveCutout() {
+            const link = document.createElement('a');
+            link.download = 'assemblage-cutout.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', generateCutout);
+        saveBtn.addEventListener('click', saveCutout);
+        feedbackGood.addEventListener('click', () => recordFeedback(true));
+        feedbackBad.addEventListener('click', () => recordFeedback(false));
+        
+        // Load images
+        loadImages();
+    </script>
+</body>
+</html>
