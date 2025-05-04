@@ -570,14 +570,24 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
   },
 };
 
-export function registerMask(key: string, svg: string, family: string) {
-  // allow runtime registration of new masks
-  const maskDescriptor: MaskGenerator = () => ({ kind: 'svg', getSvg: () => svg });
-  if (registry[family]) {
-    (registry as any)[family][key] = maskDescriptor;
-  } else {
-    registry[family] = { [key]: maskDescriptor } as Record<string, MaskGenerator>;
-  }
+// --- Mask Metadata ---
+export type MaskFamily = keyof typeof registry;
+export const maskMetadata: Record<string, { description: string; tags: string[] }> = {};
+
+export const maskRegistry = registry;
+
+export function registerMask(
+  key: string,
+  svg: string,
+  family: MaskFamily,
+  metadata: { description: string; tags: string[] }
+) {
+  // 1) Add to the registry
+  if (!maskRegistry[family]) maskRegistry[family] = {};
+  maskRegistry[family][key] = () => ({ kind: 'svg', getSvg: () => svg });
+
+  // 2) Add or overwrite its metadata
+  maskMetadata[key] = metadata;
 }
 
 export function getMaskDescriptor(
