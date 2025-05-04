@@ -1,4 +1,5 @@
 import { Template, MaskPlacement, templates } from './templates';
+import { MosaicGenerator } from './core/mosaicGenerator';
 
 export interface TemplateOverride {
   index: number;
@@ -42,5 +43,30 @@ export class TemplateManager {
 
   static getAvailableTemplateKeys(): string[] {
     return templates.map(t => t.key);
+  }
+
+  static async generateTemplate(
+    template: Template,
+    sourceImage: HTMLImageElement,
+    canvas: HTMLCanvasElement,
+    seed: number = Math.random() * 1000000
+  ): Promise<void> {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Could not get canvas context');
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Fill background
+    ctx.fillStyle = template.defaultBG || '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (template.key === 'scrambledMosaic') {
+      const generator = new MosaicGenerator(template, seed);
+      generator.generateMosaic(ctx, sourceImage);
+      return;
+    }
+
+    // ... existing code for other templates ...
   }
 } 

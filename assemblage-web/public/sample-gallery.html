@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mask Randomization Gallery</title>
+    <link rel="stylesheet" href="./sample-gallery.css">
+</head>
+<body>
+    <div class="controls">
+        <button id="generate">Generate New Samples</button>
+    </div>
+    
+    <div id="mosaic-controls">
+        <label>Grid:
+            <input id="mosaic-gridSize" type="number" min="4" max="16" value="8" step="1"/>
+        </label>
+        <label id="percentageLabel">Reveal %:
+            <input id="mosaic-revealPct" type="range" min="0.4" max="0.9" step="0.05" value="0.6"/>
+            <span id="revealPctValue">60%</span>
+        </label>
+        <label>Pattern:
+            <select id="mosaic-patternType">
+                <option value="random">Random</option>
+                <option value="clustered" selected>Clustered</option>
+                <option value="silhouette">Silhouette</option>
+                <option value="portrait">Portrait</option>
+            </select>
+        </label>
+        <label>Shape:
+            <select id="mosaic-shapeType">
+                <option value="square">Square</option>
+                <option value="rectHorizontal">Rect H</option>
+                <option value="rectVertical">Rect V</option>
+                <option value="circle">Circle</option>
+                <option value="stripe">Stripe</option>
+            </select>
+        </label>
+        <label>Op:
+            <select id="mosaic-operation">
+                <option value="reveal">Reveal</option>
+                <option value="swap">Swap</option>
+                <option value="rotate">Rotate</option>
+            </select>
+        </label>
+        <label>BG Color:
+            <input id="mosaic-bgColor" type="color" value="#FFFFFF" />
+        </label>
+        <label>Multiply:
+            <input id="mosaic-multiply" type="checkbox" checked />
+        </label>
+        <button id="generate-mosaic">Generate Mosaic</button>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+
+    <script type="module">
+        import { initGallery } from './gallery.js';
+        initGallery();
+    </script>
+</body>
+</html>
