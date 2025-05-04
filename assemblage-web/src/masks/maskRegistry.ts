@@ -6,9 +6,9 @@
  */
 
 export type MaskDescriptor =
-  | { kind: 'svg';    getSvg: () => string }
-  | { kind: 'path2d'; getPath: () => Path2D }
-  | { kind: 'bitmap'; getBitmap: () => Promise<ImageBitmap> };
+  | { kind: 'svg';    getSvg: () => string; description?: string; tags?: string[] }
+  | { kind: 'path2d'; getPath: () => Path2D; description?: string; tags?: string[] }
+  | { kind: 'bitmap'; getBitmap: () => Promise<ImageBitmap>; description?: string; tags?: string[] };
 
 export type MaskGenerator = () => MaskDescriptor;
 
@@ -186,11 +186,11 @@ function polygonSoft({ rotation = 0 }: MaskParams = {}) {
 
 function cloudLike({ count = 3, minR = 12, maxR = 22, seed = 1 }: MaskParams = {}) {
   // More random cloud: 3-5 overlapping blobs, random positions and radii
-  function seededRandom(s) {
+  function seededRandom(s: number) {
     let x = Math.sin(s) * 10000;
     return x - Math.floor(x);
   }
-  const blobs = [];
+  const blobs: string[] = [];
   const cx = 50, cy = 60;
   const n = count + Math.floor((seededRandom(seed) * 3)); // 3-5 blobs
   for (let i = 0; i < n; i++) {
@@ -226,7 +226,7 @@ function archBlob({ width = 60, height = 30, baseHeight = 15, archiness = 0.5 }:
   </svg>`;
 }
 
-function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}) {
+function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}): MaskDescriptor {
   // Randomly rotate any abstract mask by a multiple of 30°
   const masks = ['blobIrregular', 'blobCrescent', 'polygonSoft', 'cloudLike', 'archBlob'];
   const chosen = mask && masks.includes(mask) ? mask : masks[Math.floor(Math.random() * masks.length)];
@@ -234,7 +234,12 @@ function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}) 
   // Call the chosen mask function with rotation param
   if (chosen === 'blobCrescent' || chosen === 'cloudLike' || chosen === 'archBlob') {
     // These masks don't use rotation param
-    return registry.abstract[chosen as keyof typeof registry.abstract]();
+    const desc = registry.abstract[chosen as keyof typeof registry.abstract]() as MaskDescriptor;
+    if (desc.kind === 'svg') {
+      return { kind: 'svg', getSvg: desc.getSvg, description: desc.description, tags: desc.tags };
+    }
+    // fallback: return a default svg mask
+    return { kind: 'svg', getSvg: () => '' };
   }
   // For rotation, wrap the SVG string in a MaskDescriptor
   return { kind: 'svg', getSvg: () => polygonSoft({ rotation: angle }) };
@@ -533,7 +538,7 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
     polygonSoft: () => ({ kind: 'svg', getSvg: () => polygonSoft(), description: "A soft-edged polygon", tags: ["polygon","soft","organic","abstract"] }),
     cloudLike: () => ({ kind: 'svg', getSvg: () => cloudLike(), description: "A cluster of overlapping ellipses (cloud-like)", tags: ["cloud","cluster","organic","abstract"] }),
     archBlob: () => ({ kind: 'svg', getSvg: () => archBlob(), description: "An arch-inspired blob form", tags: ["arch","blob","organic","abstract"] }),
-    abstractRotated: () => ({ kind: 'svg', getSvg: () => abstractRotated(), description: "A rotated irregular blob", tags: ["blob","abstract","rotated"] }),
+    abstractRotated: () => abstractRotated(),
   },
   altar: {
     nicheArch: () => ({ kind: 'svg', getSvg: () => nicheArch(), description: "An arch-shaped niche (mini-shrine)", tags: ["niche","arch","altar"] }),
@@ -565,13 +570,14 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
   },
 };
 
-export function registerMask(
-  family: string,
-  name: string,
-  generator: MaskGenerator
-) {
-  if (!registry[family]) registry[family] = {};
-  registry[family][name] = generator;
+export function registerMask(key: string, svg: string, family: string) {
+  // allow runtime registration of new masks
+  const maskDescriptor: MaskGenerator = () => ({ kind: 'svg', getSvg: () => svg });
+  if (registry[family]) {
+    (registry as any)[family][key] = maskDescriptor;
+  } else {
+    registry[family] = { [key]: maskDescriptor } as Record<string, MaskGenerator>;
+  }
 }
 
 export function getMaskDescriptor(

@@ -117,7 +117,11 @@
           ctx.globalCompositeOperation = 'source-over';
           ctx.restore();
 
-          figcaption.textContent = name;
+          figcaption.innerHTML = `
+            <div style="font-weight:bold; font-size:1rem; margin-bottom:0.2rem; text-align:center;">${name}</div>
+            ${descriptor.description ? `<div style="font-size:0.95rem; color:#333; margin-bottom:0.2rem; text-align:center;">${descriptor.description}</div>` : ""}
+            ${descriptor.tags ? `<div style="font-size:0.85rem; color:#666; text-align:center;">${descriptor.tags.join(", ")}</div>` : ""}
+          `;
           figure.appendChild(canvas);
           figure.appendChild(figcaption);
           gallery.appendChild(figure);

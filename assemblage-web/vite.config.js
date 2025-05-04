@@ -9,21 +9,21 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
-    extensions: ['.js', '.jsx', '.ts', '.tsx']
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.html']
   },
   optimizeDeps: {
     include: ['paper']
   },
   esbuild: {
     loader: 'tsx',
-    include: /\.(tsx|ts|jsx|js)$/,
+    include: /\.(tsx|ts|jsx|js|html)$/,
     exclude: [],
   },
   build: {
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
-        maskReview: path.resolve(__dirname, 'mask-review.html'),
+        main: '/index.html',
+        maskReview: '/mask-review.html'
       }
     }
   },

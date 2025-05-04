@@ -150,15 +150,7 @@ export class CollageService {
 
     setCanvas(canvas) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
-        
-        // Update the canvas in the generators
-        this.generator.canvas = canvas;
-        this.generator.ctx = this.ctx;
-        this.crystalGenerator.canvas = canvas;
-        this.crystalGenerator.ctx = this.ctx;
-        
-        // Apply proper DPR handling
+        this.ctx = canvas.getContext('2d', { willReadFrequently: true });
         this.resizeCanvas();
     }
 

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Sliced Abstraction - Assemblage</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        .canvas-container {
+            width: 100%;
+            height: 600px;
+            background: #232323;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .feedback-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .feedback-button {
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+        }
+        .feedback-good {
+            background: #4CAF50;
+            color: white;
+        }
+        .feedback-bad {
+            background: #F44336;
+            color: white;
+        }
+        .template-info {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .option-group {
+            margin-bottom: 20px;
+        }
+        .option-group h3 {
+            margin-bottom: 10px;
+        }
+        .option-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .option-row label {
+            min-width: 150px;
+        }
+        .option-row input, .option-row select {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Improved Sliced Abstraction</h1>
+        
+        <div class="option-group">
+            <h3>Template Options</h3>
+            <div class="option-row">
+                <label for="sliceType">Slice Type:</label>
+                <select id="sliceType">
+                    <option value="horizontal" selected>Horizontal</option>
+                    <option value="vertical">Vertical</option>
+                    <option value="mixed">Mixed</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label for="numSlices">Number of Slices:</label>
+                <input type="range" id="numSlices" min="3" max="10" value="5" step="1">
+                <span id="numSlicesValue">5</span>
+            </div>
+            <div class="option-row">
+                <label for="gapSize">Gap Size:</label>
+                <input type="range" id="gapSize" min="0" max="20" value="5" step="1">
+                <span id="gapSizeValue">5%</span>
+            </div>
+            <div class="option-row">
+                <label for="useMultiplyBlend">Use Multiply Blend:</label>
+                <input type="checkbox" id="useMultiplyBlend" checked>
+            </div>
+            <div class="option-row">
+                <label for="backgroundColor">Background Color:</label>
+                <input type="color" id="backgroundColor" value="#F5F5F0">
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="generateBtn">Generate New Slices</button>
+            <button id="saveBtn">Save Image</button>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="800" height="600"></canvas>
+        </div>
+        
+        <div class="feedback-buttons">
+            <button id="feedbackGood" class="feedback-button feedback-good">👍 Good Composition</button>
+            <button id="feedbackBad" class="feedback-button feedback-bad">👎 Poor Composition</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Controls
+        const generateBtn = document.getElementById('generateBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const sliceType = document.getElementById('sliceType');
+        const numSlicesInput = document.getElementById('numSlices');
+        const numSlicesValue = document.getElementById('numSlicesValue');
+        const gapSizeInput = document.getElementById('gapSize');
+        const gapSizeValue = document.getElementById('gapSizeValue');
+        const useMultiplyBlend = document.getElementById('useMultiplyBlend');
+        const backgroundColor = document.getElementById('backgroundColor');
+        const feedbackGood = document.getElementById('feedbackGood');
+        const feedbackBad = document.getElementById('feedbackBad');
+        
+        // Feedback history
+        const feedbackHistory = [];
+        
+        // Array of images
+        const images = [];
+        
+        // Current config
+        const config = {
+            sliceType: sliceType.value,
+            numSlices: parseInt(numSlicesInput.value),
+            gapSize: parseInt(gapSizeInput.value),
+            useMultiplyBlend: useMultiplyBlend.checked,
+            backgroundColor: backgroundColor.value
+        };
+        
+        // Update config display
+        numSlicesInput.addEventListener('input', () => {
+            config.numSlices = parseInt(numSlicesInput.value);
+            numSlicesValue.textContent = config.numSlices;
+        });
+        
+        gapSizeInput.addEventListener('input', () => {
+            config.gapSize = parseInt(gapSizeInput.value);
+            gapSizeValue.textContent = `${config.gapSize}%`;
+        });
+        
+        sliceType.addEventListener('change', () => {
+            config.sliceType = sliceType.value;
+        });
+        
+        useMultiplyBlend.addEventListener('change', () => {
+            config.useMultiplyBlend = useMultiplyBlend.checked;
+        });
+        
+        backgroundColor.addEventListener('input', () => {
+            config.backgroundColor = backgroundColor.value;
+        });
+        
+        // Function to load images
+        async function loadImages() {
+            // Load 10 placeholders
+            for (let i = 0; i < 10; i++) {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                // Use placeholder images
+                img.src = `https://picsum.photos/seed/${i}/800/600`;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continue even if load fails
+                });
+                if (img.complete) {
+                    images.push(img);
+                }
+            }
+            console.log(`Loaded ${images.length} images`);
+            
+            // Generate initial slices
+            if (images.length > 0) {
+                generateSlices();
+            }
+        }
+        
+        // Generate slices configuration
+        function generateSliceConfig() {
+            const slices = [];
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            
+            // Calculate gap in pixels
+            const gapPixels = Math.min(canvasWidth, canvasHeight) * (config.gapSize / 100);
+            
+            // Determine orientation based on sliceType
+            const isHorizontal = config.sliceType === 'horizontal' || 
+                                (config.sliceType === 'mixed' && Math.random() < 0.7); // 70% horizontal for mixed
+            
+            // Calculate available space
+            const totalSpace = isHorizontal ? canvasHeight : canvasWidth;
+            
+            // Distribute slices evenly
+            const sliceSize = (totalSpace - (gapPixels * (config.numSlices - 1))) / config.numSlices;
+            
+            // Create each slice
+            for (let i = 0; i < config.numSlices; i++) {
+                // Determine position
+                const position = i * (sliceSize + gapPixels);
+                
+                // Create slice with a randomly selected image
+                const imgIndex = Math.floor(Math.random() * images.length);
+                
+                if (isHorizontal) {
+                    // Horizontal slice
+                    slices.push({
+                        x: 0,
+                        y: position,
+                        width: canvasWidth,
+                        height: sliceSize,
+                        imageIndex: imgIndex
+                    });
+                } else {
+                    // Vertical slice
+                    slices.push({
+                        x: position,
+                        y: 0,
+                        width: sliceSize,
+                        height: canvasHeight,
+                        imageIndex: imgIndex
+                    });
+                }
+            }
+            
+            return slices;
+        }
+        
+        // Function to draw a single slice
+        function drawSlice(slice) {
+            const { x, y, width, height, imageIndex } = slice;
+            const img = images[imageIndex];
+            
+            ctx.save();
+            
+            // Create clipping rectangle for this slice
+            ctx.beginPath();
+            ctx.rect(x, y, width, height);
+            ctx.clip();
+            
+            // Set blend mode
+            if (config.useMultiplyBlend) {
+                ctx.globalCompositeOperation = 'multiply';
+            }
+            
+            // Calculate source rectangle in the image to maintain aspect ratio
+            const imgAspect = img.width / img.height;
+            const sliceAspect = width / height;
+            
+            let srcX, srcY, srcWidth, srcHeight;
+            let drawX, drawY, drawWidth, drawHeight;
+            
+            if (imgAspect > sliceAspect) {
+                // Image is wider than slice
+                drawHeight = height;
+                drawWidth = height * imgAspect;
+                drawX = x - (drawWidth - width) / 2;
+                drawY = y;
+                
+                // Source dimensions (use full height)
+                srcX = 0;
+                srcY = 0;
+                srcWidth = img.width;
+                srcHeight = img.height;
+            } else {
+                // Image is taller than slice
+                drawWidth = width;
+                drawHeight = width / imgAspect;
+                drawX = x;
+                drawY = y - (drawHeight - height) / 2;
+                
+                // Source dimensions (use full width)
+                srcX = 0;
+                srcY = 0;
+                srcWidth = img.width;
+                srcHeight = img.height;
+            }
+            
+            // Draw the image
+            ctx.drawImage(
+                img,
+                srcX, srcY, srcWidth, srcHeight,
+                drawX, drawY, drawWidth, drawHeight
+            );
+            
+            ctx.restore();
+        }
+        
+        // Generate slices
+        function generateSlices() {
+            if (images.length === 0) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Fill with background color
+            ctx.fillStyle = config.backgroundColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Generate slice configuration
+            const slices = generateSliceConfig();
+            
+            // Draw slices
+            slices.forEach(slice => {
+                drawSlice(slice);
+            });
+        }
+        
+        // Record feedback
+        function recordFeedback(isPositive) {
+            // Create feedback entry
+            const feedback = {
+                timestamp: new Date().toISOString(),
+                isPositive: isPositive,
+                config: { ...config }
+            };
+            
+            // Add to history
+            feedbackHistory.push(feedback);
+            
+            console.log('Feedback recorded:', feedback);
+            
+            // Generate new slices
+            generateSlices();
+        }
+        
+        // Save the current slices
+        function saveSlices() {
+            const link = document.createElement('a');
+            link.download = 'assemblage-sliced.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+        
+        // Event listeners
+        generateBtn.addEventListener('click', generateSlices);
+        saveBtn.addEventListener('click', saveSlices);
+        feedbackGood.addEventListener('click', () => recordFeedback(true));
+        feedbackBad.addEventListener('click', () => recordFeedback(false));
+        
+        // Load images
+        loadImages();
+    </script>
+</body>
+</html>

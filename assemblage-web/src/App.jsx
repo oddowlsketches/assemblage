@@ -230,7 +230,7 @@ export default function App() {
         />
       )}
 
-      <style jsx>{`
+      <style jsx="true">{`
         .app {
           min-height: 100vh;
           display: flex;
