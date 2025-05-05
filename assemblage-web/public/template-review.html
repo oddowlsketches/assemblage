@@ -3,23 +3,362 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Template Review - Assemblage</title>
+    <title>Mosaic Template Review</title>
     <style>
+        :root {
+            --primary-color: #4a4a4a;
+            --secondary-color: #0066cc;
+            --background-color: #f5f5f5;
+            --panel-color: #ffffff;
+            --border-color: #e0e0e0;
+            --success-color: #4caf50;
+            --warning-color: #ff9800;
+        }
+        
         body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
             margin: 0;
             padding: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #f5f5f5;
-            min-height: 100vh;
+            background-color: var(--background-color);
+            color: var(--primary-color);
         }
-        #root {
-            min-height: 100vh;
+        
+        header {
+            background-color: var(--panel-color);
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+        
+        main {
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .template-info {
+            background-color: var(--panel-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .template-description {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        
+        .content-container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .canvas-container {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        canvas {
+            border: 1px solid var(--border-color);
+            background-color: white;
+            max-width: 100%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            grid-column: 1;
+            background-color: var(--panel-color);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .parameter-control {
+            margin-bottom: 1.5rem;
+        }
+        
+        .parameter-control label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .number-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+        }
+        
+        input[type="number"] {
+            width: 60px;
+            padding: 0.3rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: white;
+        }
+        
+        input[type="color"] {
+            width: 100%;
+            height: 40px;
+            padding: 0;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .checkbox-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .checkbox-control input {
+            margin: 0;
+        }
+        
+        button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            background-color: var(--panel-color);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        button:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .feedback-controls {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        #thumbs-up:hover {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        #thumbs-down:hover {
+            background-color: var(--warning-color);
+            color: white;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .sample {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+        }
+        
+        .sample canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border: none;
+            box-shadow: none;
         }
     </style>
 </head>
 <body>
-    <div id="root"></div>
-    <!-- Use the main entry point -->
-    <script type="module" src="/src/main.jsx"></script>
+    <header>
+        <h1>Template Review</h1>
+        <div class="template-selector">
+            <label for="template-select">Template:</label>
+            <select id="template-select">
+                <option value="scrambledMosaic">Scrambled Mosaic</option>
+                <option value="pairedForms">Paired Forms</option>
+            </select>
+        </div>
+    </header>
+    
+    <main>
+        <div class="template-info">
+            <h2>Scrambled Mosaic</h2>
+            <div class="template-description">
+                A grid-based arrangement with randomized cell operations. Create collages from a regular grid with various operations and patterns.
+            </div>
+        </div>
+        
+        <div class="content-container">
+            <div class="controls" id="mosaic-controls">
+                <div class="parameter-control">
+                    <label for="mosaic-gridSize">Grid Size</label>
+                    <input id="mosaic-gridSize" type="number" min="4" max="16" value="8" step="1"/>
+                    <div class="description">Number of cells in each dimension</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label id="percentageLabel">Reveal %:</label>
+                    <div class="number-control">
+                        <input id="mosaic-revealPct" type="range" min="0.4" max="0.9" step="0.05" value="0.75"/>
+                        <span id="revealPctValue">75%</span>
+                    </div>
+                    <div class="description">Percentage of cells to show</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="mosaic-patternType">Pattern Type</label>
+                    <select id="mosaic-patternType">
+                        <option value="random">Random</option>
+                        <option value="clustered" selected>Clustered</option>
+                        <option value="silhouette">Silhouette</option>
+                        <option value="portrait">Portrait</option>
+                    </select>
+                    <div class="description">How cells are organized in the grid</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="mosaic-shapeType">Cell Shape</label>
+                    <select id="mosaic-shapeType">
+                        <option value="square">Square</option>
+                        <option value="rectHorizontal">Rect Horizontal</option>
+                        <option value="rectVertical">Rect Vertical</option>
+                        <option value="circle">Circle</option>
+                        <option value="stripe">Stripe</option>
+                    </select>
+                    <div class="description">Shape of each visible cell</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="mosaic-operation">Cell Operation</label>
+                    <select id="mosaic-operation">
+                        <option value="reveal">Reveal</option>
+                        <option value="swap">Swap</option>
+                        <option value="rotate">Rotate</option>
+                    </select>
+                    <div class="description">What to do with each affected cell</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="mosaic-bgColor">Background Color</label>
+                    <input id="mosaic-bgColor" type="color" value="#FFFFFF" />
+                    <div class="description">Canvas background color</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <div class="checkbox-control">
+                        <input id="mosaic-multiply" type="checkbox" checked />
+                        <label for="mosaic-multiply">Multiply Blend</label>
+                    </div>
+                    <div class="description">Apply multiply blend mode to cells</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <button id="generate-mosaic">Apply Changes</button>
+                    <button id="generate">Generate Gallery</button>
+                </div>
+            </div>
+            
+            <div class="controls" id="paired-forms-controls" style="display: none;">
+                <div class="parameter-control">
+                    <label for="paired-forms-count">Form Count</label>
+                    <select id="paired-forms-count">
+                        <option value="2">2 (Diptych)</option>
+                        <option value="3" selected>3 (Triptych)</option>
+                    </select>
+                    <div class="description">Number of forms in the composition</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="paired-forms-type">Form Type</label>
+                    <select id="paired-forms-type">
+                        <option value="rectangular" selected>Rectangular</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                    <div class="description">Type of forms to use</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="paired-forms-complexity">Complexity</label>
+                    <div class="number-control">
+                        <input id="paired-forms-complexity" type="range" min="0" max="1" step="0.1" value="0.5"/>
+                        <span id="complexityValue">0.5</span>
+                    </div>
+                    <div class="description">Complexity of form arrangement</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="paired-forms-rotation">Rotation</label>
+                    <div class="number-control">
+                        <input id="paired-forms-rotation" type="range" min="0" max="45" step="1" value="0"/>
+                        <span id="rotationValue">0°</span>
+                    </div>
+                    <div class="description">Rotation angle of forms</div>
+                </div>
+                
+                <div class="parameter-control">
+                    <label for="paired-forms-bgColor">Background Color</label>
+                    <input id="paired-forms-bgColor" type="color" value="#FFFFFF"/>
+                </div>
+                
+                <div class="parameter-control">
+                    <div class="checkbox-control">
+                        <input id="paired-forms-multiply" type="checkbox" checked/>
+                        <label for="paired-forms-multiply">Use Multiply Blend</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="canvas-container">
+                <canvas id="template-canvas" width="800" height="800"></canvas>
+                <div class="feedback-controls">
+                    <button id="thumbs-up">👍</button>
+                    <button id="thumbs-down">👎</button>
+                    <button id="export-feedback">Export Feedback</button>
+                </div>
+            </div>
+        </div>
+        
+        <h2>Gallery</h2>
+        <div class="gallery" id="gallery"></div>
+    </main>
+    
+    <script type="module" src="./template-review.js"></script>
 </body>
 </html>
