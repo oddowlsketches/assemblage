@@ -407,39 +407,48 @@ function diamondMask({ cx = 50, cy = 50, w = 40, h = 40 }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
-function hexagonMask({ cx = 50, cy = 50, r = 28 }: MaskParams = {}) {
-  const points = Array.from({ length: 6 }, (_, i) => {
-    const angle = Math.PI / 3 * i - Math.PI / 6;
-    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`;
-  }).join(' ');
+function hexagonMask() {
+  // Hexagon that fills the 100x100 box
+  const points = [
+    '100,50',
+    '75,93.301',
+    '25,93.301',
+    '0,50',
+    '25,6.699',
+    '75,6.699'
+  ].join(' ');
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
-function semiCircleMask({ cx = 50, cy = 50, r = 30, orientation = 'up' }: MaskParams = {}) {
+function semiCircleMask({ orientation = 'up' }: MaskParams = {}) {
   // orientation: 'up', 'down', 'left', 'right'
   let d = '';
   if (orientation === 'up') {
-    d = `M${cx - r},${cy} A${r},${r} 0 0,1 ${cx + r},${cy} L${cx},${cy} Z`;
+    // Flat edge at bottom, arc at top, fills bounding box
+    d = 'M0,100 A50,50 0 0,1 100,100 L100,100 L0,100 Z';
   } else if (orientation === 'down') {
-    d = `M${cx - r},${cy} A${r},${r} 0 0,0 ${cx + r},${cy} L${cx},${cy} Z`;
+    // Flat edge at top, arc at bottom
+    d = 'M0,0 A50,50 0 0,0 100,0 L100,0 L0,0 Z';
   } else if (orientation === 'left') {
-    d = `M${cx},${cy - r} A${r},${r} 0 0,1 ${cx},${cy + r} L${cx},${cy} Z`;
+    // Flat edge at right, arc at left
+    d = 'M100,0 A50,50 0 0,1 100,100 L100,100 L100,0 Z';
   } else if (orientation === 'right') {
-    d = `M${cx},${cy - r} A${r},${r} 0 0,0 ${cx},${cy + r} L${cx},${cy} Z`;
+    // Flat edge at left, arc at right
+    d = 'M0,0 A50,50 0 0,0 0,100 L0,100 L0,0 Z';
   }
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><path d='${d}' fill='white'/></svg>`;
 }
 
-function triangleMask({ cx = 50, cy = 50, size = 40, orientation = 'up' }: MaskParams = {}) {
+function triangleMask({ orientation = 'up' }: MaskParams = {}) {
   let points = '';
   if (orientation === 'up') {
-    points = `${cx},${cy - size / 2} ${cx + size / 2},${cy + size / 2} ${cx - size / 2},${cy + size / 2}`;
+    points = '50,0 100,100 0,100';
   } else if (orientation === 'down') {
-    points = `${cx},${cy + size / 2} ${cx + size / 2},${cy - size / 2} ${cx - size / 2},${cy - size / 2}`;
+    points = '50,100 100,0 0,0';
   } else if (orientation === 'left') {
-    points = `${cx - size / 2},${cy} ${cx + size / 2},${cy - size / 2} ${cx + size / 2},${cy + size / 2}`;
+    points = '0,50 100,0 100,100';
   } else if (orientation === 'right') {
-    points = `${cx + size / 2},${cy} ${cx - size / 2},${cy - size / 2} ${cx - size / 2},${cy + size / 2}`;
+    points = '100,50 0,0 0,100';
   }
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }

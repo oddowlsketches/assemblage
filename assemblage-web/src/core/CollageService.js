@@ -9,9 +9,10 @@ import { getRandomCrystalSettings } from '../effects/randomCrystal';
 import { PromptPlanner } from '../planner/PromptPlanner';
 import maskImplementations from '../legacy/js/collage/maskImplementations.js';
 import { getMaskDescriptor } from '../masks/maskRegistry';
+import { TemplateRenderer } from './TemplateRenderer';
 
 // Add a robust SVG to Path2D converter OUTSIDE the class
-function svgToPath2D(svgString) {
+export function svgToPath2D(svgString) {
     const doc = new window.DOMParser().parseFromString(svgString, "image/svg+xml");
     const svgEl = doc.querySelector("svg");
     if (!svgEl) return null;
@@ -100,6 +101,9 @@ export class CollageService {
         
         // Initialize the prompt planner
         this.promptPlanner = new PromptPlanner(Object.keys(this.masks));
+        
+        // Initialize the template renderer
+        this.templateRenderer = new TemplateRenderer(this);
         
         // Set default parameters
         this.parameters = {
@@ -534,6 +538,48 @@ export class CollageService {
         }
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
+        // Edge-to-edge placement for pairedForms
+        if (template.key === 'pairedForms') {
+            const formCount = template.placements.length;
+            const cellW = this.canvas.width / formCount;
+            const cellH = this.canvas.height;
+            for (let i = 0; i < formCount; i++) {
+                const placement = template.placements[i];
+                const img = this.images[i % this.images.length];
+                if (!img || !img.complete) continue;
+                const [family, maskName] = placement.maskName.split('/');
+                const maskFunction = maskRegistry[family]?.[maskName];
+                if (!maskFunction) continue;
+                const svg = maskFunction(placement.params || {});
+                const maskPath = svgToPath2D(svg);
+                if (!maskPath) continue;
+                this.ctx.save();
+                // Snap to row, no rotation
+                this.ctx.translate(i * cellW, 0);
+                this.ctx.scale(cellW / 100, cellH / 100);
+                this.ctx.clip(maskPath);
+                // Aspect-ratio logic
+                const imgAspect = img.width / img.height;
+                const maskAspect = cellW / cellH;
+                let drawWidth = cellW;
+                let drawHeight = cellH;
+                let drawX = 0;
+                let drawY = 0;
+                if (imgAspect > maskAspect) {
+                    drawHeight = cellW / imgAspect;
+                    drawY = (cellH - drawHeight) / 2;
+                } else {
+                    drawWidth = cellH * imgAspect;
+                    drawX = (cellW - drawWidth) / 2;
+                }
+                this.ctx.globalCompositeOperation = 'multiply';
+                this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+                this.ctx.globalCompositeOperation = 'source-over';
+                this.ctx.restore();
+            }
+            return;
+        }
+
         // Process each placement
         for (let i = 0; i < template.placements.length; i++) {
             const placement = template.placements[i];
@@ -644,5 +690,31 @@ export class CollageService {
                 continue;
             }
         }
+    }
+
+    async renderTemplate(key, params) {
+        // Delegate to the template renderer
+        return this.templateRenderer.renderTemplate(key, params);
+    }
+    
+    /**
+     * Save feedback about a template
+     */
+    saveTemplateFeedback(key, params, liked) {
+        return this.templateRenderer.saveFeedback(key, params, liked);
+    }
+    
+    /**
+     * Get all available templates
+     */
+    getAllTemplates() {
+        return this.templateRenderer.getAllTemplates();
+    }
+    
+    /**
+     * Get a template by key
+     */
+    getTemplate(key) {
+        return this.templateRenderer.getTemplate(key);
     }
 } 

@@ -300,7 +300,9 @@
                     <label for="paired-forms-count">Form Count</label>
                     <select id="paired-forms-count">
                         <option value="2">2 (Diptych)</option>
-                        <option value="3" selected>3 (Triptych)</option>
+                        <option value="3">3 (Triptych)</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
                     </select>
                     <div class="description">Number of forms in the composition</div>
                 </div>
@@ -308,8 +310,11 @@
                 <div class="parameter-control">
                     <label for="paired-forms-type">Form Type</label>
                     <select id="paired-forms-type">
-                        <option value="rectangular" selected>Rectangular</option>
-                        <option value="mixed">Mixed</option>
+                        <option value="rectangular">Rectangular</option>
+                        <option value="semiCircle">Semi-Circle</option>
+                        <option value="triangle">Triangle</option>
+                        <option value="hexagon">Hexagon</option>
+                        <option value="mixed" selected>Mixed</option>
                     </select>
                     <div class="description">Type of forms to use</div>
                 </div>
@@ -321,15 +326,6 @@
                         <span id="complexityValue">0.5</span>
                     </div>
                     <div class="description">Complexity of form arrangement</div>
-                </div>
-                
-                <div class="parameter-control">
-                    <label for="paired-forms-rotation">Rotation</label>
-                    <div class="number-control">
-                        <input id="paired-forms-rotation" type="range" min="0" max="45" step="1" value="0"/>
-                        <span id="rotationValue">0°</span>
-                    </div>
-                    <div class="description">Rotation angle of forms</div>
                 </div>
                 
                 <div class="parameter-control">

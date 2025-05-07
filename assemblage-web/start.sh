@@ -5,7 +5,7 @@ cd .. && python3 server.py &
 PYTHON_PID=$!
 
 # Start the Vite development server
-cd assemblage-web && npm run dev
+npm run dev
 
 # When the Vite server is stopped, also stop the Python server
 kill $PYTHON_PID 

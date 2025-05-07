@@ -23,11 +23,12 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: '/index.html',
-        maskReview: '/mask-review.html'
+        maskReview: '/mask-review.html',
+        templateReview: '/template-review-app/template-review.html'
       }
     }
   },
   server: {
-    open: '/mask-review.html'
+    open: '/template-review-app/template-review.html'
   }
 }) 

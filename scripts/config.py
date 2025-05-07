@@ -16,7 +16,7 @@ if not OPENAI_API_KEY:
 
 # Server Configuration
 IMAGE_PROCESSOR_PORT = int(os.getenv('IMAGE_PROCESSOR_PORT', '5001'))
-MAIN_SERVER_PORT = int(os.getenv('MAIN_SERVER_PORT', '8000'))
+MAIN_SERVER_PORT = int(os.getenv('MAIN_SERVER_PORT', '8002'))
 
 # Image Processing Settings
 TARGET_SIZE = tuple(map(int, os.getenv('TARGET_SIZE', '800,800').split(',')))

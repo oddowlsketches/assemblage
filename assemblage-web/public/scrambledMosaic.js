@@ -377,17 +377,25 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
     let drawHeight = height;
     let drawSrcX = srcX;
     let drawSrcY = srcY;
+    let drawSrcWidth = srcWidth;
+    let drawSrcHeight = srcHeight;
     
     // Calculate image aspect ratio
     const imageAspect = img.width / img.height;
+    const cellAspect = width / height;
     
-    // Determine drawing dimensions to maintain aspect ratio
-    if (imageAspect > width / height) { // Image is wider
-        drawHeight = drawWidth / imageAspect;
-        drawY = y + (height - drawHeight) / 2; // Center vertically
-    } else { // Image is taller
-        drawWidth = drawHeight * imageAspect;
-        drawX = x + (width - drawWidth) / 2; // Center horizontally
+    // Instead of maintaining aspect ratio by adjusting the draw area,
+    // adjust the source rectangle to match the cell aspect ratio
+    if (imageAspect > cellAspect) { // Image is wider than cell
+        // Narrow the source width to match cell aspect ratio
+        const newSrcWidth = srcHeight * cellAspect;
+        drawSrcX = srcX + (srcWidth - newSrcWidth) / 2; // Center horizontally
+        drawSrcWidth = newSrcWidth;
+    } else { // Image is taller than cell
+        // Reduce the source height to match cell aspect ratio
+        const newSrcHeight = srcWidth / cellAspect;
+        drawSrcY = srcY + (srcHeight - newSrcHeight) / 2; // Center vertically
+        drawSrcHeight = newSrcHeight;
     }
     
     // Apply swap operation if specified
@@ -395,6 +403,21 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
         // Swap with a different part of the image
         drawSrcX = (srcX + srcWidth * 2) % img.width;
         drawSrcY = (srcY + srcHeight * 2) % img.height;
+        drawSrcWidth = srcWidth;
+        drawSrcHeight = srcHeight;
+        
+        // Apply the same aspect ratio adjustment to the new source area
+        if (imageAspect > cellAspect) { // Image is wider than cell
+            // Narrow the source width to match cell aspect ratio
+            const newSrcWidth = drawSrcHeight * cellAspect;
+            drawSrcX = drawSrcX + (drawSrcWidth - newSrcWidth) / 2; // Center horizontally
+            drawSrcWidth = newSrcWidth;
+        } else { // Image is taller than cell
+            // Reduce the source height to match cell aspect ratio
+            const newSrcHeight = drawSrcWidth / cellAspect;
+            drawSrcY = drawSrcY + (drawSrcHeight - newSrcHeight) / 2; // Center vertically
+            drawSrcHeight = newSrcHeight;
+        }
     }
     
     // Apply rotation if specified
@@ -414,8 +437,8 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
         drawY = -drawHeight / 2;
     }
     
-    // Draw the image
-    ctx.drawImage(img, drawSrcX, drawSrcY, srcWidth, srcHeight, drawX, drawY, drawWidth, drawHeight);
+    // Draw the image - fill the entire cell with the adjusted source rectangle
+    ctx.drawImage(img, drawSrcX, drawSrcY, drawSrcWidth, drawSrcHeight, drawX, drawY, drawWidth, drawHeight);
     
     // Restore context (removes clipping but keeps transformations for stroke)
     ctx.restore();

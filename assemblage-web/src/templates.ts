@@ -1,177 +1,169 @@
+// templates.ts
+// Contains template definitions for the Assemblage application
+
 export interface MaskPlacement {
-  maskName: string;
-  x: number;     // relative 0–1 across canvas
-  y: number;     // relative 0–1
-  width: number; // relative 0–1 of canvas width
-  height: number;// relative 0–1 of canvas height
-  rotation?: number; // degrees
+  maskName: string;     // Reference to mask in registry (can include family prefix)
+  x: number;            // relative 0–1 across canvas
+  y: number;            // relative 0–1
+  width: number;        // relative 0–1 of canvas width
+  height: number;       // relative 0–1 of canvas height
+  rotation?: number;    // degrees
   xRange?: [number, number]; // optional range for x randomization
   yRange?: [number, number]; // optional range for y randomization
-  sizeVariance?: number; // e.g. 0.2 means ±20%
-  minOverlap?: number; // fraction of area overlap, e.g. 0.1
+  sizeVariance?: number;     // e.g. 0.2 means ±20%
+  minOverlap?: number;       // fraction of area overlap, e.g. 0.1
   maxOverlap?: number;
   rotationRange?: [number, number]; // optional range for rotation randomization
 }
 
-export interface Template {
-  key: string;          // e.g. "archesRow", "windowsGrid", "houseFacade", "slicedLegacy"
-  name: string;         // human-friendly
-  placements: MaskPlacement[];
-  defaultBG?: string;   // optional default background color
-  gridSizeRange?: [number, number];
-  revealPctRange?: [number, number];
-  patternTypeOptions?: string[];
-  shapeOptions?: string[];
-  operationOptions?: string[];
-  blendMode?: string;
-  bgColors?: string[];
+export interface TemplateParameter {
+  type: 'number' | 'select' | 'color' | 'boolean';
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: string[];
+  default: number | string | boolean;
+  label: string;
+  description?: string;
 }
 
+export interface Template {
+  key: string;          // unique identifier, e.g. "scrambledMosaic"
+  name: string;         // human-friendly display name
+  description: string;  // detailed description of what this template does
+  category: 'abstract' | 'architectural' | 'narrative' | 'altar' | 'combined';
+  params: Record<string, TemplateParameter>; // parameter definitions
+  placements?: MaskPlacement[]; // optional mask placements for placement-based templates
+  defaultBG?: string;   // optional default background color
+  previewImageUrl?: string; // optional URL to a preview image
+}
+
+// Main templates collection
 export const templates: Template[] = [
-  {
-    key: "archesRow",
-    name: "Row of Three Arches",
-    placements: [
-      { maskName: "arch", x: 0.10, y: 0.50, width: 0.25, height: 0.40 },
-      { maskName: "arch", x: 0.50, y: 0.50, width: 0.25, height: 0.40 },
-      { maskName: "arch", x: 0.90, y: 0.50, width: 0.25, height: 0.40 }
-    ],
-    defaultBG: "#eeeeee"
-  },
-  {
-    key: "windowsGrid",
-    name: "Grid of Windows",
-    placements: [
-      { maskName: "window", x: 0.25, y: 0.25, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.50, y: 0.25, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.75, y: 0.25, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.25, y: 0.50, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.50, y: 0.50, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.75, y: 0.50, width: 0.20, height: 0.20 }
-    ],
-    defaultBG: "#ffffff"
-  },
-  {
-    key: "slicedLegacy",
-    name: "Sliced Legacy",
-    placements: [
-      { maskName: "window", x: 0.10, y: 0.10, width: 0.80, height: 0.10, rotation: 0 },
-      { maskName: "window", x: 0.10, y: 0.30, width: 0.80, height: 0.10, rotation: 0 },
-      { maskName: "window", x: 0.10, y: 0.50, width: 0.80, height: 0.10, rotation: 0 },
-      { maskName: "window", x: 0.10, y: 0.70, width: 0.80, height: 0.10, rotation: 0 },
-      { maskName: "window", x: 0.10, y: 0.90, width: 0.80, height: 0.10, rotation: 0 }
-    ],
-    defaultBG: "#ffffff"
-  },
-  {
-    key: "altarComposition",
-    name: "Altar Composition",
-    placements: [
-      { maskName: "arch", x: 0.50, y: 0.50, width: 0.40, height: 0.40 },
-      { maskName: "arch", x: 0.50, y: 0.30, width: 0.30, height: 0.30 },
-      { maskName: "arc", x: 0.50, y: 0.20, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.25, y: 0.50, width: 0.20, height: 0.20 },
-      { maskName: "window", x: 0.75, y: 0.50, width: 0.20, height: 0.20 }
-    ],
-    defaultBG: "#f5f5f5"
-  },
+  // Scrambled Mosaic Template
   {
     key: 'scrambledMosaic',
     name: 'Scrambled Mosaic',
-    defaultBG: '#FFFFFF',
-    gridSizeRange: [4, 16],
-    revealPctRange: [0.4, 0.9],
-    patternTypeOptions: ['random', 'clustered', 'silhouette', 'portrait'],
-    shapeOptions: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'],
-    operationOptions: ['reveal', 'swap', 'rotate'],
-    blendMode: 'multiply',
-    bgColors: ['#f5f5f5', '#e8e8e8', '#f0f0f0', '#f8f8f8'],
-    placements: [
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.167, y: 0.125, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+    description: 'A grid-based arrangement with randomized cell operations. Create collages from a regular grid with various operations and patterns.',
+    category: 'abstract',
+    params: {
+      gridSize: { 
+        type: 'number', 
+        min: 4, 
+        max: 16, 
+        step: 1,
+        default: 8, 
+        label: 'Grid Size',
+        description: 'Number of cells in each dimension'
       },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.333, y: 0.125, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      revealPct: { 
+        type: 'number', 
+        min: 40, 
+        max: 90,
+        step: 5,
+        default: 75, 
+        label: 'Reveal Percentage',
+        description: 'Percentage of cells to show'
       },
-      { 
-        maskName: 'basic/diamondMask', 
-        x: 0.500, y: 0.125, width: 0.167, height: 0.25, rotation: 15,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      pattern: { 
+        type: 'select', 
+        options: ['random', 'clustered', 'silhouette', 'portrait'], 
+        default: 'random', 
+        label: 'Pattern Type',
+        description: 'How cells are organized in the grid'
       },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.667, y: 0.125, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      cellShape: { 
+        type: 'select', 
+        options: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'], 
+        default: 'square', 
+        label: 'Cell Shape',
+        description: 'Shape of each visible cell'
       },
-      { 
-        maskName: 'basic/circleMask', 
-        x: 0.833, y: 0.125, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      operation: { 
+        type: 'select', 
+        options: ['reveal', 'swap', 'rotate'], 
+        default: 'reveal', 
+        label: 'Cell Operation',
+        description: 'What to do with each affected cell'
       },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.167, y: 0.375, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      bgColor: {
+        type: 'color',
+        default: '#FFFFFF',
+        label: 'Background Color',
+        description: 'Canvas background color'
       },
-      { 
-        maskName: 'basic/hexagonMask', 
-        x: 0.333, y: 0.375, width: 0.167, height: 0.25, rotation: 30,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.500, y: 0.375, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'basic/triangleMask', 
-        x: 0.667, y: 0.375, width: 0.167, height: 0.25, rotation: -15,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'basic/circleMask', 
-        x: 0.167, y: 0.625, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.333, y: 0.625, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'basic/diamondMask', 
-        x: 0.500, y: 0.625, width: 0.167, height: 0.25, rotation: 20,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.833, y: 0.625, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.167, y: 0.875, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'basic/hexagonMask', 
-        x: 0.500, y: 0.875, width: 0.167, height: 0.25, rotation: 40,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'basic/triangleMask', 
-        x: 0.667, y: 0.875, width: 0.167, height: 0.25, rotation: 10,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
-      },
-      { 
-        maskName: 'architectural/windowRect', 
-        x: 0.833, y: 0.875, width: 0.167, height: 0.25, rotation: 0,
-        xRange: [0.05, 0.95], yRange: [0.05, 0.95], sizeVariance: 0.2, rotationRange: [-15, 25]
+      useMultiply: {
+        type: 'boolean',
+        default: true,
+        label: 'Multiply Blend',
+        description: 'Apply multiply blend mode to cells'
       }
-    ]
+    }
+  },
+  
+  // Paired Forms Template
+  {
+    key: 'pairedForms',
+    name: 'Paired Forms',
+    description: 'A composition of multiple shapes that touch along edges to create new meaning through juxtaposition.',
+    category: 'abstract',
+    params: {
+      formCount: { 
+        type: 'select', 
+        options: ['2 (Diptych)', '3 (Triptych)', '4', '5'],
+        default: '2 (Diptych)', 
+        label: 'Form Count',
+        description: 'Number of forms in the composition'
+      },
+      formType: { 
+        type: 'select', 
+        options: ['rectangular', 'semiCircle', 'triangle', 'mixed'], 
+        default: 'mixed', 
+        label: 'Form Type',
+        description: 'Style of forms in the composition'
+      },
+      complexity: { 
+        type: 'number', 
+        min: 0, 
+        max: 1,
+        step: 0.1,
+        default: 0.5, 
+        label: 'Complexity',
+        description: 'Complexity of the composition (0-1)'
+      },
+      alignmentType: { 
+        type: 'select', 
+        options: ['edge', 'overlap', 'puzzle'], 
+        default: 'edge', 
+        label: 'Alignment Type',
+        description: 'How forms align with each other'
+      },
+      rotation: { 
+        type: 'number', 
+        min: 0, 
+        max: 0.5,
+        step: 0.05,
+        default: 0, 
+        label: 'Rotation',
+        description: 'Amount of rotation applied to forms (0-0.5)'
+      },
+      bgColor: {
+        type: 'color',
+        default: '#FFFFFF',
+        label: 'Background Color',
+        description: 'Canvas background color'
+      },
+      useMultiply: {
+        type: 'boolean',
+        default: true,
+        label: 'Multiply Blend',
+        description: 'Apply multiply blend mode to forms'
+      }
+    }
   }
-]; 
+];
+
+// Helper to get a template by key
+export function getTemplate(key: string): Template | undefined {
+  return templates.find(t => t.key === key);
+}

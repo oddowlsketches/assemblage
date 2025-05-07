@@ -1,29 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
-// Import templates from enhanced-templates.js instead
-import { templates, getTemplatesByCategory } from '../enhanced-templates.js';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { templates, TemplateSchema, ParamSchema } from '../templates';
 import { CollageService } from '../core/CollageService';
 import { validateTemplate, getAvailableMasks } from '../core/TemplateValidator';
 import { extendCollageService, initCollageServiceExtensions } from '../core/CollageServiceExtensions';
 
 export function TemplateReview() {
   const [selectedTemplate, setSelectedTemplate] = useState(templates[0]);
-  const [currentTemplate, setCurrentTemplate] = useState(null); // Tracks the currently rendered template
+  const [currentTemplate, setCurrentTemplate] = useState(null);
   const [images, setImages] = useState([]);
   const [validationResult, setValidationResult] = useState(null);
   const [availableMasks, setAvailableMasks] = useState({});
   const [feedbackHistory, setFeedbackHistory] = useState([]);
   const [showValidationDetails, setShowValidationDetails] = useState(false);
-  const [templatesByCategory, setTemplatesByCategory] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [params, setParams] = useState({});
   const canvasRef = useRef(null);
   const collageServiceRef = useRef(null);
 
+  // Initialize CollageService and load images
   useEffect(() => {
     if (!canvasRef.current) return;
 
     // Initialize CollageService
     collageServiceRef.current = new CollageService(canvasRef.current, {
-      // No need for crystal generators, prompt planner, or paper.js for template review
       initCrystals: false,
       initPaper: false,
       initPromptPlanner: false,
@@ -41,36 +39,35 @@ export function TemplateReview() {
 
     // Get available masks
     setAvailableMasks(getAvailableMasks());
-    
-    // Get templates by category
-    const categories = getTemplatesByCategory();
-    categories.all = templates; // Add "all" category
-    setTemplatesByCategory(categories);
   }, []);
 
+  // Initialize params when template changes
   useEffect(() => {
     if (!selectedTemplate) return;
 
-    // Validate template
+    const initialParams = {};
+    if (selectedTemplate.params) {
+      Object.entries(selectedTemplate.params).forEach(([key, schema]) => {
+        initialParams[key] = schema.default;
+      });
+    }
+    setParams(initialParams);
+    setCurrentTemplate(selectedTemplate);
+  }, [selectedTemplate]);
+
+  // Validate and render template
+  const validateAndRenderTemplate = useCallback(() => {
+    if (!selectedTemplate || !collageServiceRef.current || images.length === 0) return;
+
     const result = validateTemplate(selectedTemplate);
     setValidationResult(result);
     
-    // Set current template
-    setCurrentTemplate(selectedTemplate);
-
-    if (!collageServiceRef.current || images.length === 0) return;
-
-    // Clear canvas
     const ctx = canvasRef.current.getContext('2d');
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-    // Only draw if template is valid
     if (result.valid) {
-      // Draw randomized template instead of original
-      const randomized = collageServiceRef.current.drawRandomizedTemplate(selectedTemplate);
-      setCurrentTemplate(randomized);
+      collageServiceRef.current.renderTemplate(selectedTemplate.key, params);
     } else {
-      // Display error state on canvas
       ctx.fillStyle = '#ffeeee';
       ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       ctx.fillStyle = '#ff0000';
@@ -80,20 +77,52 @@ export function TemplateReview() {
       ctx.font = '16px sans-serif';
       ctx.fillText('Check console for details', canvasRef.current.width / 2, canvasRef.current.height / 2 + 30);
       
-      // Log errors to console
       console.error('Template validation failed:', result.errorMessages);
     }
-  }, [selectedTemplate, images]);
+  }, [selectedTemplate, images, params]);
 
-  // Function to handle category selection
-  const handleCategoryChange = (category) => {
-    setSelectedCategory(category);
-    
-    // If the current template is not in this category, select the first one
-    const templatesInCategory = templatesByCategory[category] || [];
-    if (!templatesInCategory.find(t => t.key === selectedTemplate.key)) {
-      setSelectedTemplate(templatesInCategory[0]);
+  // Run validation and rendering when params change
+  useEffect(() => {
+    validateAndRenderTemplate();
+  }, [validateAndRenderTemplate]);
+
+  const handleParamChange = (paramName, value) => {
+    setParams(prev => ({
+      ...prev,
+      [paramName]: value
+    }));
+  };
+
+  const renderParamControl = (paramName, schema) => {
+    if (schema.type === 'number') {
+      return (
+        <div key={`param-${paramName}`} className="param-control">
+          <label>{paramName}</label>
+          <input
+            type="number"
+            min={schema.min}
+            max={schema.max}
+            value={params[paramName]}
+            onChange={(e) => handleParamChange(paramName, Number(e.target.value))}
+          />
+        </div>
+      );
+    } else if (schema.type === 'select') {
+      return (
+        <div key={`param-${paramName}`} className="param-control">
+          <label>{paramName}</label>
+          <select
+            value={params[paramName]}
+            onChange={(e) => handleParamChange(paramName, e.target.value)}
+          >
+            {schema.options.map(option => (
+              <option key={`option-${option}`} value={option}>{option}</option>
+            ))}
+          </select>
+        </div>
+      );
     }
+    return null;
   };
 
   // Function to generate a new random version of the current template
@@ -139,32 +168,25 @@ export function TemplateReview() {
       <div className="controls">
         <h2>Template Review</h2>
         
-        <div className="category-selector">
-          <h3>Category</h3>
-          <div className="category-buttons">
-            {Object.keys(templatesByCategory).map(category => (
-              <button
-                key={category}
-                className={`category-button ${selectedCategory === category ? 'active' : ''}`}
-                onClick={() => handleCategoryChange(category)}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-        
         <select 
-          value={selectedTemplate.key}
-          onChange={(e) => setSelectedTemplate(templates.find(t => t.key === e.target.value))}
-          className="template-select"
+          value={selectedTemplate?.key}
+          onChange={(e) => {
+            const template = templates.find(t => t.key === e.target.value);
+            setSelectedTemplate(template);
+          }}
         >
-          {(templatesByCategory[selectedCategory] || templates).map(template => (
-            <option key={template.key} value={template.key}>
-              {template.name}
-            </option>
+          {templates.map(template => (
+            <option key={`template-${template.key}`} value={template.key}>{template.name}</option>
           ))}
         </select>
+
+        {selectedTemplate?.params && (
+          <div className="params">
+            {Object.entries(selectedTemplate.params).map(([paramName, schema]) => 
+              renderParamControl(paramName, schema)
+            )}
+          </div>
+        )}
         
         <div className="validation-status">
           {validationResult && (
@@ -187,7 +209,7 @@ export function TemplateReview() {
               <h4>Validation Errors:</h4>
               <ul>
                 {validationResult.errorMessages.map((msg, i) => (
-                  <li key={i}>{msg}</li>
+                  <li key={`error-${i}`}>{msg}</li>
                 ))}
               </ul>
               
@@ -334,13 +356,6 @@ export function TemplateReview() {
           font-size: 12px;
           max-height: 400px;
         }
-        .template-select {
-          width: 100%;
-          padding: 8px;
-          margin-bottom: 16px;
-          border-radius: 4px;
-          border: 1px solid #ccc;
-        }
         .validation-status {
           margin-bottom: 16px;
         }
@@ -455,28 +470,6 @@ export function TemplateReview() {
         .metric-count {
           font-size: 12px;
           color: #666;
-        }
-        .category-selector {
-          margin-bottom: 16px;
-        }
-        .category-buttons {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 8px;
-        }
-        .category-button {
-          padding: 6px 12px;
-          background: #f0f0f0;
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 14px;
-        }
-        .category-button.active {
-          background: #2196F3;
-          color: white;
-          border-color: #2196F3;
         }
         .template-description {
           margin-bottom: 16px;
