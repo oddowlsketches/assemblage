@@ -1,6 +1,8 @@
 // templates.ts
 // Contains template definitions for the Assemblage application
 
+import tangramTemplate from './templates/tangramTemplate';
+
 export interface MaskPlacement {
   maskName: string;     // Reference to mask in registry (can include family prefix)
   x: number;            // relative 0–1 across canvas
@@ -36,6 +38,7 @@ export interface Template {
   placements?: MaskPlacement[]; // optional mask placements for placement-based templates
   defaultBG?: string;   // optional default background color
   previewImageUrl?: string; // optional URL to a preview image
+  render?: (params: Record<string, any>) => void;
 }
 
 // Main templates collection
@@ -117,7 +120,7 @@ export const templates: Template[] = [
       },
       formType: { 
         type: 'select', 
-        options: ['rectangular', 'semiCircle', 'triangle', 'mixed'], 
+        options: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'beam', 'mixed'], 
         default: 'mixed', 
         label: 'Form Type',
         description: 'Style of forms in the composition'
@@ -160,6 +163,14 @@ export const templates: Template[] = [
         description: 'Apply multiply blend mode to forms'
       }
     }
+  },
+  {
+    key: tangramTemplate.key,
+    name: tangramTemplate.name,
+    description: 'A tangram puzzle template with 7 geometric pieces that fit together perfectly. Each piece can be filled with a different image or color.',
+    category: 'abstract',
+    params: {},
+    render: tangramTemplate.render
   }
 ];
 

@@ -4,6 +4,7 @@
 // Import directly from public path to avoid module conflicts
 import { generateMosaic } from './scrambledMosaic.js';
 import { generatePairedForms } from '../src/templates/pairedForms.js';
+import { renderTangram, tangramArrangementOptions } from '../src/templates/tangramTemplate.js';
 
 class TemplateReviewer {
   constructor() {
@@ -38,7 +39,9 @@ class TemplateReviewer {
         rotation: 0,
         bgColor: '#FFFFFF',
         useMultiply: true
-      }
+      },
+      // Tangram Puzzle params (none for now)
+      tangramPuzzle: {}
     };
     
     // Active params reference (points to current template's params)
@@ -54,6 +57,30 @@ class TemplateReviewer {
   async init() {
     // Set up event listeners
     this.setupEventListeners();
+    
+    // Populate tangram arrangement selector
+    const arrangementSelect = document.getElementById('tangram-arrangement');
+    if (arrangementSelect) {
+      arrangementSelect.innerHTML = '';
+      tangramArrangementOptions.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        arrangementSelect.appendChild(option);
+      });
+      arrangementSelect.value = '0';
+      this.params.arrangementIndex = 0;
+      // Initialize pieceImageOrder for tangram
+      if (this.currentTemplate === 'tangramPuzzle' || this.params.pieceImageOrder === undefined) {
+        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+      }
+      arrangementSelect.addEventListener('change', (e) => {
+        this.params.arrangementIndex = parseInt(e.target.value, 10);
+        // Shuffle pieceImageOrder on arrangement change
+        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+        this.render();
+      });
+    }
     
     // Load images
     await this.loadImages();
@@ -170,6 +197,15 @@ class TemplateReviewer {
     document.getElementById('export-feedback')?.addEventListener('click', () => {
       this.exportFeedback();
     });
+    
+    document.getElementById('tangram-bgColor')?.addEventListener('input', (e) => {
+      this.params.bgColor = e.target.value;
+      // Shuffle pieceImageOrder on bg color change for variety
+      if (this.currentTemplate === 'tangramPuzzle') {
+        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+      }
+      this.render();
+    });
   }
   
   updateUILabels() {
@@ -247,6 +283,12 @@ class TemplateReviewer {
       generateMosaic(this.canvas, this.images, config);
     } else if (this.currentTemplate === 'pairedForms') {
       generatePairedForms(this.canvas, this.images, config);
+    } else if (this.currentTemplate === 'tangramPuzzle') {
+      // Ensure pieceImageOrder exists and is shuffled if needed
+      if (!this.params.pieceImageOrder || this.params.pieceImageOrder.length !== 7) {
+        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+      }
+      renderTangram(this.canvas, this.images, config);
     }
   }
   
@@ -478,13 +520,19 @@ class TemplateReviewer {
   updateControls() {
     const mosaicControls = document.getElementById('mosaic-controls');
     const pairedFormsControls = document.getElementById('paired-forms-controls');
-    
+    const tangramControls = document.getElementById('tangram-controls');
     if (this.currentTemplate === 'scrambledMosaic') {
       if (mosaicControls) mosaicControls.style.display = 'block';
       if (pairedFormsControls) pairedFormsControls.style.display = 'none';
+      if (tangramControls) tangramControls.style.display = 'none';
     } else if (this.currentTemplate === 'pairedForms') {
       if (mosaicControls) mosaicControls.style.display = 'none';
       if (pairedFormsControls) pairedFormsControls.style.display = 'block';
+      if (tangramControls) tangramControls.style.display = 'none';
+    } else if (this.currentTemplate === 'tangramPuzzle') {
+      if (mosaicControls) mosaicControls.style.display = 'none';
+      if (pairedFormsControls) pairedFormsControls.style.display = 'none';
+      if (tangramControls) tangramControls.style.display = 'block';
     }
   }
   
@@ -502,30 +550,37 @@ class TemplateReviewer {
   switchTemplate(templateName) {
     // Update current template
     this.currentTemplate = templateName;
-    
     // Update active params reference
     this.params = this.templateParams[templateName];
-    
     // Update template info
     const templateInfo = document.querySelector('.template-info');
     if (templateInfo) {
       const title = templateInfo.querySelector('h2');
       const description = templateInfo.querySelector('.template-description');
-      
       if (templateName === 'scrambledMosaic') {
         title.textContent = 'Scrambled Mosaic';
         description.textContent = 'A grid-based arrangement with randomized cell operations. Create collages from a regular grid with various operations and patterns.';
       } else if (templateName === 'pairedForms') {
         title.textContent = 'Paired Forms';
         description.textContent = 'A composition of multiple shapes that come together to form a cohesive abstract composition.';
+      } else if (templateName === 'tangramPuzzle') {
+        title.textContent = 'Tangram Puzzle';
+        description.textContent = 'A tangram puzzle template with 7 geometric pieces that fit together perfectly. Each piece can be filled with a different image or color.';
       }
     }
-    
     // Update controls visibility
     this.updateControls();
-    
     // Re-render
     this.render();
+  }
+  
+  // Utility: Fisher-Yates shuffle
+  shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
   }
 }
 

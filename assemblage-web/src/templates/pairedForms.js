@@ -30,6 +30,41 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
       Math.abs((shape1.y + shape1.height) - shape2.y) < 5 ||
       Math.abs((shape2.y + shape2.height) - shape1.y) < 5;
       
+    // Handle special case: beam + beam pairing
+    if (shape1.type === 'beam' && shape2.type === 'beam') {
+      // Initialize drawParams if needed
+      if (!shape1._drawParams) shape1._drawParams = {};
+      if (!shape2._drawParams) shape2._drawParams = {};
+      
+      if (horizontallyAdjacent) {
+        // Horizontal adjacency - ensure flat edges face each other
+        if (shape1.x < shape2.x) {
+          // First beam on left, second on right
+          shape1._drawParams.orientation = 'horizontal';
+          shape2._drawParams.orientation = 'horizontal-flipped';
+          alignBeamEdges(shape1, shape2, 'horizontal');
+        } else {
+          // Second beam on left, first on right
+          shape1._drawParams.orientation = 'horizontal-flipped';
+          shape2._drawParams.orientation = 'horizontal';
+          alignBeamEdges(shape2, shape1, 'horizontal');
+        }
+      } else if (verticallyAdjacent) {
+        // Vertical adjacency - ensure flat edges face each other
+        if (shape1.y < shape2.y) {
+          // First beam on top, second on bottom
+          shape1._drawParams.orientation = 'vertical';
+          shape2._drawParams.orientation = 'vertical-flipped';
+          alignBeamEdges(shape1, shape2, 'vertical');
+        } else {
+          // Second beam on top, first on bottom
+          shape1._drawParams.orientation = 'vertical-flipped';
+          shape2._drawParams.orientation = 'vertical';
+          alignBeamEdges(shape2, shape1, 'vertical');
+        }
+      }
+    }
+    
     // Handle special case: semi-circle + triangle pairing
     if ((shape1.type === 'semiCircle' && shape2.type === 'triangle') ||
         (shape1.type === 'triangle' && shape2.type === 'semiCircle')) {
@@ -178,15 +213,15 @@ export function generatePairedForms(canvas, images, params) {
   
   const ctx = canvas.getContext('2d');
   
+  // Always enable debug outlines for Paired Forms
+  window.debugPairedForms = true;
+
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   // Fill with background color
   ctx.fillStyle = params.bgColor || '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  
-  // Enable debug mode if requested
-  window.debugPairedForms = params.debug || false;
   
   // Interpret parameters
   const formCount = parseInt(params.formCount) || 3;
@@ -220,7 +255,7 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   // Helper to pick a random type for 'mixed'
   function pickType(index, count) {
     if (formType === 'mixed') {
-      const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon'];
+      const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'beam'];
       
       // For mixed shapes, try to ensure adjacent shapes can fit well together
       if (index > 0) {
@@ -284,6 +319,20 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
         // For hexagons, use 0.75 * width for edge-to-edge
         shapeWidth = effectiveWidth / (formCount - (formCount - 1) * 0.25);
         shapeHeight = effectiveHeight;
+      } else if (shapeType === 'beam') {
+        // For beams, treat like rectangles for edge-to-edge
+        if (i === formCount - 1) {
+          shapeWidth = remainingWidth;
+          shapeHeight = effectiveHeight;
+        } else {
+          const portion = 1 / (formCount - i);
+          if (i === 0) {
+            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
+          } else {
+            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
+          }
+          shapeHeight = effectiveHeight;
+        }
       } else {
         // Last shape gets all remaining width
         if (i === formCount - 1) {
@@ -327,6 +376,20 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
         // For hexagons, use 0.75 * height for edge-to-edge
         shapeWidth = effectiveWidth;
         shapeHeight = effectiveHeight / (formCount - (formCount - 1) * 0.25);
+      } else if (shapeType === 'beam') {
+        // For beams, treat like rectangles for edge-to-edge
+        if (i === formCount - 1) {
+          shapeWidth = effectiveWidth;
+          shapeHeight = remainingHeight;
+        } else {
+          const portion = 1 / (formCount - i);
+          if (i === 0) {
+            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
+          } else {
+            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
+          }
+          shapeWidth = effectiveWidth;
+        }
       } else {
         // Last shape gets all remaining height
         if (i === formCount - 1) {
@@ -434,148 +497,16 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
     
     // Draw based on shape type
     if (shapeType === 'semiCircle') {
-      // Draw the image with proper masking
       drawSemiCircle(ctx, shape, img, useMultiply);
-      
-      // Store the orientation in the shape for debug drawing
-      if (!shape._drawParams) {
-        shape._drawParams = { orientation: shape.type === 'semiCircle' ? 'bottom' : 'right' };
-      }
-      
-      // Visual debug outline - matching the actual semi-circle path
-      ctx.save();
-      ctx.strokeStyle = 'blue';
-      ctx.lineWidth = 2;
-      
-      // Use the drawing parameters stored during rendering
-      if (shape._drawParams) {
-        const params = shape._drawParams;
-        
-        // Draw the outline to match the actual shape
-        ctx.beginPath();
-        
-        // Fix the arc drawing to match the rendering logic
-        if (params.orientation === 'bottom') {
-          // Special case for bottom orientation
-          ctx.arc(
-            params.centerX,
-            params.centerY,
-            params.radius,
-            Math.PI,
-            0,
-            true // Draw clockwise
-          );
-        } else if (params.orientation === 'top') {
-          ctx.arc(
-            params.centerX,
-            params.centerY,
-            params.radius,
-            0,
-            Math.PI,
-            false
-          );
-        } else if (params.orientation === 'left') {
-          ctx.arc(
-            params.centerX,
-            params.centerY,
-            params.radius,
-            Math.PI/2,
-            3*Math.PI/2,
-            false
-          );
-        } else if (params.orientation === 'right') {
-          ctx.arc(
-            params.centerX,
-            params.centerY,
-            params.radius,
-            -Math.PI/2,
-            Math.PI/2,
-            false
-          );
-        } else {
-          ctx.arc(
-            params.centerX,
-            params.centerY,
-            params.radius,
-            params.startAngle, 
-            params.endAngle
-          );
-        }
-        
-        ctx.lineTo(params.flatX1, params.flatY1);
-        ctx.lineTo(params.flatX2, params.flatY2);
-        ctx.closePath();
-        ctx.stroke();
-      } else {
-        // Fallback if no draw params available
-        ctx.strokeStyle = 'blue';
-        ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-      }
-      
-      ctx.restore();
     } else if (shapeType === 'triangle') {
-      // Draw the image with proper masking
       drawTriangle(ctx, shape, img, useMultiply);
-      
-      // Visual debug outline - matching the actual triangle path
-      ctx.save();
-      ctx.strokeStyle = 'green';
-      ctx.lineWidth = 2;
-      // Use the same transform as drawTriangle
-      // --- BEGIN MATCHING MASK TRANSFORM ---
-      let angle = 0;
-      const orientation = shape._drawParams?.orientation;
-      switch (orientation) {
-        case 'top-flat': angle = Math.PI; break;
-        case 'left-flat': angle = -Math.PI / 2; break;
-        case 'right-flat': angle = Math.PI / 2; break;
-        // 'bottom-flat' or undefined: angle = 0
-      }
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      ctx.rotate(angle);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
-      ctx.scale(scale, scale);
-      // Draw upright triangle in 100x100 box
-      ctx.beginPath();
-      ctx.moveTo(50, 0);
-      ctx.lineTo(0, 100);
-      ctx.lineTo(100, 100);
-      ctx.closePath();
-      ctx.stroke();
-      // --- END MATCHING MASK TRANSFORM ---
-      ctx.restore();
     } else if (shapeType === 'hexagon') {
       drawHexagon(ctx, shape, img, useMultiply);
-      // Debug outline for hexagon
-      ctx.save();
-      ctx.strokeStyle = 'purple';
-      ctx.lineWidth = 2;
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
-      ctx.scale(scale, scale);
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const angle = Math.PI / 3 * i - Math.PI / 6;
-        const px = 50 + 50 * Math.cos(angle);
-        const py = 50 + 50 * Math.sin(angle);
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
+    } else if (shapeType === 'beam') {
+      drawBeam(ctx, shape, img, useMultiply);
     } else {
       // Default to rectangular
       drawRectangle(ctx, shape, img, useMultiply);
-      
-      // Visual debug outline - can be removed for production
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
     }
     ctx.restore();
   }
@@ -827,25 +758,27 @@ function drawTriangle(ctx, shape, img, useMultiply) {
 // Add drawHexagon function
 function drawHexagon(ctx, shape, img, useMultiply) {
   const maskFn = maskRegistry.basic?.hexagonMask;
+  const HEX_HEIGHT = 86.6025; // Tight bounding box height for hexagon
   if (maskFn) {
     const maskObj = maskFn({});
     const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
     const maskPath = svgToPath2D(svg);
     if (maskPath) {
       ctx.save();
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      // Apply rotation if present
+      ctx.translate(shape.x, shape.y);
       const rotation = shape._drawParams?.rotation || 0;
+      // Uniform scale and center
+      const scale = Math.min(shape.width / 100, shape.height / HEX_HEIGHT);
+      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - HEX_HEIGHT * scale) / 2);
+      ctx.translate(100 * scale / 2, HEX_HEIGHT * scale / 2);
       ctx.rotate(rotation);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
+      ctx.translate(-100 * scale / 2, -HEX_HEIGHT * scale / 2);
       ctx.scale(scale, scale);
       ctx.clip(maskPath);
       if (useMultiply) ctx.globalCompositeOperation = 'multiply';
       // Aspect-ratio cover logic
       const destW = 100;
-      const destH = 100;
+      const destH = HEX_HEIGHT;
       const destAspect = destW / destH;
       const imgAspect = img.width / img.height;
       let sx, sy, sWidth, sHeight;
@@ -865,20 +798,27 @@ function drawHexagon(ctx, shape, img, useMultiply) {
       return;
     }
   }
-  // fallback: draw a regular hexagon path
+  // fallback: draw a regular hexagon path (inscribed in 100x86.6025)
   ctx.save();
-  ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
+  ctx.translate(shape.x, shape.y);
   const rotation = shape._drawParams?.rotation || 0;
+  const scale = Math.min(shape.width / 100, shape.height / HEX_HEIGHT);
+  ctx.translate((shape.width - 100 * scale) / 2, (shape.height - HEX_HEIGHT * scale) / 2);
+  ctx.translate(100 * scale / 2, HEX_HEIGHT * scale / 2);
   ctx.rotate(rotation);
-  ctx.translate(-shape.width / 2, -shape.height / 2);
-  const scale = Math.min(shape.width, shape.height) / 100;
-  ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
+  ctx.translate(-100 * scale / 2, -HEX_HEIGHT * scale / 2);
   ctx.scale(scale, scale);
   ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const angle = Math.PI / 3 * i - Math.PI / 6;
-    const px = 50 + 50 * Math.cos(angle);
-    const py = 50 + 50 * Math.sin(angle);
+  const points = [
+    [0, HEX_HEIGHT / 2],
+    [25, 0],
+    [75, 0],
+    [100, HEX_HEIGHT / 2],
+    [75, HEX_HEIGHT],
+    [25, HEX_HEIGHT]
+  ];
+  for (let i = 0; i < points.length; i++) {
+    const [px, py] = points[i];
     if (i === 0) ctx.moveTo(px, py);
     else ctx.lineTo(px, py);
   }
@@ -886,21 +826,107 @@ function drawHexagon(ctx, shape, img, useMultiply) {
   ctx.clip();
   if (useMultiply) ctx.globalCompositeOperation = 'multiply';
   // Aspect-ratio logic
-  const imageAspect = img.width / img.height;
-  const shapeAspect = shape.width / shape.height;
-  let sourceX, sourceY, sourceWidth, sourceHeight;
-  if (imageAspect > shapeAspect) {
-    sourceHeight = img.height;
-    sourceWidth = img.height * shapeAspect;
-    sourceX = (img.width - sourceWidth) / 2;
-    sourceY = 0;
+  const destW = 100;
+  const destH = HEX_HEIGHT;
+  const destAspect = destW / destH;
+  const imgAspect = img.width / img.height;
+  let sx, sy, sWidth, sHeight;
+  if (imgAspect > destAspect) {
+    sHeight = img.height;
+    sWidth = sHeight * destAspect;
+    sx = (img.width - sWidth) / 2;
+    sy = 0;
   } else {
-    sourceWidth = img.width;
-    sourceHeight = img.width / shapeAspect;
-    sourceX = 0;
-    sourceY = (img.height - sourceHeight) / 2;
+    sWidth = img.width;
+    sHeight = sWidth / destAspect;
+    sx = 0;
+    sy = (img.height - sHeight) / 2;
   }
-  ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, 100, 100);
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
+  ctx.restore();
+}
+
+/**
+ * Draw a beam shape properly aligned to touch other shapes
+ */
+function drawBeam(ctx, shape, img, useMultiply) {
+  // Use maskRegistry for beam
+  const maskFn = maskRegistry.basic?.beamMask;
+  if (maskFn) {
+    const maskObj = maskFn({});
+    const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
+    // Debug: print SVG string, bounding box, and orientation
+    if (window.debugPairedForms) {
+      console.log('[drawBeam] SVG:', svg);
+      console.log('[drawBeam] Bounding box:', { x: shape.x, y: shape.y, width: shape.width, height: shape.height });
+      console.log('[drawBeam] Orientation:', shape._drawParams?.orientation);
+    }
+    const maskPath = svgToPath2D(svg);
+    if (maskPath) {
+      ctx.save();
+      
+      // --- ORIENTATION LOGIC ---
+      // Default orientation: horizontal with wider top
+      let angle = 0;
+      const orientation = shape._drawParams?.orientation;
+      switch (orientation) {
+        case 'vertical': angle = Math.PI / 2; break;
+        case 'vertical-flipped': angle = -Math.PI / 2; break;
+        case 'horizontal-flipped': angle = Math.PI; break;
+        // 'horizontal' or undefined: angle = 0
+      }
+      
+      // Uniform scale and center
+      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
+      ctx.rotate(angle);
+      ctx.translate(-shape.width / 2, -shape.height / 2);
+      const scale = Math.min(shape.width, shape.height) / 100;
+      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
+      ctx.scale(scale, scale);
+      ctx.clip(maskPath);
+      if (useMultiply) ctx.globalCompositeOperation = 'multiply';
+      
+      // --- ASPECT RATIO FIX (cover) ---
+      const destW = 100;
+      const destH = 100;
+      const destAspect = destW / destH;
+      const imgAspect = img.width / img.height;
+      let sx, sy, sWidth, sHeight;
+      if (imgAspect > destAspect) {
+        sHeight = img.height;
+        sWidth = sHeight * destAspect;
+        sx = (img.width - sWidth) / 2;
+        sy = 0;
+      } else {
+        sWidth = img.width;
+        sHeight = sWidth / destAspect;
+        sx = 0;
+        sy = (img.height - sHeight) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
+      
+      // Debug outline
+      if (window.debugPairedForms) {
+        ctx.strokeStyle = 'orange';
+        ctx.lineWidth = 2;
+        ctx.stroke(maskPath);
+      }
+      
+      ctx.restore();
+      return;
+    }
+  }
+  
+  // fallback to old logic if maskRegistry fails
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(shape.x + shape.width / 2, shape.y);
+  ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
+  ctx.lineTo(shape.x, shape.y + shape.height);
+  ctx.closePath();
+  ctx.clip();
+  if (useMultiply) ctx.globalCompositeOperation = 'multiply';
+  ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
   ctx.restore();
 }
 
@@ -932,6 +958,39 @@ function checkTriangleTouching(composition) {
           console.log('Triangle vertices:', shape._drawParams.vertices);
         }
       }
+    }
+  }
+}
+
+// Helper: Align the flat edge of two beams for edge-to-edge contact
+function alignBeamEdges(shape1, shape2, direction) {
+  // direction: 'horizontal' or 'vertical'
+  // shape1 is the reference, shape2 is nudged
+  // Both shapes must have .width and .height
+  // Both must have _drawParams.orientation set
+  // The beam mask uses a tight viewBox, so the flat edge is at y=0 or y=height (horizontal), x=0 or x=width (vertical)
+  if (direction === 'horizontal') {
+    // Align right edge of shape1 to left edge of shape2
+    // For horizontal beams, the flat edge is at the bottom for 'horizontal', at the top for 'horizontal-flipped'
+    // We'll align the bottom of shape1 to the top of shape2
+    if (shape1._drawParams.orientation === 'horizontal' && shape2._drawParams.orientation === 'horizontal-flipped') {
+      // shape1's bottom to shape2's top
+      shape2.x = shape1.x + shape1.width;
+      shape2.y = shape1.y; // align y
+    } else if (shape1._drawParams.orientation === 'horizontal-flipped' && shape2._drawParams.orientation === 'horizontal') {
+      // shape2's bottom to shape1's top
+      shape1.x = shape2.x + shape2.width;
+      shape1.y = shape2.y;
+    }
+  } else if (direction === 'vertical') {
+    // Align bottom edge of shape1 to top edge of shape2
+    // For vertical beams, the flat edge is at the right for 'vertical', at the left for 'vertical-flipped'
+    if (shape1._drawParams.orientation === 'vertical' && shape2._drawParams.orientation === 'vertical-flipped') {
+      shape2.y = shape1.y + shape1.height;
+      shape2.x = shape1.x;
+    } else if (shape1._drawParams.orientation === 'vertical-flipped' && shape2._drawParams.orientation === 'vertical') {
+      shape1.y = shape2.y + shape2.height;
+      shape1.x = shape2.x;
     }
   }
 }

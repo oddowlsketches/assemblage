@@ -407,17 +407,20 @@ function diamondMask({ cx = 50, cy = 50, w = 40, h = 40 }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
+// Hexagon mask with tight bounding box: width = 100 (flat-to-flat), height = 86.6025 (point-to-point)
 function hexagonMask() {
-  // Hexagon that fills the 100x100 box
+  // Height from point to point
+  const height = 86.6025; // 2 * 50 * sin(60deg)
+  // Points for a flat-topped hexagon, centered in the viewBox
   const points = [
-    '100,50',
-    '75,93.301',
-    '25,93.301',
-    '0,50',
-    '25,6.699',
-    '75,6.699'
+    `0,${height / 2}`,
+    `25,0`,
+    `75,0`,
+    `100,${height / 2}`,
+    `75,${height}`,
+    `25,${height}`
   ].join(' ');
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 ${height}'><polygon points='${points}' fill='white'/></svg>`;
 }
 
 function semiCircleMask({ orientation = 'up' }: MaskParams = {}) {
@@ -453,27 +456,53 @@ function triangleMask({ orientation = 'up' }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
-function beamMask({ widthTop = 80, widthBottom = 40, height = 80, angle = 0, offsetX = 50, offsetY = 60 }: MaskParams = {}) {
-  // Quadrilateral beam/path, can be a parallelogram, trapezoid, or wedge
-  // Centered by default, angle in degrees
-  const rad = (angle * Math.PI) / 180;
-  // Top left and right
-  const tlx = offsetX - widthTop / 2 * Math.cos(rad);
-  const tly = offsetY - height / 2;
-  const trx = offsetX + widthTop / 2 * Math.cos(rad);
-  const try_ = offsetY - height / 2;
-  // Bottom left and right
-  const blx = offsetX - widthBottom / 2 * Math.cos(rad);
-  const bly = offsetY + height / 2;
-  const brx = offsetX + widthBottom / 2 * Math.cos(rad);
-  const bry = offsetY + height / 2;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <polygon points='
-      ${tlx},${tly}
-      ${trx},${try_}
-      ${brx},${bry}
-      ${blx},${bly}
-    ' fill='white'/>
+function beamMask({ widthTop = 80, widthBottom = 40, height = 80, orientation = 'horizontal' }: MaskParams = {}) {
+  // Beam shape with tight viewBox and orientation support
+  // orientation: 'horizontal', 'vertical', 'horizontal-flipped', 'vertical-flipped'
+  
+  // Calculate the tight viewBox dimensions
+  const maxWidth = Math.max(widthTop, widthBottom);
+  const viewBoxWidth = maxWidth;
+  const viewBoxHeight = height;
+  
+  // Calculate points based on orientation
+  let points;
+  if (orientation === 'horizontal') {
+    // Horizontal beam (wider at top)
+    points = `
+      ${(maxWidth - widthTop) / 2},0
+      ${(maxWidth + widthTop) / 2},0
+      ${(maxWidth + widthBottom) / 2},${height}
+      ${(maxWidth - widthBottom) / 2},${height}
+    `;
+  } else if (orientation === 'horizontal-flipped') {
+    // Horizontal beam (wider at bottom)
+    points = `
+      ${(maxWidth - widthBottom) / 2},0
+      ${(maxWidth + widthBottom) / 2},0
+      ${(maxWidth + widthTop) / 2},${height}
+      ${(maxWidth - widthTop) / 2},${height}
+    `;
+  } else if (orientation === 'vertical') {
+    // Vertical beam (wider at right)
+    points = `
+      0,${(height - widthTop) / 2}
+      0,${(height + widthTop) / 2}
+      ${height},${(height + widthBottom) / 2}
+      ${height},${(height - widthBottom) / 2}
+    `;
+  } else {
+    // Vertical beam (wider at left)
+    points = `
+      0,${(height - widthBottom) / 2}
+      0,${(height + widthBottom) / 2}
+      ${height},${(height + widthTop) / 2}
+      ${height},${(height - widthTop) / 2}
+    `;
+  }
+  
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${viewBoxWidth} ${viewBoxHeight}'>
+    <polygon points='${points}' fill='white'/>
   </svg>`;
 }
 
