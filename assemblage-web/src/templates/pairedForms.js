@@ -995,8 +995,9 @@ function alignBeamEdges(shape1, shape2, direction) {
   }
 }
 
-export default {
-  name: 'Paired Forms',
-  key: 'pairedForms',
-  render: generatePairedForms
+// Export the main function as default
+const pairedForms = {
+  generate: generatePairedForms
 };
+
+export default pairedForms;

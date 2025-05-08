@@ -18,7 +18,96 @@ function getRandomBackgroundColor() {
     return backgroundColors[Math.floor(Math.random() * backgroundColors.length)];
 }
 
+// New tiling templates for different pattern types
+const squareGridTemplate = {
+    key: 'squareGridTiling',
+    name: 'Square Grid Tiling',
+    description: 'A grid of square tiles with images',
+    defaultBG: '#F0F5FA',
+    placements: Array.from({ length: 16 }, (_, i) => {
+        const col = i % 4;
+        const row = Math.floor(i / 4);
+        return {
+            maskName: 'basic/squareMask',
+            x: 0.125 + col * 0.25,
+            y: 0.125 + row * 0.25,
+            width: 0.22,
+            height: 0.22,
+            rotation: 0
+        };
+    })
+};
+
+const triangleGridTemplate = {
+    key: 'triangleGridTiling',
+    name: 'Triangle Grid Tiling',
+    description: 'A grid of triangular tiles with images',
+    defaultBG: '#F6E6E4',
+    placements: [
+        // Row 1
+        { maskName: 'basic/triangleMask', x: 0.125, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.375, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.625, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.875, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        // Row 1 inverted
+        { maskName: 'basic/triangleMask', x: 0.125, y: 0.125, width: 0.25, height: 0.25, rotation: 180 },
+        { maskName: 'basic/triangleMask', x: 0.375, y: 0.125, width: 0.25, height: 0.25, rotation: 180 },
+        { maskName: 'basic/triangleMask', x: 0.625, y: 0.125, width: 0.25, height: 0.25, rotation: 180 },
+        { maskName: 'basic/triangleMask', x: 0.875, y: 0.125, width: 0.25, height: 0.25, rotation: 180 },
+        // Row 2
+        { maskName: 'basic/triangleMask', x: 0.125, y: 0.375, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.375, y: 0.375, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.625, y: 0.375, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/triangleMask', x: 0.875, y: 0.375, width: 0.25, height: 0.25, rotation: 0 }
+    ]
+};
+
+const hexagonGridTemplate = {
+    key: 'hexagonGridTiling',
+    name: 'Hexagon Grid Tiling',
+    description: 'A honeycomb pattern of hexagonal tiles',
+    defaultBG: '#F5F5F0',
+    placements: [
+        // Center row
+        { maskName: 'basic/hexagonMask', x: 0.25, y: 0.5, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.5, y: 0.5, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.75, y: 0.5, width: 0.2, height: 0.2, rotation: 0 },
+        // Upper row (offset)
+        { maskName: 'basic/hexagonMask', x: 0.125, y: 0.3, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.375, y: 0.3, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.625, y: 0.3, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.875, y: 0.3, width: 0.2, height: 0.2, rotation: 0 },
+        // Lower row (offset)
+        { maskName: 'basic/hexagonMask', x: 0.125, y: 0.7, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.375, y: 0.7, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.625, y: 0.7, width: 0.2, height: 0.2, rotation: 0 },
+        { maskName: 'basic/hexagonMask', x: 0.875, y: 0.7, width: 0.2, height: 0.2, rotation: 0 }
+    ]
+};
+
+const modularGridTemplate = {
+    key: 'modularGridTiling',
+    name: 'Modular Grid Tiling',
+    description: 'A grid with varying cell sizes based on golden ratio',
+    defaultBG: '#E8F3F1',
+    placements: [
+        // Large cells
+        { maskName: 'basic/squareMask', x: 0.25, y: 0.25, width: 0.5, height: 0.5, rotation: 0 },
+        // Medium cells
+        { maskName: 'basic/squareMask', x: 0.125, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.75, y: 0.125, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.125, y: 0.625, width: 0.25, height: 0.25, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.75, y: 0.625, width: 0.25, height: 0.25, rotation: 0 },
+        // Small cells
+        { maskName: 'basic/squareMask', x: 0.875, y: 0.375, width: 0.125, height: 0.125, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.875, y: 0.5, width: 0.125, height: 0.125, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.375, y: 0.875, width: 0.125, height: 0.125, rotation: 0 },
+        { maskName: 'basic/squareMask', x: 0.5, y: 0.875, width: 0.125, height: 0.125, rotation: 0 },
+    ]
+};
+
 export const templates = [
+    // Original templates
     {
         key: 'archesRow',
         name: 'Row of Three Arches',
@@ -413,8 +502,8 @@ export const templates = [
         ]
     },
     {
-        key: 'floatingForms',
-        name: 'Floating Forms',
+        key: 'floatingFormsTemplate',
+        name: 'Floating Forms Template',
         defaultBG: '#F7F7F7',
         placements: [
             { maskName: 'abstract/blobIrregular', x: 0.35, y: 0.40, width: 0.35, height: 0.35, rotation: 45 },
@@ -423,5 +512,11 @@ export const templates = [
             { maskName: 'abstract/polygonSoft',   x: 0.70, y: 0.20, width: 0.10, height: 0.10, rotation: 90 },
             { maskName: 'basic/circleMask',       x: 0.80, y: 0.30, width: 0.10, height: 0.10, rotation: 135 }
         ]
-    }
-]; 
+    },
+    
+    // New tiling templates
+    squareGridTemplate,
+    triangleGridTemplate,
+    hexagonGridTemplate,
+    modularGridTemplate
+];

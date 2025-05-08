@@ -3,17 +3,23 @@
 
 import scrambledMosaic from './scrambledMosaic';
 import pairedForms from './pairedForms';
+import tangramTemplate from './tangramTemplate';
+import tilingTemplate from './tilingTemplate';
 
-// Export individual templates for direct access
+// Create the templates array first
+const templates = [
+  scrambledMosaic,
+  pairedForms,
+  tangramTemplate,
+  tilingTemplate
+];
+
+// Then export everything
 export {
   scrambledMosaic,
-  pairedForms
-};
-
-// Export a collection of all templates
-const templates = {
-  scrambledMosaic,
-  pairedForms
+  pairedForms,
+  tangramTemplate,
+  tilingTemplate
 };
 
 export default templates;

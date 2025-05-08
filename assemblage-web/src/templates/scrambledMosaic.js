@@ -549,9 +549,9 @@ export function generateMosaic(canvas, images, params) {
     return canvas;
 }
 
-// Export the module for use in the template renderer
-export default {
-    name: 'Scrambled Mosaic',
-    key: 'scrambledMosaic',
-    render: generateMosaic
+// Export the main function as default
+const scrambledMosaic = {
+  generate: generateMosaic
 };
+
+export default scrambledMosaic;

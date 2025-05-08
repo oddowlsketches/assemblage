@@ -548,6 +548,41 @@ function arcMask() {
   `;
 }
 
+export const tangramLargeTriangle = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <polygon points="0,0 100,0 0,100" fill="white"/>
+  </svg>`;
+
+export const tangramLargeTriangle2 = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <polygon points="0,100 100,100 100,0" fill="white"/>
+  </svg>`;
+
+export const tangramMediumTriangle = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <polygon points="0,0 50,0 50,50" fill="white"/>
+  </svg>`;
+
+export const tangramSmallTriangle1 = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
+    <polygon points="0,0 25,0 0,25" fill="white"/>
+  </svg>`;
+
+export const tangramSmallTriangle2 = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
+    <polygon points="25,25 0,25 25,0" fill="white"/>
+  </svg>`;
+
+export const tangramSquare = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+    <rect width="50" height="50" fill="white"/>
+  </svg>`;
+
+export const tangramParallelogram = () => `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+    <polygon points="25,0 100,0 75,50 0,50" fill="white"/>
+  </svg>`;
+
 const registry: Record<string, Record<string, MaskGenerator>> = {
   sliced: {
     sliceHorizontalWide: () => ({ kind: 'svg', getSvg: () => sliceHorizontalWide(), description: "A wide horizontal slice", tags: ["slice","horizontal","wide","legacy"] }),
@@ -597,6 +632,13 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
     beamMask: () => ({ kind: 'svg', getSvg: () => beamMask(), description: "A trapezoidal beam shape", tags: ["beam","trapezoid","geometry","basic"] }),
     donutMask: () => ({ kind: 'svg', getSvg: () => donutMask(), description: "A ring (donut) mask with a hollow center", tags: ["donut","ring","circle","geometry","basic"] }),
     arcMask: () => ({ kind: 'svg', getSvg: () => arcMask(), description: "A half-donut (arc) mask with a flat bottom", tags: ["arc","half-donut","ring","geometry","basic"] }),
+    tangramLargeTriangle: () => ({ kind: 'svg', getSvg: () => tangramLargeTriangle(), description: "A large triangle mask", tags: ["triangle","geometry","basic"] }),
+    tangramLargeTriangle2: () => ({ kind: 'svg', getSvg: () => tangramLargeTriangle2(), description: "A large triangle mask", tags: ["triangle","geometry","basic"] }),
+    tangramMediumTriangle: () => ({ kind: 'svg', getSvg: () => tangramMediumTriangle(), description: "A medium triangle mask", tags: ["triangle","geometry","basic"] }),
+    tangramSmallTriangle1: () => ({ kind: 'svg', getSvg: () => tangramSmallTriangle1(), description: "A small triangle mask", tags: ["triangle","geometry","basic"] }),
+    tangramSmallTriangle2: () => ({ kind: 'svg', getSvg: () => tangramSmallTriangle2(), description: "A small triangle mask", tags: ["triangle","geometry","basic"] }),
+    tangramSquare: () => ({ kind: 'svg', getSvg: () => tangramSquare(), description: "A square mask", tags: ["square","geometry","basic"] }),
+    tangramParallelogram: () => ({ kind: 'svg', getSvg: () => tangramParallelogram(), description: "A parallelogram mask", tags: ["parallelogram","geometry","basic"] }),
   },
   narrative: {
     panelRectWide: () => ({ kind: 'svg', getSvg: () => panelRectWide(), description: "A wide rectangular narrative panel", tags: ["panel","wide","rectangle","narrative"] }),

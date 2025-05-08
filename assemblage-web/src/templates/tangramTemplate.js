@@ -1,186 +1,192 @@
-// Tangram Template (initial version)
-// This template defines the 7 tangram pieces and a classic square arrangement.
-// It renders each piece as a polygon mask and fills it with an image.
+// Minimal Tangram Template - Pure Canvas Edition
+// This version avoids using complex SVG->Path2D conversion 
+// and directly draws shapes onto the canvas
 
-const tangramPieces = [
-  // Large triangle 1
-  [ {x:0, y:0}, {x:50, y:50}, {x:0, y:100} ],
-  // Large triangle 2
-  [ {x:0, y:0}, {x:100, y:0}, {x:50, y:50} ],
-  // Medium triangle
-  [ {x:100, y:0}, {x:100, y:100}, {x:50, y:50} ],
-  // Small triangle 1
-  [ {x:0, y:100}, {x:25, y:75}, {x:50, y:100} ],
-  // Small triangle 2
-  [ {x:75, y:75}, {x:100, y:100}, {x:50, y:100} ],
-  // Square
-  [ {x:25, y:75}, {x:50, y:50}, {x:75, y:75}, {x:50, y:100} ],
-  // Parallelogram
-  [ {x:25, y:75}, {x:50, y:50}, {x:75, y:25}, {x:50, y:0} ]
-];
+import { tangramArrangements } from './tangramArrangements';
+import maskRegistry from '../masks/maskRegistry';
+import { registerTangramPieces } from '../masks/tangramPieces';
 
-// Arrangements: each is an array of { piece, x, y, rotation, flip }
-const tangramArrangements = [
-  {
-    name: 'Classic Square',
-    pieces: [
-      { piece: 0, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 1, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 2, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 3, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 4, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 5, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 6, x: 0, y: 0, rotation: 0, flip: false }
-    ]
-  },
-  {
-    name: 'Cat',
-    pieces: [
-      { piece: 0, x: 0, y: 0, rotation: 0, flip: false },
-      { piece: 1, x: 50, y: 0, rotation: 45, flip: false },
-      { piece: 2, x: 60, y: 40, rotation: 90, flip: false },
-      { piece: 3, x: 20, y: 60, rotation: 0, flip: false },
-      { piece: 4, x: 70, y: 70, rotation: 0, flip: false },
-      { piece: 5, x: 40, y: 80, rotation: 0, flip: false },
-      { piece: 6, x: 80, y: 20, rotation: 0, flip: true }
-    ]
-  }
-];
+// Register tangram pieces
+registerTangramPieces(maskRegistry);
 
-function drawPolygon(ctx, points, fillStyle) {
+// Function to draw a triangle directly on canvas
+function drawTriangle(ctx, x1, y1, x2, y2, x3, y3) {
   ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
   ctx.closePath();
-  ctx.fillStyle = fillStyle || 'white';
-  ctx.fill();
-  ctx.strokeStyle = 'black';
-  ctx.lineWidth = 1;
-  ctx.stroke();
 }
 
-function drawPolygonMask(ctx, points, drawImageFn) {
-  ctx.save();
+// Function to draw a square directly on canvas
+function drawSquare(ctx, x, y, size) {
   ctx.beginPath();
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
-  }
+  ctx.rect(x, y, size, size);
+}
+
+// Function to draw a parallelogram directly on canvas
+function drawParallelogram(ctx, x, y, width, height, skew) {
+  ctx.beginPath();
+  ctx.moveTo(x + skew, y);
+  ctx.lineTo(x + width, y);
+  ctx.lineTo(x + width - skew, y + height);
+  ctx.lineTo(x, y + height);
   ctx.closePath();
-  ctx.clip();
-  drawImageFn();
-  ctx.restore();
 }
 
-function transformPoints(points, x, y, rotation, flip) {
-  // rotation in degrees, flip horizontally if true
-  const rad = (rotation || 0) * Math.PI / 180;
-  return points.map(pt => {
-    let px = pt.x, py = pt.y;
-    if (flip) px = 100 - px;
-    // Rotate around (0,0)
-    const rx = Math.cos(rad) * px - Math.sin(rad) * py;
-    const ry = Math.sin(rad) * px + Math.cos(rad) * py;
-    return { x: rx + x, y: ry + y };
-  });
-}
-
+// Main rendering function
 export function renderTangram(canvas, images, params) {
+  // Get context and clear
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Validate inputs
+  if (!canvas || !images || images.length === 0) {
+    console.warn('Invalid input to renderTangram');
+    return canvas;
+  }
+
+  // Set default parameters
+  params = params || {};
+  
   // Fill background color
-  ctx.save();
   ctx.fillStyle = params.bgColor || '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
-  ctx.save();
-  ctx.scale(canvas.width / 100, canvas.height / 100);
+  
+  // Get arrangement
   const arrangementIndex = params.arrangementIndex || 0;
-  const arrangement = tangramArrangements[arrangementIndex] || tangramArrangements[0];
-
-  // --- Auto-fit logic ---
-  // 1. Transform all piece points and collect them
-  let allTransformedPoints = [];
-  const transformedPieces = arrangement.pieces.map(({ piece, x, y, rotation, flip }) => {
-    const basePoints = tangramPieces[piece];
-    const points = transformPoints(basePoints, x, y, rotation, flip);
-    allTransformedPoints.push(...points);
-    return points;
-  });
-  // 2. Compute bounding box
-  const minX = Math.min(...allTransformedPoints.map(p => p.x));
-  const minY = Math.min(...allTransformedPoints.map(p => p.y));
-  const maxX = Math.max(...allTransformedPoints.map(p => p.x));
-  const maxY = Math.max(...allTransformedPoints.map(p => p.y));
-  const boxW = maxX - minX;
-  const boxH = maxY - minY;
-  // 3. Compute scale and offset to fit in 100x100
-  const scale = Math.min(100 / boxW, 100 / boxH);
-  const offsetX = (100 - boxW * scale) / 2 - minX * scale;
-  const offsetY = (100 - boxH * scale) / 2 - minY * scale;
-
-  for (let i = 0; i < arrangement.pieces.length; i++) {
-    const points = transformedPieces[i].map(p => ({
-      x: p.x * scale + offsetX,
-      y: p.y * scale + offsetY
-    }));
-    // Use pieceImageOrder for image assignment if available
-    let imgIdx = i % images.length;
-    if (params.pieceImageOrder && Array.isArray(params.pieceImageOrder)) {
-      imgIdx = params.pieceImageOrder[i % params.pieceImageOrder.length] % images.length;
+  const arrangement = tangramArrangements[arrangementIndex];
+  if (!arrangement || !arrangement.placements) {
+    console.warn('No valid arrangement found');
+    return canvas;
+  }
+  
+  // Log for debugging
+  console.log('Rendering arrangement:', arrangement.key);
+  console.log('Placements:', arrangement.placements);
+  
+  // Canvas dimensions and scale
+  const size = Math.min(canvas.width, canvas.height) * 0.8;
+  const offsetX = (canvas.width - size) / 2;
+  const offsetY = (canvas.height - size) / 2;
+  
+  // Debug mode
+  const debug = params.debug === true;
+  
+  // Image assignment
+  const pieceImageOrder = params.pieceImageOrder || 
+    Array.from({ length: arrangement.placements.length }, (_, i) => i);
+  
+  // Draw each piece directly with canvas commands
+  arrangement.placements.forEach((piece, index) => {
+    // Pick image
+    const imgIndex = pieceImageOrder[index % pieceImageOrder.length] % images.length;
+    const img = images[imgIndex];
+    if (!img || !img.complete) return;
+    
+    // Calculate position and size
+    const x = offsetX + (piece.x * size);
+    const y = offsetY + (piece.y * size);
+    const width = piece.width * size;
+    const height = piece.height * size;
+    
+    // Save context for transformation
+    ctx.save();
+    
+    // Position and rotate
+    ctx.translate(x, y);
+    if (piece.rotation) {
+      ctx.rotate(piece.rotation * Math.PI / 180);
     }
-    const img = images[imgIdx];
-    drawPolygonMask(ctx, points, () => {
-      if (img) {
-        ctx.globalCompositeOperation = 'multiply';
-        const minX = Math.min(...points.map(p => p.x));
-        const minY = Math.min(...points.map(p => p.y));
-        const maxX = Math.max(...points.map(p => p.x));
-        const maxY = Math.max(...points.map(p => p.y));
-        const polyW = maxX - minX;
-        const polyH = maxY - minY;
-        const destAspect = polyW / polyH;
-        const imgAspect = img.width / img.height;
-        let sx, sy, sWidth, sHeight;
-        if (imgAspect > destAspect) {
-          sHeight = img.height;
-          sWidth = sHeight * destAspect;
-          sx = (img.width - sWidth) / 2;
-          sy = 0;
-        } else {
-          sWidth = img.width;
-          sHeight = sWidth / destAspect;
-          sx = 0;
-          sy = (img.height - sHeight) / 2;
-        }
-        ctx.drawImage(img, sx, sy, sWidth, sHeight, minX, minY, polyW, polyH);
-        ctx.globalCompositeOperation = 'source-over';
+    
+    // Determine piece type from maskName
+    const maskName = piece.maskName.split('/')[1];
+    
+    // Create clip path based on piece type
+    if (maskName.includes('Large')) {
+      // Large triangle - right angled triangle
+      drawTriangle(ctx, 0, 0, width, 0, 0, height);
+    } 
+    else if (maskName.includes('Medium')) {
+      // Medium triangle
+      drawTriangle(ctx, 0, 0, width, 0, width, height);
+    }
+    else if (maskName.includes('Small')) {
+      // Small triangle
+      if (maskName.includes('1')) {
+        drawTriangle(ctx, 0, 0, width, 0, 0, height);
+      } else {
+        drawTriangle(ctx, width, 0, width, height, 0, height);
       }
-    });
-    if (window.debugTangram) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      for (let j = 1; j < points.length; j++) {
-        ctx.lineTo(points[j].x, points[j].y);
-      }
-      ctx.closePath();
-      ctx.strokeStyle = 'orange';
-      ctx.lineWidth = 1.5;
+    }
+    else if (maskName.includes('Square')) {
+      // Square
+      drawSquare(ctx, 0, 0, width);
+    }
+    else if (maskName.includes('Parallelogram')) {
+      // Parallelogram
+      drawParallelogram(ctx, 0, 0, width, height, width/2);
+    }
+    
+    // Apply clip
+    ctx.clip();
+    
+    // Draw image with multiply blend
+    ctx.globalCompositeOperation = 'multiply';
+    
+    // Simple placement - scale image to fit 
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    // Reset blending
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Debug outlines
+    if (debug) {
+      ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+      ctx.lineWidth = 2;
       ctx.stroke();
-      ctx.restore();
+    }
+    
+    // Restore context
+    ctx.restore();
+  });
+  
+  // Draw container box in debug mode
+  if (debug) {
+    ctx.strokeStyle = 'rgba(0,255,0,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(offsetX, offsetY, size, size);
+    
+    // Draw grid
+    ctx.strokeStyle = 'rgba(0,0,255,0.2)';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      // Vertical line
+      ctx.beginPath();
+      ctx.moveTo(offsetX + (i/10) * size, offsetY);
+      ctx.lineTo(offsetX + (i/10) * size, offsetY + size);
+      ctx.stroke();
+      
+      // Horizontal line
+      ctx.beginPath();
+      ctx.moveTo(offsetX, offsetY + (i/10) * size);
+      ctx.lineTo(offsetX + size, offsetY + (i/10) * size);
+      ctx.stroke();
     }
   }
-  ctx.restore();
+  
   return canvas;
 }
 
-export const tangramArrangementOptions = tangramArrangements.map((a, i) => ({ label: a.name, value: i }));
+// Create arrangement options
+export const tangramArrangementOptions = tangramArrangements.map((a, i) => ({ 
+  label: a.name || a.key, 
+  value: i 
+}));
 
-export default {
-  name: 'Tangram Puzzle',
-  key: 'tangramPuzzle',
-  render: renderTangram
-}; 
+// Export the main function as default
+const tangramTemplate = {
+  generate: renderTangram
+};
+
+export default tangramTemplate;

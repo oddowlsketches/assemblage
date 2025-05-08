@@ -5,6 +5,7 @@
 import { generateMosaic } from './scrambledMosaic.js';
 import { generatePairedForms } from '../src/templates/pairedForms.js';
 import { renderTangram, tangramArrangementOptions } from '../src/templates/tangramTemplate.js';
+import tilingTemplate from '../src/templates/tilingTemplate.js';
 
 class TemplateReviewer {
   constructor() {
@@ -40,8 +41,23 @@ class TemplateReviewer {
         bgColor: '#FFFFFF',
         useMultiply: true
       },
-      // Tangram Puzzle params (none for now)
-      tangramPuzzle: {}
+      // Tangram Puzzle params
+      tangramPuzzle: {
+        bgColor: '#FFFFFF',
+        arrangementIndex: 0,
+        pieceImageOrder: []
+      },
+      // Tiling Patterns params
+      tilingPatterns: {
+        patternType: 'squares',
+        fillStyle: 'fullBleed',
+        tileCount: 16,
+        tileSpacing: 0,
+        useUniqueImages: true,
+        randomRotation: false,
+        bgColor: '#FFFFFF',
+        useMultiply: true
+      }
     };
     
     // Active params reference (points to current template's params)
@@ -95,6 +111,56 @@ class TemplateReviewer {
     // Template selector
     this.templateSelect?.addEventListener('change', (e) => {
       this.switchTemplate(e.target.value);
+    });
+    
+    // Tiling template controls
+    document.getElementById('tiling-pattern-type')?.addEventListener('change', (e) => {
+      this.params.patternType = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-fill-style')?.addEventListener('change', (e) => {
+      this.params.fillStyle = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-count')?.addEventListener('input', (e) => {
+      this.params.tileCount = parseInt(e.target.value);
+      document.getElementById('tiling-count-value').value = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-count-value')?.addEventListener('change', (e) => {
+      this.params.tileCount = parseInt(e.target.value);
+      document.getElementById('tiling-count').value = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-spacing')?.addEventListener('input', (e) => {
+      this.params.tileSpacing = parseInt(e.target.value);
+      document.getElementById('tiling-spacing-value').value = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-spacing-value')?.addEventListener('change', (e) => {
+      this.params.tileSpacing = parseInt(e.target.value);
+      document.getElementById('tiling-spacing').value = e.target.value;
+      this.render();
+    });
+    
+    document.getElementById('tiling-unique-images')?.addEventListener('change', (e) => {
+      this.params.useUniqueImages = e.target.checked;
+      this.render();
+    });
+    
+    document.getElementById('tiling-random-rotation')?.addEventListener('change', (e) => {
+      this.params.randomRotation = e.target.checked;
+      this.render();
+    });
+    
+    document.getElementById('tiling-bg-color')?.addEventListener('change', (e) => {
+      this.params.bgColor = e.target.value;
+      this.render();
     });
     
     // Grid size
@@ -279,16 +345,29 @@ class TemplateReviewer {
     };
     
     // Generate based on current template
-    if (this.currentTemplate === 'scrambledMosaic') {
-      generateMosaic(this.canvas, this.images, config);
-    } else if (this.currentTemplate === 'pairedForms') {
-      generatePairedForms(this.canvas, this.images, config);
-    } else if (this.currentTemplate === 'tangramPuzzle') {
-      // Ensure pieceImageOrder exists and is shuffled if needed
-      if (!this.params.pieceImageOrder || this.params.pieceImageOrder.length !== 7) {
-        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+    try {
+      switch (this.currentTemplate) {
+        case 'scrambledMosaic':
+          generateMosaic(this.canvas, this.images, config);
+          break;
+        case 'pairedForms':
+          generatePairedForms(this.canvas, this.images, config);
+          break;
+        case 'tangramPuzzle':
+          // Ensure pieceImageOrder exists and is shuffled if needed
+          if (!this.params.pieceImageOrder || this.params.pieceImageOrder.length !== 7) {
+            this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
+          }
+          renderTangram(this.canvas, this.images, config);
+          break;
+        case 'tilingPatterns':
+          tilingTemplate.generate(this.canvas, this.images, config);
+          break;
+        default:
+          console.error('Unknown template:', this.currentTemplate);
       }
-      renderTangram(this.canvas, this.images, config);
+    } catch (error) {
+      console.error('Error rendering template:', error);
     }
   }
   
@@ -521,18 +600,28 @@ class TemplateReviewer {
     const mosaicControls = document.getElementById('mosaic-controls');
     const pairedFormsControls = document.getElementById('paired-forms-controls');
     const tangramControls = document.getElementById('tangram-controls');
-    if (this.currentTemplate === 'scrambledMosaic') {
-      if (mosaicControls) mosaicControls.style.display = 'block';
-      if (pairedFormsControls) pairedFormsControls.style.display = 'none';
-      if (tangramControls) tangramControls.style.display = 'none';
-    } else if (this.currentTemplate === 'pairedForms') {
-      if (mosaicControls) mosaicControls.style.display = 'none';
-      if (pairedFormsControls) pairedFormsControls.style.display = 'block';
-      if (tangramControls) tangramControls.style.display = 'none';
-    } else if (this.currentTemplate === 'tangramPuzzle') {
-      if (mosaicControls) mosaicControls.style.display = 'none';
-      if (pairedFormsControls) pairedFormsControls.style.display = 'none';
-      if (tangramControls) tangramControls.style.display = 'block';
+    const tilingControls = document.getElementById('tiling-controls');
+    
+    // Hide all controls first
+    if (mosaicControls) mosaicControls.style.display = 'none';
+    if (pairedFormsControls) pairedFormsControls.style.display = 'none';
+    if (tangramControls) tangramControls.style.display = 'none';
+    if (tilingControls) tilingControls.style.display = 'none';
+    
+    // Show controls for current template
+    switch (this.currentTemplate) {
+      case 'scrambledMosaic':
+        if (mosaicControls) mosaicControls.style.display = 'block';
+        break;
+      case 'pairedForms':
+        if (pairedFormsControls) pairedFormsControls.style.display = 'block';
+        break;
+      case 'tangramPuzzle':
+        if (tangramControls) tangramControls.style.display = 'block';
+        break;
+      case 'tilingPatterns':
+        if (tilingControls) tilingControls.style.display = 'block';
+        break;
     }
   }
   
@@ -557,15 +646,23 @@ class TemplateReviewer {
     if (templateInfo) {
       const title = templateInfo.querySelector('h2');
       const description = templateInfo.querySelector('.template-description');
-      if (templateName === 'scrambledMosaic') {
-        title.textContent = 'Scrambled Mosaic';
-        description.textContent = 'A grid-based arrangement with randomized cell operations. Create collages from a regular grid with various operations and patterns.';
-      } else if (templateName === 'pairedForms') {
-        title.textContent = 'Paired Forms';
-        description.textContent = 'A composition of multiple shapes that come together to form a cohesive abstract composition.';
-      } else if (templateName === 'tangramPuzzle') {
-        title.textContent = 'Tangram Puzzle';
-        description.textContent = 'A tangram puzzle template with 7 geometric pieces that fit together perfectly. Each piece can be filled with a different image or color.';
+      switch (templateName) {
+        case 'scrambledMosaic':
+          title.textContent = 'Scrambled Mosaic';
+          description.textContent = 'A grid-based arrangement with randomized cell operations. Create collages from a regular grid with various operations and patterns.';
+          break;
+        case 'pairedForms':
+          title.textContent = 'Paired Forms';
+          description.textContent = 'A composition of multiple shapes that come together to form a cohesive abstract composition.';
+          break;
+        case 'tangramPuzzle':
+          title.textContent = 'Tangram Puzzle';
+          description.textContent = 'A tangram puzzle template with 7 geometric pieces that fit together perfectly. Each piece can be filled with a different image or color.';
+          break;
+        case 'tilingPatterns':
+          title.textContent = 'Tiling Patterns';
+          description.textContent = 'Create beautiful tiling patterns with various shapes and arrangements. Choose from squares, triangles, hexagons, modular patterns, or Voronoi cells.';
+          break;
       }
     }
     // Update controls visibility

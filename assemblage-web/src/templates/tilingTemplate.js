@@ -1,0 +1,153 @@
+// tilingTemplate.js - Main file for the tiling template
+// Integrates all tiling pattern generators and rendering functions
+
+import { createSquareTiling, drawSquareTile } from './tilingPatterns/squareTiling';
+import { createTriangularTiling, drawTriangularTile } from './tilingPatterns/triangleTiling';
+import { createHexagonalTiling, drawHexagonalTile } from './tilingPatterns/hexagonTiling';
+import { createModularTiling, drawModularTile } from './tilingPatterns/modularTiling';
+import { createVoronoiTiling, drawVoronoiCell } from './tilingPatterns/voronoiTiling';
+
+/**
+ * Main render function for the tiling template
+ * @param {HTMLCanvasElement} canvas - Canvas element to draw on
+ * @param {Array} images - Array of images to use
+ * @param {Object} params - Template parameters
+ * @returns {HTMLCanvasElement} The canvas with the rendered tiling
+ */
+function renderTiling(canvas, images, params) {
+  // Get context and clear canvas
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Validate inputs
+  if (!canvas || !ctx) {
+    console.error('Invalid canvas element');
+    return canvas;
+  }
+  
+  if (!images || !Array.isArray(images) || images.length === 0) {
+    console.error('No images provided');
+    return canvas;
+  }
+  
+  // Set default parameters
+  params = params || {};
+  const patternType = params.patternType || 'squares';
+  const tileCount = params.tileCount || 16;
+  const useUniqueImages = params.useUniqueImages !== false;
+  const randomRotation = params.randomRotation === true;
+  const tileSpacing = params.tileSpacing || 0;
+  const fillStyle = params.fillStyle || 'fullBleed';
+  const debug = params.debug === true;
+  
+  // Fill background color
+  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Options for tiling generators
+  const options = {
+    spacing: tileSpacing,
+    fillStyle: fillStyle
+  };
+  
+  // Generate the tiles based on pattern type
+  let tiles = [];
+  
+  switch (patternType) {
+    case 'squares':
+      tiles = createSquareTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    case 'triangles':
+      tiles = createTriangularTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    case 'hexagons':
+      tiles = createHexagonalTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    case 'modular':
+      tiles = createModularTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    case 'voronoi':
+      tiles = createVoronoiTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    default:
+      console.warn(`Unknown pattern type: ${patternType}, falling back to squares`);
+      tiles = createSquareTiling(tileCount, canvas.width, canvas.height, options);
+  }
+  
+  console.log(`Generated ${tiles.length} tiles for pattern type: ${patternType}`);
+  
+  // Options for drawing tiles
+  const drawOptions = {
+    randomRotation,
+    debug
+  };
+  
+  // Apply 'multiply' blending mode globally if needed
+  ctx.globalCompositeOperation = 'multiply';
+  
+  // Draw each tile with an image
+  tiles.forEach((tile, index) => {
+    // Choose image based on the mode
+    let imageIndex = 0;
+    
+    if (useUniqueImages) {
+      // Use a different image for each tile, wrapping around if needed
+      imageIndex = index % images.length;
+    } else {
+      // Use the first image for all tiles
+      imageIndex = 0;
+    }
+    
+    const image = images[imageIndex];
+    
+    // Skip if image not available
+    if (!image || !image.complete) return;
+    
+    // Draw the tile based on its type
+    switch (tile.type) {
+      case 'square':
+        drawSquareTile(ctx, tile, image, drawOptions);
+        break;
+      case 'triangleTop':
+      case 'triangleBottom':
+        drawTriangularTile(ctx, tile, image, drawOptions);
+        break;
+      case 'hexagon':
+        drawHexagonalTile(ctx, tile, image, drawOptions);
+        break;
+      case 'modular':
+        drawModularTile(ctx, tile, image, drawOptions);
+        break;
+      case 'voronoi':
+        drawVoronoiCell(ctx, tile, image, drawOptions);
+        break;
+      default:
+        console.warn(`Unknown tile type: ${tile.type}`);
+    }
+  });
+  
+  // Reset composite operation
+  ctx.globalCompositeOperation = 'source-over';
+  
+  // Draw the bounding rectangle for centeredForm mode
+  if (debug && fillStyle === 'centeredForm') {
+    const scale = 0.8;
+    const boundWidth = canvas.width * scale;
+    const boundHeight = canvas.height * scale;
+    const boundX = (canvas.width - boundWidth) / 2;
+    const boundY = (canvas.height - boundHeight) / 2;
+    
+    ctx.strokeStyle = 'rgba(0,255,0,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(boundX, boundY, boundWidth, boundHeight);
+  }
+  
+  return canvas;
+}
+
+// Export the main function as default
+const tilingTemplate = {
+  generate: renderTiling
+};
+
+export default tilingTemplate;

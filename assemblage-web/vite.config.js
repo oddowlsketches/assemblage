@@ -11,24 +11,16 @@ export default defineConfig({
     },
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.html']
   },
-  optimizeDeps: {
-    include: ['paper']
-  },
-  esbuild: {
-    loader: 'tsx',
-    include: /\.(tsx|ts|jsx|js|html)$/,
-    exclude: [],
-  },
   build: {
     rollupOptions: {
       input: {
-        main: '/index.html',
-        maskReview: '/mask-review.html',
-        templateReview: '/template-review-app/template-review.html'
+        main: path.resolve(__dirname, 'index.html'),
+        templateReview: path.resolve(__dirname, 'public/template-review.html')
       }
     }
   },
   server: {
-    open: '/template-review-app/template-review.html'
+    port: 5174,
+    host: true
   }
 }) 

@@ -214,6 +214,7 @@
                 <option value="scrambledMosaic">Scrambled Mosaic</option>
                 <option value="pairedForms">Paired Forms</option>
                 <option value="tangramPuzzle">Tangram Puzzle</option>
+                <option value="tilingPatterns">Tiling Patterns</option>
             </select>
         </div>
     </header>
@@ -357,6 +358,56 @@
                 <div class="parameter-control">
                     <label for="tangram-arrangement">Arrangement</label>
                     <select id="tangram-arrangement"></select>
+                </div>
+            </div>
+            
+            <div class="controls" id="tiling-controls" style="display: none;">
+                <div class="parameter-control">
+                    <label for="tiling-pattern-type">Pattern Type</label>
+                    <select id="tiling-pattern-type">
+                        <option value="squares">Squares</option>
+                        <option value="triangles">Triangles</option>
+                        <option value="hexagons">Hexagons</option>
+                        <option value="modular">Modular</option>
+                        <option value="voronoi">Voronoi</option>
+                    </select>
+                </div>
+                <div class="parameter-control">
+                    <label for="tiling-fill-style">Fill Style</label>
+                    <select id="tiling-fill-style">
+                        <option value="fullBleed">Full Bleed</option>
+                        <option value="centeredForm">Centered Form</option>
+                    </select>
+                </div>
+                <div class="parameter-control">
+                    <label for="tiling-count">Tile Count</label>
+                    <div class="number-control">
+                        <input type="range" id="tiling-count" min="4" max="100" value="16">
+                        <input type="number" id="tiling-count-value" min="4" max="100" value="16">
+                    </div>
+                </div>
+                <div class="parameter-control">
+                    <label for="tiling-spacing">Tile Spacing</label>
+                    <div class="number-control">
+                        <input type="range" id="tiling-spacing" min="0" max="20" value="0">
+                        <input type="number" id="tiling-spacing-value" min="0" max="20" value="0">
+                    </div>
+                </div>
+                <div class="parameter-control">
+                    <div class="checkbox-control">
+                        <input type="checkbox" id="tiling-unique-images" checked>
+                        <label for="tiling-unique-images">Use Unique Images</label>
+                    </div>
+                </div>
+                <div class="parameter-control">
+                    <div class="checkbox-control">
+                        <input type="checkbox" id="tiling-random-rotation">
+                        <label for="tiling-random-rotation">Random Rotation</label>
+                    </div>
+                </div>
+                <div class="parameter-control">
+                    <label for="tiling-bg-color">Background Color</label>
+                    <input type="color" id="tiling-bg-color" value="#FFFFFF">
                 </div>
             </div>
             

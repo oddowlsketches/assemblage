@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { templates, TemplateSchema, ParamSchema } from '../templates';
+import { templates } from '../templates';
 import { CollageService } from '../core/CollageService';
 import { validateTemplate, getAvailableMasks } from '../core/TemplateValidator';
 import { extendCollageService, initCollageServiceExtensions } from '../core/CollageServiceExtensions';
@@ -119,6 +119,19 @@ export function TemplateReview() {
               <option key={`option-${option}`} value={option}>{option}</option>
             ))}
           </select>
+        </div>
+      );
+    } else if (schema.type === 'boolean') {
+      return (
+        <div key={`param-${paramName}`} className="param-control">
+          <label>
+            <input
+              type="checkbox"
+              checked={params[paramName]}
+              onChange={(e) => handleParamChange(paramName, e.target.checked)}
+            />
+            {paramName}
+          </label>
         </div>
       );
     }

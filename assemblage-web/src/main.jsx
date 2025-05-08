@@ -1,5 +1,5 @@
 import React from 'react'
-import ReactDOM from 'react-dom/client'
+import { createRoot } from 'react-dom/client'
 import App from './App'
 import { TemplateReview } from './components/TemplateReview'
 import './styles/legacy-app.css'
@@ -13,8 +13,10 @@ if (path.includes('template-review.html')) {
   Component = TemplateReview;
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+// Create root and render
+const root = createRoot(document.getElementById('root'));
+root.render(
   <React.StrictMode>
     <Component />
-  </React.StrictMode>,
-)
+  </React.StrictMode>
+);
