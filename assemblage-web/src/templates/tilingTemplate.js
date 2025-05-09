@@ -6,6 +6,8 @@ import { createTriangularTiling, drawTriangularTile } from './tilingPatterns/tri
 import { createHexagonalTiling, drawHexagonalTile } from './tilingPatterns/hexagonTiling';
 import { createModularTiling, drawModularTile } from './tilingPatterns/modularTiling';
 import { createVoronoiTiling, drawVoronoiCell } from './tilingPatterns/voronoiTiling';
+import { createRhombilleTiling, drawRhombilleTile } from './tilingPatterns/rhombilleTiling';
+import { createPenroseTiling, drawPenroseTile, createPenroseSunPatch, createPenroseSunRingPatch, createPenroseHardcodedPatch, createPenroseInflationTiling, createPenroseKnownGoodPatch } from './tilingPatterns/penroseTiling';
 
 /**
  * Main render function for the tiling template
@@ -33,7 +35,9 @@ function renderTiling(canvas, images, params) {
   // Set default parameters
   params = params || {};
   const patternType = params.patternType || 'squares';
-  const tileCount = params.tileCount || 16;
+  let tileCount = params.tileCount || 16;
+  // Clamp tileCount for Penrose
+  if (patternType === 'penrose' && tileCount > 40) tileCount = 40;
   const useUniqueImages = params.useUniqueImages !== false;
   const randomRotation = params.randomRotation === true;
   const tileSpacing = params.tileSpacing || 0;
@@ -69,6 +73,36 @@ function renderTiling(canvas, images, params) {
     case 'voronoi':
       tiles = createVoronoiTiling(tileCount, canvas.width, canvas.height, options);
       break;
+    case 'rhombille':
+      tiles = createRhombilleTiling(tileCount, canvas.width, canvas.height, options);
+      break;
+    case 'penrose': {
+      tiles = createPenroseKnownGoodPatch(canvas.width, canvas.height);
+      // Apply random rotation, mirroring, and scaling to the entire patch if enabled
+      if (randomRotation) {
+        const angle = Math.random() * 2 * Math.PI;
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        const flipX = Math.random() < 0.5 ? -1 : 1;
+        const flipY = Math.random() < 0.5 ? -1 : 1;
+        const scale = 0.8 + Math.random() * 0.4; // 0.8x to 1.2x
+        tiles = tiles.map(tile => ({
+          ...tile,
+          points: tile.points.map(p => {
+            // Translate to center, scale, flip, rotate, then translate back
+            let x = (p.x - cx) * scale * flipX;
+            let y = (p.y - cy) * scale * flipY;
+            const xRot = x * Math.cos(angle) - y * Math.sin(angle);
+            const yRot = x * Math.sin(angle) + y * Math.cos(angle);
+            return {
+              x: cx + xRot,
+              y: cy + yRot
+            };
+          })
+        }));
+      }
+      break;
+    }
     default:
       console.warn(`Unknown pattern type: ${patternType}, falling back to squares`);
       tiles = createSquareTiling(tileCount, canvas.width, canvas.height, options);
@@ -86,18 +120,21 @@ function renderTiling(canvas, images, params) {
   ctx.globalCompositeOperation = 'multiply';
   
   // Draw each tile with an image
+  let penroseRandomImageIndex = 0;
+  if (patternType === 'penrose' && !useUniqueImages) {
+    penroseRandomImageIndex = Math.floor(Math.random() * images.length);
+  }
   tiles.forEach((tile, index) => {
     // Choose image based on the mode
     let imageIndex = 0;
-    
-    if (useUniqueImages) {
-      // Use a different image for each tile, wrapping around if needed
+    if (patternType === 'penrose' && !useUniqueImages) {
+      // For Penrose, use the same random image for the whole patch
+      imageIndex = penroseRandomImageIndex;
+    } else if (useUniqueImages) {
       imageIndex = index % images.length;
     } else {
-      // Use the first image for all tiles
       imageIndex = 0;
     }
-    
     const image = images[imageIndex];
     
     // Skip if image not available
@@ -120,6 +157,13 @@ function renderTiling(canvas, images, params) {
         break;
       case 'voronoi':
         drawVoronoiCell(ctx, tile, image, drawOptions);
+        break;
+      case 'rhombille':
+        drawRhombilleTile(ctx, tile, image, drawOptions);
+        break;
+      case 'penroseThick':
+      case 'penroseThin':
+        drawPenroseTile(ctx, tile, image, drawOptions);
         break;
       default:
         console.warn(`Unknown tile type: ${tile.type}`);
