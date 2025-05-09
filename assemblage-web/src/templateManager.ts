@@ -1,5 +1,5 @@
-import { Template, MaskPlacement, templates } from './templates';
 import { MosaicGenerator } from './core/mosaicGenerator';
+import { Template, MaskPlacement, templates } from './templates';
 
 export interface TemplateOverride {
   index: number;

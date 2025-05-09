@@ -160,7 +160,7 @@ export abstract class EffectBase {
     const maskUnion = new Path2D();
     
     // Process each mask placement
-    plan.forEach((placement, index) => {
+    plan.forEach((placement, _index) => {
       const { maskName, x, y, width: maskWidth, height: maskHeight, rotation } = placement;
       
       // Get the SVG path for this mask type

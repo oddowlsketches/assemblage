@@ -1,8 +1,5 @@
 import { EffectBase, EffectParams, MaskPlacement } from './EffectBase';
 
-type ShapeType = 'door' | 'window' | 'arch' | 'column' | 'cornice';
-const SHAPES: ShapeType[] = ['door','window','arch','column','cornice'];
-
 // Update MaskPlacement type to allow polygon points
 // (If MaskPlacement is imported, we can extend it locally)
 type PolygonMaskPlacement = MaskPlacement & { polygon?: {x: number, y: number}[] };
@@ -343,6 +340,10 @@ interface ArchitecturalEffectParams extends EffectParams {
   useMixedBlending?: boolean; // whether to use mixed blending modes for fragments
   useComplementaryShapes?: boolean; // whether to add complementary color shapes
 }
+
+// Add ShapeType type definition
+// (If MaskPlacement is imported, we can extend it locally)
+type ShapeType = 'door' | 'window' | 'arch' | 'column' | 'cornice';
 
 export class ArchitecturalEffect extends EffectBase {
   static id = "architectural";

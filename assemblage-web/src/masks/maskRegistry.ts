@@ -548,105 +548,63 @@ function arcMask() {
   `;
 }
 
-export const tangramLargeTriangle = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <polygon points="0,0 100,0 0,100" fill="white"/>
-  </svg>`;
-
-export const tangramLargeTriangle2 = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-    <polygon points="0,100 100,100 100,0" fill="white"/>
-  </svg>`;
-
-export const tangramMediumTriangle = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
-    <polygon points="0,0 50,0 50,50" fill="white"/>
-  </svg>`;
-
-export const tangramSmallTriangle1 = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
-    <polygon points="0,0 25,0 0,25" fill="white"/>
-  </svg>`;
-
-export const tangramSmallTriangle2 = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 25 25">
-    <polygon points="25,25 0,25 25,0" fill="white"/>
-  </svg>`;
-
-export const tangramSquare = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
-    <rect width="50" height="50" fill="white"/>
-  </svg>`;
-
-export const tangramParallelogram = () => `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
-    <polygon points="25,0 100,0 75,50 0,50" fill="white"/>
-  </svg>`;
-
 const registry: Record<string, Record<string, MaskGenerator>> = {
   sliced: {
-    sliceHorizontalWide: () => ({ kind: 'svg', getSvg: () => sliceHorizontalWide(), description: "A wide horizontal slice", tags: ["slice","horizontal","wide","legacy"] }),
-    sliceHorizontalNarrow: () => ({ kind: 'svg', getSvg: () => sliceHorizontalNarrow(), description: "A narrow horizontal slice", tags: ["slice","horizontal","narrow","legacy"] }),
-    slice3xHorizontal: () => ({ kind: 'svg', getSvg: () => slice3xHorizontal(), description: "Three evenly spaced horizontal slices", tags: ["slice","horizontal","triplet","legacy"] }),
-    sliceVerticalWide: () => ({ kind: 'svg', getSvg: () => sliceVerticalWide(), description: "A wide vertical slice", tags: ["slice","vertical","wide","legacy"] }),
-    sliceVerticalNarrow: () => ({ kind: 'svg', getSvg: () => sliceVerticalNarrow(), description: "A narrow vertical slice", tags: ["slice","vertical","narrow","legacy"] }),
-    slice4xMixed: () => ({ kind: 'svg', getSvg: () => slice4xMixed(), description: "Four mixed horizontal & vertical slices", tags: ["slice","mixed","legacy"] }),
-    sliceAngled: () => ({ kind: 'svg', getSvg: () => sliceAngled(), description: "A single diagonal/angled slice", tags: ["slice","angled","diagonal","legacy"] }),
+    sliceHorizontalWide: () => ({ kind: 'svg', getSvg: () => sliceHorizontalWide() }),
+    sliceHorizontalNarrow: () => ({ kind: 'svg', getSvg: () => sliceHorizontalNarrow() }),
+    slice3xHorizontal: () => ({ kind: 'svg', getSvg: () => slice3xHorizontal() }),
+    sliceVerticalWide: () => ({ kind: 'svg', getSvg: () => sliceVerticalWide() }),
+    sliceVerticalNarrow: () => ({ kind: 'svg', getSvg: () => sliceVerticalNarrow() }),
+    slice4xMixed: () => ({ kind: 'svg', getSvg: () => slice4xMixed() }),
+    sliceAngled: () => ({ kind: 'svg', getSvg: () => sliceAngled() }),
   },
   architectural: {
-    archClassical: () => ({ kind: 'svg', getSvg: () => archClassical(), description: "A classical Roman-style arch", tags: ["arch","classical","architecture"] }),
-    archFlat: () => ({ kind: 'svg', getSvg: () => archFlat(), description: "A flat-topped arch", tags: ["arch","flat","architecture"] }),
-    triptychArch: () => ({ kind: 'svg', getSvg: () => triptychArch(), description: "Three small arches side by side", tags: ["arch","triptych","architecture"] }),
-    windowRect: () => ({ kind: 'svg', getSvg: () => windowRect(), description: "A single rectangular window", tags: ["window","rectangular","architecture"] }),
-    windowGrid: () => ({ kind: 'svg', getSvg: () => windowGrid(), description: "A grid of small rectangular windows", tags: ["window","grid","architecture"] }),
-    columnPair: () => ({ kind: 'svg', getSvg: () => columnPair(), description: "Two parallel columns", tags: ["column","pair","architecture"] }),
-    columnSingle: () => ({ kind: 'svg', getSvg: () => columnSingle(), description: "A single column", tags: ["column","architecture"] }),
-    columnTriplet: () => ({ kind: 'svg', getSvg: () => columnTriplet(), description: "Three columns in a row", tags: ["column","triplet","architecture"] }),
-    facadeGrid: () => ({ kind: 'svg', getSvg: () => facadeGrid(), description: "A building facade grid (columns & windows)", tags: ["facade","grid","architecture"] }),
-    houseGable: () => ({ kind: 'svg', getSvg: () => houseGable(), description: "A simple house with gable roof", tags: ["house","gable","architecture"] }),
+    archClassical: () => ({ kind: 'svg', getSvg: () => archClassical() }),
+    archFlat: () => ({ kind: 'svg', getSvg: () => archFlat() }),
+    triptychArch: () => ({ kind: 'svg', getSvg: () => triptychArch() }),
+    windowRect: () => ({ kind: 'svg', getSvg: () => windowRect() }),
+    windowGrid: () => ({ kind: 'svg', getSvg: () => windowGrid() }),
+    columnPair: () => ({ kind: 'svg', getSvg: () => columnPair() }),
+    columnSingle: () => ({ kind: 'svg', getSvg: () => columnSingle() }),
+    columnTriplet: () => ({ kind: 'svg', getSvg: () => columnTriplet() }),
+    facadeGrid: () => ({ kind: 'svg', getSvg: () => facadeGrid() }),
+    houseGable: () => ({ kind: 'svg', getSvg: () => houseGable() }),
   },
   abstract: {
-    blobIrregular: () => ({ kind: 'svg', getSvg: () => blobIrregular(), description: "An organic, irregular blob shape", tags: ["blob","organic","abstract"] }),
-    blobCrescent: () => ({ kind: 'svg', getSvg: () => blobCrescent(), description: "A crescent-shaped organic form", tags: ["crescent","moon","blob","abstract"] }),
-    polygonSoft: () => ({ kind: 'svg', getSvg: () => polygonSoft(), description: "A soft-edged polygon", tags: ["polygon","soft","organic","abstract"] }),
-    cloudLike: () => ({ kind: 'svg', getSvg: () => cloudLike(), description: "A cluster of overlapping ellipses (cloud-like)", tags: ["cloud","cluster","organic","abstract"] }),
-    archBlob: () => ({ kind: 'svg', getSvg: () => archBlob(), description: "An arch-inspired blob form", tags: ["arch","blob","organic","abstract"] }),
+    blobIrregular: () => ({ kind: 'svg', getSvg: () => blobIrregular() }),
+    blobCrescent: () => ({ kind: 'svg', getSvg: () => blobCrescent() }),
+    polygonSoft: () => ({ kind: 'svg', getSvg: () => polygonSoft() }),
+    cloudLike: () => ({ kind: 'svg', getSvg: () => cloudLike() }),
+    archBlob: () => ({ kind: 'svg', getSvg: () => archBlob() }),
     abstractRotated: () => abstractRotated(),
   },
   altar: {
-    nicheArch: () => ({ kind: 'svg', getSvg: () => nicheArch(), description: "An arch-shaped niche (mini-shrine)", tags: ["niche","arch","altar"] }),
-    nicheCluster: () => ({ kind: 'svg', getSvg: () => nicheCluster(), description: "A cluster of small niches", tags: ["niche","cluster","altar"] }),
-    circleInset: () => ({ kind: 'svg', getSvg: () => circleInset(), description: "A centered circle inset", tags: ["circle","inset","altar"] }),
-    nicheStack: () => ({ kind: 'svg', getSvg: () => nicheStack(), description: "Stacked niche forms", tags: ["niche","stack","altar"] }),
-    circleAboveArch: () => ({ kind: 'svg', getSvg: () => circleAboveArch(), description: "A circle above an arch", tags: ["circle","arch","altar"] }),
-    nicheOffset: () => ({ kind: 'svg', getSvg: () => nicheOffset(), description: "Offset smaller niche in larger niche", tags: ["niche","offset","altar"] }),
-    gableAltar: () => ({ kind: 'svg', getSvg: () => gableAltar(), description: "A gabled house-shrine silhouette", tags: ["gable","altar","architecture"] }),
+    nicheArch: () => ({ kind: 'svg', getSvg: () => nicheArch() }),
+    nicheCluster: () => ({ kind: 'svg', getSvg: () => nicheCluster() }),
+    circleInset: () => ({ kind: 'svg', getSvg: () => circleInset() }),
+    nicheStack: () => ({ kind: 'svg', getSvg: () => nicheStack() }),
+    circleAboveArch: () => ({ kind: 'svg', getSvg: () => circleAboveArch() }),
+    nicheOffset: () => ({ kind: 'svg', getSvg: () => nicheOffset() }),
+    gableAltar: () => ({ kind: 'svg', getSvg: () => gableAltar() }),
   },
   basic: {
-    circleMask: () => ({ kind: 'svg', getSvg: () => circleMask(), description: "A perfect circular mask for round crops", tags: ["circle","round","geometry","basic"] }),
-    ovalMask: () => ({ kind: 'svg', getSvg: () => ovalMask(), description: "An oval (ellipse) mask for soft framing", tags: ["oval","ellipse","geometry","basic"] }),
-    diamondMask: () => ({ kind: 'svg', getSvg: () => diamondMask(), description: "A diamond (rotated square) mask", tags: ["diamond","rhombus","geometry","basic"] }),
-    hexagonMask: () => ({ kind: 'svg', getSvg: () => hexagonMask(), description: "A regular hexagon mask", tags: ["hexagon","geometry","basic"] }),
-    semiCircleMask: () => ({ kind: 'svg', getSvg: () => semiCircleMask(), description: "A half-circle mask", tags: ["semi-circle","half-circle","arc","geometry","basic"] }),
-    triangleMask: () => ({ kind: 'svg', getSvg: () => triangleMask(), description: "A triangular mask", tags: ["triangle","geometry","basic"] }),
-    beamMask: () => ({ kind: 'svg', getSvg: () => beamMask(), description: "A trapezoidal beam shape", tags: ["beam","trapezoid","geometry","basic"] }),
-    donutMask: () => ({ kind: 'svg', getSvg: () => donutMask(), description: "A ring (donut) mask with a hollow center", tags: ["donut","ring","circle","geometry","basic"] }),
-    arcMask: () => ({ kind: 'svg', getSvg: () => arcMask(), description: "A half-donut (arc) mask with a flat bottom", tags: ["arc","half-donut","ring","geometry","basic"] }),
-    tangramLargeTriangle: () => ({ kind: 'svg', getSvg: () => tangramLargeTriangle(), description: "A large triangle mask", tags: ["triangle","geometry","basic"] }),
-    tangramLargeTriangle2: () => ({ kind: 'svg', getSvg: () => tangramLargeTriangle2(), description: "A large triangle mask", tags: ["triangle","geometry","basic"] }),
-    tangramMediumTriangle: () => ({ kind: 'svg', getSvg: () => tangramMediumTriangle(), description: "A medium triangle mask", tags: ["triangle","geometry","basic"] }),
-    tangramSmallTriangle1: () => ({ kind: 'svg', getSvg: () => tangramSmallTriangle1(), description: "A small triangle mask", tags: ["triangle","geometry","basic"] }),
-    tangramSmallTriangle2: () => ({ kind: 'svg', getSvg: () => tangramSmallTriangle2(), description: "A small triangle mask", tags: ["triangle","geometry","basic"] }),
-    tangramSquare: () => ({ kind: 'svg', getSvg: () => tangramSquare(), description: "A square mask", tags: ["square","geometry","basic"] }),
-    tangramParallelogram: () => ({ kind: 'svg', getSvg: () => tangramParallelogram(), description: "A parallelogram mask", tags: ["parallelogram","geometry","basic"] }),
+    circleMask: () => ({ kind: 'svg', getSvg: () => circleMask() }),
+    ovalMask: () => ({ kind: 'svg', getSvg: () => ovalMask() }),
+    diamondMask: () => ({ kind: 'svg', getSvg: () => diamondMask() }),
+    hexagonMask: () => ({ kind: 'svg', getSvg: () => hexagonMask() }),
+    semiCircleMask: () => ({ kind: 'svg', getSvg: () => semiCircleMask() }),
+    triangleMask: () => ({ kind: 'svg', getSvg: () => triangleMask() }),
+    beamMask: () => ({ kind: 'svg', getSvg: () => beamMask() }),
+    donutMask: () => ({ kind: 'svg', getSvg: () => donutMask() }),
+    arcMask: () => ({ kind: 'svg', getSvg: () => arcMask() }),
   },
   narrative: {
-    panelRectWide: () => ({ kind: 'svg', getSvg: () => panelRectWide(), description: "A wide rectangular narrative panel", tags: ["panel","wide","rectangle","narrative"] }),
-    panelRectTall: () => ({ kind: 'svg', getSvg: () => panelRectTall(), description: "A tall rectangular narrative panel", tags: ["panel","tall","rectangle","narrative"] }),
-    panelSquare: () => ({ kind: 'svg', getSvg: () => panelSquare(), description: "A square narrative panel", tags: ["panel","square","narrative"] }),
-    panelOverlap: () => ({ kind: 'svg', getSvg: () => panelOverlap(), description: "Two overlapping narrative panels", tags: ["panel","overlap","narrative"] }),
-    panelLShape: () => ({ kind: 'svg', getSvg: () => panelLShape(), description: "An L-shaped panel layout", tags: ["panel","L-shape","narrative"] }),
-    panelGutter: () => ({ kind: 'svg', getSvg: () => panelGutter(), description: "A panel with framing gutter", tags: ["panel","gutter","frame","narrative"] }),
+    panelRectWide: () => ({ kind: 'svg', getSvg: () => panelRectWide() }),
+    panelRectTall: () => ({ kind: 'svg', getSvg: () => panelRectTall() }),
+    panelSquare: () => ({ kind: 'svg', getSvg: () => panelSquare() }),
+    panelOverlap: () => ({ kind: 'svg', getSvg: () => panelOverlap() }),
+    panelLShape: () => ({ kind: 'svg', getSvg: () => panelLShape() }),
+    panelGutter: () => ({ kind: 'svg', getSvg: () => panelGutter() }),
   },
 };
 

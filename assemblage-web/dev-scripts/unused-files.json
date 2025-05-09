@@ -1,0 +1,19 @@
+[
+  "MaskReview.jsx",
+  "abstract-templates.js",
+  "core/CollageService.test.js",
+  "effects/SlicedEffect.ts",
+  "enhanced-templates.js",
+  "gallery.ts",
+  "main.jsx",
+  "mask-review.html",
+  "mask-review.jsx",
+  "openaiClient.js",
+  "pages/template-review.jsx",
+  "promptTemplate.js",
+  "simple-test-main.jsx",
+  "simple-test.jsx",
+  "template-review-main.jsx",
+  "templates.legacy.ts",
+  "test.jsx"
+]

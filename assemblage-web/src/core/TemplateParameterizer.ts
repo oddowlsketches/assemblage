@@ -256,7 +256,6 @@ export function learnFromFeedback(
   
   // Split feedback into positive and negative
   const positiveFeedback = relevantFeedback.filter(f => f.isPositive);
-  const negativeFeedback = relevantFeedback.filter(f => !f.isPositive);
   
   // If no positive feedback, we can't learn much
   if (positiveFeedback.length === 0) {

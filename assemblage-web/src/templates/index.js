@@ -3,14 +3,12 @@
 
 import scrambledMosaic from './scrambledMosaic';
 import pairedForms from './pairedForms';
-import tangramTemplate from './tangramTemplate';
 import tilingTemplate from './tilingTemplate';
 
 // Create the templates array first
 const templates = [
   scrambledMosaic,
   pairedForms,
-  tangramTemplate,
   tilingTemplate
 ];
 
@@ -18,7 +16,6 @@ const templates = [
 export {
   scrambledMosaic,
   pairedForms,
-  tangramTemplate,
   tilingTemplate
 };
 

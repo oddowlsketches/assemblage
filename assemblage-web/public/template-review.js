@@ -4,7 +4,6 @@
 // Import directly from public path to avoid module conflicts
 import { generateMosaic } from './scrambledMosaic.js';
 import { generatePairedForms } from '../src/templates/pairedForms.js';
-import { renderTangram, tangramArrangementOptions } from '../src/templates/tangramTemplate.js';
 import tilingTemplate from '../src/templates/tilingTemplate.js';
 
 class TemplateReviewer {
@@ -41,12 +40,6 @@ class TemplateReviewer {
         bgColor: '#FFFFFF',
         useMultiply: true
       },
-      // Tangram Puzzle params
-      tangramPuzzle: {
-        bgColor: '#FFFFFF',
-        arrangementIndex: 0,
-        pieceImageOrder: []
-      },
       // Tiling Patterns params
       tilingPatterns: {
         patternType: 'squares',
@@ -73,30 +66,6 @@ class TemplateReviewer {
   async init() {
     // Set up event listeners
     this.setupEventListeners();
-    
-    // Populate tangram arrangement selector
-    const arrangementSelect = document.getElementById('tangram-arrangement');
-    if (arrangementSelect) {
-      arrangementSelect.innerHTML = '';
-      tangramArrangementOptions.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt.value;
-        option.textContent = opt.label;
-        arrangementSelect.appendChild(option);
-      });
-      arrangementSelect.value = '0';
-      this.params.arrangementIndex = 0;
-      // Initialize pieceImageOrder for tangram
-      if (this.currentTemplate === 'tangramPuzzle' || this.params.pieceImageOrder === undefined) {
-        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
-      }
-      arrangementSelect.addEventListener('change', (e) => {
-        this.params.arrangementIndex = parseInt(e.target.value, 10);
-        // Shuffle pieceImageOrder on arrangement change
-        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
-        this.render();
-      });
-    }
     
     // Load images
     await this.loadImages();
@@ -263,15 +232,6 @@ class TemplateReviewer {
     document.getElementById('export-feedback')?.addEventListener('click', () => {
       this.exportFeedback();
     });
-    
-    document.getElementById('tangram-bgColor')?.addEventListener('input', (e) => {
-      this.params.bgColor = e.target.value;
-      // Shuffle pieceImageOrder on bg color change for variety
-      if (this.currentTemplate === 'tangramPuzzle') {
-        this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
-      }
-      this.render();
-    });
   }
   
   updateUILabels() {
@@ -352,13 +312,6 @@ class TemplateReviewer {
           break;
         case 'pairedForms':
           generatePairedForms(this.canvas, this.images, config);
-          break;
-        case 'tangramPuzzle':
-          // Ensure pieceImageOrder exists and is shuffled if needed
-          if (!this.params.pieceImageOrder || this.params.pieceImageOrder.length !== 7) {
-            this.params.pieceImageOrder = this.shuffleArray([...Array(7).keys()]);
-          }
-          renderTangram(this.canvas, this.images, config);
           break;
         case 'tilingPatterns':
           tilingTemplate.generate(this.canvas, this.images, config);
@@ -599,13 +552,11 @@ class TemplateReviewer {
   updateControls() {
     const mosaicControls = document.getElementById('mosaic-controls');
     const pairedFormsControls = document.getElementById('paired-forms-controls');
-    const tangramControls = document.getElementById('tangram-controls');
     const tilingControls = document.getElementById('tiling-controls');
     
     // Hide all controls first
     if (mosaicControls) mosaicControls.style.display = 'none';
     if (pairedFormsControls) pairedFormsControls.style.display = 'none';
-    if (tangramControls) tangramControls.style.display = 'none';
     if (tilingControls) tilingControls.style.display = 'none';
     
     // Show controls for current template
@@ -615,9 +566,6 @@ class TemplateReviewer {
         break;
       case 'pairedForms':
         if (pairedFormsControls) pairedFormsControls.style.display = 'block';
-        break;
-      case 'tangramPuzzle':
-        if (tangramControls) tangramControls.style.display = 'block';
         break;
       case 'tilingPatterns':
         if (tilingControls) tilingControls.style.display = 'block';
@@ -654,10 +602,6 @@ class TemplateReviewer {
         case 'pairedForms':
           title.textContent = 'Paired Forms';
           description.textContent = 'A composition of multiple shapes that come together to form a cohesive abstract composition.';
-          break;
-        case 'tangramPuzzle':
-          title.textContent = 'Tangram Puzzle';
-          description.textContent = 'A tangram puzzle template with 7 geometric pieces that fit together perfectly. Each piece can be filled with a different image or color.';
           break;
         case 'tilingPatterns':
           title.textContent = 'Tiling Patterns';
