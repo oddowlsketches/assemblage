@@ -5,6 +5,11 @@
     "allowJs": true,
     "esModuleInterop": true,
     "module": "esnext",
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "@shared/*": ["../shared/*"]
+    },
     "resolveJsonModule": true
   }
 } 
