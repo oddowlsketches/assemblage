@@ -22,5 +22,9 @@
     "eslint-config-prettier": "^10.1.5",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
+    "@netlify/functions": "^4.45.1"
   }
 }
