@@ -16,6 +16,7 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         review: resolve(__dirname, 'tools/template-review.html'),
+        cms: resolve(__dirname, 'cms.html'),
       }
     }
   },
