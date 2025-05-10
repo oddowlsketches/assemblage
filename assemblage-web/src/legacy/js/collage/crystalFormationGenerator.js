@@ -136,9 +136,6 @@ class CrystalFormationGenerator {
     }
 
     async generateCrystal(images, fortuneText, parameters = {}) {
-        console.log('Starting crystal generation with parameters:', parameters);
-        console.log('Number of input images:', images.length);
-
         // Store parameters for use in other methods
         this.parameters = parameters;
 
@@ -160,8 +157,6 @@ class CrystalFormationGenerator {
             return isValid;
         });
 
-        console.log('Number of valid images:', validImages.length);
-
         if (validImages.length === 0) {
             console.error('No valid images provided for crystal generation');
             return false;
@@ -172,15 +167,11 @@ class CrystalFormationGenerator {
             const complexity = parameters.complexity || 5;
             const seedPattern = parameters.seedPattern || this.getRandomSeedPattern();
             
-            console.log('Using complexity:', complexity, 'and seed pattern:', seedPattern);
-
             // Calculate number of facets based on complexity
             const facetCount = Math.min(
                 Math.max(5, Math.floor(complexity * 3)),
                 parameters.maxFacets || 25
             );
-
-            console.log('Creating crystal formation with', facetCount, 'facets');
 
             // Create the crystal formation
             const fragments = this.createCrystalFormation(facetCount, validImages, seedPattern, parameters);
@@ -189,13 +180,11 @@ class CrystalFormationGenerator {
             this.ctx.globalCompositeOperation = 'multiply';
             
             // Draw the fragments
-            console.log('Drawing', fragments.length, 'fragments');
             this.drawFragments(fragments);
             
             // Reset blend mode
             this.ctx.globalCompositeOperation = 'source-over';
             
-            console.log('Crystal generation completed successfully');
             return true;
         } catch (error) {
             console.error('Error in crystal generation:', error);

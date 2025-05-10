@@ -222,70 +222,39 @@ export function createRandomPattern(gridSize, revealPercentage) {
  * @param {string} operation - Operation type (reveal, swap, rotate)
  * @returns {Object} Object containing grid patterns for reveal, rotate, and swap operations
  */
-export function createGridPattern(type, gridSize, revealPercentage, operation) {
-    let grid;
-    
-    // Create basic grid pattern based on type
-    switch (type) {
-        case 'random':
-            grid = createRandomPattern(gridSize, operation === 'reveal' ? revealPercentage : 100);
-            break;
-        case 'clustered':
-            grid = createClusteredPattern(gridSize, operation === 'reveal' ? revealPercentage : 100);
-            break;
-        case 'portrait':
-            if (operation === 'reveal') {
-                grid = createPortraitPattern(gridSize);
-            } else {
-                // For swap/rotate, use a full grid (all cells visible)
-                grid = Array(gridSize).fill().map(() => Array(gridSize).fill(true));
-            }
-            break;
-        case 'silhouette':
-            if (operation === 'reveal') {
-                grid = createSilhouettePattern(gridSize);
-            } else {
-                // For swap/rotate, use a full grid (all cells visible)
-                grid = Array(gridSize).fill().map(() => Array(gridSize).fill(true));
-            }
-            break;
-        default:
-            grid = createClusteredPattern(gridSize, operation === 'reveal' ? revealPercentage : 100);
-    }
-    
-    // For operations other than 'reveal', we need additional patterns
+export function createGridPattern(type, gridSize, percentage, operation) {
+    // Always start with a full grid of visibility
+    const fullGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(true));
+
+    // Helper to make a pattern grid (may hide cells) – used only for reveal op
+    const makePatternGrid = () => {
+        switch (type) {
+            case 'random':
+                return createRandomPattern(gridSize, percentage);
+            case 'clustered':
+                return createClusteredPattern(gridSize, percentage);
+            case 'portrait':
+                return createPortraitPattern(gridSize);
+            case 'silhouette':
+                return createSilhouettePattern(gridSize);
+            default:
+                return createClusteredPattern(gridSize, percentage);
+        }
+    };
+
+    let revealGrid = fullGrid;
     let rotateGrid = null;
     let swapGrid = null;
-    
-    if (operation === 'rotate' || operation === 'swap') {
-        // Create a new grid where all cells are visible
-        const fullGrid = Array(gridSize).fill().map(() => Array(gridSize).fill(true));
-        
-        // For the specified percentage, mark cells for rotation/swapping
-        const operationGrid = Array(gridSize).fill().map(() => 
-            Array(gridSize).fill().map(() => 
-                Math.random() * 100 < revealPercentage
-            )
-        );
-        
-        // Set appropriate grid based on operation
-        if (operation === 'rotate') {
-            rotateGrid = operationGrid;
-        } else if (operation === 'swap') {
-            swapGrid = operationGrid;
-        }
-        
-        // For operations other than reveal, use the full grid for visibility
-        if (operation !== 'reveal') {
-            grid = fullGrid;
-        }
+
+    if (operation === 'reveal') {
+        revealGrid = makePatternGrid();
+    } else if (operation === 'rotate') {
+        rotateGrid = makePatternGrid();
+    } else if (operation === 'swap') {
+        swapGrid = makePatternGrid();
     }
-    
-    return {
-        revealGrid: grid,
-        rotateGrid,
-        swapGrid
-    };
+
+    return { revealGrid, rotateGrid, swapGrid };
 }
 
 /**
@@ -369,32 +338,22 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
         ctx.globalCompositeOperation = 'source-over';
     }
 
-    // Calculate image drawing dimensions
-    // Use the original non-rounded coordinates for calculations
-    let drawX = x;
-    let drawY = y;
-    let drawWidth = width;
-    let drawHeight = height;
-    let drawSrcX = srcX;
-    let drawSrcY = srcY;
-    
-    // Calculate image aspect ratio
-    const imageAspect = img.width / img.height;
-    
-    // Determine drawing dimensions to maintain aspect ratio
-    if (imageAspect > width / height) { // Image is wider
-        drawHeight = drawWidth / imageAspect;
-        drawY = y + (height - drawHeight) / 2; // Center vertically
-    } else { // Image is taller
-        drawWidth = drawHeight * imageAspect;
-        drawX = x + (width - drawWidth) / 2; // Center horizontally
-    }
+    // Use the source rectangle passed in by the grid logic so that
+    // each tile represents its unique portion of the overall image.
+    let sourceX = srcX;
+    let sourceY = srcY;
+    let sourceW = srcWidth;
+    let sourceH = srcHeight;
+    let drawX = roundedX;
+    let drawY = roundedY;
+    let drawWidth = roundedWidth;
+    let drawHeight = roundedHeight;
     
     // Apply swap operation if specified
     if (shouldSwap) {
-        // Swap with a different part of the image
-        drawSrcX = (srcX + srcWidth * 2) % img.width;
-        drawSrcY = (srcY + srcHeight * 2) % img.height;
+        // Shift the crop window by half width/height for visible change
+        sourceX = (sourceX + sourceW * 0.5) % img.width;
+        sourceY = (sourceY + sourceH * 0.5) % img.height;
     }
     
     // Apply rotation if specified
@@ -415,7 +374,7 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
     }
     
     // Draw the image
-    ctx.drawImage(img, drawSrcX, drawSrcY, srcWidth, srcHeight, drawX, drawY, drawWidth, drawHeight);
+    ctx.drawImage(img, sourceX, sourceY, sourceW, sourceH, drawX, drawY, drawWidth, drawHeight);
     
     // Restore context (removes clipping but keeps transformations for stroke)
     ctx.restore();
@@ -483,6 +442,8 @@ export function generateMosaic(canvas, images, params) {
     const config = {
         gridSize: parseInt(params.gridSize),
         revealPercentage: parseFloat(params.revealPct),
+        swapPct: parseFloat(params.swapPct ?? 0),
+        rotatePct: parseFloat(params.rotatePct ?? 0),
         gridPatternType: params.pattern,
         shapeType: params.cellShape,
         operation: params.operation,
@@ -498,12 +459,21 @@ export function generateMosaic(canvas, images, params) {
     const img = images[Math.floor(Math.random() * images.length)];
     
     // Create grid patterns for different operations
-    const { revealGrid, rotateGrid, swapGrid } = createGridPattern(
+    const { revealGrid } = createGridPattern(
         config.gridPatternType || 'clustered',
         config.gridSize || 8,
         config.revealPercentage || 70,
-        config.operation || 'reveal'
+        'reveal'
     );
+    
+    // Build rotate/swap grids based on percentages
+    const buildProbabilityGrid = (pct) => {
+        if (pct <= 0) return null;
+        return revealGrid.map(row => row.map(() => Math.random() * 100 < pct));
+    };
+
+    const rotateGrid = buildProbabilityGrid(config.rotatePct);
+    const swapGrid = buildProbabilityGrid(config.swapPct);
     
     // Calculate cell size - ensure whole numbers to avoid gaps
     const gridSize = revealGrid.length;
@@ -520,15 +490,35 @@ export function generateMosaic(canvas, images, params) {
                 const cellX = x * cellWidth;
                 const cellY = y * cellHeight;
                 
-                // Calculate source rectangle in the image
-                const srcX = (x / gridSize) * img.width;
-                const srcY = (y / gridSize) * img.height;
-                const srcWidth = img.width / gridSize;
-                const srcHeight = img.height / gridSize;
+                // Base crop for this tile (proportional region of the image)
+                const baseSrcX = (x / gridSize) * img.width;
+                const baseSrcY = (y / gridSize) * img.height;
+                const baseSrcW = img.width / gridSize;
+                const baseSrcH = img.height / gridSize;
+
+                // We will expand this crop to preserve aspect ratio and cover the tile
+                let srcX = baseSrcX;
+                let srcY = baseSrcY;
+                let srcWidth = baseSrcW;
+                let srcHeight = baseSrcH;
+
+                const tileAspect = cellWidth / cellHeight;
+                const imgAspect = baseSrcW / baseSrcH;
+                if (imgAspect > tileAspect) {
+                    // crop extra width inside base region
+                    const targetW = baseSrcH * tileAspect;
+                    srcX += (baseSrcW - targetW) / 2;
+                    srcWidth = targetW;
+                } else {
+                    // crop extra height
+                    const targetH = baseSrcW / tileAspect;
+                    srcY += (baseSrcH - targetH) / 2;
+                    srcHeight = targetH;
+                }
                 
                 // Determine if this cell should rotate or swap
-                const shouldRotate = rotateGrid && rotateGrid[y][x];
-                const shouldSwap = swapGrid && swapGrid[y][x];
+                const shouldRotate = !!(rotateGrid && rotateGrid[y][x]);
+                const shouldSwap = !!(swapGrid && swapGrid[y][x]);
                 
                 // Draw the cell with the specified shape and operations
                 drawCell(
@@ -551,7 +541,21 @@ export function generateMosaic(canvas, images, params) {
 
 // Export the main function as default
 const scrambledMosaic = {
-  generate: generateMosaic
+  key: 'scrambledMosaic',
+  name: 'Scrambled Mosaic',
+  generate: generateMosaic,
+  // Parameter definitions for the template-review UI
+  params: {
+    gridSize: { type: 'number', min: 4, max: 16, default: 8 },
+    revealPct: { type: 'number', min: 10, max: 100, default: 75 },
+    swapPct: { type: 'number', min: 0, max: 100, default: 0 },
+    rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
+    pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'clustered' },
+    cellShape: { type: 'select', options: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'], default: 'square' },
+    operation: { type: 'select', options: ['reveal', 'swap', 'rotate'], default: 'reveal' },
+    bgColor: { type: 'color', default: '#ffffff' },
+    useMultiply: { type: 'boolean', default: true }
+  }
 };
 
 export default scrambledMosaic;

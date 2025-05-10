@@ -188,10 +188,11 @@ export class IsolatedCrystalGenerator {
             fullscreen: false // Whether to fill the entire screen (no UI elements)
         };
 
-        console.log('IsolatedCrystalGenerator initialized with canvas dimensions:', {
-            width: this.canvas.width,
-            height: this.canvas.height
-        });
+        // Comment out all console.log statements
+        // console.log('IsolatedCrystalGenerator initialized with canvas dimensions:', {
+        //     width: this.canvas.width,
+        //     height: this.canvas.height
+        // });
     }
 
     generateBackgroundColor() {
@@ -212,7 +213,8 @@ export class IsolatedCrystalGenerator {
     }
 
     async generateIsolatedCrystal(image, parameters = {}) {
-        console.log('[DEBUG] generateIsolatedCrystal starting with incoming params:', parameters);
+        // Comment out all console.log statements
+        // console.log('[DEBUG] generateIsolatedCrystal starting with incoming params:', parameters);
         
         // Process parameters with direct assignment of incoming parameters
         // Use parameters directly without fallbacks to ensure randomization
@@ -235,26 +237,27 @@ export class IsolatedCrystalGenerator {
         // Force randomization of critical parameters if they're missing
         if (this.parameters.complexity === undefined) {
             this.parameters.complexity = 0.3 + Math.random() * 0.4; // 0.3-0.7
-            console.log('[DEBUG] Forced random complexity:', this.parameters.complexity);
+            // console.log('[DEBUG] Forced random complexity:', this.parameters.complexity);
         }
         
         if (!this.parameters.imageMode) {
             this.parameters.imageMode = Math.random() < 0.5 ? 'unique' : 'single';
-            console.log('[DEBUG] Forced random imageMode:', this.parameters.imageMode);
+            // console.log('[DEBUG] Forced random imageMode:', this.parameters.imageMode);
         }
         
         if (!this.parameters.maxFacets) {
             this.parameters.maxFacets = 6 + Math.floor(Math.random() * 19); // 6-24
-            console.log('[DEBUG] Forced random maxFacets:', this.parameters.maxFacets);
+            // console.log('[DEBUG] Forced random maxFacets:', this.parameters.maxFacets);
         }
         
         if (!this.parameters.seedPattern) {
             const patterns = Object.keys(this.seedPatterns);
             this.parameters.seedPattern = patterns[Math.floor(Math.random() * patterns.length)];
-            console.log('[DEBUG] Forced random seedPattern:', this.parameters.seedPattern);
+            // console.log('[DEBUG] Forced random seedPattern:', this.parameters.seedPattern);
         }
 
-        console.log('[DEBUG] Processed parameters:', this.parameters);
+        // Comment out all console.log statements
+        // console.log('[DEBUG] Processed parameters:', this.parameters);
 
         // Clear canvas and set background
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -264,16 +267,17 @@ export class IsolatedCrystalGenerator {
         // Filter out invalid images
         const validImages = image.filter(img => {
             if (!img) {
-                console.warn('Null or undefined image found');
+                // console.warn('Null or undefined image found');
                 return false;
             }
             return img.complete && img.naturalWidth > 0 && img.naturalHeight > 0;
         });
 
-        console.log('Number of valid images:', validImages.length);
+        // Comment out all console.log statements
+        // console.log('Number of valid images:', validImages.length);
 
         if (validImages.length === 0) {
-            console.error('No valid images provided for crystal generation');
+            // console.error('No valid images provided for crystal generation');
             return false;
         }
 
@@ -281,17 +285,17 @@ export class IsolatedCrystalGenerator {
             // Determine if we're generating a single crystal or a field
             if (this.parameters.crystalCount > 1) {
                 // Generate a field of crystals
-                console.log(`Generating crystal field with ${this.parameters.crystalCount} crystals`);
+                // console.log(`Generating crystal field with ${this.parameters.crystalCount} crystals`);
                 await this.generateCrystalField(validImages);
             } else {
                 // Generate a single crystal
-                console.log('Generating single crystal');
+                // console.log('Generating single crystal');
                 await this.generateSingleCrystal(validImages);
             }
 
             return true;
         } catch (error) {
-            console.error('Error generating crystal:', error);
+            // console.error('Error generating crystal:', error);
             return false;
         }
     }
@@ -320,17 +324,19 @@ export class IsolatedCrystalGenerator {
         const safeCenterX = Math.max(margin + maxSize/2, Math.min(this.canvas.width - margin - maxSize/2, centerX));
         const safeCenterY = Math.max(margin + maxSize/2, Math.min(this.canvas.height - margin - maxSize/2, centerY));
         
-        console.log(`Crystal size calculation: maxCanvasSize=${maxCanvasSize}, maxParamSize=${maxParamSize}, final maxSize=${maxSize}`);
-        console.log(`Adjusted center position: (${safeCenterX}, ${safeCenterY})`);
+        // Comment out all console.log statements
+        // console.log(`Crystal size calculation: maxCanvasSize=${maxCanvasSize}, maxParamSize=${maxParamSize}, final maxSize=${maxSize}`);
+        // console.log(`Adjusted center position: (${safeCenterX}, ${safeCenterY})`);
         
         // Get crystal outline using the selected template
         // Force random template selection to ensure variety
         const templateName = this.getRandomTemplate();
-        console.log(`[DEBUG] FORCED random template selected: ${templateName}`);
+        // Comment out all console.log statements
+        // console.log(`[DEBUG] FORCED random template selected: ${templateName}`);
         
         const templateFunc = this.crystalTemplates[templateName];
         if (!templateFunc) {
-            console.error(`Template ${templateName} not found`);
+            // console.error(`Template ${templateName} not found`);
             return false;
         }
         
@@ -338,17 +344,19 @@ export class IsolatedCrystalGenerator {
         const crystalOutline = templateFunc(safeCenterX, safeCenterY, maxSize);
         
         if (!crystalOutline || crystalOutline.length < 3) {
-            console.error('Invalid crystal outline generated');
+            // console.error('Invalid crystal outline generated');
             return false;
         }
         
-        console.log(`Created crystal outline with ${crystalOutline.length} points`);
+        // Comment out all console.log statements
+        // console.log(`Created crystal outline with ${crystalOutline.length} points`);
         
         // Calculate number of facets based on complexity - ensure wide range of facets
         // Make calculation more randomized to ensure variety
         const baseCount = Math.max(6, Math.floor(this.parameters.maxFacets * this.parameters.complexity));
         const facetCount = baseCount + Math.floor(Math.random() * 10); // Add additional randomization
-        console.log(`[DEBUG] Generating crystal with ${facetCount} facets (complexity: ${this.parameters.complexity}, maxFacets: ${this.parameters.maxFacets})`);
+        // Comment out all console.log statements
+        // console.log(`[DEBUG] Generating crystal with ${facetCount} facets (complexity: ${this.parameters.complexity}, maxFacets: ${this.parameters.maxFacets})`);
         
         
         // Generate facets within the crystal boundary
@@ -358,17 +366,20 @@ export class IsolatedCrystalGenerator {
             crystalOutline
         );
         
-        console.log(`Generated ${fragments.length} facets`);
+        // Comment out all console.log statements
+        // console.log(`Generated ${fragments.length} facets`);
 
         // Handle image selection based on imageMode
-        console.log('Handling image selection with mode:', this.parameters.imageMode);
+        // Comment out all console.log statements
+        // console.log('Handling image selection with mode:', this.parameters.imageMode);
 
         if (this.parameters.imageMode === 'single' && images.length > 0) {
             // Select one random image for all facets
             const selectedImageIndex = Math.floor(Math.random() * images.length);
             const selectedImage = images[selectedImageIndex];
             
-            console.log(`Single image mode: Using image ${selectedImageIndex} for all facets`);
+            // Comment out all console.log statements
+            // console.log(`Single image mode: Using image ${selectedImageIndex} for all facets`);
             
             fragments.forEach(fragment => {
                 fragment.image = selectedImage;
@@ -376,7 +387,8 @@ export class IsolatedCrystalGenerator {
             });
         } else {
             // In unique mode, assign random images to each facet
-            console.log('Unique mode: Assigning random images to each facet');
+            // Comment out all console.log statements
+            // console.log('Unique mode: Assigning random images to each facet');
             fragments.forEach(fragment => {
                 const imageIndex = Math.floor(Math.random() * images.length);
                 fragment.image = images[imageIndex];
@@ -400,7 +412,8 @@ export class IsolatedCrystalGenerator {
             this.parameters.preventOverlap
         );
         
-        console.log(`Generated ${positions.length} crystal positions`);
+        // Comment out all console.log statements
+        // console.log(`Generated ${positions.length} crystal positions`);
         
         // Generate each crystal
         for (const position of positions) {
@@ -443,7 +456,8 @@ export class IsolatedCrystalGenerator {
         // Calculate base size for multiple crystals
         const baseSize = Math.max(0.1, Math.min(maxSize / Math.min(canvasWidth, canvasHeight), 0.6 / Math.sqrt(count)));
         
-        console.log(`Multiple crystal size calculation: maxCanvasSize=${maxCanvasSize}, maxParamSize=${maxParamSize}, maxSize=${maxSize}, baseSize=${baseSize}`);
+        // Comment out all console.log statements
+        // console.log(`Multiple crystal size calculation: maxCanvasSize=${maxCanvasSize}, maxParamSize=${maxParamSize}, maxSize=${maxSize}, baseSize=${baseSize}`);
         
         const minDistanceBetween = Math.min(canvasWidth, canvasHeight) * baseSize * (preventOverlap ? 1.2 : 0.8);
         
@@ -495,7 +509,8 @@ export class IsolatedCrystalGenerator {
             attempts++;
         }
         
-        console.log(`Created ${positions.length} crystal positions after ${attempts} attempts`);
+        // Comment out all console.log statements
+        // console.log(`Created ${positions.length} crystal positions after ${attempts} attempts`);
         
         return positions;
     }
@@ -550,7 +565,8 @@ export class IsolatedCrystalGenerator {
     
     // Generate seed points within the crystal boundary 
     generateSeedPointsWithinBoundary(centerX, centerY, radius, count, patternType) {
-        console.log(`Generating ${count} seed points with pattern: ${patternType}`);
+        // Comment out all console.log statements
+        // console.log(`Generating ${count} seed points with pattern: ${patternType}`);
         
         // Start with an empty array for seed points
         let seedPoints = [];
@@ -558,13 +574,14 @@ export class IsolatedCrystalGenerator {
         // Get the pattern function
         const patternFunc = this.seedPatterns[patternType];
         if (!patternFunc) {
-            console.error(`Pattern function for '${patternType}' not found`);
+            // console.error(`Pattern function for '${patternType}' not found`);
             return seedPoints;
         }
         
         // Generate more points than we need, we'll filter them later
         const extraPoints = patternFunc(centerX, centerY, radius, count * 2);
-        console.log(`Generated ${extraPoints.length} candidate seed points`);
+        // Comment out all console.log statements
+        // console.log(`Generated ${extraPoints.length} candidate seed points`);
         
         // Filter points to only include those within the crystal outline
         for (let point of extraPoints) {
@@ -574,14 +591,15 @@ export class IsolatedCrystalGenerator {
             seedPoints.push(point);
         }
         
-        console.log(`Returning ${seedPoints.length} filtered seed points`);
+        // Comment out all console.log statements
+        // console.log(`Returning ${seedPoints.length} filtered seed points`);
         return seedPoints;
     }
     
     // Generate crystal facets within a specified boundary using Voronoi diagram principles
     async generateFacetsWithinBoundary(facetCount, images, crystalOutline) {
         if (!crystalOutline || crystalOutline.length < 3) {
-            console.error('Invalid crystal outline provided');
+            // console.error('Invalid crystal outline provided');
             return [];
         }
         
@@ -600,8 +618,9 @@ export class IsolatedCrystalGenerator {
             height: bounds.height - 2 * safetyMargin
         };
         
-        console.log(`Creating facets within boundary - center: (${centerX}, ${centerY}), radius: ${radius}`);
-        console.log('Adjusted bounds with safety margin:', adjustedBounds);
+        // Comment out all console.log statements
+        // console.log(`Creating facets within boundary - center: (${centerX}, ${centerY}), radius: ${radius}`);
+        // console.log('Adjusted bounds with safety margin:', adjustedBounds);
 
         // Generate seed points within the crystal boundary
         const seedPattern = this.parameters.seedPattern || 'random';
@@ -629,7 +648,8 @@ export class IsolatedCrystalGenerator {
         
         // Ensure we have enough points (at least 80% of target)
         if (seedPoints.length < Math.max(5, facetCount * 0.8)) {
-            console.warn(`Not enough seed points after filtering: ${seedPoints.length}/${facetCount}. Adding more points.`);
+            // Comment out all console.log statements
+            // console.warn(`Not enough seed points after filtering: ${seedPoints.length}/${facetCount}. Adding more points.`);
             
             // Add random points within the polygon boundary
             for (let i = seedPoints.length; i < facetCount; i++) {
@@ -647,13 +667,15 @@ export class IsolatedCrystalGenerator {
             }
         }
         
-        console.log(`Using ${seedPoints.length} seed points for Voronoi generation`);
+        // Comment out all console.log statements
+        // console.log(`Using ${seedPoints.length} seed points for Voronoi generation`);
         
         // Create a grid to approximate Voronoi cells
         const gridResolution = Math.max(30, Math.min(100, facetCount * 2)); // Higher resolution for smoother facets
         const cells = this.createVoronoiCellsFromGrid(seedPoints, crystalOutline, gridResolution);
         
-        console.log(`Created ${cells.length} Voronoi cells`);
+        // Comment out all console.log statements
+        // console.log(`Created ${cells.length} Voronoi cells`);
         
         // Create fragments from Voronoi cells
         const fragments = [];
@@ -849,7 +871,8 @@ export class IsolatedCrystalGenerator {
     drawFragments(fragments) {
         if (!fragments || fragments.length === 0) return;
         
-        console.log(`Drawing ${fragments.length} fragments`);
+        // Comment out all console.log statements
+        // console.log(`Drawing ${fragments.length} fragments`);
         
         // Sort fragments by distance from center for proper layering
         const centerX = this.canvas.width / 2;
@@ -870,7 +893,8 @@ export class IsolatedCrystalGenerator {
     // Draw a single fragment with improved visual quality
     drawFragment(fragment) {
         if (!fragment.image || !fragment.image.complete) {
-            console.warn('Attempted to draw fragment with invalid image');
+            // Comment out all console.log statements
+            // console.warn('Attempted to draw fragment with invalid image');
             return;
         }
         

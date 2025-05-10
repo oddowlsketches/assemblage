@@ -1,5 +1,5 @@
 import maskRegistry from '../masks/maskRegistry';
-import { svgToPath2D } from '../core/CollageService';
+import { svgToPath2D } from '../core/svgUtils.js';
 
 /**
  * Apply final alignment adjustments to ensure better edge contacts
@@ -255,7 +255,7 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   // Helper to pick a random type for 'mixed'
   function pickType(index, count) {
     if (formType === 'mixed') {
-      const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'beam'];
+      const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon'];
       
       // For mixed shapes, try to ensure adjacent shapes can fit well together
       if (index > 0) {
@@ -319,35 +319,15 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
         // For hexagons, use 0.75 * width for edge-to-edge
         shapeWidth = effectiveWidth / (formCount - (formCount - 1) * 0.25);
         shapeHeight = effectiveHeight;
-      } else if (shapeType === 'beam') {
-        // For beams, treat like rectangles for edge-to-edge
-        if (i === formCount - 1) {
-          shapeWidth = remainingWidth;
-          shapeHeight = effectiveHeight;
-        } else {
-          const portion = 1 / (formCount - i);
-          if (i === 0) {
-            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-          } else {
-            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-          }
-          shapeHeight = effectiveHeight;
-        }
       } else {
-        // Last shape gets all remaining width
-        if (i === formCount - 1) {
-          shapeWidth = remainingWidth;
-          shapeHeight = effectiveHeight;
+        // Determine size as a portion of remaining space with variation
+        const portion = 1 / (formCount - i);
+        if (i === 0) {
+          shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
         } else {
-          // Determine size as a portion of remaining space with variation
-          const portion = 1 / (formCount - i);
-          if (i === 0) {
-            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-          } else {
-            shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-          }
-          shapeHeight = effectiveHeight;
+          shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
         }
+        shapeHeight = effectiveHeight;
       }
       shapes.push({
         type: shapeType,
@@ -376,35 +356,15 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
         // For hexagons, use 0.75 * height for edge-to-edge
         shapeWidth = effectiveWidth;
         shapeHeight = effectiveHeight / (formCount - (formCount - 1) * 0.25);
-      } else if (shapeType === 'beam') {
-        // For beams, treat like rectangles for edge-to-edge
-        if (i === formCount - 1) {
-          shapeWidth = effectiveWidth;
-          shapeHeight = remainingHeight;
-        } else {
-          const portion = 1 / (formCount - i);
-          if (i === 0) {
-            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-          } else {
-            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-          }
-          shapeWidth = effectiveWidth;
-        }
       } else {
-        // Last shape gets all remaining height
-        if (i === formCount - 1) {
-          shapeWidth = effectiveWidth;
-          shapeHeight = remainingHeight;
+        // Determine size as a portion of remaining space with variation
+        const portion = 1 / (formCount - i);
+        if (i === 0) {
+          shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
         } else {
-          // Determine size as a portion of remaining space with variation
-          const portion = 1 / (formCount - i);
-          if (i === 0) {
-            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-          } else {
-            shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-          }
-          shapeWidth = effectiveWidth;
+          shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
         }
+        shapeWidth = effectiveWidth;
       }
       shapes.push({
         type: shapeType,
@@ -502,8 +462,6 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
       drawTriangle(ctx, shape, img, useMultiply);
     } else if (shapeType === 'hexagon') {
       drawHexagon(ctx, shape, img, useMultiply);
-    } else if (shapeType === 'beam') {
-      drawBeam(ctx, shape, img, useMultiply);
     } else {
       // Default to rectangular
       drawRectangle(ctx, shape, img, useMultiply);
@@ -997,7 +955,17 @@ function alignBeamEdges(shape1, shape2, direction) {
 
 // Export the main function as default
 const pairedForms = {
-  generate: generatePairedForms
+  key: 'pairedForms',
+  name: 'Paired Forms',
+  generate: generatePairedForms,
+  params: {
+    formCount: { type: 'number', min: 2, max: 5, default: 2 },
+    formType: { type: 'select', options: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'], default: 'mixed' },
+    complexity: { type: 'number', min: 0, max: 1, default: 0.5 },
+    alignmentType: { type: 'select', options: ['edge', 'overlap', 'puzzle'], default: 'edge' },
+    useMultiply: { type: 'boolean', default: true },
+    bgColor: { type: 'color', default: '#ffffff' }
+  }
 };
 
 export default pairedForms;

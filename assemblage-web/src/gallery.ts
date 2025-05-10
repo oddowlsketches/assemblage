@@ -1,5 +1,5 @@
 import { randomizePlacement } from './core/randomization';
-import { templates } from './templates';
+import templates from './templates/index';
 
 export function initGallery() {
     const template = templates.find(t => t.key === 'scrambledMosaic');

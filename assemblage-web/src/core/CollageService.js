@@ -10,71 +10,10 @@ import { PromptPlanner } from '../planner/PromptPlanner';
 import maskImplementations from '../legacy/js/collage/maskImplementations.js';
 import { getMaskDescriptor } from '../masks/maskRegistry';
 import { TemplateRenderer } from './TemplateRenderer';
-
-// Add a robust SVG to Path2D converter OUTSIDE the class
-export function svgToPath2D(svgString) {
-    const doc = new window.DOMParser().parseFromString(svgString, "image/svg+xml");
-    const svgEl = doc.querySelector("svg");
-    if (!svgEl) return null;
-    const p = new Path2D();
-    svgEl.querySelectorAll("*").forEach(el => {
-        if (["path", "rect", "circle", "ellipse", "polygon", "polyline", "line"].includes(el.tagName)) {
-            switch (el.tagName) {
-                case "path":
-                    p.addPath(new Path2D(el.getAttribute("d")));
-                    break;
-                case "rect":
-                    p.rect(
-                        +el.getAttribute("x") || 0,
-                        +el.getAttribute("y") || 0,
-                        +el.getAttribute("width"),
-                        +el.getAttribute("height")
-                    );
-                    break;
-                case "circle":
-                    p.moveTo(
-                        +el.getAttribute("cx") + +el.getAttribute("r"),
-                        +el.getAttribute("cy")
-                    );
-                    p.arc(
-                        +el.getAttribute("cx"),
-                        +el.getAttribute("cy"),
-                        +el.getAttribute("r"),
-                        0,
-                        2 * Math.PI
-                    );
-                    break;
-                case "ellipse":
-                    p.ellipse(
-                        +el.getAttribute("cx"),
-                        +el.getAttribute("cy"),
-                        +el.getAttribute("rx"),
-                        +el.getAttribute("ry"),
-                        0, 0, 2 * Math.PI
-                    );
-                    break;
-                case "polygon":
-                case "polyline": {
-                    const points = el.getAttribute("points").trim().split(/\s+|,/).map(Number);
-                    p.moveTo(points[0], points[1]);
-                    for (let i = 2; i < points.length; i += 2) {
-                        p.lineTo(points[i], points[i + 1]);
-                    }
-                    if (el.tagName === "polygon") p.closePath();
-                    break;
-                }
-                case "line":
-                    p.moveTo(+el.getAttribute("x1"), +el.getAttribute("y1"));
-                    p.lineTo(+el.getAttribute("x2"), +el.getAttribute("y2"));
-                    break;
-            }
-        }
-    });
-    return p;
-}
+import { svgToPath2D } from './svgUtils.js';
 
 export class CollageService {
-    constructor(canvas) {
+    constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.images = [];
@@ -84,27 +23,35 @@ export class CollageService {
         this.paperProject = null;
         this.paperView = null;
         this.masks = maskImplementations;
-        
+
+        // Store options
+        this.options = options;
+
         // Initialize Paper.js
         this.initializePaper();
-        
+
         // Initialize the legacy collage generator
-        this.generator = new CollageGenerator(this.canvas);
+        this.generator = new CollageGenerator(this.canvas, { verbose: false });
         this.legacyAdapter = new LegacyCollageAdapter(this.generator);
-        
-        // Initialize the crystal generators
-        this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
-        this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
-        
+
+        // Only initialize crystal generators if enabled
+        if (options.initCrystals !== false) {
+            this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
+            this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
+        } else {
+            this.crystalEffect = null;
+            this.crystalGenerator = null;
+        }
+
         // Initialize the architectural effect
         this.architecturalEffect = new ArchitecturalEffect(this.ctx, []);
-        
+
         // Initialize the prompt planner
         this.promptPlanner = new PromptPlanner(Object.keys(this.masks));
-        
+
         // Initialize the template renderer
         this.templateRenderer = new TemplateRenderer(this);
-        
+
         // Set default parameters
         this.parameters = {
             cleanTiling: false,
@@ -112,7 +59,11 @@ export class CollageService {
         };
 
         // Set initial effect
-        this.setEffect('crystal');
+        if (options.initCrystals !== false) {
+            this.setEffect('crystal');
+        } else {
+            this.setEffect('architectural');
+        }
     }
 
     initializePaper() {
@@ -188,8 +139,11 @@ export class CollageService {
         this.canvas.width = Math.floor(containerWidth * devicePixelRatio);
         this.canvas.height = Math.floor(containerHeight * devicePixelRatio);
         
-        // Reset the context transform and scale
-        this.ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        // Reset transform to identity – templates will draw in CSS pixel space,
+        // but the backing store has higher resolution to remain crisp on HiDPI.
+        // This avoids double-scaling that previously caused drawings to appear
+        // twice as large as the visible canvas.
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         
         // Enable high-quality image rendering
         this.ctx.imageSmoothingEnabled = true;

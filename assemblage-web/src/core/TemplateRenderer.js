@@ -1,5 +1,5 @@
 // TemplateRenderer.js
-import { templates } from '../templates';
+import templates from '../templates';
 import { getMaskDescriptor } from '../masks/maskRegistry';
 import templateModules from '../templates/index';
 
@@ -18,8 +18,12 @@ export class TemplateRenderer {
     
     // Register all template modules
     Object.values(templateModules).forEach(module => {
-      if (module && module.key && module.render) {
+      if (!module || !module.key) return;
+      if (typeof module.render === 'function') {
         this.handlers[module.key] = module.render;
+      } else if (typeof module.generate === 'function') {
+        // Fallback for templates that expose a `generate` method
+        this.handlers[module.key] = module.generate;
       }
     });
     
@@ -55,9 +59,11 @@ export class TemplateRenderer {
     
     // Merge default parameters with provided parameters
     const mergedParams = {};
-    Object.entries(template.params).forEach(([paramKey, paramDef]) => {
-      mergedParams[paramKey] = params[paramKey] !== undefined ? params[paramKey] : paramDef.default;
-    });
+    if (template.params) {
+      Object.entries(template.params).forEach(([paramKey, paramDef]) => {
+        mergedParams[paramKey] = params[paramKey] !== undefined ? params[paramKey] : paramDef.default;
+      });
+    }
     
     // Call the appropriate handler
     const handler = this.handlers[key];
@@ -66,9 +72,15 @@ export class TemplateRenderer {
       return;
     }
     
+    // Always use the latest images from collageService
+    const images = this.collageService.images || [];
+    if (images.length === 0) {
+      console.warn('No images loaded yet – skipping render');
+      return;
+    }
+    
     try {
-      // Use the render function from the template module
-      await handler(this.canvas, this.images, mergedParams);
+      await handler(this.canvas, images, mergedParams);
     } catch (error) {
       console.error(`Error rendering template ${key}:`, error);
     }

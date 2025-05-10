@@ -13,7 +13,9 @@ import { SafeCrystalFormationGenerator } from './crystalFormationGenerator.js';
 import { IsolatedCrystalGenerator } from './isolatedCrystalGenerator.js';
 
 export class CollageGenerator {
-    constructor(canvas) {
+    constructor(canvas, options = {}) {
+        this.options = options;
+        this.verbose = !!options.verbose;
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.images = [];
@@ -76,15 +78,15 @@ export class CollageGenerator {
         this.isolatedCrystalGenerator = null;
         
         // Try to initialize crystal generators
+        if (this.verbose) console.log('Initializing crystal generators...');
         try {
-            console.log('Initializing crystal generators...');
             this.crystalGenerator = new SafeCrystalFormationGenerator(this.ctx, this.canvas);
-            console.log('Standard crystal generator initialized');
+            if (this.verbose) console.log('Standard crystal generator initialized');
             
             // Make sure to create a new isolated generator with proper parameters
-            console.log('Initializing isolated crystal generator...');
+            if (this.verbose) console.log('Initializing isolated crystal generator...');
             this.isolatedCrystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
-            console.log('Isolated crystal generator initialized with canvas dimensions:', {
+            if (this.verbose) console.log('Isolated crystal generator initialized with canvas dimensions:', {
                 width: this.canvas.width,
                 height: this.canvas.height,
                 hasContext: !!this.ctx,
@@ -92,7 +94,7 @@ export class CollageGenerator {
             });
             
             this.hasCrystalEffect = true;
-            console.log('Crystal effect initialized successfully');
+            if (this.verbose) console.log('Crystal effect initialized successfully');
         } catch (error) {
             console.warn('Failed to initialize crystal effect:', error);
             this.hasCrystalEffect = false;

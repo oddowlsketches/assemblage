@@ -43,9 +43,11 @@ function renderTiling(canvas, images, params) {
   const tileSpacing = params.tileSpacing || 0;
   const fillStyle = params.fillStyle || 'fullBleed';
   const debug = params.debug === true;
+  const bgColor = params.bgColor || '#FFFFFF';
+  const useMultiply = params.useMultiply !== false;
   
   // Fill background color
-  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Options for tiling generators
@@ -117,7 +119,9 @@ function renderTiling(canvas, images, params) {
   };
   
   // Apply 'multiply' blending mode globally if needed
-  ctx.globalCompositeOperation = 'multiply';
+  if (useMultiply) {
+    ctx.globalCompositeOperation = 'multiply';
+  }
   
   // Draw each tile with an image
   let penroseRandomImageIndex = 0;
@@ -191,7 +195,20 @@ function renderTiling(canvas, images, params) {
 
 // Export the main function as default
 const tilingTemplate = {
-  generate: renderTiling
+  key: 'tilingTemplate',
+  name: 'Tiling Template',
+  generate: renderTiling,
+  params: {
+    patternType: { type: 'select', options: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille'], default: 'squares' },
+    tileCount: { type: 'number', min: 4, max: 64, default: 16 },
+    useUniqueImages: { type: 'boolean', default: true },
+    randomRotation: { type: 'boolean', default: false },
+    tileSpacing: { type: 'number', min: 0, max: 20, default: 0 },
+    fillStyle: { type: 'select', options: ['fullBleed', 'centeredForm'], default: 'fullBleed' },
+    debug: { type: 'boolean', default: false },
+    bgColor: { type: 'color', default: '#ffffff' },
+    useMultiply: { type: 'boolean', default: true }
+  }
 };
 
 export default tilingTemplate;

@@ -72,6 +72,14 @@ canvas {
   image-rendering: crisp-edges;
 }
 
+/* Fix for dev harness: prevent grid canvases from being stretched or absolutely positioned */
+.dev-harness-grid canvas {
+  position: static !important;
+  width: 120px !important;
+  height: 120px !important;
+  object-fit: initial !important;
+}
+
 /* Header */
 header {
   position: fixed;
@@ -367,4 +375,15 @@ footer {
 
 #prompt-input::placeholder {
   color: #999;
+}
+
+/* Preview container override to avoid legacy fixed positioning */
+.preview-container {
+  position: relative !important;
+  width: 100%;
+  height: 100%;
+}
+
+.preview-container canvas {
+  position: static !important;
 } 
