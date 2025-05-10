@@ -82,9 +82,9 @@ export function TemplateReview() {
     let result = { valid: true };
     if (isLegacyPlacementTemplate) {
       result = validateTemplate(selectedTemplate);
-      setValidationResult(result);
+    setValidationResult(result);
     }
-
+    
     const ctx = canvasRef.current.getContext('2d');
     ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
@@ -222,20 +222,20 @@ export function TemplateReview() {
       </nav>
       <div style={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
         <div className="controls" style={{ minWidth: 320, maxWidth: 400, padding: 24, borderRight: '1px solid #eee', background: '#fafafa', overflowY: 'auto' }}>
-          <h2>Template Review</h2>
-          <select 
-            value={selectedTemplate?.key}
-            onChange={(e) => {
-              const template = templates.find(t => t.key === e.target.value);
-              setSelectedTemplate(template);
-            }}
-          >
-            {templates.map(template => (
-              <option key={`template-${template.key}`} value={template.key}>{template.name}</option>
-            ))}
-          </select>
-          {selectedTemplate?.params && (
-            <div className="params">
+        <h2>Template Review</h2>
+        <select 
+          value={selectedTemplate?.key}
+          onChange={(e) => {
+            const template = templates.find(t => t.key === e.target.value);
+            setSelectedTemplate(template);
+          }}
+        >
+          {templates.map(template => (
+            <option key={`template-${template.key}`} value={template.key}>{template.name}</option>
+          ))}
+        </select>
+        {selectedTemplate?.params && (
+          <div className="params">
               {Object.entries(selectedTemplate.params).map(([paramName, schema]) => {
                 // Hide swapPct / rotatePct / revealPct depending on current operation
                 if (selectedTemplate.key === 'scrambledMosaic') {
@@ -279,13 +279,13 @@ export function TemplateReview() {
           )}
         </div>
         <div className="preview-container" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', overflowY: 'auto' }}>
-          <canvas
-            ref={canvasRef}
+        <canvas 
+          ref={canvasRef}
             style={{ border: '1px solid #ccc', background: '#fff' }}
-            width={800}
-            height={600}
-          />
-        </div>
+          width={800}
+          height={600}
+        />
+      </div>
       </div>
     </div>
   );

@@ -26,32 +26,32 @@ export class CollageService {
 
         // Store options
         this.options = options;
-
+        
         // Initialize Paper.js
         this.initializePaper();
-
+        
         // Initialize the legacy collage generator
         this.generator = new CollageGenerator(this.canvas, { verbose: false });
         this.legacyAdapter = new LegacyCollageAdapter(this.generator);
-
+        
         // Only initialize crystal generators if enabled
         if (options.initCrystals !== false) {
-            this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
-            this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
+        this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
+        this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
         } else {
             this.crystalEffect = null;
             this.crystalGenerator = null;
         }
-
+        
         // Initialize the architectural effect
         this.architecturalEffect = new ArchitecturalEffect(this.ctx, []);
-
+        
         // Initialize the prompt planner
         this.promptPlanner = new PromptPlanner(Object.keys(this.masks));
-
+        
         // Initialize the template renderer
         this.templateRenderer = new TemplateRenderer(this);
-
+        
         // Set default parameters
         this.parameters = {
             cleanTiling: false,
@@ -60,7 +60,7 @@ export class CollageService {
 
         // Set initial effect
         if (options.initCrystals !== false) {
-            this.setEffect('crystal');
+        this.setEffect('crystal');
         } else {
             this.setEffect('architectural');
         }
