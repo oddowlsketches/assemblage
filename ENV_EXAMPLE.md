@@ -1,3 +1,7 @@
 # Supabase Environment Variables Example
-SUPABASE_URL=
-SUPABASE_SERVICE_KEY= 
+SUPABASE_URL=https://qpvuwzztqqeyqxkrnhfr.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwdnV3enp6dHFxZXl4aGtuaGZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4MDk3MDgsImV4cCI6MjA2MjM4NTcwOH0.rIpx3Cq0Jc8pUo2ym9mGtd4eua2sSMjJE-h6Itz0scM
+
+# Client-side environment (Vite) – exposed in browser; use anon key
+VITE_SUPABASE_URL=https://qpvuwzztqqeyqxkrnhfr.supabase.co
+VITE_SUPABASE_ANON_KEY=<your-public-anon-key>
