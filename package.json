@@ -15,7 +15,8 @@
   },
   "scripts": {
     "db:push": "ts-node scripts/dbSync.ts",
-    "db:studio": "supabase studio"
+    "db:studio": "supabase studio",
+    "seed:images": "ts-node scripts/seedPublicImages.ts"
   },
   "devDependencies": {
     "eslint-config-airbnb-typescript": "^18.0.0",
