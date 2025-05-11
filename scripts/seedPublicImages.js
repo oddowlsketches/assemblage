@@ -43,7 +43,7 @@ async function seedImages() {
   });
 
   console.log(`Seeding ${records.length} images into Supabase...`);
-  const { data, error } = await supa.from('images').upsert(records, { onConflict: 'id' });
+  const { data, error } = await supa.from('images').upsert(records, { onConflict: 'id', returning: 'representation' });
   if (error) {
     console.error('Error seeding images:', error);
     process.exit(1);
