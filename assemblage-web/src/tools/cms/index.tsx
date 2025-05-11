@@ -131,7 +131,12 @@ const ImagesPage: React.FC = () => {
   const load = async () => {
     setLoading(true);
     const { data, error } = await supa.from('images').select('*');
-    if (!error && data) setRows(data as ImageRow[]);
+    console.log('CMS load images:', data, error);
+    if (error) {
+      console.error('Error fetching images in CMS:', error);
+    } else if (data) {
+      setRows(data as ImageRow[]);
+    }
     setLoading(false);
   };
 
