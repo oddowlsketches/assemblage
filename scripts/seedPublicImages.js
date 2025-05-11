@@ -24,23 +24,21 @@ const supa = createClient(
 );
 
 async function seedImages() {
-  const dir = path.resolve(process.cwd(), 'assemblage-web', 'public', 'images', 'collages');
-  if (!fs.existsSync(dir)) {
-    console.error('Directory not found:', dir);
+  // Load metadata JSON for all images to seed
+  const metaPath = path.resolve(process.cwd(), 'assemblage-web', 'public', 'images', 'metadata.json');
+  if (!fs.existsSync(metaPath)) {
+    console.error('Metadata JSON not found:', metaPath);
     process.exit(1);
   }
-
-  const files = fs.readdirSync(dir).filter((f) => /\.jpe?g$/.test(f));
-  const records = files.map((file) => {
-    const id = path.basename(file, path.extname(file));
-    return {
-      id,
-      src: `/images/collages/${file}`,
-      title: id,
-      tags: [],
-      description: '' // default empty description to satisfy NOT NULL constraint
-    };
-  });
+  const raw = fs.readFileSync(metaPath, 'utf-8');
+  const metadata = JSON.parse(raw);
+  const records = metadata.map(({ id, src, description, tags }) => ({
+    id,
+    src: `/images/collages/${src}`,
+    title: id,
+    tags: tags || [],
+    description: description || '',
+  }));
 
   console.log(`Seeding ${records.length} images into Supabase...`);
   const { data, error } = await supa.from('images').upsert(records, { onConflict: 'id', returning: 'representation' });
