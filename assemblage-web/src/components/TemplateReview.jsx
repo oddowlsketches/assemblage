@@ -4,6 +4,7 @@ console.log('TEMPLATES:', templates);
 import { CollageService } from '../core/CollageService';
 import { validateTemplate, getAvailableMasks } from '../core/TemplateValidator';
 import { extendCollageService, initCollageServiceExtensions } from '../core/CollageServiceExtensions';
+import { useImages } from '../hooks/useImages';
 
 // Find the first React-based template (with a .component property)
 const defaultTemplate = templates[0];
@@ -19,6 +20,9 @@ export function TemplateReview() {
   const [params, setParams] = useState({});
   const canvasRef = useRef(null);
   const collageServiceRef = useRef(null);
+
+  // Fetch metadata from Supabase
+  const { images: metaImages } = useImages();
 
   // Initialize CollageService once when canvas available (all non-component templates now)
   useEffect(() => {
@@ -36,10 +40,22 @@ export function TemplateReview() {
     extendCollageService(CollageService);
     initCollageServiceExtensions();
     
-    // Load images
-    collageServiceRef.current.loadImages().then(loadedImages => {
-      setImages(loadedImages);
-    });
+    // When the Supabase metadata arrives, load actual Image elements
+    if (metaImages && metaImages.length) {
+      const preload = async () => {
+        const loaded = await Promise.all(
+          metaImages.map((meta) => new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = meta.src;
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+          }))
+        );
+        setImages(loaded.filter(Boolean));
+      };
+      preload();
+    }
 
     // Get available masks
     setAvailableMasks(getAvailableMasks());
@@ -50,14 +66,7 @@ export function TemplateReview() {
     window.addEventListener('resize', handleResize);
 
     return () => window.removeEventListener('resize', handleResize);
-  }, [canvasRef.current]);
-
-  // Load images when template changes and CollageService exists but images not loaded yet
-  useEffect(() => {
-    if (!collageServiceRef.current) return;
-    if (images.length > 0) return;
-    collageServiceRef.current.loadImages().then(setImages);
-  }, [selectedTemplate, collageServiceRef.current]);
+  }, [canvasRef.current, metaImages]);
 
   // Initialize params when template changes
   useEffect(() => {
