@@ -1,8 +1,12 @@
 [build]
-  command = "cd assemblage-web && npm install && npm run build"
-  publish = "assemblage-web/dist"
-  functions = "netlify/functions"
- 
+  base = "assemblage-web"
+  command = "npm ci && npm run build"
+  publish = "dist"
+  functions = "../netlify/functions"
+
+[build.environment]
+  NODE_VERSION = "18"
+
 [dev]
   command = "cd assemblage-web && npm run dev"
   port = 8888
