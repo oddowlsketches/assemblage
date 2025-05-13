@@ -1,6 +1,6 @@
 [build]
   base = "assemblage-web"
-  command = "npm install && npm run build" # Use npm install for more flexibility
+  command = "npm ci && npm run build" # Use npm ci for cleaner installs
   publish = "dist"
   functions = "../netlify/functions"
 
