@@ -1,8 +1,8 @@
 [build]
-  base = "assemblage-web" # Set base directory for build context
-  command = "npm ci && npm run build" # Install & build within assemblage-web
-  publish = "dist" # Publish the dist folder from assemblage-web
-  functions = "../netlify/functions" # Path to functions relative to base
+  base = "assemblage-web"
+  command = "npm install && npm run build" # Use npm install for more flexibility
+  publish = "dist"
+  functions = "../netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
