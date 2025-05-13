@@ -14,18 +14,25 @@
     }
   },
   "scripts": {
+    "dev:site": "cd assemblage-web && npm run dev",
     "db:push": "ts-node scripts/dbSync.ts",
     "db:studio": "supabase studio",
-    "seed:images": "ts-node scripts/seedPublicImages.ts"
+    "seed:images": "node scripts/seedPublicImages.js"
   },
   "devDependencies": {
+    "autoprefixer": "^10.4.21",
     "eslint-config-airbnb-typescript": "^18.0.0",
     "eslint-config-prettier": "^10.1.5",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.6",
     "ts-node": "^10.9.1",
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@netlify/functions": "^3.1.8",
     "@supabase/supabase-js": "^2.43.4",
-    "@netlify/functions": "^4.45.1"
+    "dotenv": "^16.5.0",
+    "openai": "^4.98.0",
+    "uuid": "^11.1.0"
   }
 }

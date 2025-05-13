@@ -1,0 +1,9 @@
+[build]
+  publish = "assemblage-web"
+  functions = "netlify/functions"
+ 
+[dev]
+  command = "cd assemblage-web && npm run dev"
+  port = 8888
+  functions = "netlify/functions"
+  targetPort = 5175 

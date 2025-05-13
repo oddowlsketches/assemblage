@@ -58,7 +58,7 @@ function MainApp() {
   const handleSave = () => serviceRef.current?.saveCollage();
 
   return (
-    <div id="wrapper">
+   <div id="wrapper">
       <header>
         <div className="header-text">
           <h1>Assemblage</h1>

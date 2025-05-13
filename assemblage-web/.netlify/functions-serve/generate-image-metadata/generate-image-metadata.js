@@ -1,0 +1,1 @@
+module.exports = require('./Users/emilyschwartzman/assemblage-app/netlify/functions/generate-image-metadata.js')

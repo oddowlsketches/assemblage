@@ -9,23 +9,27 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@netlify/functions": "^3.1.8",
+    "@supabase/supabase-js": "^2.43.4",
+    "clsx": "^1.2.1",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "openai": "^4.97.0",
+    "openai": "^4.98.0",
     "paper": "^0.12.18",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.30.0",
-    "zod": "^3.23.6",
-    "@supabase/supabase-js": "^2.43.4",
-    "clsx": "^1.2.1",
-    "swr": "^2.2.0"
+    "swr": "^2.2.0",
+    "zod": "^3.23.6"
   },
   "devDependencies": {
     "@types/react": "^18.3.21",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.1",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.4"
