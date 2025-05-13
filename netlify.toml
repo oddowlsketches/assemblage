@@ -1,7 +1,9 @@
 [build]
   # No base needed - command runs from root
-  # Install root dependencies first, then build the web app
-  command = "npm install && npm run build --prefix assemblage-web"
+  # 1. Install root dependencies (for functions)
+  # 2. Install assemblage-web dependencies (for its build process)
+  # 3. Build assemblage-web
+  command = "npm install && npm install --prefix assemblage-web && npm run build --prefix assemblage-web"
   publish = "assemblage-web/dist" # Path relative to root
   functions = "netlify/functions" # Path relative to root
 
