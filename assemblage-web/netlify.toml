@@ -1,9 +1,0 @@
-[dev]
-  # Run the Vite dev server in this directory
-  command = "npm run dev"
-
-  # The port Vite will run on
-  port = 5175
-
-  # Directory where serverless functions live (relative to this file)
-  functions = "../netlify/functions" 
