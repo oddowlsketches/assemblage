@@ -1,13 +1,15 @@
 [build]
   # No base needed - command runs from root
-  # 1. Install root dependencies (for functions)
-  # 2. cd into assemblage-web, install its dependencies, then build it
-  command = "npm install && (cd assemblage-web && npm install && npm run build)"
+  # 1. Install root dependencies (for functions) using npm ci
+  # 2. cd into assemblage-web, install its dependencies using npm ci, then build it
+  command = "npm ci && (cd assemblage-web && npm ci && npm run build)"
   publish = "assemblage-web/dist" # Path relative to root
   functions = "netlify/functions" # Path relative to root
 
 [build.environment]
   NODE_VERSION = "18"
+  # Explicitly set NODE_ENV for build
+  NODE_ENV = "production"
 
 [dev]
   command = "cd assemblage-web && npm run dev"
