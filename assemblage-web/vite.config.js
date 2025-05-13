@@ -16,8 +16,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        review: resolve(__dirname, 'tools/template-review.html'),
         cms: resolve(__dirname, 'cms.html'),
+        review: resolve(__dirname, 'template-review.html')
       }
     }
   },
