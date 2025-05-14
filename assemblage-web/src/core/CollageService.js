@@ -1,5 +1,6 @@
 // CollageService.js
 import paper from 'paper';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGenerator.js';
 import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
 import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
@@ -23,9 +24,19 @@ export class CollageService {
         this.paperProject = null;
         this.paperView = null;
         this.masks = maskImplementations;
+        this.supabaseClient = null;
 
         // Store options
         this.options = options;
+        
+        // Initialize Supabase client
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (supabaseUrl && supabaseAnonKey) {
+            this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        } else {
+            console.error('[CollageService] Supabase URL or Anon Key is missing. Images will not load from Supabase.');
+        }
         
         // Initialize Paper.js
         this.initializePaper();
@@ -165,40 +176,64 @@ export class CollageService {
     }
 
     async loadImages() {
+        if (!this.supabaseClient) {
+            console.warn('[CollageService] Supabase client not initialized. Cannot load images.');
+            this.images = [];
+            return this.images;
+        }
+
         try {
-            // Load images from the original image library
-            const response = await fetch('/images/metadata.json');
-            const metadata = await response.json();
-            
-            // Load all images
+            console.log('[CollageService] Loading images from Supabase...');
+            const { data: supabaseImages, error: dbError } = await this.supabaseClient
+                .from('images')
+                .select('id, src, title, tags, description, imagetype')
+                .order('created_at', { ascending: false });
+
+            if (dbError) {
+                console.error('[CollageService] Error fetching images from Supabase:', dbError);
+                this.images = [];
+                return this.images;
+            }
+
+            if (!supabaseImages || supabaseImages.length === 0) {
+                console.warn('[CollageService] No images found in Supabase.');
+                this.images = [];
+                return this.images;
+            }
+
             this.images = await Promise.all(
-                metadata.map(async (img) => {
+                supabaseImages.map(async (imgData) => {
+                    if (!imgData.src) {
+                        console.warn(`[CollageService] Image data missing src for ID: ${imgData.id}`);
+                        return null;
+                    }
                     const image = new Image();
-                    image.crossOrigin = "anonymous";
-                    image.src = `/images/collages/${img.id}.jpg`;
-                    await new Promise((resolve, reject) => {
-                        image.onload = resolve;
-                        image.onerror = () => {
-                            console.warn(`Failed to load image: ${img.id}`);
-                            resolve(null); // Resolve with null instead of rejecting
-                        };
-                    });
-                    return image;
+                    image.crossOrigin = "anonymous"; // Important for canvas if images are from different origin
+                    image.src = imgData.src; // Use the src URL from Supabase
+                    try {
+                        await image.decode(); // More robust than onload for ensuring image is ready
+                        return image;
+                    } catch (loadError) {
+                        console.warn(`[CollageService] Failed to load image from Supabase: ${imgData.src}`, loadError);
+                        return null;
+                    }
                 })
             );
             
-            // Filter out any failed image loads
-            this.images = this.images.filter(img => img !== null);
+            this.images = this.images.filter(img => img !== null && img.complete && img.naturalHeight !== 0);
             
-            console.log(`Loaded ${this.images.length} images`);
+            console.log(`[CollageService] Loaded ${this.images.length} images from Supabase.`);
             
-            // Update the images in the generators
-            this.generator.images = this.images;
-            
+            // Update the images in the generators/effects if they expect an array of Image elements
+            if (this.generator) this.generator.images = this.images;
+            if (this.crystalEffect) this.crystalEffect.images = this.images; // Assuming CrystalEffect has an images property
+            if (this.architecturalEffect) this.architecturalEffect.images = this.images; // Assuming ArchitecturalEffect has an images property
+
             return this.images;
         } catch (error) {
-            console.error('Error loading images:', error);
-            return [];
+            console.error('[CollageService] Error in loadImages method:', error);
+            this.images = [];
+            return this.images;
         }
     }
 
