@@ -225,7 +225,10 @@ const ImagesPage: React.FC = () => {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supa.from('images').select('*');
+    const { data, error } = await supa
+      .from('images')
+      .select('*')
+      .order('created_at', { ascending: false }); // Default sort: newest first
     console.log('CMS load images:', data, error);
     if (error) {
       console.error('Error fetching images in CMS:', error);
