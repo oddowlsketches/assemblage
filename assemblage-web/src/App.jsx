@@ -97,11 +97,11 @@ function MainApp() {
 export default function App() {
   return (
     <Router>
-      <nav style={{ padding: '1rem', textAlign: 'center' }}>
+      {/* <nav style={{ padding: '1rem', textAlign: 'center' }}>
         <Link to="/">Main App</Link>
         {' | '}
         <Link to="/dev-review">Template Review (Dev Tool)</Link>
-      </nav>
+      </nav> */}
       <Routes>
         <Route path="/" element={<MainApp />} />
         <Route path="/dev-review" element={<TemplateReview />} />

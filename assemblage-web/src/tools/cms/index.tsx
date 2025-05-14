@@ -277,7 +277,7 @@ const ImagesPage: React.FC = () => {
   );
 
   return (
-    <div className="flex-1 p-6 overflow-auto">
+    <div className="flex-1 p-6 overflow-y-auto">
       {Toolbar}
 
       {loading ? (
