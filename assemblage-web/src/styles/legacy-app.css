@@ -65,6 +65,14 @@ html, body {
   transition: background-color var(--transition-speed) ease;
 }
 
+/* Added style for the ID used in App.jsx */
+#canvas-container {
+  flex: 1; /* Allow it to grow and shrink in the flex column of #wrapper */
+  display: flex; /* To properly contain the absolutely positioned canvas or a canvas with width/height 100% */
+  position: relative; /* Establishes a positioning context */
+  overflow: hidden; /* In case canvas tries to be too big, though CollageService resizes it */
+}
+
 canvas {
   position: absolute;
   top: 0;
