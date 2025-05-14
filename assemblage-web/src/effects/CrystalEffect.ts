@@ -427,18 +427,18 @@ export class CrystalEffect extends EffectBase {
   }
 
   private drawStandardCrystal(): void {
-    // Get device pixel ratio
-    const dpr = window.devicePixelRatio || 1;
+    // Get device pixel ratio - NO LONGER NEEDED FOR THESE BASE CALCULATIONS
+    // const dpr = window.devicePixelRatio || 1; 
     
-    // Calculate center point using scaled dimensions
-    const centerX = this.ctx.canvas.width / (2 * dpr);
-    const centerY = this.ctx.canvas.height / (2 * dpr);
+    // Calculate center point using ACTUAL CANVAS BUFFER dimensions
+    const centerX = this.ctx.canvas.width / 2;
+    const centerY = this.ctx.canvas.height / 2;
     
-    // Calculate size based on scaled dimensions - using max for standard to fill the canvas
+    // Calculate size based on ACTUAL CANVAS BUFFER dimensions
     const size = Math.max(
-      this.ctx.canvas.width / (2 * dpr),
-      this.ctx.canvas.height / (2 * dpr)
-    ) * (0.7 + Math.random() * 0.2); // Keep original 0.7-0.9 range
+      this.ctx.canvas.width / 2,
+      this.ctx.canvas.height / 2
+    ) * (0.7 + Math.random() * 0.2); 
 
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
@@ -455,13 +455,12 @@ export class CrystalEffect extends EffectBase {
     // Create fragments with resolution based on complexity
     const resolution = 50 + this.settings.complexity * 5;
     
-    // For standard crystal, we don't need to clip to a crystal outline
-    // Create a rectangular outline that covers the entire canvas
+    // Create a rectangular outline that covers the entire canvas BUFFER
     const canvasOutline = [
       { x: 0, y: 0 },
-      { x: this.ctx.canvas.width / dpr, y: 0 },
-      { x: this.ctx.canvas.width / dpr, y: this.ctx.canvas.height / dpr },
-      { x: 0, y: this.ctx.canvas.height / dpr }
+      { x: this.ctx.canvas.width, y: 0 },
+      { x: this.ctx.canvas.width, y: this.ctx.canvas.height },
+      { x: 0, y: this.ctx.canvas.height }
     ];
     
     this.fragments = this.createVoronoiCells(seedPoints, canvasOutline, resolution);
@@ -496,18 +495,18 @@ export class CrystalEffect extends EffectBase {
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     this.ctx.restore();
 
-    // Get device pixel ratio
-    const dpr = window.devicePixelRatio || 1;
+    // Get device pixel ratio - NO LONGER NEEDED FOR THESE BASE CALCULATIONS
+    // const dpr = window.devicePixelRatio || 1;
     
-    // Calculate center point using scaled dimensions
-    const centerX = this.ctx.canvas.width / (2 * dpr);
-    const centerY = this.ctx.canvas.height / (2 * dpr);
+    // Calculate center point using ACTUAL CANVAS BUFFER dimensions
+    const centerX = this.ctx.canvas.width / 2;
+    const centerY = this.ctx.canvas.height / 2;
     
-    // Calculate size based on canvas dimensions - using min for isolated to leave space around
+    // Calculate size based on ACTUAL CANVAS BUFFER dimensions
     const size = Math.min(
-      this.ctx.canvas.width / (2 * dpr),
-      this.ctx.canvas.height / (2 * dpr)
-    ) * (0.9 + Math.random() * 0.05); // Increased from 0.7 to 0.9 for larger isolated crystal
+      this.ctx.canvas.width / 2,
+      this.ctx.canvas.height / 2
+    ) * (0.9 + Math.random() * 0.05); 
     
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity;

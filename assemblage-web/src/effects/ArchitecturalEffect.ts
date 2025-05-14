@@ -463,9 +463,8 @@ export class ArchitecturalEffect extends EffectBase {
 
   private drawComplementaryShape(): void {
     const ctx = this.ctx;
-    const dpr = window.devicePixelRatio || 1;
-    const width = ctx.canvas.width / dpr;
-    const height = ctx.canvas.height / dpr;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
     
     // Get background color and its complementary
     const bgColor = this.chooseBackgroundColor();
@@ -500,9 +499,8 @@ export class ArchitecturalEffect extends EffectBase {
 
   public draw(): void {
     const ctx = this.ctx;
-    const dpr = window.devicePixelRatio || 1;
-    const width = ctx.canvas.width / dpr;
-    const height = ctx.canvas.height / dpr;
+    const width = ctx.canvas.width;
+    const height = ctx.canvas.height;
 
     // Clear the canvas and set initial state
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -643,9 +641,8 @@ export class ArchitecturalEffect extends EffectBase {
    * This method creates a plan that resembles a building with doors, windows, arches, etc.
    */
   public generateArchitecturalPlan(): MaskPlacement[] {
-    const dpr = window.devicePixelRatio || 1;
-    const width = this.ctx.canvas.width / dpr;
-    const height = this.ctx.canvas.height / dpr;
+    const width = this.ctx.canvas.width;
+    const height = this.ctx.canvas.height;
 
     // If we have a prompt, use it to influence the composition
     if (this.params.promptText) {
