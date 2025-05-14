@@ -117,6 +117,7 @@ export const handler: Handler = async (event) => {
     };
     // In production (non-local), call OpenAI for real metadata
     if (!process.env.SUPABASE_URL?.includes('127.0.0.1')) {
+      console.log(`[UPLOAD_FN] Attempting OpenAI call for ID: ${actualId} with URL: ${openAiUrl}`);
       // Prompt the vision model with a public image URL
       const prompt = `
 You are an art cataloging assistant.
@@ -138,20 +139,30 @@ Return only JSON in this format with no extra text:
           ] as any
         });
         const content = response.choices[0].message.content || '{}';
-        metadata = JSON.parse(content);
+        console.log(`[UPLOAD_FN] OpenAI raw content for ID ${actualId}:`, content);
+        try {
+          metadata = JSON.parse(content);
+          console.log(`[UPLOAD_FN] OpenAI parsed metadata for ID ${actualId}:`, metadata);
+        } catch (parseErr: any) {
+          console.error(`[UPLOAD_FN] OpenAI JSON.parse error for ID ${actualId}:`, parseErr.message);
+          console.error(`[UPLOAD_FN] Faulty JSON string for ID ${actualId}:`, content);
+          // Keep default/empty metadata if parse fails
+        }
       } catch (err: any) {
-        console.warn('Skipping OpenAI metadata generation (local or error):', err.message || err);
+        console.error(`[UPLOAD_FN] OpenAI API call error for ID ${actualId}:`, err.message || err);
+        // Keep default/empty metadata if OpenAI call fails
       }
     } else {
-      console.log('Local dev mode: skipping OpenAI metadata.');
+      console.log(`[UPLOAD_FN] Local dev mode: skipping OpenAI metadata for ID: ${actualId}.`);
     }
 
+    console.log(`[UPLOAD_FN] Attempting to update DB for ID ${actualId} with metadata:`, metadata);
     // Update row with metadata
     const { error: updateErr } = await supa.from('images')
       .update({ description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
       .eq('id', actualId);
     if (updateErr) {
-      console.error('DB update error:', updateErr);
+      console.error(`[UPLOAD_FN] DB update error for ID ${actualId}:`, updateErr);
       return {
         statusCode: 500,
         headers: {
@@ -164,6 +175,7 @@ Return only JSON in this format with no extra text:
       };
     }
 
+    console.log(`[UPLOAD_FN] Successfully processed and updated ID ${actualId}.`);
     return {
       statusCode: 200,
       headers: {
@@ -175,7 +187,7 @@ Return only JSON in this format with no extra text:
       body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
     };
   } catch (e: any) {
-    console.error(e);
+    console.error('[UPLOAD_FN] General catch error:', e.message);
     return {
       statusCode: 500,
       headers: {
