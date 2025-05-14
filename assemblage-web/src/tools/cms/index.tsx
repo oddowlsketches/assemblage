@@ -17,7 +17,7 @@ type ImageRow = {
   tags: string[];
   created_at?: string;
   description?: string;
-  imageType: string;
+  imagetype: string;
 };
 
 const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
@@ -319,7 +319,7 @@ const ImagesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-2 align-top">
-                      {row.imageType === "pending" && (!row.tags || row.tags.length === 0) ? (
+                      {row.imagetype === "pending" && (!row.tags || row.tags.length === 0) ? (
                         <span className="italic text-gray-500">Processing...</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
@@ -335,10 +335,10 @@ const ImagesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-2 align-top max-w-[100px] truncate">
-                      {row.imageType === "pending" ? (
+                      {row.imagetype === "pending" ? (
                         <span className="italic text-gray-500">Processing...</span>
                       ) : (
-                        row.imageType
+                        row.imagetype
                       )}
                     </td>
                     <td className="p-2 align-top text-center">
@@ -365,7 +365,7 @@ const ImagesPage: React.FC = () => {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1 mt-auto">
-                  {img.imageType === "pending" && (!img.tags || img.tags.length === 0) ? (
+                  {img.imagetype === "pending" && (!img.tags || img.tags.length === 0) ? (
                     <span className="italic text-gray-500 text-[10px]">Processing tags...</span>
                   ) : (
                     img.tags.slice(0, 4).map((t) => (
@@ -373,7 +373,7 @@ const ImagesPage: React.FC = () => {
                     ))
                   )}
                 </div>
-                <div className="text-[10px] text-gray-500 mt-1">(Type: {img.imageType === "pending" ? "..." : img.imageType})</div>
+                <div className="text-[10px] text-gray-500 mt-1">(Type: {img.imagetype === "pending" ? "..." : img.imagetype})</div>
               </div>
             ))}
           </div>

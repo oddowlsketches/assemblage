@@ -86,7 +86,7 @@ export const handler: Handler = async (event) => {
     // Upsert initial row by title to avoid duplicates
     const { data: insertData, error: insertErr } = await supa.from('images')
       .upsert(
-        { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imageType: "pending" },
+        { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imagetype: "pending" },
         { onConflict: 'title' }
       )
       .select('id');
@@ -148,7 +148,7 @@ Return only JSON in this format with no extra text:
 
     // Update row with metadata
     const { error: updateErr } = await supa.from('images')
-      .update({ description: metadata.description, tags: metadata.tags, imageType: metadata.imageType })
+      .update({ description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
       .eq('id', actualId);
     if (updateErr) {
       console.error('DB update error:', updateErr);
@@ -172,7 +172,7 @@ Return only JSON in this format with no extra text:
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type'
       },
-      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, ...metadata })
+      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
     };
   } catch (e: any) {
     console.error(e);

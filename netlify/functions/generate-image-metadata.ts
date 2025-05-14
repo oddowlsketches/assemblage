@@ -60,7 +60,7 @@ export const handler: Handler = async (event) => {
     // Update DB row
     const { error } = await supa
       .from('images')
-      .update({ description: metadata.description, tags: metadata.tags, imageType: metadata.imageType })
+      .update({ description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
       .eq('id', id);
 
     if (error) {
@@ -70,7 +70,7 @@ export const handler: Handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, metadata }),
+      body: JSON.stringify({ success: true, metadata: { ...metadata, imagetype: metadata.imageType } }),
       headers: { 'Content-Type': 'application/json' },
     };
   } catch (e: any) {
