@@ -86,10 +86,24 @@ export const handler: Handler = async (event) => {
     // Upsert initial row by title to avoid duplicates
     const { data: insertData, error: insertErr } = await supa.from('images')
       .upsert(
-        { id, src: publicUrl, title: fileName, description: '', tags: [] },
+        { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imageType: "pending" },
         { onConflict: 'title' }
       )
       .select('id');
+
+    if (insertErr) {
+      console.error('Initial DB insert error:', insertErr);
+      return {
+        statusCode: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST,OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        },
+        body: JSON.stringify({ error: 'Failed to save initial image record: ' + insertErr.message })
+      };
+    }
 
     // Determine if an existing row was replaced
     const actualId = insertData?.[0]?.id;

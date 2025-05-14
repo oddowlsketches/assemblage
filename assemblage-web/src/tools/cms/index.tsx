@@ -17,6 +17,7 @@ type ImageRow = {
   tags: string[];
   created_at?: string;
   description?: string;
+  imageType: string;
 };
 
 const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
@@ -292,6 +293,7 @@ const ImagesPage: React.FC = () => {
                   <th className="p-2 border-b font-semibold">Title</th>
                   <th className="p-2 border-b font-semibold">Description</th>
                   <th className="p-2 border-b font-semibold">Tags</th>
+                  <th className="p-2 border-b font-semibold">Type</th>
                   <th className="p-2 border-b w-8"></th>
                 </tr>
               </thead>
@@ -308,23 +310,36 @@ const ImagesPage: React.FC = () => {
                     <td className="p-2 align-top max-w-[120px] truncate text-gray-500">{row.id}</td>
                     <td className="p-2 align-top max-w-[120px] truncate">{row.title}</td>
                     <td className="p-2 align-top max-w-[260px] text-gray-700">
-                      {row.description && row.description.length > 80 ? (
+                      {row.description === "Processing..." ? (
+                        <span className="italic text-gray-500">Processing...</span>
+                      ) : row.description && row.description.length > 80 ? (
                         <span title={row.description}>{truncate(row.description, 80)}</span>
                       ) : (
                         row.description
                       )}
                     </td>
                     <td className="p-2 align-top">
-                      <div className="flex flex-wrap gap-1">
-                        {row.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full border border-blue-200"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
+                      {row.imageType === "pending" && (!row.tags || row.tags.length === 0) ? (
+                        <span className="italic text-gray-500">Processing...</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {row.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full border border-blue-200"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-2 align-top max-w-[100px] truncate">
+                      {row.imageType === "pending" ? (
+                        <span className="italic text-gray-500">Processing...</span>
+                      ) : (
+                        row.imageType
+                      )}
                     </td>
                     <td className="p-2 align-top text-center">
                       <button onClick={() => handleDelete(row.id)} className="text-red-600 hover:text-red-800">✕</button>
@@ -342,12 +357,23 @@ const ImagesPage: React.FC = () => {
                 <img src={img.src} alt={img.title} className="w-full h-32 object-cover rounded" />
                 <div className="mt-2 text-xs font-medium truncate" title={img.id}>{img.id}</div>
                 <div className="text-xs truncate" title={img.title}>{img.title}</div>
-                <div className="text-[10px] text-gray-600 truncate mb-1" title={img.description}>{truncate(img.description||'',60)}</div>
-                <div className="flex flex-wrap gap-1 mt-auto">
-                  {img.tags.slice(0,4).map((t) => (
-                    <span key={t} className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-800 rounded-full">{t}</span>
-                  ))}
+                <div className="text-[10px] text-gray-600 truncate mb-1" title={img.description}>
+                  {img.description === "Processing..." ? (
+                    <span className="italic text-gray-500">Processing...</span>
+                  ) : (
+                    truncate(img.description || "", 60)
+                  )}
                 </div>
+                <div className="flex flex-wrap gap-1 mt-auto">
+                  {img.imageType === "pending" && (!img.tags || img.tags.length === 0) ? (
+                    <span className="italic text-gray-500 text-[10px]">Processing tags...</span>
+                  ) : (
+                    img.tags.slice(0, 4).map((t) => (
+                      <span key={t} className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-800 rounded-full">{t}</span>
+                    ))
+                  )}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-1">(Type: {img.imageType === "pending" ? "..." : img.imageType})</div>
               </div>
             ))}
           </div>
