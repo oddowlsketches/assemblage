@@ -213,6 +213,15 @@ const ImagesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'table' | 'grid'>('table');
+  const [selectedImage, setSelectedImage] = useState<ImageRow | null>(null);
+
+  const handleImageClick = (image: ImageRow) => {
+    setSelectedImage(image);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedImage(null);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -299,7 +308,7 @@ const ImagesPage: React.FC = () => {
               </thead>
               <tbody>
                 {filteredRows.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0 hover:bg-gray-100 group">
+                  <tr key={row.id} className="border-b last:border-0 hover:bg-gray-100 group cursor-pointer" onClick={() => handleImageClick(row)}>
                     <td className="p-2 align-top sticky left-0 bg-white">
                       <img
                         src={row.src}
@@ -353,7 +362,7 @@ const ImagesPage: React.FC = () => {
           /* Grid view */
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {filteredRows.map((img) => (
-              <div key={img.id} className="border rounded shadow-sm p-2 flex flex-col">
+              <div key={img.id} className="border rounded shadow-sm p-2 flex flex-col cursor-pointer" onClick={() => handleImageClick(img)}>
                 <img src={img.src} alt={img.title} className="w-full h-32 object-cover rounded" />
                 <div className="mt-2 text-xs font-medium truncate" title={img.id}>{img.id}</div>
                 <div className="text-xs truncate" title={img.title}>{img.title}</div>
@@ -379,12 +388,28 @@ const ImagesPage: React.FC = () => {
           </div>
         )
       )}
+
+      {/* Basic Modal Placeholder */}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-30" onClick={handleCloseModal}>
+          <div className="bg-white p-6 rounded shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-semibold mb-4">{selectedImage.title}</h2>
+            <img src={selectedImage.src} alt={selectedImage.title} className="w-full h-64 object-contain mb-4 rounded" />
+            <p className="text-sm"><strong className="w-20 inline-block">ID:</strong> {selectedImage.id}</p>
+            <p className="text-sm"><strong className="w-20 inline-block">Description:</strong> {selectedImage.description}</p>
+            <p className="text-sm"><strong className="w-20 inline-block">Tags:</strong> {selectedImage.tags.join(', ')}</p>
+            <p className="text-sm"><strong className="w-20 inline-block">Type:</strong> {selectedImage.imagetype}</p>
+            <button onClick={handleCloseModal} className="mt-6 px-3 py-1 rounded bg-blue-600 text-white text-sm float-right">Close</button>
+            {/* Edit form will go here later */}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 const CmsApp: React.FC = () => (
-  <div className="flex">
+  <div className="flex h-screen">
     <Sidebar />
     <ImagesPage />
   </div>
