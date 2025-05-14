@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import clsx from 'clsx';
+import '../../styles/legacy-app.css';
 
 // TODO: restrict to Service Role via RLS once auth is wired up
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
