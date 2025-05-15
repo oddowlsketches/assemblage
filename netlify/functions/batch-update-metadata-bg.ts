@@ -62,6 +62,20 @@ async function processBatchInBackground(siteUrl: string) {
   }
 
   try {
+    // Ultra-simple Supabase test query
+    try {
+      console.log('[BATCH_UPDATE_BG] Attempting ultra-simple Supabase ping query...');
+      const { data: testData, error: testError } = await supa.from('images').select('id').limit(1);
+      if (testError) {
+        console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query FAILED:', JSON.stringify(testError));
+      } else {
+        console.log('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query SUCCEEDED, data rows:', testData ? testData.length : 'null/undefined');
+      }
+    } catch (pingCatchError: any) {
+      console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT:', pingCatchError.message, pingCatchError.code, pingCatchError.name);
+    }
+    // End ultra-simple test query
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isoToday = today.toISOString();
