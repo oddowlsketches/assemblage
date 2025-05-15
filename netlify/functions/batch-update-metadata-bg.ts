@@ -11,7 +11,6 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
   console.log(`[BATCH_UPDATE_BG] INVOKE_METADATA_START: Attempt ${attempt} for ID ${id}`);
   const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
   const controller = new AbortController();
-  // Give a bit longer for individual fetch attempts now that the main function can run longer
   const timeoutId = setTimeout(() => controller.abort(), 45000); // 45-second timeout for the fetch itself
 
   try {
@@ -28,7 +27,7 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
       console.error(`[BATCH_UPDATE_BG] Error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, response.status, errorBody);
       if (response.status >= 500 && attempt < 3) {
         console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id}, attempt ${attempt + 1} after server error...`);
-        await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); // 5s, 10s delay
+        await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); 
         return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
       }
     } else {
@@ -39,7 +38,7 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
     console.error(`[BATCH_UPDATE_BG] Fetch error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, err.message, err.code, err.name);
     if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.name === 'AbortError' || err.message.includes('timed out')) && attempt < 3) {
       console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id} due to network/timeout error, attempt ${attempt + 1}...`);
-      await new Promise(resolve => setTimeout(resolve, 7000 * attempt)); // 7s, 14s delay for network issues
+      await new Promise(resolve => setTimeout(resolve, 7000 * attempt)); 
       return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
     } else {
       console.error(`[BATCH_UPDATE_BG] Failed to invoke generate-image-metadata for ID ${id} after ${attempt} attempts.`);
@@ -112,16 +111,13 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
   const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
 
-  // Don't await this, let it run in the background after we return 202
   processBatchInBackground(siteUrl).catch(error => {
     console.error("[BATCH_UPDATE_BG] Unhandled error from processBatchInBackground:", error);
   });
 
-  // Return 202 Accepted immediately
   return {
     statusCode: 202,
     body: JSON.stringify({ message: "Batch metadata update process initiated. Check logs for progress." }),
     headers: { 'Content-Type': 'application/json' },
   };
-}; 
 }; 
