@@ -29590,23 +29590,46 @@ var handler = async (event) => {
       ]
     });
     const jsonString = completion.choices[0].message.content || "{}";
+    console.log(`[METADATA_FN] OpenAI raw response string for ID ${id}:`, jsonString);
+    let cleanedJsonString = jsonString.trim();
+    if (cleanedJsonString.startsWith("```json")) {
+      cleanedJsonString = cleanedJsonString.substring(7);
+      if (cleanedJsonString.endsWith("```")) {
+        cleanedJsonString = cleanedJsonString.substring(0, cleanedJsonString.length - 3);
+      }
+    }
+    cleanedJsonString = cleanedJsonString.trim();
+    console.log(`[METADATA_FN] Cleaned JSON string for ID ${id}:`, cleanedJsonString);
     let metadata = {};
     try {
-      metadata = JSON.parse(jsonString);
-    } catch {
-      const descMatch = jsonString.match(/description\s*:\s*(.*)\n/i);
-      const tagsMatch = jsonString.match(/tags\s*:\s*\[(.*)\]/i);
-      metadata.description = descMatch ? descMatch[1].trim() : "";
-      metadata.tags = tagsMatch ? tagsMatch[1].split(",").map((t2) => t2.trim()) : [];
+      metadata = JSON.parse(cleanedJsonString);
+      console.log(`[METADATA_FN] Parsed metadata (try block) for ID ${id}:`, JSON.stringify(metadata));
+    } catch (parseError) {
+      console.warn(`[METADATA_FN] Failed to parse OpenAI response as JSON for ID ${id}. Attempting fallback. Error:`, parseError.message);
+      const descMatch = cleanedJsonString.match(/description\s*:\s*"?(.*?)"?\s*(?:,|$|\n)/i);
+      const tagsMatch = cleanedJsonString.match(/tags\s*:\s*\[(.*?)\]/i);
+      const imageTypeMatch = cleanedJsonString.match(/imageType\s*:\s*"(.*?)"/i);
+      metadata.description = descMatch && descMatch[1] ? descMatch[1].trim().replace(/"$/, "") : "";
+      metadata.tags = tagsMatch && tagsMatch[1] ? tagsMatch[1].split(",").map((t2) => t2.trim().replace(/"/g, "")) : [];
+      metadata.imageType = imageTypeMatch && imageTypeMatch[1] ? imageTypeMatch[1].trim() : "fallback_parse_failed";
+      console.log(`[METADATA_FN] Parsed metadata (catch/fallback block) for ID ${id}:`, JSON.stringify(metadata));
     }
-    const { error } = await supa.from("images").update({ description: metadata.description, tags: metadata.tags, imageType: metadata.imageType }).eq("id", id);
+    const updatePayload = {
+      description: metadata.description,
+      tags: metadata.tags,
+      imagetype: metadata.imageType
+      // Ensure this matches the DB column name exactly
+    };
+    console.log(`[METADATA_FN] Supabase update payload for ID ${id}:`, JSON.stringify(updatePayload));
+    const { error } = await supa.from("images").update(updatePayload).eq("id", id);
     if (error) {
-      console.error("Supabase update error", error);
+      console.error("[METADATA_FN] Supabase update error for ID " + id, error);
       return { statusCode: 500, body: "Failed to update metadata" };
     }
+    console.log(`[METADATA_FN] Successfully updated Supabase for ID ${id}`);
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, metadata }),
+      body: JSON.stringify({ success: true, metadata: { ...metadata, imagetype: metadata.imageType } }),
       headers: { "Content-Type": "application/json" }
     };
   } catch (e2) {

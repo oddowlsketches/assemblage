@@ -1,0 +1,1 @@
+module.exports = require('./netlify/functions/batch-update-metadata-bg.js')

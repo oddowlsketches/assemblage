@@ -29671,47 +29671,11 @@ var handler = async (event) => {
     const { data: signedData, error: signedErr } = await supa.storage.from("images").createSignedUrl(storagePath, 60);
     const openAiUrl = signedErr ? publicUrl : signedData.signedUrl;
     const { data: insertData, error: insertErr } = await supa.from("images").upsert(
-      { id, src: publicUrl, title: fileName, description: "", tags: [] },
+      { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imagetype: "pending" },
       { onConflict: "title" }
     ).select("id");
-    const actualId = insertData?.[0]?.id;
-    const replaced = actualId !== id;
-    let metadata = {
-      description: "",
-      tags: [],
-      imageType: void 0
-    };
-    if (!process.env.SUPABASE_URL?.includes("127.0.0.1")) {
-      const prompt = `
-You are an art cataloging assistant.
-Return only JSON in this format with no extra text:
-{"description":string,"tags":string[],"imageType":"texture"|"narrative"|"conceptual"}
-`;
-      try {
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
-          max_tokens: 300,
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "image_url", image_url: { url: openAiUrl } }
-              ]
-            }
-          ]
-        });
-        const content = response.choices[0].message.content || "{}";
-        metadata = JSON.parse(content);
-      } catch (err) {
-        console.warn("Skipping OpenAI metadata generation (local or error):", err.message || err);
-      }
-    } else {
-      console.log("Local dev mode: skipping OpenAI metadata.");
-    }
-    const { error: updateErr } = await supa.from("images").update({ description: metadata.description, tags: metadata.tags, imageType: metadata.imageType }).eq("id", actualId);
-    if (updateErr) {
-      console.error("DB update error:", updateErr);
+    if (insertErr) {
+      console.error("Initial DB insert error:", insertErr);
       return {
         statusCode: 500,
         headers: {
@@ -29720,9 +29684,12 @@ Return only JSON in this format with no extra text:
           "Access-Control-Allow-Methods": "POST,OPTIONS",
           "Access-Control-Allow-Headers": "Content-Type"
         },
-        body: JSON.stringify({ error: updateErr.message })
+        body: JSON.stringify({ error: "Failed to save initial image record: " + insertErr.message })
       };
     }
+    const actualId = insertData?.[0]?.id;
+    const replaced = actualId !== id;
+    console.log(`[UPLOAD_FN] Image record created/updated for ID: ${actualId}. Metadata generation will be triggered by database.`);
     return {
       statusCode: 200,
       headers: {
@@ -29731,10 +29698,11 @@ Return only JSON in this format with no extra text:
         "Access-Control-Allow-Methods": "POST,OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type"
       },
-      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, ...metadata })
+      // Return only the initial info; metadata will come via the async function
+      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: "Processing...", tags: [], imagetype: "pending" })
     };
   } catch (e2) {
-    console.error(e2);
+    console.error("[UPLOAD_FN] General catch error:", e2.message);
     return {
       statusCode: 500,
       headers: {
