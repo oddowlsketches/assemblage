@@ -118,12 +118,17 @@ export const handler: Handler = async (event) => {
 
     const invokeGenerateMetadata = async (attempt = 1): Promise<void> => {
       console.log(`[UPLOAD_FN] INVOKE_METADATA_START: Attempt ${attempt} for ID ${actualId}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+
       try {
         const response = await fetch(metadataFunctionUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: actualId, publicUrl: openAiUrl })
+          body: JSON.stringify({ id: actualId, publicUrl: openAiUrl }),
+          signal: controller.signal // Pass the abort signal to fetch
         });
+        clearTimeout(timeoutId); // Clear the timeout if fetch completes/errors normally
 
         if (!response.ok) {
           const errorBody = await response.json().catch(() => ({ error: 'Failed to parse error from generate-image-metadata' }));
@@ -137,10 +142,11 @@ export const handler: Handler = async (event) => {
           console.log(`[UPLOAD_FN] Successfully invoked generate-image-metadata for ID ${actualId} (Attempt ${attempt})`);
         }
       } catch (err: any) {
-        console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, err.message, err.code);
-        // Retry on specific network errors like ETIMEDOUT or UND_ERR_CONNECT_TIMEOUT
-        if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.message.includes('timed out')) && attempt < 3) {
-          console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId} due to network error, attempt ${attempt + 1}...`);
+        clearTimeout(timeoutId); // Clear the timeout if fetch completes/errors normally
+        console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, err.message, err.code, err.name);
+        // Retry on specific network errors like ETIMEDOUT or UND_ERR_CONNECT_TIMEOUT or AbortError
+        if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.name === 'AbortError' || err.message.includes('timed out')) && attempt < 3) {
+          console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId} due to network/timeout error, attempt ${attempt + 1}...`);
           await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // 2s, 4s delay for network issues
           return invokeGenerateMetadata(attempt + 1);
         } else {
