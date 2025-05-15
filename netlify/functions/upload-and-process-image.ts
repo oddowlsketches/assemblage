@@ -109,54 +109,9 @@ export const handler: Handler = async (event) => {
     const actualId = insertData?.[0]?.id;
     const replaced = actualId !== id;
 
-    // Asynchronously trigger metadata generation for this image
-    // Ensure this URL is correct for your Netlify setup (local dev vs deployed)
-    const functionHost = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
-    const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
-    
-    console.log(`[UPLOAD_FN] Asynchronously invoking metadata generation for ID: ${actualId} at ${metadataFunctionUrl}`);
-
-    const invokeGenerateMetadata = async (attempt = 1): Promise<void> => {
-      console.log(`[UPLOAD_FN] INVOKE_METADATA_START: Attempt ${attempt} for ID ${actualId}`);
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
-
-      try {
-        const response = await fetch(metadataFunctionUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: actualId, publicUrl: openAiUrl }),
-          signal: controller.signal // Pass the abort signal to fetch
-        });
-        clearTimeout(timeoutId); // Clear the timeout if fetch completes/errors normally
-
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => ({ error: 'Failed to parse error from generate-image-metadata' }));
-          console.error(`[UPLOAD_FN] Error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, response.status, errorBody);
-          if (response.status >= 500 && attempt < 3) { // Retry on server errors
-            console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId}, attempt ${attempt + 1}...`);
-            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // 1s, 2s delay
-            return invokeGenerateMetadata(attempt + 1);
-          }
-        } else {
-          console.log(`[UPLOAD_FN] Successfully invoked generate-image-metadata for ID ${actualId} (Attempt ${attempt})`);
-        }
-      } catch (err: any) {
-        clearTimeout(timeoutId); // Clear the timeout if fetch completes/errors normally
-        console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, err.message, err.code, err.name);
-        // Retry on specific network errors like ETIMEDOUT or UND_ERR_CONNECT_TIMEOUT or AbortError
-        if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.name === 'AbortError' || err.message.includes('timed out')) && attempt < 3) {
-          console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId} due to network/timeout error, attempt ${attempt + 1}...`);
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // 2s, 4s delay for network issues
-          return invokeGenerateMetadata(attempt + 1);
-        } else {
-          console.error(`[UPLOAD_FN] Failed to invoke generate-image-metadata for ID ${actualId} after ${attempt} attempts.`);
-        }
-      }
-      console.log(`[UPLOAD_FN] INVOKE_METADATA_END: Finished attempt ${attempt} for ID ${actualId}`);
-    };
-
-    invokeGenerateMetadata(); // Fire-and-forget with retries
+    // The direct invocation of generate-image-metadata is now removed.
+    // This will be handled by a Supabase trigger calling the generate-image-metadata function.
+    console.log(`[UPLOAD_FN] Image record created/updated for ID: ${actualId}. Metadata generation will be triggered by database.`);
 
     return {
       statusCode: 200,
