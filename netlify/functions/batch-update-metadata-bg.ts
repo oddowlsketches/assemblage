@@ -56,20 +56,25 @@ async function processBatchInBackground(siteUrl: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isoToday = today.toISOString();
+    console.log(`[BATCH_UPDATE_BG] Querying Supabase for images before ${isoToday} or pending/processing...`);
 
     const { data: imagesToProcess, error: fetchError } = await supa
       .from('images')
       .select('id, src, created_at, imagetype, description')
       .or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`);
 
+    console.log('[BATCH_UPDATE_BG] Supabase query completed.');
+
     if (fetchError) {
-      console.error('[BATCH_UPDATE_BG] Error fetching images for reprocessing in background task:', fetchError);
-      return; // Exit background task
+      console.error('[BATCH_UPDATE_BG] Error fetching images for reprocessing in background task:', JSON.stringify(fetchError));
+      return; 
     }
+
+    console.log(`[BATCH_UPDATE_BG] imagesToProcess raw data:`, imagesToProcess ? `${imagesToProcess.length} items` : 'null or undefined');
 
     if (!imagesToProcess || imagesToProcess.length === 0) {
       console.log('[BATCH_UPDATE_BG] No images found for reprocessing in background task.');
-      return; // Exit background task
+      return; 
     }
 
     console.log(`[BATCH_UPDATE_BG] Found ${imagesToProcess.length} images for background reprocessing. Starting chunked processing...`);
@@ -96,7 +101,7 @@ async function processBatchInBackground(siteUrl: string) {
     }
     console.log('[BATCH_UPDATE_BG] All chunks processed in background task.');
   } catch (e: any) {
-    console.error('[BATCH_UPDATE_BG] General error in background processing task:', e);
+    console.error('[BATCH_UPDATE_BG] General error in background processing task:', e.message, e.code, e.name);
   }
 }
 
@@ -118,4 +123,5 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
     body: JSON.stringify({ message: "Batch metadata update process initiated. Check logs for progress." }),
     headers: { 'Content-Type': 'application/json' },
   };
+}; 
 }; 
