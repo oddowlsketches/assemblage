@@ -109,73 +109,29 @@ export const handler: Handler = async (event) => {
     const actualId = insertData?.[0]?.id;
     const replaced = actualId !== id;
 
-    // Default metadata placeholder
-    let metadata: { description?: string; tags?: string[]; imageType?: string } = {
-      description: '',
-      tags: [],
-      imageType: undefined
-    };
-    // In production (non-local), call OpenAI for real metadata
-    if (!process.env.SUPABASE_URL?.includes('127.0.0.1')) {
-      console.log(`[UPLOAD_FN] Attempting OpenAI call for ID: ${actualId} with URL: ${openAiUrl}`);
-      // Prompt the vision model with a public image URL
-      const prompt = `
-You are an art cataloging assistant.
-Return only JSON in this format with no extra text:
-{"description":string,"tags":string[],"imageType":"texture"|"narrative"|"conceptual"}
-`;
-      try {
-        const response = await openai.chat.completions.create({
-          model: 'gpt-4o-mini',
-          max_tokens: 300,
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                { type: 'image_url', image_url: { url: openAiUrl } }
-              ]
-            }
-          ] as any
-        });
-        const content = response.choices[0].message.content || '{}';
-        console.log(`[UPLOAD_FN] OpenAI raw content for ID ${actualId}:`, content);
-        try {
-          metadata = JSON.parse(content);
-          console.log(`[UPLOAD_FN] OpenAI parsed metadata for ID ${actualId}:`, metadata);
-        } catch (parseErr: any) {
-          console.error(`[UPLOAD_FN] OpenAI JSON.parse error for ID ${actualId}:`, parseErr.message);
-          console.error(`[UPLOAD_FN] Faulty JSON string for ID ${actualId}:`, content);
-          // Keep default/empty metadata if parse fails
-        }
-      } catch (err: any) {
-        console.error(`[UPLOAD_FN] OpenAI API call error for ID ${actualId}:`, err.message || err);
-        // Keep default/empty metadata if OpenAI call fails
+    // Asynchronously trigger metadata generation for this image
+    // Ensure this URL is correct for your Netlify setup (local dev vs deployed)
+    const functionHost = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
+    const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
+    
+    console.log(`[UPLOAD_FN] Asynchronously invoking metadata generation for ID: ${actualId} at ${metadataFunctionUrl}`);
+    fetch(metadataFunctionUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, // Add any necessary auth headers if your function is protected
+      body: JSON.stringify({ id: actualId, publicUrl: openAiUrl }) // Send openAiUrl (signed or public) for reliability
+    })
+    .then(res => {
+      if (!res.ok) {
+        res.json().then(err => console.error(`[UPLOAD_FN] Error invoking generate-image-metadata for ID ${actualId}:`, res.status, err));
+      } else {
+        console.log(`[UPLOAD_FN] Successfully invoked generate-image-metadata for ID ${actualId}`);
       }
-    } else {
-      console.log(`[UPLOAD_FN] Local dev mode: skipping OpenAI metadata for ID: ${actualId}.`);
-    }
+    })
+    .catch(err => console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId}:`, err));
 
-    console.log(`[UPLOAD_FN] Attempting to update DB for ID ${actualId} with metadata:`, metadata);
-    // Update row with metadata
-    const { error: updateErr } = await supa.from('images')
-      .update({ description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
-      .eq('id', actualId);
-    if (updateErr) {
-      console.error(`[UPLOAD_FN] DB update error for ID ${actualId}:`, updateErr);
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        },
-        body: JSON.stringify({ error: updateErr.message })
-      };
-    }
+    // The original OpenAI call and direct DB update for metadata is now REMOVED from this function.
+    // It will be handled by generate-image-metadata.ts exclusively.
 
-    console.log(`[UPLOAD_FN] Successfully processed and updated ID ${actualId}.`);
     return {
       statusCode: 200,
       headers: {
@@ -184,7 +140,8 @@ Return only JSON in this format with no extra text:
         'Access-Control-Allow-Methods': 'POST,OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type'
       },
-      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
+      // Return only the initial info; metadata will come via the async function
+      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: "Processing...", tags: [], imagetype: "pending" })
     };
   } catch (e: any) {
     console.error('[UPLOAD_FN] General catch error:', e.message);
