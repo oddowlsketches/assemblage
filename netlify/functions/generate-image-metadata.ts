@@ -46,21 +46,36 @@ export const handler: Handler = async (event) => {
     });
 
     const jsonString = completion.choices[0].message.content || '{}';
+    console.log(`[METADATA_FN] OpenAI response string for ID ${id}:`, jsonString);
+
     let metadata: { description?: string; tags?: string[]; imageType?: string } = {};
     try {
       metadata = JSON.parse(jsonString);
-    } catch {
+      console.log(`[METADATA_FN] Parsed metadata (try block) for ID ${id}:`, JSON.stringify(metadata));
+    } catch (parseError: any) {
+      console.warn(`[METADATA_FN] Failed to parse OpenAI response as JSON for ID ${id}. Attempting fallback. Error:`, parseError.message);
       // fallback: simple parse if not valid json
-      const descMatch = jsonString.match(/description\s*:\s*(.*)\n/i);
-      const tagsMatch = jsonString.match(/tags\s*:\s*\[(.*)\]/i);
-      metadata.description = descMatch ? descMatch[1].trim() : '';
-      metadata.tags = tagsMatch ? tagsMatch[1].split(',').map((t) => t.trim()) : [];
+      const descMatch = jsonString.match(/description\s*:\s*"?(.*?)"?\s*(?:,|$|\n)/i);
+      const tagsMatch = jsonString.match(/tags\s*:\s*\[(.*?)\]/i);
+      const imageTypeMatch = jsonString.match(/imageType\s*:\s*"(.*?)"/i); // Attempt to grab imageType in fallback
+
+      metadata.description = descMatch && descMatch[1] ? descMatch[1].trim().replace(/"$/, '') : '';
+      metadata.tags = tagsMatch && tagsMatch[1] ? tagsMatch[1].split(',').map((t) => t.trim().replace(/"/g, '')) : [];
+      metadata.imageType = imageTypeMatch && imageTypeMatch[1] ? imageTypeMatch[1].trim() : 'fallback_parse_failed'; // Default if not found in fallback
+      console.log(`[METADATA_FN] Parsed metadata (catch/fallback block) for ID ${id}:`, JSON.stringify(metadata));
     }
+
+    const updatePayload = {
+      description: metadata.description,
+      tags: metadata.tags,
+      imagetype: metadata.imageType // Ensure this matches the DB column name exactly
+    };
+    console.log(`[METADATA_FN] Supabase update payload for ID ${id}:`, JSON.stringify(updatePayload));
 
     // Update DB row
     const { error } = await supa
       .from('images')
-      .update({ description: metadata.description, tags: metadata.tags, imagetype: metadata.imageType })
+      .update(updatePayload)
       .eq('id', id);
 
     if (error) {
