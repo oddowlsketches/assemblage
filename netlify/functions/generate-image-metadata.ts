@@ -46,18 +46,29 @@ export const handler: Handler = async (event) => {
     });
 
     const jsonString = completion.choices[0].message.content || '{}';
-    console.log(`[METADATA_FN] OpenAI response string for ID ${id}:`, jsonString);
+    console.log(`[METADATA_FN] OpenAI raw response string for ID ${id}:`, jsonString);
+
+    let cleanedJsonString = jsonString.trim();
+    if (cleanedJsonString.startsWith('```json')) {
+      cleanedJsonString = cleanedJsonString.substring(7); // Remove ```json
+      if (cleanedJsonString.endsWith('```')) {
+        cleanedJsonString = cleanedJsonString.substring(0, cleanedJsonString.length - 3); // Remove ```
+      }
+    }
+    cleanedJsonString = cleanedJsonString.trim(); // Trim again in case of whitespace
+
+    console.log(`[METADATA_FN] Cleaned JSON string for ID ${id}:`, cleanedJsonString);
 
     let metadata: { description?: string; tags?: string[]; imageType?: string } = {};
     try {
-      metadata = JSON.parse(jsonString);
+      metadata = JSON.parse(cleanedJsonString); // Try parsing the cleaned string
       console.log(`[METADATA_FN] Parsed metadata (try block) for ID ${id}:`, JSON.stringify(metadata));
     } catch (parseError: any) {
       console.warn(`[METADATA_FN] Failed to parse OpenAI response as JSON for ID ${id}. Attempting fallback. Error:`, parseError.message);
       // fallback: simple parse if not valid json
-      const descMatch = jsonString.match(/description\s*:\s*"?(.*?)"?\s*(?:,|$|\n)/i);
-      const tagsMatch = jsonString.match(/tags\s*:\s*\[(.*?)\]/i);
-      const imageTypeMatch = jsonString.match(/imageType\s*:\s*"(.*?)"/i); // Attempt to grab imageType in fallback
+      const descMatch = cleanedJsonString.match(/description\s*:\s*"?(.*?)"?\s*(?:,|$|\n)/i);
+      const tagsMatch = cleanedJsonString.match(/tags\s*:\s*\[(.*?)\]/i);
+      const imageTypeMatch = cleanedJsonString.match(/imageType\s*:\s*"(.*?)"/i); // Attempt to grab imageType in fallback
 
       metadata.description = descMatch && descMatch[1] ? descMatch[1].trim().replace(/"$/, '') : '';
       metadata.tags = tagsMatch && tagsMatch[1] ? tagsMatch[1].split(',').map((t) => t.trim().replace(/"/g, '')) : [];
