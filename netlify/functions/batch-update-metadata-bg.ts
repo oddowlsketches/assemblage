@@ -51,6 +51,16 @@ async function processBatchInBackground(siteUrl: string) {
   const DELAY_BETWEEN_CHUNKS = 5000;
   console.log('[BATCH_UPDATE_BG] Starting background processing task...');
 
+  // Log environment variables and supa client status
+  console.log(`[BATCH_UPDATE_BG] SUPABASE_URL available: ${!!process.env.SUPABASE_URL}`);
+  console.log(`[BATCH_UPDATE_BG] SUPABASE_SERVICE_KEY available: ${!!process.env.SUPABASE_SERVICE_KEY ? 'Exists (not logging value)' : 'MISSING'}`);
+  console.log(`[BATCH_UPDATE_BG] Supa client object status: ${supa ? 'Initialized' : 'Not initialized'}`);
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY || !supa) {
+    console.error('[BATCH_UPDATE_BG] Critical error: Supabase environment variables or client missing. Exiting.');
+    return;
+  }
+
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
