@@ -90,9 +90,11 @@ export const handler: Handler = async (event) => {
       .eq('id', id);
 
     if (error) {
-      console.error('Supabase update error', error);
+      console.error('[METADATA_FN] Supabase update error for ID '+id, error);
       return { statusCode: 500, body: 'Failed to update metadata' };
     }
+
+    console.log(`[METADATA_FN] Successfully updated Supabase for ID ${id}`);
 
     return {
       statusCode: 200,
