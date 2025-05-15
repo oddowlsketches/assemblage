@@ -8,10 +8,11 @@ const supa = createClient(
 
 // Robust helper to invoke the generate-image-metadata function with retries
 async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, functionHost: string, attempt = 1): Promise<void> {
-  console.log(`[BATCH_UPDATE] INVOKE_METADATA_START: Attempt ${attempt} for ID ${id}`);
+  console.log(`[BATCH_UPDATE_BG] INVOKE_METADATA_START: Attempt ${attempt} for ID ${id}`);
   const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000); // 25-second timeout for the fetch itself
+  // Give a bit longer for individual fetch attempts now that the main function can run longer
+  const timeoutId = setTimeout(() => controller.abort(), 45000); // 45-second timeout for the fetch itself
 
   try {
     const response = await fetch(metadataFunctionUrl, {
@@ -24,41 +25,34 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({ error: `Failed to parse error from generate-image-metadata, status: ${response.status}` }));
-      console.error(`[BATCH_UPDATE] Error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, response.status, errorBody);
+      console.error(`[BATCH_UPDATE_BG] Error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, response.status, errorBody);
       if (response.status >= 500 && attempt < 3) {
-        console.log(`[BATCH_UPDATE] Retrying metadata generation for ID ${id}, attempt ${attempt + 1} after server error...`);
-        await new Promise(resolve => setTimeout(resolve, 3000 * attempt)); // 3s, 6s delay
+        console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id}, attempt ${attempt + 1} after server error...`);
+        await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); // 5s, 10s delay
         return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
       }
     } else {
-      console.log(`[BATCH_UPDATE] Successfully invoked generate-image-metadata for ID ${id} (Attempt ${attempt})`);
+      console.log(`[BATCH_UPDATE_BG] Successfully invoked generate-image-metadata for ID ${id} (Attempt ${attempt})`);
     }
   } catch (err: any) {
     clearTimeout(timeoutId);
-    console.error(`[BATCH_UPDATE] Fetch error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, err.message, err.code, err.name);
+    console.error(`[BATCH_UPDATE_BG] Fetch error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, err.message, err.code, err.name);
     if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.name === 'AbortError' || err.message.includes('timed out')) && attempt < 3) {
-      console.log(`[BATCH_UPDATE] Retrying metadata generation for ID ${id} due to network/timeout error, attempt ${attempt + 1}...`);
-      await new Promise(resolve => setTimeout(resolve, 5000 * attempt)); // 5s, 10s delay for network issues
+      console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id} due to network/timeout error, attempt ${attempt + 1}...`);
+      await new Promise(resolve => setTimeout(resolve, 7000 * attempt)); // 7s, 14s delay for network issues
       return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
     } else {
-      console.error(`[BATCH_UPDATE] Failed to invoke generate-image-metadata for ID ${id} after ${attempt} attempts.`);
+      console.error(`[BATCH_UPDATE_BG] Failed to invoke generate-image-metadata for ID ${id} after ${attempt} attempts.`);
     }
   }
-  // console.log(`[BATCH_UPDATE] INVOKE_METADATA_END: Finished attempt ${attempt} for ID ${id}`); // Optional: can be noisy
 }
 
-export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
-  if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method Not Allowed' };
-  }
-
-  const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
-  const CHUNK_SIZE = 10; // Process 10 images per chunk
-  const DELAY_BETWEEN_CHUNKS = 5000; // 5 seconds
+async function processBatchInBackground(siteUrl: string) {
+  const CHUNK_SIZE = 10;
+  const DELAY_BETWEEN_CHUNKS = 5000;
+  console.log('[BATCH_UPDATE_BG] Starting background processing task...');
 
   try {
-    console.log('[BATCH_UPDATE] Starting batch metadata update process with chunking...');
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const isoToday = today.toISOString();
@@ -69,48 +63,59 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
       .or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`);
 
     if (fetchError) {
-      console.error('[BATCH_UPDATE] Error fetching images for reprocessing:', fetchError);
-      return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch images: ' + fetchError.message }) };
+      console.error('[BATCH_UPDATE_BG] Error fetching images for reprocessing in background task:', fetchError);
+      return; // Exit background task
     }
 
     if (!imagesToProcess || imagesToProcess.length === 0) {
-      console.log('[BATCH_UPDATE] No images found matching criteria for reprocessing.');
-      return { statusCode: 200, body: JSON.stringify({ message: 'No images to reprocess.' }) };
+      console.log('[BATCH_UPDATE_BG] No images found for reprocessing in background task.');
+      return; // Exit background task
     }
 
-    console.log(`[BATCH_UPDATE] Found ${imagesToProcess.length} images to reprocess. Starting chunked processing...`);
+    console.log(`[BATCH_UPDATE_BG] Found ${imagesToProcess.length} images for background reprocessing. Starting chunked processing...`);
 
     for (let i = 0; i < imagesToProcess.length; i += CHUNK_SIZE) {
       const chunk = imagesToProcess.slice(i, i + CHUNK_SIZE);
-      console.log(`[BATCH_UPDATE] Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(imagesToProcess.length / CHUNK_SIZE)}, ${chunk.length} images.`);
+      console.log(`[BATCH_UPDATE_BG] Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(imagesToProcess.length / CHUNK_SIZE)}, ${chunk.length} images.`);
       
       const chunkPromises = chunk.map(image => {
         if (image.src && image.id) {
-          // Don't await here, let them run in parallel within the chunk
-          invokeGenerateMetadataWithRetry(image.id, image.src, siteUrl); 
-          return Promise.resolve(); // Immediately resolve so Promise.all doesn't wait for OpenAI
+          invokeGenerateMetadataWithRetry(image.id, image.src, siteUrl);
+          return Promise.resolve();
         } else {
-          console.warn(`[BATCH_UPDATE] Skipping image ID ${image.id || 'unknown'} due to missing src or id.`);
+          console.warn(`[BATCH_UPDATE_BG] Skipping image ID ${image.id || 'unknown'} in background task due to missing src or id.`);
           return Promise.resolve();
         }
       });
-      
-      await Promise.all(chunkPromises); // Wait for all fetch initiations in the current chunk
+      await Promise.all(chunkPromises);
 
       if (i + CHUNK_SIZE < imagesToProcess.length) {
-        console.log(`[BATCH_UPDATE] Finished chunk. Waiting ${DELAY_BETWEEN_CHUNKS / 1000}s before next chunk.`);
+        console.log(`[BATCH_UPDATE_BG] Background task finished chunk. Waiting ${DELAY_BETWEEN_CHUNKS / 1000}s before next chunk.`);
         await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CHUNKS));
       }
     }
-
-    console.log('[BATCH_UPDATE] All chunks processed.');
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ message: `Triggered metadata reprocessing for ${imagesToProcess.length} images in chunks. Check function logs for detailed progress.` }),
-    };
-
+    console.log('[BATCH_UPDATE_BG] All chunks processed in background task.');
   } catch (e: any) {
-    console.error('[BATCH_UPDATE] General error:', e);
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
+    console.error('[BATCH_UPDATE_BG] General error in background processing task:', e);
   }
+}
+
+export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
+  if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
+    return { statusCode: 405, body: 'Method Not Allowed' };
+  }
+
+  const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
+
+  // Don't await this, let it run in the background after we return 202
+  processBatchInBackground(siteUrl).catch(error => {
+    console.error("[BATCH_UPDATE_BG] Unhandled error from processBatchInBackground:", error);
+  });
+
+  // Return 202 Accepted immediately
+  return {
+    statusCode: 202,
+    body: JSON.stringify({ message: "Batch metadata update process initiated. Check logs for progress." }),
+    headers: { 'Content-Type': 'application/json' },
+  };
 }; 
