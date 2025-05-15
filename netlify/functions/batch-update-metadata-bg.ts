@@ -67,10 +67,18 @@ async function processBatchInBackground(siteUrl: string) {
     const isoToday = today.toISOString();
     console.log(`[BATCH_UPDATE_BG] Querying Supabase for images before ${isoToday} or pending/processing...`);
 
+    // SIMPLIFIED QUERY FOR DEBUGGING
+    console.log('[BATCH_UPDATE_BG] Attempting SIMPLIFIED Supabase query...');
     const { data: imagesToProcess, error: fetchError } = await supa
       .from('images')
-      .select('id, src, created_at, imagetype, description')
-      .or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`);
+      .select('id, src, imagetype') // Simpler select
+      .eq('imagetype', 'pending')    // Simpler condition
+      .limit(5);                     // Limit results
+
+    // const { data: imagesToProcess, error: fetchError } = await supa
+    //   .from('images')
+    //   .select('id, src, created_at, imagetype, description')
+    //   .or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`);
 
     console.log('[BATCH_UPDATE_BG] Supabase query completed.');
 
