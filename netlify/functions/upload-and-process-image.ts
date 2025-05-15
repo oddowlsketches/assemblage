@@ -115,22 +115,40 @@ export const handler: Handler = async (event) => {
     const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
     
     console.log(`[UPLOAD_FN] Asynchronously invoking metadata generation for ID: ${actualId} at ${metadataFunctionUrl}`);
-    fetch(metadataFunctionUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, // Add any necessary auth headers if your function is protected
-      body: JSON.stringify({ id: actualId, publicUrl: openAiUrl }) // Send openAiUrl (signed or public) for reliability
-    })
-    .then(res => {
-      if (!res.ok) {
-        res.json().then(err => console.error(`[UPLOAD_FN] Error invoking generate-image-metadata for ID ${actualId}:`, res.status, err));
-      } else {
-        console.log(`[UPLOAD_FN] Successfully invoked generate-image-metadata for ID ${actualId}`);
-      }
-    })
-    .catch(err => console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId}:`, err));
 
-    // The original OpenAI call and direct DB update for metadata is now REMOVED from this function.
-    // It will be handled by generate-image-metadata.ts exclusively.
+    const invokeGenerateMetadata = async (attempt = 1): Promise<void> => {
+      try {
+        const response = await fetch(metadataFunctionUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: actualId, publicUrl: openAiUrl })
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => ({ error: 'Failed to parse error from generate-image-metadata' }));
+          console.error(`[UPLOAD_FN] Error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, response.status, errorBody);
+          if (response.status >= 500 && attempt < 3) { // Retry on server errors
+            console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId}, attempt ${attempt + 1}...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // 1s, 2s delay
+            return invokeGenerateMetadata(attempt + 1);
+          }
+        } else {
+          console.log(`[UPLOAD_FN] Successfully invoked generate-image-metadata for ID ${actualId} (Attempt ${attempt})`);
+        }
+      } catch (err: any) {
+        console.error(`[UPLOAD_FN] Fetch error invoking generate-image-metadata for ID ${actualId} (Attempt ${attempt}):`, err.message, err.code);
+        // Retry on specific network errors like ETIMEDOUT or UND_ERR_CONNECT_TIMEOUT
+        if ((err.code === 'ETIMEDOUT' || err.code === 'UND_ERR_CONNECT_TIMEOUT' || err.message.includes('timed out')) && attempt < 3) {
+          console.log(`[UPLOAD_FN] Retrying metadata generation for ID ${actualId} due to network error, attempt ${attempt + 1}...`);
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // 2s, 4s delay for network issues
+          return invokeGenerateMetadata(attempt + 1);
+        } else {
+          console.error(`[UPLOAD_FN] Failed to invoke generate-image-metadata for ID ${actualId} after ${attempt} attempts.`);
+        }
+      }
+    };
+
+    invokeGenerateMetadata(); // Fire-and-forget with retries
 
     return {
       statusCode: 200,
