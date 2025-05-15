@@ -11,4 +11,8 @@
   command = "cd assemblage-web && npm run dev"
   port = 8888
   functions = "netlify/functions"
-  targetPort = 5175 
+  targetPort = 5175
+
+# Increase timeout for the metadata generation function
+[functions."generate-image-metadata"]
+  timeout = 60 # seconds 

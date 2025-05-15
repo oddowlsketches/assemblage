@@ -44,19 +44,17 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
   try {
     console.log('[BATCH_UPDATE] Starting batch metadata update process...');
     
-    // Define your criteria for images to reprocess.
-    // Example 1: Images created before a certain date (adjust date as needed)
-    // const { data: imagesToProcess, error: fetchError } = await supa
-    //   .from('images')
-    //   .select('id, src')
-    //   .lt('created_at', '2023-10-26'); // Change to your desired date
+    // Get today's date at midnight for comparison
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const isoToday = today.toISOString();
 
-    // Example 2: Images with 'pending' type or missing description (more robust)
+    // Reprocess images created before today OR still in a pending/processing state
     const { data: imagesToProcess, error: fetchError } = await supa
       .from('images')
-      .select('id, src')
-      .or('imagetype.eq.pending,description.is.null,description.eq.\'\',description.eq.Processing...')
-      // .limit(10) // Optional: process in smaller chunks initially
+      .select('id, src, created_at, imagetype, description') // Select more fields for logging/decision
+      .or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`)
+      // .limit(10) // Optional: process in smaller chunks initially for testing
 
     if (fetchError) {
       console.error('[BATCH_UPDATE] Error fetching images for reprocessing:', fetchError);
