@@ -70,6 +70,9 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
         // Call serverless function to handle upload and metadata
         const res = await fetch('/.netlify/functions/upload-and-process-image', {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({ fileName: file.name, base64 }),
         });
         if (!res.ok) {
