@@ -117,6 +117,7 @@ export const handler: Handler = async (event) => {
     console.log(`[UPLOAD_FN] Asynchronously invoking metadata generation for ID: ${actualId} at ${metadataFunctionUrl}`);
 
     const invokeGenerateMetadata = async (attempt = 1): Promise<void> => {
+      console.log(`[UPLOAD_FN] INVOKE_METADATA_START: Attempt ${attempt} for ID ${actualId}`);
       try {
         const response = await fetch(metadataFunctionUrl, {
           method: 'POST',
@@ -146,6 +147,7 @@ export const handler: Handler = async (event) => {
           console.error(`[UPLOAD_FN] Failed to invoke generate-image-metadata for ID ${actualId} after ${attempt} attempts.`);
         }
       }
+      console.log(`[UPLOAD_FN] INVOKE_METADATA_END: Finished attempt ${attempt} for ID ${actualId}`);
     };
 
     invokeGenerateMetadata(); // Fire-and-forget with retries
