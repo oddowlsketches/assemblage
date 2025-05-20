@@ -76,9 +76,38 @@ async function processBatchInBackground(siteUrl: string, supaClient: any) {
     return;
   }
 
+  // --- Direct Supabase REST API fetch test ---
+  console.log('[BATCH_UPDATE_BG] Attempting DIRECT Supabase REST API fetch query...');
+  const directFetchUrl = `${process.env.SUPABASE_URL}/rest/v1/images?select=id&limit=1`;
+  const directFetchHeaders = {
+    'apikey': process.env.SUPABASE_SERVICE_KEY as string,
+    'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+    'Content-Type': 'application/json' // Good practice, though GET might not strictly need it for Supabase
+  };
+
   try {
-    // Ultra-simple Supabase test query ONLY
-    console.log('[BATCH_UPDATE_BG] Entering main try block. Attempting ONLY ultra-simple Supabase ping query...');
+    console.log(`[BATCH_UPDATE_BG] Direct Fetch URL: ${directFetchUrl}`);
+    console.log(`[BATCH_UPDATE_BG] Direct Fetch Headers: apikey set, Authorization set with Bearer token.`);
+    const directResponse = await fetch(directFetchUrl, { method: 'GET', headers: directFetchHeaders });
+    console.log('[BATCH_UPDATE_BG] Direct Supabase fetch SUCCEEDED. Status:', directResponse.status);
+    if (directResponse.ok) {
+      const directData = await directResponse.json();
+      console.log('[BATCH_UPDATE_BG] Direct Supabase fetch data:', directData);
+    } else {
+      const errorText = await directResponse.text();
+      console.error('[BATCH_UPDATE_BG] Direct Supabase fetch FAILED. Status:', directResponse.status, 'Body:', errorText);
+    }
+  } catch (directFetchErr: any) {
+    console.error('[BATCH_UPDATE_BG] Direct Supabase fetch EXCEPTION CAUGHT. Message:', directFetchErr && directFetchErr.message ? directFetchErr.message : 'No message available');
+    console.error('[BATCH_UPDATE_BG] Full Direct Fetch Exception Object:', directFetchErr);
+  }
+  console.log('[BATCH_UPDATE_BG] Finished DIRECT Supabase REST API fetch attempt.');
+  // --- End of Direct Supabase REST API fetch test ---
+
+
+  try {
+    // Ultra-simple Supabase test query ONLY (using the client)
+    console.log('[BATCH_UPDATE_BG] Entering main try block. Attempting Supabase CLIENT ping query...');
     let testData, testError;
     try {
       console.log('[BATCH_UPDATE_BG] ABOUT TO AWAIT Supabase ping query...');
