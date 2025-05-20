@@ -1,10 +1,25 @@
 import { Handler, HandlerContext, HandlerEvent } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 
-const supa = createClient(
-  process.env.SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_KEY as string
-);
+// Test generic fetch first
+async function testGenericFetch() {
+  console.log('[BATCH_UPDATE_BG] Attempting generic fetch to jsonplaceholder...');
+  try {
+    const response = await fetch('https://jsonplaceholder.typicode.com/todos/1');
+    console.log('[BATCH_UPDATE_BG] Generic fetch response status:', response.status);
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[BATCH_UPDATE_BG] Generic fetch SUCCEEDED, data:', data ? 'exists' : 'null/undefined');
+    } else {
+      console.error('[BATCH_UPDATE_BG] Generic fetch FAILED with status:', response.status);
+    }
+  } catch (fetchErr: any) {
+    console.error('[BATCH_UPDATE_BG] Generic fetch EXCEPTION CAUGHT:', fetchErr.message, fetchErr.code, fetchErr.name);
+  }
+  console.log('[BATCH_UPDATE_BG] Finished generic fetch attempt.');
+}
+
+let supa: any; // Declare supa globally in the module scope
 
 // Robust helper to invoke the generate-image-metadata function with retries
 async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, functionHost: string, attempt = 1): Promise<void> {
@@ -47,9 +62,21 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
 }
 
 async function processBatchInBackground(siteUrl: string) {
-  const CHUNK_SIZE = 10;
-  const DELAY_BETWEEN_CHUNKS = 5000;
-  console.log('[BATCH_UPDATE_BG] Starting background processing task...');
+  console.log('[BATCH_UPDATE_BG] Starting background processing task (after generic fetch test).');
+  
+  // Initialize Supa client here, only if generic fetch was successful (or for testing)
+  if (!supa) {
+    try {
+      supa = createClient(
+        process.env.SUPABASE_URL as string,
+        process.env.SUPABASE_SERVICE_KEY as string
+      );
+      console.log('[BATCH_UPDATE_BG] Supabase client CREATED successfully inside processBatchInBackground.');
+    } catch (initError: any) {
+      console.error('[BATCH_UPDATE_BG] Supabase client FAILED to create inside processBatchInBackground:', initError.message);
+      return; // Cannot proceed without Supabase client
+    }
+  }
 
   // Log environment variables and supa client status
   console.log(`[BATCH_UPDATE_BG] SUPABASE_URL available: ${!!process.env.SUPABASE_URL}`);
@@ -62,7 +89,7 @@ async function processBatchInBackground(siteUrl: string) {
   }
 
   try {
-    // Ultra-simple Supabase test query ONLY for this debug step
+    // Ultra-simple Supabase test query ONLY
     console.log('[BATCH_UPDATE_BG] Entering main try block. Attempting ONLY ultra-simple Supabase ping query...');
     try {
       const { data: testData, error: testError } = await supa.from('images').select('id').limit(1);
@@ -75,24 +102,20 @@ async function processBatchInBackground(siteUrl: string) {
       console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT:', pingCatchError.message, pingCatchError.code, pingCatchError.name);
     }
     console.log('[BATCH_UPDATE_BG] Finished ultra-simple ping query attempt. Exiting function for debug.');
-    return; // Exit after this test
-
-    /*
-    // Original more complex logic - temporarily commented out
-    const today = new Date();
-    // ... (rest of the original processBatchInBackground logic would be here)
-    */
+    return; 
 
   } catch (e: any) {
     console.error('[BATCH_UPDATE_BG] General error in background processing task (outer try-catch):', e.message, e.code, e.name);
   }
-  console.log('[BATCH_UPDATE_BG] processBatchInBackground function END (should only be reached if error in outer try-catch or after successful debug return)');
+  console.log('[BATCH_UPDATE_BG] processBatchInBackground function END');
 }
 
 export const handler: Handler = async (event: HandlerEvent, context: HandlerContext) => {
   if (event.httpMethod !== 'GET' && event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
+
+  await testGenericFetch(); // Await this simple test first.
 
   const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
 
