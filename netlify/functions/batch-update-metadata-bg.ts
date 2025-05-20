@@ -91,21 +91,33 @@ async function processBatchInBackground(siteUrl: string) {
   try {
     // Ultra-simple Supabase test query ONLY
     console.log('[BATCH_UPDATE_BG] Entering main try block. Attempting ONLY ultra-simple Supabase ping query...');
+    let testData, testError;
     try {
-      const { data: testData, error: testError } = await supa.from('images').select('id').limit(1);
+      console.log('[BATCH_UPDATE_BG] ABOUT TO AWAIT Supabase ping query...');
+      const pingResult = await supa.from('images').select('id').limit(1);
+      console.log('[BATCH_UPDATE_BG] Supabase ping query AWAITED. Result object:', pingResult ? 'exists' : 'null/undefined');
+      
+      if (pingResult) {
+        testData = pingResult.data;
+        testError = pingResult.error;
+      } else {
+        // This case should ideally not happen if the await completes without throwing, 
+        // but good to log if pingResult is unexpectedly null/undefined.
+        console.error('[BATCH_UPDATE_BG] Supabase ping query returned null/undefined result object.');
+        testError = { message: "Ping result was null or undefined" }; // Create a synthetic error
+      }
+
       if (testError) {
-        console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query FAILED:', JSON.stringify(testError));
-        // If the ping fails, we might not want to proceed with a potentially faulty client.
-        // For now, logging and continuing. Consider if critical failure should stop the function.
+        console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query FAILED. Error message:', testError.message);
+        console.error('[BATCH_UPDATE_BG] Full Supabase error object:', testError);
       } else {
         console.log('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query SUCCEEDED, data rows:', testData ? testData.length : 'null/undefined');
       }
     } catch (pingCatchError: any) {
-      console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT:', pingCatchError.message, pingCatchError.code, pingCatchError.name);
-      // Similarly, consider if a ping exception should halt processing.
+      console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT. Message:', pingCatchError && pingCatchError.message ? pingCatchError.message : 'No message available');
+      console.error('[BATCH_UPDATE_BG] Full Ping Catch Error Object:', pingCatchError);
     }
-    // console.log('[BATCH_UPDATE_BG] Finished ultra-simple ping query attempt. Exiting function for debug.');
-    // return; 
+    console.log('[BATCH_UPDATE_BG] After Supabase ping attempt block.');
 
     console.log('[BATCH_UPDATE_BG] Ping test complete. Starting actual batch metadata processing.');
 
