@@ -95,14 +95,103 @@ async function processBatchInBackground(siteUrl: string) {
       const { data: testData, error: testError } = await supa.from('images').select('id').limit(1);
       if (testError) {
         console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query FAILED:', JSON.stringify(testError));
+        // If the ping fails, we might not want to proceed with a potentially faulty client.
+        // For now, logging and continuing. Consider if critical failure should stop the function.
       } else {
         console.log('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query SUCCEEDED, data rows:', testData ? testData.length : 'null/undefined');
       }
     } catch (pingCatchError: any) {
       console.error('[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT:', pingCatchError.message, pingCatchError.code, pingCatchError.name);
+      // Similarly, consider if a ping exception should halt processing.
     }
-    console.log('[BATCH_UPDATE_BG] Finished ultra-simple ping query attempt. Exiting function for debug.');
-    return; 
+    // console.log('[BATCH_UPDATE_BG] Finished ultra-simple ping query attempt. Exiting function for debug.');
+    // return; 
+
+    console.log('[BATCH_UPDATE_BG] Ping test complete. Starting actual batch metadata processing.');
+
+    const BATCH_SIZE = 10; // Number of images to process in one go
+    const DELAY_BETWEEN_BATCHES = 3000; // 3 seconds delay
+
+    let offset = 0;
+    let imagesProcessedInThisRun = 0;
+    let consecutiveEmptyBatches = 0;
+    const MAX_CONSECUTIVE_EMPTY_BATCHES = 2; // Stop if we get empty batches a couple of times in a row
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) { // Loop indefinitely, break conditions are inside
+      console.log(`[BATCH_UPDATE_BG] Fetching batch of images. Offset: ${offset}, Limit: ${BATCH_SIZE}`);
+      const { data: images, error: fetchError } = await supa
+        .from('images')
+        .select('id, public_url, file_name') // Assuming file_name exists for logging
+        .or('llm_description.is.null,llm_tags.is.null,image_type.is.null,metadata_status.eq.pending_llm') // Added pending_llm status
+        .order('created_at', { ascending: true }) // Process older images first
+        .range(offset, offset + BATCH_SIZE - 1);
+
+      if (fetchError) {
+        console.error('[BATCH_UPDATE_BG] Error fetching images batch:', JSON.stringify(fetchError));
+        console.log('[BATCH_UPDATE_BG] Stopping due to error fetching images batch.');
+        break; 
+      }
+
+      if (!images || images.length === 0) {
+        console.log('[BATCH_UPDATE_BG] No more images found needing metadata processing in this batch.');
+        consecutiveEmptyBatches++;
+        if (consecutiveEmptyBatches >= MAX_CONSECUTIVE_EMPTY_BATCHES) {
+            console.log('[BATCH_UPDATE_BG] Reached max consecutive empty batches. Assuming processing is complete.');
+            break;
+        }
+        // If it was just one empty batch, but previous batches had items,
+        // it might just be the end. We can wait a bit and try one more fetch cycle
+        // or just break. For simplicity, breaking after a few empty fetches.
+        offset = 0; // Reset offset to re-scan from the beginning if desired, or just break.
+                      // For now, let's break as the query should catch all unprocessed.
+        console.log('[BATCH_UPDATE_BG] No images in batch, will try one more scan or break.');
+        // Small delay before retry or exit
+        await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES * 2));
+        // if we got an empty batch, it's likely we are done.
+        // If the query is 'llm_description.is.null...' then an empty batch means no more nulls.
+        // unless new images are added very rapidly.
+        continue; // try fetching again, offset will be re-evaluated or loop will break
+      }
+      
+      consecutiveEmptyBatches = 0; // Reset if we found images
+
+      console.log(`[BATCH_UPDATE_BG] Fetched ${images.length} images in this batch. Processing...`);
+
+      for (const image of images) {
+        if (!image.id) {
+            console.warn(`[BATCH_UPDATE_BG] Image data is malformed (missing ID): ${JSON.stringify(image)}. Skipping.`);
+            continue;
+        }
+        if (!image.public_url) {
+            console.warn(`[BATCH_UPDATE_BG] Image ID ${image.id} (File: ${image.file_name || 'N/A'}) is missing public_url. Skipping.`);
+            // Optionally, update a status in Supabase to indicate this issue
+            // await supa.from('images').update({ metadata_status: 'error_missing_url' }).eq('id', image.id);
+            continue;
+        }
+        console.log(`[BATCH_UPDATE_BG] Requesting metadata for image ID ${image.id} (File: ${image.file_name || 'N/A'}), URL: ${image.public_url}`);
+        try {
+            await invokeGenerateMetadataWithRetry(image.id, image.public_url, siteUrl);
+            imagesProcessedInThisRun++;
+            // Optional: Short delay between individual calls if invokeGenerateMetadataWithRetry is very fast
+            // await new Promise(resolve => setTimeout(resolve, 300)); 
+        } catch (invokeError: any) {
+            console.error(`[BATCH_UPDATE_BG] Error during invokeGenerateMetadataWithRetry for image ID ${image.id}:`, invokeError.message);
+            // Decide if this error should stop the whole batch or just skip this image
+        }
+      }
+
+      if (images.length < BATCH_SIZE) {
+        console.log('[BATCH_UPDATE_BG] Processed the last image in the query results. Ending batch processing.');
+        break; 
+      }
+
+      offset += BATCH_SIZE;
+      console.log(`[BATCH_UPDATE_BG] Batch complete. Total processed in run: ${imagesProcessedInThisRun}. Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch.`);
+      await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+    }
+
+    console.log(`[BATCH_UPDATE_BG] Background metadata update cycle finished. Total images processed in this run: ${imagesProcessedInThisRun}`);
 
   } catch (e: any) {
     console.error('[BATCH_UPDATE_BG] General error in background processing task (outer try-catch):', e.message, e.code, e.name);
