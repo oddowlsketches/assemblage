@@ -19,7 +19,7 @@ async function testGenericFetch() {
   console.log('[BATCH_UPDATE_BG] Finished generic fetch attempt.');
 }
 
-let supa: any; // Declare supa globally in the module scope
+// let supa: any; // Declare supa globally in the module scope -- We will now initialize it in the handler
 
 // Robust helper to invoke the generate-image-metadata function with retries
 async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, functionHost: string, attempt = 1): Promise<void> {
@@ -61,22 +61,10 @@ async function invokeGenerateMetadataWithRetry(id: string, publicUrl: string, fu
   }
 }
 
-async function processBatchInBackground(siteUrl: string) {
+async function processBatchInBackground(siteUrl: string, supaClient: any) {
   console.log('[BATCH_UPDATE_BG] Starting background processing task (after generic fetch test).');
   
-  // Initialize Supa client here, only if generic fetch was successful (or for testing)
-  if (!supa) {
-    try {
-      supa = createClient(
-        process.env.SUPABASE_URL as string,
-        process.env.SUPABASE_SERVICE_KEY as string
-      );
-      console.log('[BATCH_UPDATE_BG] Supabase client CREATED successfully inside processBatchInBackground.');
-    } catch (initError: any) {
-      console.error('[BATCH_UPDATE_BG] Supabase client FAILED to create inside processBatchInBackground:', initError.message);
-      return; // Cannot proceed without Supabase client
-    }
-  }
+  const supa = supaClient; // Use the passed-in client
 
   // Log environment variables and supa client status
   console.log(`[BATCH_UPDATE_BG] SUPABASE_URL available: ${!!process.env.SUPABASE_URL}`);
@@ -218,9 +206,35 @@ export const handler: Handler = async (event: HandlerEvent, context: HandlerCont
 
   await testGenericFetch(); // Await this simple test first.
 
+  let supa;
+  try {
+    supa = createClient(
+      process.env.SUPABASE_URL as string,
+      process.env.SUPABASE_SERVICE_KEY as string
+    );
+    console.log('[BATCH_UPDATE_BG_HANDLER] Supabase client CREATED successfully in handler.');
+  } catch (initError: any) {
+    console.error('[BATCH_UPDATE_BG_HANDLER] Supabase client FAILED to create in handler:', initError.message);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Failed to initialize Supabase client in handler." }),
+      headers: { 'Content-Type': 'application/json' },
+    };
+  }
+
+  if (!supa) {
+    console.error('[BATCH_UPDATE_BG_HANDLER] Supabase client is null/undefined after creation attempt. Exiting.');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Supabase client null after creation in handler." }),
+      headers: { 'Content-Type': 'application/json' },
+    };
+  }
+
   const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
 
-  processBatchInBackground(siteUrl).catch(error => {
+  // Don't await processBatchInBackground directly if it's meant to be a true background task starting from an HTTP trigger
+  processBatchInBackground(siteUrl, supa).catch(error => {
     console.error("[BATCH_UPDATE_BG] Unhandled error from processBatchInBackground:", error);
   });
 
