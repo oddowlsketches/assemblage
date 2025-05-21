@@ -25,7 +25,7 @@ export async function renderSliced(canvas, images, params = {}) {
 
   // Prepare parameter bag expected by legacy code
   const legacyParams = {
-    sliceBehavior: params.sliceBehavior || 'random',  // 'random' | 'single-image' | 'alternating'
+    sliceBehavior: params.sliceBehavior || 'single-image',  // 'single-image' | 'alternating'
     maxSlices: Number(params.maxSlices) || 40,
     sliceWidthVariation: Number(params.sliceWidthVariation) || 0.1,
   };
@@ -44,15 +44,35 @@ export async function renderSliced(canvas, images, params = {}) {
 }
 
 const slicedTemplate = {
-  key: 'slicedEffect',
-  name: 'Sliced Legacy Effect',
+  key: 'sliced',
+  name: 'Sliced',
   generate: renderSliced,
   params: {
-    sliceBehavior: { type: 'select', options: ['random', 'single-image', 'alternating'], default: 'random' },
-    maxSlices: { type: 'number', min: 3, max: 60, default: 40 },
-    sliceWidthVariation: { type: 'number', min: 0, max: 0.5, step: 0.05, default: 0.1 },
-    bgColor: { type: 'color', default: '' },
-    useMultiply: { type: 'boolean', default: true },
+    sliceBehavior: { 
+      type: 'select', 
+      options: ['single-image', 'alternating'], 
+      default: 'single-image' 
+    },
+    maxSlices: { 
+      type: 'number', 
+      min: 5, 
+      max: 50, 
+      default: 30 
+    },
+    sliceWidthVariation: { 
+      type: 'number', 
+      min: 0, 
+      max: 0.5, 
+      default: 0.2 
+    },
+    bgColor: { 
+      type: 'color', 
+      default: '#ffffff' 
+    },
+    useMultiply: { 
+      type: 'boolean', 
+      default: true 
+    }
   }
 };
 
