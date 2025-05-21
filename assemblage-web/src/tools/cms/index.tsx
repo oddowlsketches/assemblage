@@ -43,7 +43,7 @@ const Sidebar: React.FC = () => (
   </aside>
 );
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+const CHUNK_SIZE = 2 * 1024 * 1024; // Reduced to 2MB chunks for better reliability
 
 const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }) => {
   const [open, setOpen] = useState(false);
@@ -58,33 +58,38 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
   };
 
   const uploadChunk = async (file: File, start: number): Promise<string> => {
-    const chunk = file.slice(start, start + CHUNK_SIZE);
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(',')[1]);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(chunk);
-    });
+    try {
+      const chunk = file.slice(start, start + CHUNK_SIZE);
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(chunk);
+      });
 
-    const res = await fetch('/.netlify/functions/upload-and-process-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: file.name,
-        base64,
-        chunkIndex: Math.floor(start / CHUNK_SIZE),
-        totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-        fileSize: file.size
-      })
-    });
+      const res = await fetch('/.netlify/functions/upload-and-process-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          base64,
+          chunkIndex: Math.floor(start / CHUNK_SIZE),
+          totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+          fileSize: file.size
+        })
+      });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Upload failed');
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Upload failed');
+      }
+
+      const result = await res.json();
+      return result.id;
+    } catch (error) {
+      console.error(`[UPLOAD] Chunk upload error for ${file.name}:`, error);
+      throw error;
     }
-
-    const result = await res.json();
-    return result.id;
   };
 
   const processAndUpload = async () => {
@@ -98,11 +103,29 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
         setProgress(prev => ({ ...prev, currentFile: file.name }));
         setStatus({ message: `Processing ${file.name}...`, type: 'info' });
 
-        // Upload file in chunks
+        // Add file size check
+        if (file.size > 50 * 1024 * 1024) { // 50MB limit
+          throw new Error(`File ${file.name} is too large. Maximum size is 50MB.`);
+        }
+
+        // Upload file in chunks with retries
+        const maxRetries = 3;
         for (let start = 0; start < file.size; start += CHUNK_SIZE) {
-          await uploadChunk(file, start);
-          const progress = Math.min(100, (start + CHUNK_SIZE) / file.size * 100);
-          setStatus({ message: `Uploading ${file.name}: ${Math.round(progress)}%`, type: 'info' });
+          let retries = 0;
+          while (retries < maxRetries) {
+            try {
+              await uploadChunk(file, start);
+              const progress = Math.min(100, (start + CHUNK_SIZE) / file.size * 100);
+              setStatus({ message: `Uploading ${file.name}: ${Math.round(progress)}%`, type: 'info' });
+              break;
+            } catch (error) {
+              retries++;
+              if (retries === maxRetries) {
+                throw error;
+              }
+              await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // Exponential backoff
+            }
+          }
         }
 
         setProgress(prev => ({ ...prev, processed: prev.processed + 1 }));

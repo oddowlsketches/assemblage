@@ -79,20 +79,40 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       let optimizedBuffer;
       const sharpInstance = sharp(buffer);
 
-      // Resize if needed
-      if (metadata.width && metadata.width > 2000 || metadata.height && metadata.height > 2000) {
-        sharpInstance.resize(2000, 2000, {
-          fit: 'inside',
-          withoutEnlargement: true
-        });
+      // Resize if needed - updated to handle very large images more gracefully
+      if (metadata.width && metadata.height) {
+        const maxDimension = Math.max(metadata.width, metadata.height);
+        if (maxDimension > 2000) {
+          const scale = 2000 / maxDimension;
+          sharpInstance.resize(
+            Math.round(metadata.width * scale),
+            Math.round(metadata.height * scale),
+            {
+              fit: 'inside',
+              withoutEnlargement: true
+            }
+          );
+        }
       }
 
-      // Convert to appropriate format
+      // Convert to appropriate format with optimized settings
       const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
       if (['png', 'webp'].includes(ext)) {
-        optimizedBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
+        optimizedBuffer = await sharpInstance
+          .webp({ 
+            quality: 80,
+            effort: 4, // Faster compression
+            force: true // Always convert to webp
+          })
+          .toBuffer();
       } else {
-        optimizedBuffer = await sharpInstance.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+        optimizedBuffer = await sharpInstance
+          .jpeg({ 
+            quality: 85,
+            mozjpeg: true,
+            force: true // Always convert to jpeg
+          })
+          .toBuffer();
       }
 
       const compressionRatio = Math.round((1 - optimizedBuffer.length / buffer.length) * 100);

@@ -17,15 +17,18 @@
 # Increase timeout for the metadata generation function
 [functions."generate-image-metadata"]
   timeout = 60 # seconds
+  memory = 1024 # MB
 
 # Increase timeout for the batch update background function
 [functions."batch-update-metadata-bg"]
   timeout = 600 # seconds (10 minutes)
+  memory = 1024 # MB
 
 # Configure upload function for larger payloads
 [functions."upload-and-process-image"]
   timeout = 60 # seconds
   maxRequestBodySize = 10 # MB
+  memory = 2048 # MB
 
 # Enable more verbose logging
 [dev.environment]

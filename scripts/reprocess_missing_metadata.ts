@@ -1,9 +1,14 @@
-import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import path from 'path';
+const { createClient } = require('@supabase/supabase-js');
+const dotenv = require('dotenv');
+const path = require('path');
 
 // Load environment variables from the root .env file
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
+
+interface ImageData {
+  id: string;
+  src: string;
+}
 
 const supa = createClient(
   process.env.SUPABASE_URL as string,
@@ -36,7 +41,7 @@ async function reprocessMissingMetadata() {
       const batch = images.slice(i, i + batchSize);
       console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(images.length/batchSize)}`);
       
-      await Promise.all(batch.map(async (img) => {
+      await Promise.all(batch.map(async (img: ImageData) => {
         try {
           const response = await fetch('http://localhost:8888/.netlify/functions/generate-image-metadata', {
             method: 'POST',

@@ -1,3 +1,4 @@
+"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -29664,17 +29665,36 @@ var handler = async (event) => {
       console.log(`[UPLOAD] Processing ${fileName}, original size: ${buffer.length} bytes, ${metadata.width}x${metadata.height}`);
       let optimizedBuffer;
       const sharpInstance = (0, import_sharp.default)(buffer);
-      if (metadata.width && metadata.width > 2e3 || metadata.height && metadata.height > 2e3) {
-        sharpInstance.resize(2e3, 2e3, {
-          fit: "inside",
-          withoutEnlargement: true
-        });
+      if (metadata.width && metadata.height) {
+        const maxDimension = Math.max(metadata.width, metadata.height);
+        if (maxDimension > 2e3) {
+          const scale = 2e3 / maxDimension;
+          sharpInstance.resize(
+            Math.round(metadata.width * scale),
+            Math.round(metadata.height * scale),
+            {
+              fit: "inside",
+              withoutEnlargement: true
+            }
+          );
+        }
       }
       const ext = fileName.split(".").pop()?.toLowerCase() || "jpg";
       if (["png", "webp"].includes(ext)) {
-        optimizedBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
+        optimizedBuffer = await sharpInstance.webp({
+          quality: 80,
+          effort: 4,
+          // Faster compression
+          force: true
+          // Always convert to webp
+        }).toBuffer();
       } else {
-        optimizedBuffer = await sharpInstance.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+        optimizedBuffer = await sharpInstance.jpeg({
+          quality: 85,
+          mozjpeg: true,
+          force: true
+          // Always convert to jpeg
+        }).toBuffer();
       }
       const compressionRatio = Math.round((1 - optimizedBuffer.length / buffer.length) * 100);
       console.log(`[UPLOAD] Optimized ${fileName}: ${optimizedBuffer.length} bytes (${compressionRatio}% reduction)`);
