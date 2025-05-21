@@ -70,19 +70,9 @@ function MainApp() {
           <p className="tagline">EPHEMERAL VISIONS, ASSEMBLED MEANINGS</p>
         </div>
         <div className="header-controls">
-          <div className="prompt-input-container">
-            <input 
-              id="prompt-input"
-              type="text" 
-              placeholder="Enter a prompt (e.g., 'architectural')" 
-              value={prompt}
-              onChange={handlePromptChange}
-            />
-            <button id="createButton" onClick={handleCreateArchitectural} style={{ marginLeft: 8 }}>Create</button>
-          </div>
           <div className="action-buttons">
-            <button id="generateButton" onClick={handleShiftPerspective}>Shift Perspective</button>
-            <button id="saveButton" onClick={handleSave}>Save Collage</button>
+            <button id="generateButton" onClick={handleShiftPerspective}>New</button>
+            <button id="saveButton" onClick={handleSave}>Save</button>
           </div>
         </div>
       </header>

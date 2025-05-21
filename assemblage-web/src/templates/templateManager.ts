@@ -57,7 +57,7 @@ const parameterGenerators = {
   }),
 
   pairedForms: () => ({
-    formCount: 2 + Math.floor(Math.random() * 3), // 2-4 forms
+    formCount: 2 + Math.floor(Math.random() * 2), // 2-3 forms
     formType: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'][Math.floor(Math.random() * 5)],
     complexity: 0.3 + Math.random() * 0.4, // 0.3-0.7
     alignmentType: ['edge', 'overlap', 'puzzle'][Math.floor(Math.random() * 3)],

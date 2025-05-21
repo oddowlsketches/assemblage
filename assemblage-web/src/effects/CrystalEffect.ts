@@ -427,36 +427,37 @@ export class CrystalEffect extends EffectBase {
   }
 
   private drawStandardCrystal(): void {
-    // Calculate center point using ACTUAL CANVAS BUFFER dimensions
-    const centerX = this.ctx.canvas.width / 2;
-    const centerY = this.ctx.canvas.height / 2;
+    // Get actual canvas dimensions
+    const canvasWidth = this.ctx.canvas.width;
+    const canvasHeight = this.ctx.canvas.height;
     
-    // Calculate size based on ACTUAL CANVAS BUFFER dimensions
-    const size = Math.min(
-      this.ctx.canvas.width,
-      this.ctx.canvas.height
-    ) * 0.45; // Use 45% of the smaller canvas dimension
+    // Calculate center point using actual canvas dimensions
+    const centerX = canvasWidth / 2;
+    const centerY = canvasHeight / 2;
+    
+    // Calculate size based on the smaller canvas dimension
+    const size = Math.min(canvasWidth, canvasHeight) * 0.45;
     
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
     
-    // Generate seed points across the entire canvas
+    // Generate seed points within a centered square region
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
-      size, // Use the calculated size directly
+      size * 0.8, // Keep points within the size boundary
       facets * this.settings.density
     );
     
     // Create fragments with resolution based on complexity
     const resolution = 50 + this.settings.complexity * 5;
     
-    // Create a rectangular outline that covers the entire canvas BUFFER
+    // Create a centered square outline
     const canvasOutline = [
-      { x: centerX - size, y: centerY - size },
-      { x: centerX + size, y: centerY - size },
-      { x: centerX + size, y: centerY + size },
-      { x: centerX - size, y: centerY + size }
+      { x: centerX - size/2, y: centerY - size/2 },
+      { x: centerX + size/2, y: centerY - size/2 },
+      { x: centerX + size/2, y: centerY + size/2 },
+      { x: centerX - size/2, y: centerY + size/2 }
     ];
     
     this.fragments = this.createVoronoiCells(seedPoints, canvasOutline, resolution);
