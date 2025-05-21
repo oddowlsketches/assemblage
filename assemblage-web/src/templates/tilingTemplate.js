@@ -93,18 +93,9 @@ function renderTiling(canvas, images, params) {
   };
   
   // Draw each tile with an image
-  let penroseRandomImageIndex = 0;
-  if (patternType === 'penrose' && !useUniqueImages) {
-    penroseRandomImageIndex = Math.floor(Math.random() * images.length);
-  }
   tiles.forEach((tile, index) => {
-    // Choose image based on the mode
-    let imageIndex = 0;
-    if (useUniqueImages) {
-      imageIndex = index % images.length;
-    } else {
-      imageIndex = Math.floor(Math.random() * images.length); // Random image if not unique
-    }
+    // Choose image based on the mode - always use random selection
+    const imageIndex = Math.floor(Math.random() * images.length);
     const image = images[imageIndex];
     
     // Skip if image not available
@@ -148,10 +139,6 @@ function renderTiling(canvas, images, params) {
         break;
       case 'rhombille':
         drawRhombilleTile(ctx, tile, image, { ...drawOptions, scale });
-        break;
-      case 'penroseThick':
-      case 'penroseThin':
-        drawPenroseTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       default:
         console.warn(`Unknown tile type: ${tile.type}`);

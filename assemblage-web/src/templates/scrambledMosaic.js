@@ -281,48 +281,12 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
     // Round coordinates to ensure pixel-perfect rendering
     const roundedX = Math.floor(x);
     const roundedY = Math.floor(y);
-    const roundedWidth = Math.floor(width) + 1; // Add 1 to avoid gaps
-    const roundedHeight = Math.floor(height) + 1; // Add 1 to avoid gaps
+    const roundedWidth = Math.ceil(width) + 1; // Add 1 to ensure no gaps
+    const roundedHeight = Math.ceil(height) + 1; // Add 1 to ensure no gaps
     
-    // Create clipping shape based on shape type
+    // Create clipping shape - only square shape is supported now
     ctx.beginPath();
-    
-    switch (shapeType) {
-        case 'square':
-            // Perfect square with no gaps
-            ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
-            break;
-        case 'rectHorizontal':
-            // Horizontal rectangle that's shorter than the cell
-            const rectHHeight = Math.floor(height * 0.6);
-            const rectHY = Math.floor(y + (height - rectHHeight) / 2);
-            ctx.rect(roundedX, rectHY, roundedWidth, rectHHeight);
-            break;
-        case 'rectVertical':
-            // Vertical rectangle that's narrower than the cell
-            const rectVWidth = Math.floor(width * 0.6);
-            const rectVX = Math.floor(x + (width - rectVWidth) / 2);
-            ctx.rect(rectVX, roundedY, rectVWidth, roundedHeight);
-            break;
-        case 'circle':
-            // Circle inscribed in the cell
-            const centerX = roundedX + roundedWidth / 2;
-            const centerY = roundedY + roundedHeight / 2;
-            const radius = Math.floor(Math.min(width, height) / 2);
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            break;
-        case 'stripe':
-            // Diagonal stripe across the cell (ensure whole pixel values)
-            ctx.moveTo(roundedX, roundedY);
-            ctx.lineTo(roundedX + roundedWidth, roundedY + roundedHeight);
-            ctx.lineTo(roundedX + roundedWidth, roundedY + roundedHeight - Math.floor(roundedWidth / 4));
-            ctx.lineTo(roundedX, roundedY + roundedHeight - Math.floor(roundedWidth / 4));
-            ctx.closePath();
-            break;
-        default:
-            // Default to square
-            ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
-    }
+    ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
     
     // Create a copy of the path for stroking later
     const shapePath = ctx.currentPath || new Path2D(ctx.getPath ? ctx.getPath() : null);
@@ -338,8 +302,7 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
         ctx.globalCompositeOperation = 'source-over';
     }
 
-    // Use the source rectangle passed in by the grid logic so that
-    // each tile represents its unique portion of the overall image.
+    // Use the source rectangle passed in by the grid logic
     let sourceX = srcX;
     let sourceY = srcY;
     let sourceW = srcWidth;
@@ -351,22 +314,16 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
     
     // Apply swap operation if specified
     if (shouldSwap) {
-        // Shift the crop window by half width/height for visible change
         sourceX = (sourceX + sourceW * 0.5) % img.width;
         sourceY = (sourceY + sourceH * 0.5) % img.height;
     }
     
     // Apply rotation if specified
     if (shouldRotate) {
-        // Save current dimensions for later calculation
         const origDrawWidth = drawWidth;
         const origDrawHeight = drawHeight;
-        
-        // Rotate around the center of the cell
         ctx.translate(x + width / 2, y + height / 2);
         ctx.rotate(Math.PI / 2); // 90 degrees
-        
-        // Recalculate drawing parameters
         drawWidth = origDrawHeight;
         drawHeight = origDrawWidth;
         drawX = -drawWidth / 2;
@@ -385,38 +342,8 @@ export function drawCell(ctx, x, y, width, height, shapeType, img, srcX, srcY, s
     if (shapePath) {
         ctx.stroke(shapePath);
     } else {
-        // Recreate the path if needed
         ctx.beginPath();
-        switch (shapeType) {
-            case 'square':
-                ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
-                break;
-            case 'rectHorizontal':
-                const rectHHeight = Math.floor(height * 0.6);
-                const rectHY = Math.floor(y + (height - rectHHeight) / 2);
-                ctx.rect(roundedX, rectHY, roundedWidth, rectHHeight);
-                break;
-            case 'rectVertical':
-                const rectVWidth = Math.floor(width * 0.6);
-                const rectVX = Math.floor(x + (width - rectVWidth) / 2);
-                ctx.rect(rectVX, roundedY, rectVWidth, roundedHeight);
-                break;
-            case 'circle':
-                const centerX = roundedX + roundedWidth / 2;
-                const centerY = roundedY + roundedHeight / 2;
-                const radius = Math.floor(Math.min(width, height) / 2);
-                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-                break;
-            case 'stripe':
-                ctx.moveTo(roundedX, roundedY);
-                ctx.lineTo(roundedX + roundedWidth, roundedY + roundedHeight);
-                ctx.lineTo(roundedX + roundedWidth, roundedY + roundedHeight - Math.floor(roundedWidth / 4));
-                ctx.lineTo(roundedX, roundedY + roundedHeight - Math.floor(roundedWidth / 4));
-                ctx.closePath();
-                break;
-            default:
-                ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
-        }
+        ctx.rect(roundedX, roundedY, roundedWidth, roundedHeight);
         ctx.stroke();
     }
     
@@ -551,7 +478,7 @@ const scrambledMosaic = {
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
     pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'clustered' },
-    cellShape: { type: 'select', options: ['square', 'rectHorizontal', 'rectVertical', 'circle'], default: 'square' },
+    cellShape: { type: 'select', options: ['square'], default: 'square' },
     operation: { type: 'select', options: ['reveal', 'swap', 'rotate'], default: 'reveal' },
     bgColor: { type: 'color', default: '#ffffff' },
     useMultiply: { type: 'boolean', default: true }

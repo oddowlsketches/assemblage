@@ -431,11 +431,11 @@ export class CrystalEffect extends EffectBase {
     const centerX = this.ctx.canvas.width / 2;
     const centerY = this.ctx.canvas.height / 2;
     
-    // Calculate size based on ACTUAL CANVAS BUFFER dimensions - reduced to 0.5 to fix double size issue
-    const size = Math.max(
-      this.ctx.canvas.width / 2,
-      this.ctx.canvas.height / 2
-    ) * (0.35 + Math.random() * 0.1); // Reduced from 0.7 to 0.35 to fix size issue
+    // Calculate size based on ACTUAL CANVAS BUFFER dimensions
+    const size = Math.min(
+      this.ctx.canvas.width,
+      this.ctx.canvas.height
+    ) * 0.45; // Use 45% of the smaller canvas dimension
     
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
@@ -444,8 +444,8 @@ export class CrystalEffect extends EffectBase {
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
-      size * 1.5, // Increased to 1.5 to ensure coverage
-      facets * this.settings.density * 1.5 // Increased density for better coverage
+      size, // Use the calculated size directly
+      facets * this.settings.density
     );
     
     // Create fragments with resolution based on complexity
@@ -453,10 +453,10 @@ export class CrystalEffect extends EffectBase {
     
     // Create a rectangular outline that covers the entire canvas BUFFER
     const canvasOutline = [
-      { x: 0, y: 0 },
-      { x: this.ctx.canvas.width, y: 0 },
-      { x: this.ctx.canvas.width, y: this.ctx.canvas.height },
-      { x: 0, y: this.ctx.canvas.height }
+      { x: centerX - size, y: centerY - size },
+      { x: centerX + size, y: centerY - size },
+      { x: centerX + size, y: centerY + size },
+      { x: centerX - size, y: centerY + size }
     ];
     
     this.fragments = this.createVoronoiCells(seedPoints, canvasOutline, resolution);
