@@ -1,0 +1,93 @@
+import { getRandomBackgroundColor } from '../enhanced-templates';
+import { getRandomCrystalSettings } from '../effects/randomCrystal';
+import scrambledMosaic from './scrambledMosaic';
+import tilingTemplate from './tilingTemplate';
+import crystalTemplate from './crystalEffectTemplate';
+
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling';
+
+// Template types and their weights for random selection
+const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
+  crystal: 0.33,
+  scrambledMosaic: 0.33,
+  tiling: 0.33
+};
+
+// Random parameter generators for each template
+const parameterGenerators = {
+  crystal: () => ({
+    ...getRandomCrystalSettings(),
+    useMultiply: Math.random() > 0.3, // 70% chance of using multiply blend
+    bgColor: getRandomBackgroundColor()
+  }),
+  
+  scrambledMosaic: () => ({
+    gridSize: 4 + Math.floor(Math.random() * 8), // 4-12
+    revealPct: 60 + Math.floor(Math.random() * 30), // 60-90
+    swapPct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of swap
+    rotatePct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of rotation
+    pattern: ['random', 'clustered', 'silhouette', 'portrait'][Math.floor(Math.random() * 4)],
+    cellShape: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'][Math.floor(Math.random() * 5)],
+    operation: ['reveal', 'swap', 'rotate'][Math.floor(Math.random() * 3)],
+    bgColor: getRandomBackgroundColor(),
+    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+  }),
+  
+  tiling: () => ({
+    patternType: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille', 'penrose'][Math.floor(Math.random() * 7)],
+    tileCount: 8 + Math.floor(Math.random() * 24), // 8-32 tiles
+    useUniqueImages: Math.random() > 0.3, // 70% chance of unique images
+    randomRotation: Math.random() > 0.5, // 50% chance of random rotation
+    tileSpacing: Math.random() > 0.7 ? Math.floor(Math.random() * 4) : 0, // 30% chance of spacing
+    fillStyle: Math.random() > 0.3 ? 'fullBleed' : 'centeredForm',
+    bgColor: getRandomBackgroundColor(),
+    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+  })
+} as const;
+
+// Get a random template based on weights
+export function getRandomTemplate() {
+  const rand = Math.random();
+  let cumulativeWeight = 0;
+  
+  for (const [template, weight] of Object.entries(TEMPLATE_WEIGHTS)) {
+    cumulativeWeight += weight;
+    if (rand <= cumulativeWeight) {
+      return {
+        type: template as TemplateType,
+        template: getTemplateByType(template as TemplateType),
+        params: parameterGenerators[template as TemplateType]()
+      };
+    }
+  }
+  
+  // Fallback to crystal if something goes wrong
+  return {
+    type: 'crystal' as const,
+    template: crystalTemplate,
+    params: parameterGenerators.crystal()
+  };
+}
+
+// Get template object by type
+function getTemplateByType(type: TemplateType) {
+  switch (type) {
+    case 'crystal':
+      return crystalTemplate;
+    case 'scrambledMosaic':
+      return scrambledMosaic;
+    case 'tiling':
+      return tilingTemplate;
+    default:
+      return crystalTemplate;
+  }
+}
+
+// Export all templates and their parameter generators
+export const templates = {
+  crystal: crystalTemplate,
+  scrambledMosaic: scrambledMosaic,
+  tiling: tilingTemplate
+} as const;
+
+export const generators = parameterGenerators; 

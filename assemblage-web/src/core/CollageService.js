@@ -12,6 +12,8 @@ import maskImplementations from '../legacy/js/collage/maskImplementations.js';
 import { getMaskDescriptor } from '../masks/maskRegistry';
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
+import { EventEmitter } from 'events';
+import { getRandomTemplate } from '../templates/templateManager';
 
 class EventEmitter {
   constructor() { this._listeners = {}; }
@@ -289,74 +291,15 @@ export class CollageService {
             return;
         }
 
-        // Determine which effect to use based on the prompt
-        const lowerPrompt = userPrompt.toLowerCase();
-        if (lowerPrompt.includes('arch') || 
-            lowerPrompt.includes('window') || 
-            lowerPrompt.includes('door') || 
-            lowerPrompt.includes('building') || 
-            lowerPrompt.includes('facade')) {
-            this.setEffect('architectural');
-        } else if (lowerPrompt.includes('crystal')) {
-            this.setEffect('crystal');
-        } else {
-            // Randomly select an effect if no specific keyword is found
-            const effects = ['crystal', 'architectural'];
-            const randomEffect = effects[Math.floor(Math.random() * effects.length)];
-            this.setEffect(randomEffect);
-        }
+        // Get a random template and its parameters
+        const { type, template, params } = getRandomTemplate();
+        console.log(`[CollageService] Using template: ${type} with params:`, params);
 
-        // Get a plan from the prompt planner
-        const plan = await this.promptPlanner.plan(userPrompt);
-        console.log('[CollageService] plan generated →', plan);
-        
-        // Handle different effects
-        switch (this.currentEffectName) {
-            case 'crystal':
-                // Randomize crystal variant
-                const variant = Math.random() > 0.5 ? 'standard' : 'isolated';
-                this.setCrystalVariant(variant);
-                console.log(`Using ${variant} crystal variant`);
-                
-                // Get random crystal settings and log the imageMode
-                const params = getRandomCrystalSettings();
-                console.log('[CollageService] passing imageMode →', params.imageMode);
-                
-                // Create new crystal effect with the settings
-                this.crystalEffect = new CrystalEffect(this.ctx, this.images, params);
-                this.currentEffect = this.crystalEffect; // Update the current effect instance
-                this.crystalEffect.draw();
-                break;
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-            case 'architectural':
-                // Create new architectural effect instance with current images and prompt
-                this.architecturalEffect = new ArchitecturalEffect(this.ctx, this.images, {
-                    promptText: userPrompt,
-                    useMixedBlending: true,
-                    useComplementaryShapes: true
-                });
-                this.currentEffect = this.architecturalEffect; // Update the current effect instance
-                this.architecturalEffect.draw();
-                break;
-
-            default:
-                // Use legacy collage generator for other effects
-                await this.legacyAdapter.generate(this.images, 'mosaic');
-                break;
-        }
-
-        // Apply the plan if the current effect supports it
-        console.log(
-            '[CollageService] has drawPlan?',
-            typeof this.currentEffect.drawPlan,
-            'on',
-            this.currentEffect.constructor.name
-        );
-        
-        if (this.currentEffect && typeof this.currentEffect.drawPlan === 'function') {
-            console.log('[CollageService] calling drawPlan with →', plan);
-            this.currentEffect.drawPlan(plan);
-        }
+        // Generate the collage using the template
+        template.generate(this.canvas, this.images, params);
 
         // Get the background color from the canvas and update UI colors
         const bgColor = this.getBackgroundColor();
