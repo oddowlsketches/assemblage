@@ -84,12 +84,13 @@ export class SlicedEffect extends EffectBase {
         // For random behavior, create a shuffled array of images
         let shuffledImages: HTMLImageElement[] = [];
         if (!this.selectedImage) {
-            shuffledImages = this.shuffleArray(this.images);
-            if (shuffledImages.length < this.numSlices) {
-                while (shuffledImages.length < this.numSlices) {
-                    shuffledImages.push(...this.shuffleArray([...this.images]));
-                }
+            // Create a pool of images that's at least twice the size needed
+            const imagePool = [...this.images];
+            while (imagePool.length < this.numSlices * 2) {
+                imagePool.push(...this.images);
             }
+            // Shuffle the entire pool and take what we need
+            shuffledImages = this.shuffleArray(imagePool).slice(0, this.numSlices);
         }
         
         let currentPosition = 0;

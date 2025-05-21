@@ -436,7 +436,7 @@ export class CrystalEffect extends EffectBase {
     const centerY = canvasHeight / 2;
     
     // Calculate size based on the smaller canvas dimension
-    const size = Math.min(canvasWidth, canvasHeight) * 0.45;
+    const size = Math.min(canvasWidth, canvasHeight) * 0.8;
     
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
@@ -445,7 +445,7 @@ export class CrystalEffect extends EffectBase {
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
-      size * 0.8, // Keep points within the size boundary
+      size * 0.4, // Keep points within a tighter boundary
       facets * this.settings.density
     );
     

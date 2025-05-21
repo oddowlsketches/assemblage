@@ -98,7 +98,7 @@ header {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 1.5rem;
+  padding: 1rem 2rem;
   z-index: 10;
   background: transparent;
   backdrop-filter: none;
@@ -110,28 +110,26 @@ header {
   align-items: center;
 }
 
+.header-text {
+  flex: 1;
+}
+
 .header-text h1 {
-  font-family: 'Playfair Display', serif;
-  font-style: italic;
-  font-size: 2.5rem;
-  color: var(--text-color);
   margin: 0;
-  line-height: 1;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .header-text .tagline {
-  font-family: 'Space Grotesk', sans-serif;
+  margin: 0.5rem 0 0;
   font-size: 1rem;
-  margin: 0.5rem 0;
-  color: var(--text-color);
+  font-weight: 400;
+  color: #666;
 }
 
 /* Buttons */
 .header-controls {
   display: flex;
-  flex-direction: row;
-  justify-content: flex-end;
   align-items: center;
   gap: 10px;
   padding: 10px;
@@ -174,18 +172,15 @@ header {
 /* Responsive styles */
 @media (max-width: 768px) {
   header {
-    flex-direction: column;
-    align-items: flex-start;
     padding: 10px;
   }
 
-  .header-text {
-    margin-bottom: 10px;
+  .header-text h1 {
+    font-size: 24px;
   }
 
-  .header-controls {
-    width: 100%;
-    justify-content: flex-end;
+  .tagline {
+    display: none;
   }
 
   button {

@@ -94,6 +94,12 @@ function renderTiling(canvas, images, params) {
   
   // Draw each tile with an image
   tiles.forEach((tile, index) => {
+    // Skip if tile doesn't have points
+    if (!tile.points || !Array.isArray(tile.points) || tile.points.length === 0) {
+      console.warn('Tile missing points:', tile);
+      return;
+    }
+    
     // Choose image based on the mode - always use random selection
     const imageIndex = Math.floor(Math.random() * images.length);
     const image = images[imageIndex];
