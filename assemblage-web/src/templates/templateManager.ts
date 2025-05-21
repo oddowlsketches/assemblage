@@ -1,4 +1,4 @@
-import { getRandomBackgroundColor } from '../enhanced-templates';
+import { getRandomBackgroundColor } from '../enhanced-templates.js';
 import { getRandomCrystalSettings } from '../effects/randomCrystal';
 import scrambledMosaic from './scrambledMosaic';
 import tilingTemplate from './tilingTemplate';

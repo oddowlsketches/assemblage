@@ -6,7 +6,7 @@
  */
 
 // Import original templates
-import { templates as originalTemplates } from './templates.js';
+import templates from './templates/index.js';
 
 // Import abstract templates
 import abstractTemplates from './abstract-templates.js';
@@ -35,9 +35,9 @@ export function getRandomBackgroundColor() {
 /**
  * Combined templates from both sources
  */
-export const templates = [
-    // Add original architectural templates
-    ...originalTemplates.filter(t => t.key !== 'slicedLegacy'), // Exclude slicedLegacy since we have a better version
+export const combinedTemplates = [
+    // Add original templates
+    ...templates,
     
     // Add abstract templates
     ...abstractTemplates
@@ -49,7 +49,7 @@ export const templates = [
  * @returns {Object|null} - The template or null if not found
  */
 export function getTemplateByKey(key) {
-    return templates.find(t => t.key === key) || null;
+    return combinedTemplates.find(t => t.key === key) || null;
 }
 
 /**
@@ -59,12 +59,12 @@ export function getTemplateByKey(key) {
 export function getTemplatesByCategory() {
     return {
         abstract: abstractTemplates,
-        architectural: originalTemplates.filter(t => 
+        architectural: templates.filter(t => 
             t.key.includes('arch') || 
             t.key.includes('window') || 
             t.key.includes('altar')
         ),
-        sliced: templates.filter(t => 
+        sliced: combinedTemplates.filter(t => 
             t.key.includes('slice') || 
             t.key === 'slicedAbstraction'
         )
@@ -74,4 +74,4 @@ export function getTemplatesByCategory() {
 /**
  * Default export is the combined templates array
  */
-export default templates;
+export default combinedTemplates;
