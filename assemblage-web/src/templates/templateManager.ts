@@ -3,14 +3,18 @@ import { getRandomCrystalSettings } from '../effects/randomCrystal';
 import scrambledMosaic from './scrambledMosaic';
 import tilingTemplate from './tilingTemplate';
 import crystalTemplate from './crystalEffectTemplate';
+import slicedTemplate from './slicedTemplate';
+import pairedForms from './pairedForms';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
-  crystal: 0.33,
-  scrambledMosaic: 0.33,
-  tiling: 0.33
+  crystal: 0.2,
+  scrambledMosaic: 0.2,
+  tiling: 0.2,
+  sliced: 0.2,
+  pairedForms: 0.2
 };
 
 // Random parameter generators for each template
@@ -42,6 +46,23 @@ const parameterGenerators = {
     fillStyle: Math.random() > 0.3 ? 'fullBleed' : 'centeredForm',
     bgColor: getRandomBackgroundColor(),
     useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+  }),
+
+  sliced: () => ({
+    sliceBehavior: ['random', 'single-image', 'alternating'][Math.floor(Math.random() * 3)],
+    maxSlices: 10 + Math.floor(Math.random() * 30), // 10-40 slices
+    sliceWidthVariation: 0.05 + Math.random() * 0.25, // 0.05-0.3
+    bgColor: getRandomBackgroundColor(),
+    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+  }),
+
+  pairedForms: () => ({
+    formCount: 2 + Math.floor(Math.random() * 3), // 2-4 forms
+    formType: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'][Math.floor(Math.random() * 5)],
+    complexity: 0.3 + Math.random() * 0.4, // 0.3-0.7
+    alignmentType: ['edge', 'overlap', 'puzzle'][Math.floor(Math.random() * 3)],
+    useMultiply: Math.random() > 0.3, // 70% chance of using multiply blend
+    bgColor: getRandomBackgroundColor()
   })
 } as const;
 
@@ -78,6 +99,10 @@ function getTemplateByType(type: TemplateType) {
       return scrambledMosaic;
     case 'tiling':
       return tilingTemplate;
+    case 'sliced':
+      return slicedTemplate;
+    case 'pairedForms':
+      return pairedForms;
     default:
       return crystalTemplate;
   }
@@ -87,7 +112,9 @@ function getTemplateByType(type: TemplateType) {
 export const templates = {
   crystal: crystalTemplate,
   scrambledMosaic: scrambledMosaic,
-  tiling: tilingTemplate
+  tiling: tilingTemplate,
+  sliced: slicedTemplate,
+  pairedForms: pairedForms
 } as const;
 
 export const generators = parameterGenerators; 

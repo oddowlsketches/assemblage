@@ -15,13 +15,6 @@ import { svgToPath2D } from './svgUtils.js';
 import { EventEmitter } from 'events';
 import { getRandomTemplate } from '../templates/templateManager';
 
-class EventEmitter {
-  constructor() { this._listeners = {}; }
-  on(evt, fn) { (this._listeners[evt] ||= []).push(fn); }
-  off(evt, fn) { this._listeners[evt] = (this._listeners[evt]||[]).filter(f => f !== fn); }
-  emit(evt, data) { (this._listeners[evt]||[]).forEach(f => f(data)); }
-}
-
 export class CollageService {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
@@ -64,8 +57,8 @@ export class CollageService {
         
         // Only initialize crystal generators if enabled
         if (options.initCrystals !== false) {
-        this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
-        this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
+            this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
+            this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
         } else {
             this.crystalEffect = null;
             this.crystalGenerator = null;
@@ -88,7 +81,7 @@ export class CollageService {
 
         // Set initial effect
         if (options.initCrystals !== false) {
-        this.setEffect('crystal');
+            this.setEffect('crystal');
         } else {
             this.setEffect('architectural');
         }
@@ -265,7 +258,7 @@ export class CollageService {
         this.crystalVariant = variant;
         // Ensure images are loaded before creating effect if crystalEffect might use them immediately
         if (this.images.length > 0 && this.crystalEffect) {
-        this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant });
+            this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant });
         } else if (this.crystalEffect) {
             // If images not loaded, crystalEffect might be initialized with an empty array for now
             this.crystalEffect.images = []; 
