@@ -1,4 +1,4 @@
-import { getRandomBackgroundColor } from '../enhanced-templates.js';
+import { randomVibrantColor } from '../utils/colors';
 import { getRandomCrystalSettings } from '../effects/randomCrystal';
 import scrambledMosaic from './scrambledMosaic';
 import tilingTemplate from './tilingTemplate';
@@ -21,8 +21,8 @@ const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
 const parameterGenerators = {
   crystal: () => ({
     ...getRandomCrystalSettings(),
-    useMultiply: Math.random() > 0.3, // 70% chance of using multiply blend
-    bgColor: getRandomBackgroundColor()
+    useMultiply: true, // Always use multiply blend
+    bgColor: randomVibrantColor()
   }),
   
   scrambledMosaic: () => ({
@@ -31,29 +31,29 @@ const parameterGenerators = {
     swapPct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of swap
     rotatePct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of rotation
     pattern: ['random', 'clustered', 'silhouette', 'portrait'][Math.floor(Math.random() * 4)],
-    cellShape: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'][Math.floor(Math.random() * 5)],
+    cellShape: ['square', 'rectHorizontal', 'rectVertical', 'circle'][Math.floor(Math.random() * 4)],
     operation: ['reveal', 'swap', 'rotate'][Math.floor(Math.random() * 3)],
-    bgColor: getRandomBackgroundColor(),
-    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+    bgColor: randomVibrantColor(),
+    useMultiply: true // Always use multiply blend
   }),
   
   tiling: () => ({
-    patternType: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille', 'penrose'][Math.floor(Math.random() * 7)],
+    patternType: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille'][Math.floor(Math.random() * 6)],
     tileCount: 8 + Math.floor(Math.random() * 24), // 8-32 tiles
-    useUniqueImages: Math.random() > 0.3, // 70% chance of unique images
+    useUniqueImages: true, // Always use unique images
     randomRotation: Math.random() > 0.5, // 50% chance of random rotation
     tileSpacing: Math.random() > 0.7 ? Math.floor(Math.random() * 4) : 0, // 30% chance of spacing
-    fillStyle: Math.random() > 0.3 ? 'fullBleed' : 'centeredForm',
-    bgColor: getRandomBackgroundColor(),
-    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+    fillStyle: 'fullBleed', // Always use full bleed
+    bgColor: randomVibrantColor(),
+    useMultiply: true // Always use multiply blend
   }),
 
   sliced: () => ({
     sliceBehavior: ['random', 'single-image', 'alternating'][Math.floor(Math.random() * 3)],
     maxSlices: 10 + Math.floor(Math.random() * 30), // 10-40 slices
     sliceWidthVariation: 0.05 + Math.random() * 0.25, // 0.05-0.3
-    bgColor: getRandomBackgroundColor(),
-    useMultiply: Math.random() > 0.3 // 70% chance of using multiply blend
+    bgColor: randomVibrantColor(),
+    useMultiply: true // Always use multiply blend
   }),
 
   pairedForms: () => ({
@@ -61,8 +61,8 @@ const parameterGenerators = {
     formType: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'][Math.floor(Math.random() * 5)],
     complexity: 0.3 + Math.random() * 0.4, // 0.3-0.7
     alignmentType: ['edge', 'overlap', 'puzzle'][Math.floor(Math.random() * 3)],
-    useMultiply: Math.random() > 0.3, // 70% chance of using multiply blend
-    bgColor: getRandomBackgroundColor()
+    useMultiply: true, // Always use multiply blend
+    bgColor: randomVibrantColor()
   })
 } as const;
 

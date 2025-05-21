@@ -551,7 +551,7 @@ const scrambledMosaic = {
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
     pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'clustered' },
-    cellShape: { type: 'select', options: ['square', 'rectHorizontal', 'rectVertical', 'circle', 'stripe'], default: 'square' },
+    cellShape: { type: 'select', options: ['square', 'rectHorizontal', 'rectVertical', 'circle'], default: 'square' },
     operation: { type: 'select', options: ['reveal', 'swap', 'rotate'], default: 'reveal' },
     bgColor: { type: 'color', default: '#ffffff' },
     useMultiply: { type: 'boolean', default: true }

@@ -38,13 +38,14 @@ function renderTiling(canvas, images, params) {
   let tileCount = params.tileCount || 16;
   // Clamp tileCount for Penrose
   if (patternType === 'penrose' && tileCount > 40) tileCount = 40;
-  const useUniqueImages = params.useUniqueImages !== false;
+  // Always use unique images and multiply blend mode
+  const useUniqueImages = true;
   const randomRotation = params.randomRotation === true;
   const tileSpacing = params.tileSpacing || 0;
   const fillStyle = params.fillStyle || 'fullBleed';
   const debug = params.debug === true;
   const bgColor = params.bgColor || '#FFFFFF';
-  const useMultiply = params.useMultiply !== false;
+  const useMultiply = true; // Always use multiply blend mode
   
   // Fill background color
   ctx.fillStyle = bgColor;
@@ -78,33 +79,6 @@ function renderTiling(canvas, images, params) {
     case 'rhombille':
       tiles = createRhombilleTiling(tileCount, canvas.width, canvas.height, options);
       break;
-    case 'penrose': {
-      tiles = createPenroseKnownGoodPatch(canvas.width, canvas.height);
-      // Apply random rotation, mirroring, and scaling to the entire patch if enabled
-      if (randomRotation) {
-        const angle = Math.random() * 2 * Math.PI;
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
-        const flipX = Math.random() < 0.5 ? -1 : 1;
-        const flipY = Math.random() < 0.5 ? -1 : 1;
-        const scale = 0.8 + Math.random() * 0.4; // 0.8x to 1.2x
-        tiles = tiles.map(tile => ({
-          ...tile,
-          points: tile.points.map(p => {
-            // Translate to center, scale, flip, rotate, then translate back
-            let x = (p.x - cx) * scale * flipX;
-            let y = (p.y - cy) * scale * flipY;
-            const xRot = x * Math.cos(angle) - y * Math.sin(angle);
-            const yRot = x * Math.sin(angle) + y * Math.cos(angle);
-            return {
-              x: cx + xRot,
-              y: cy + yRot
-            };
-          })
-        }));
-      }
-      break;
-    }
     default:
       console.warn(`Unknown pattern type: ${patternType}, falling back to squares`);
       tiles = createSquareTiling(tileCount, canvas.width, canvas.height, options);
@@ -118,11 +92,6 @@ function renderTiling(canvas, images, params) {
     debug
   };
   
-  // Apply 'multiply' blending mode globally if needed
-  if (useMultiply) {
-    ctx.globalCompositeOperation = 'multiply';
-  }
-  
   // Draw each tile with an image
   let penroseRandomImageIndex = 0;
   if (patternType === 'penrose' && !useUniqueImages) {
@@ -131,43 +100,58 @@ function renderTiling(canvas, images, params) {
   tiles.forEach((tile, index) => {
     // Choose image based on the mode
     let imageIndex = 0;
-    if (patternType === 'penrose' && !useUniqueImages) {
-      // For Penrose, use the same random image for the whole patch
-      imageIndex = penroseRandomImageIndex;
-    } else if (useUniqueImages) {
+    if (useUniqueImages) {
       imageIndex = index % images.length;
     } else {
-      imageIndex = 0;
+      imageIndex = Math.floor(Math.random() * images.length); // Random image if not unique
     }
     const image = images[imageIndex];
     
     // Skip if image not available
     if (!image || !image.complete) return;
     
-    // Draw the tile based on its type
+    // Set multiply blend mode for all tiles
+    ctx.globalCompositeOperation = 'multiply';
+    
+    // Calculate scale to ensure image fills tile completely with some overflow
+    const tileWidth = Math.abs(Math.max(...tile.points.map(p => p.x)) - Math.min(...tile.points.map(p => p.x)));
+    const tileHeight = Math.abs(Math.max(...tile.points.map(p => p.y)) - Math.min(...tile.points.map(p => p.y)));
+    const imageAspect = image.width / image.height;
+    const tileAspect = tileWidth / tileHeight;
+    
+    let scale;
+    if (imageAspect > tileAspect) {
+      // Image is wider than tile
+      scale = (tileHeight * 1.2) / image.height; // 20% overflow
+    } else {
+      // Image is taller than tile
+      scale = (tileWidth * 1.2) / image.width; // 20% overflow
+    }
+    
+    // Draw the tile based on its type with proper scaling
     switch (tile.type) {
       case 'square':
-        drawSquareTile(ctx, tile, image, drawOptions);
+        drawSquareTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'triangleTop':
       case 'triangleBottom':
-        drawTriangularTile(ctx, tile, image, drawOptions);
+        drawTriangularTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'hexagon':
-        drawHexagonalTile(ctx, tile, image, drawOptions);
+        drawHexagonalTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'modular':
-        drawModularTile(ctx, tile, image, drawOptions);
+        drawModularTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'voronoi':
-        drawVoronoiCell(ctx, tile, image, drawOptions);
+        drawVoronoiCell(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'rhombille':
-        drawRhombilleTile(ctx, tile, image, drawOptions);
+        drawRhombilleTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       case 'penroseThick':
       case 'penroseThin':
-        drawPenroseTile(ctx, tile, image, drawOptions);
+        drawPenroseTile(ctx, tile, image, { ...drawOptions, scale });
         break;
       default:
         console.warn(`Unknown tile type: ${tile.type}`);

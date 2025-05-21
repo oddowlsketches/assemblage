@@ -427,28 +427,24 @@ export class CrystalEffect extends EffectBase {
   }
 
   private drawStandardCrystal(): void {
-    // Get device pixel ratio - NO LONGER NEEDED FOR THESE BASE CALCULATIONS
-    // const dpr = window.devicePixelRatio || 1; 
-    
     // Calculate center point using ACTUAL CANVAS BUFFER dimensions
     const centerX = this.ctx.canvas.width / 2;
     const centerY = this.ctx.canvas.height / 2;
     
-    // Calculate size based on ACTUAL CANVAS BUFFER dimensions
+    // Calculate size based on ACTUAL CANVAS BUFFER dimensions - reduced to 0.5 to fix double size issue
     const size = Math.max(
       this.ctx.canvas.width / 2,
       this.ctx.canvas.height / 2
-    ) * (0.7 + Math.random() * 0.2); 
-
+    ) * (0.35 + Math.random() * 0.1); // Reduced from 0.7 to 0.35 to fix size issue
+    
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
     
-    // For standard crystal, we don't need to constrain by outline
     // Generate seed points across the entire canvas
     const seedPoints = this.generateSeedPoints(
       centerX, 
       centerY, 
-      size * 1.5, // Increased to 1.5 to ensure coverage of entire canvas
+      size * 1.5, // Increased to 1.5 to ensure coverage
       facets * this.settings.density * 1.5 // Increased density for better coverage
     );
     
