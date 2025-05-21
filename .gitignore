@@ -3,3 +3,6 @@ node_modules/
 *.log
 .vite/
 .env
+
+# Local Netlify folder
+.netlify

@@ -13,11 +13,19 @@ import { getMaskDescriptor } from '../masks/maskRegistry';
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
 
+class EventEmitter {
+  constructor() { this._listeners = {}; }
+  on(evt, fn) { (this._listeners[evt] ||= []).push(fn); }
+  off(evt, fn) { this._listeners[evt] = (this._listeners[evt]||[]).filter(f => f !== fn); }
+  emit(evt, data) { (this._listeners[evt]||[]).forEach(f => f(data)); }
+}
+
 export class CollageService {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.images = [];
+        this.isLoadingImages = false; // Flag to prevent concurrent loads
         this.currentEffect = null;
         this.currentEffectName = null;
         this.crystalVariant = 'standard';
@@ -28,14 +36,21 @@ export class CollageService {
 
         // Store options
         this.options = options;
+        this.events = new EventEmitter();
         
         // Initialize Supabase client
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (supabaseUrl && supabaseAnonKey) {
-            this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+        if (options.supabaseClient) {
+            this.supabaseClient = options.supabaseClient;
+            console.log('[CollageService] Using provided Supabase client instance.');
         } else {
-            console.error('[CollageService] Supabase URL or Anon Key is missing. Images will not load from Supabase.');
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            if (supabaseUrl && supabaseAnonKey) {
+                this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+                console.log('[CollageService] Created new Supabase client instance (fallback).');
+            } else {
+                console.error('[CollageService] Supabase URL or Anon Key is missing. Images will not load from Supabase.');
+            }
         }
         
         // Initialize Paper.js
@@ -176,64 +191,53 @@ export class CollageService {
     }
 
     async loadImages() {
-        if (!this.supabaseClient) {
-            console.warn('[CollageService] Supabase client not initialized. Cannot load images.');
-            this.images = [];
-            return this.images;
+        if (!this.supabaseClient || this.isLoadingImages) {
+            return;
         }
-
+        this.isLoadingImages = true;
+        this.events.emit('imagesLoadingStart');
         try {
-            console.log('[CollageService] Loading images from Supabase...');
-            const { data: supabaseImages, error: dbError } = await this.supabaseClient
+            const { data: rows, error } = await this.supabaseClient
                 .from('images')
-                .select('id, src, title, tags, description, imagetype')
+                .select('id, src')
                 .order('created_at', { ascending: false });
 
-            if (dbError) {
-                console.error('[CollageService] Error fetching images from Supabase:', dbError);
-                this.images = [];
-                return this.images;
+            if (error) {
+                this.events.emit('imagesLoadError', error);
+                this.isLoadingImages = false;
+                return;
             }
 
-            if (!supabaseImages || supabaseImages.length === 0) {
-                console.warn('[CollageService] No images found in Supabase.');
-                this.images = [];
-                return this.images;
-            }
-
-            this.images = await Promise.all(
-                supabaseImages.map(async (imgData) => {
-                    if (!imgData.src) {
-                        console.warn(`[CollageService] Image data missing src for ID: ${imgData.id}`);
-                        return null;
-                    }
-                    const image = new Image();
-                    image.crossOrigin = "anonymous"; // Important for canvas if images are from different origin
-                    image.src = imgData.src; // Use the src URL from Supabase
-                    try {
-                        await image.decode(); // More robust than onload for ensuring image is ready
-                        return image;
-                    } catch (loadError) {
-                        console.warn(`[CollageService] Failed to load image from Supabase: ${imgData.src}`, loadError);
-                        return null;
-                    }
-                })
-            );
-            
-            this.images = this.images.filter(img => img !== null && img.complete && img.naturalHeight !== 0);
-            
-            console.log(`[CollageService] Loaded ${this.images.length} images from Supabase.`);
-            
-            // Update the images in the generators/effects if they expect an array of Image elements
-            if (this.generator) this.generator.images = this.images;
-            if (this.crystalEffect) this.crystalEffect.images = this.images; // Assuming CrystalEffect has an images property
-            if (this.architecturalEffect) this.architecturalEffect.images = this.images; // Assuming ArchitecturalEffect has an images property
-
-            return this.images;
-        } catch (error) {
-            console.error('[CollageService] Error in loadImages method:', error);
+            this.events.emit('imagesMetadataLoaded', rows.length);
+            const total = rows.length;
             this.images = [];
-            return this.images;
+
+            rows.forEach(r => {
+                if (!r.src) return;
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = r.src;
+                img.onload = () => {
+                    this.images.push(img);
+                    if (this.generator) this.generator.images = this.images;
+                    if (this.crystalEffect) this.crystalEffect.images = this.images;
+                    if (this.architecturalEffect) this.architecturalEffect.images = this.images;
+                    const loaded = this.images.length;
+                    this.events.emit('imageLoaded', { loaded, total });
+                    if (loaded === total) {
+                        this.isLoadingImages = false;
+                        this.events.emit('imagesLoaded', this.images);
+                    }
+                };
+                img.onerror = (e) => {
+                    console.warn(`[CollageService] Failed to load ${r.src}`, e);
+                    this.events.emit('imageLoadError', { src: r.src, error: e });
+                };
+            });
+        } catch (e) {
+            console.error('[CollageService] Error loading images:', e);
+            this.events.emit('imagesLoadError', e);
+            this.isLoadingImages = false;
         }
     }
 
@@ -257,12 +261,31 @@ export class CollageService {
 
     setCrystalVariant(variant) {
         this.crystalVariant = variant;
+        // Ensure images are loaded before creating effect if crystalEffect might use them immediately
+        if (this.images.length > 0 && this.crystalEffect) {
         this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant });
+        } else if (this.crystalEffect) {
+            // If images not loaded, crystalEffect might be initialized with an empty array for now
+            this.crystalEffect.images = []; 
+            this.crystalEffect.settings.variant = variant;
+            console.warn("[CollageService] CrystalEffect variant set, but images not yet loaded for it.");
+        }
     }
 
     async generateCollage(userPrompt = '') {
-        if (!this.canvas || this.images.length === 0) {
-            console.warn('Cannot generate collage: canvas or images not available');
+        if (!this.canvas) {
+            console.warn('Cannot generate collage: canvas not available');
+            return;
+        }
+        if (this.images.length === 0 && !this.isLoadingImages) {
+            console.log('[CollageService] Images not loaded. Attempting to load images before generating collage...');
+            await this.loadImages(); // Ensure images are loaded
+            if (this.images.length === 0) { // Check again after load attempt
+                console.warn('Cannot generate collage: images still not available after load attempt.');
+                return;
+            }
+        } else if (this.isLoadingImages) {
+            console.warn('Cannot generate collage: images are currently loading. Try again shortly.');
             return;
         }
 
@@ -341,6 +364,17 @@ export class CollageService {
     }
 
     async applyCrystalEffect() {
+        if (this.images.length === 0 && !this.isLoadingImages) {
+            console.log('[CollageService] Images not loaded. Attempting to load images before applying crystal effect...');
+            await this.loadImages();
+            if (this.images.length === 0) {
+                console.warn('Cannot apply crystal effect: images still not available after load attempt.');
+                return;
+            }
+        } else if (this.isLoadingImages) {
+            console.warn('Cannot apply crystal effect: images are currently loading. Try again shortly.');
+            return;
+        }
         try {
             if (this.crystalVariant === 'isolated') {
                 // Use the legacy isolated crystal generator
@@ -512,8 +546,19 @@ export class CollageService {
     }
 
     async drawTemplate(template) {
-        if (!this.canvas || this.images.length === 0) {
-            console.warn('Cannot draw template: canvas or images not available');
+        if (!this.canvas) {
+             console.warn('Cannot draw template: canvas not available');
+             return;
+        }
+        if (this.images.length === 0 && !this.isLoadingImages) {
+            console.log('[CollageService] Images not loaded. Attempting to load images before drawing template...');
+            await this.loadImages();
+            if (this.images.length === 0) {
+                console.warn('Cannot draw template: images still not available after load attempt.');
+                return;
+            }
+        } else if (this.isLoadingImages) {
+            console.warn('Cannot draw template: images are currently loading. Try again shortly.');
             return;
         }
 
@@ -682,6 +727,18 @@ export class CollageService {
     }
 
     async renderTemplate(key, params) {
+        if (this.images.length === 0 && !this.isLoadingImages) {
+            console.log('[CollageService] Images not loaded. Attempting to load images before rendering template...');
+            await this.loadImages();
+            if (this.images.length === 0) {
+                console.warn('Cannot render template: images still not available after load attempt.');
+                // Potentially return a placeholder or throw an error
+                return null; 
+            }
+        } else if (this.isLoadingImages) {
+            console.warn('Cannot render template: images are currently loading. Try again shortly.');
+            return null;
+        }
         // Delegate to the template renderer
         return this.templateRenderer.renderTemplate(key, params);
     }

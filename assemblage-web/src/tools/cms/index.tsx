@@ -43,10 +43,13 @@ const Sidebar: React.FC = () => (
   </aside>
 );
 
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
 const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }) => {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState({ processed: 0, total: 0, currentFile: '' });
   const [status, setStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,39 +57,68 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
     setFiles(Array.from(e.target.files));
   };
 
+  const uploadChunk = async (file: File, start: number): Promise<string> => {
+    const chunk = file.slice(start, start + CHUNK_SIZE);
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve((reader.result as string).split(',')[1]);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(chunk);
+    });
+
+    const res = await fetch('/.netlify/functions/upload-and-process-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        base64,
+        chunkIndex: Math.floor(start / CHUNK_SIZE),
+        totalChunks: Math.ceil(file.size / CHUNK_SIZE),
+        fileSize: file.size
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Upload failed');
+    }
+
+    const result = await res.json();
+    return result.id;
+  };
+
   const processAndUpload = async () => {
     if (!files.length) return;
     setLoading(true);
-    setStatus({ message: 'Uploading images…', type: 'info' });
+    setProgress({ processed: 0, total: files.length, currentFile: '' });
+    setStatus({ message: 'Preparing to upload images...', type: 'info' });
+
     try {
       for (const file of files) {
-        // Read file as base64
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve((reader.result as string).split(',')[1]);
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(file);
-        });
-        // Call serverless function to handle upload and metadata
-        const res = await fetch('/.netlify/functions/upload-and-process-image', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ fileName: file.name, base64 }),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || 'Upload failed');
+        setProgress(prev => ({ ...prev, currentFile: file.name }));
+        setStatus({ message: `Processing ${file.name}...`, type: 'info' });
+
+        // Upload file in chunks
+        for (let start = 0; start < file.size; start += CHUNK_SIZE) {
+          await uploadChunk(file, start);
+          const progress = Math.min(100, (start + CHUNK_SIZE) / file.size * 100);
+          setStatus({ message: `Uploading ${file.name}: ${Math.round(progress)}%`, type: 'info' });
         }
+
+        setProgress(prev => ({ ...prev, processed: prev.processed + 1 }));
       }
-      setStatus({ message: `Uploaded ${files.length} images. Metadata will appear shortly.`, type: 'success' });
+
+      setStatus({ 
+        message: `Uploaded ${files.length} images successfully. Metadata will appear shortly.`, 
+        type: 'success' 
+      });
+      
       onUploaded();
-      setOpen(false);
+      setTimeout(() => setOpen(false), 1500);
       setFiles([]);
     } catch (e: any) {
       console.error(e);
-      setStatus({ message: e.message, type: 'error' });
+      setStatus({ message: e.message || 'Upload failed', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -101,23 +133,66 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-20">
           <div className="bg-white rounded shadow-lg p-6 w-full max-w-lg space-y-4">
             <h2 className="text-lg font-medium">Upload & Process Images</h2>
-            <input type="file" accept="image/*" multiple onChange={handleFilesChange} />
+            
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Select Images</label>
+              <input 
+                type="file" 
+                accept="image/*" 
+                multiple 
+                onChange={handleFilesChange}
+                className="w-full text-sm border rounded px-2 py-1" 
+              />
+              <p className="text-xs text-gray-500">
+                You can select multiple images. Images will be optimized automatically.
+              </p>
+            </div>
+            
+            {loading && progress.total > 0 && (
+              <div className="space-y-2">
+                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" 
+                    style={{ width: `${Math.round((progress.processed / progress.total) * 100)}%` }}
+                  ></div>
+                </div>
+                <p className="text-xs text-center">
+                  {progress.processed} of {progress.total} images processed
+                  {progress.currentFile && (
+                    <span className="block text-gray-500">{progress.currentFile}</span>
+                  )}
+                </p>
+              </div>
+            )}
+            
             {status && (
               <div className={clsx(
-                'p-2 rounded',
-                status.type === 'error' ? 'bg-red-100 text-red-600' : status.type === 'success' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
+                'p-3 rounded text-sm',
+                status.type === 'error' ? 'bg-red-100 text-red-600' : 
+                status.type === 'success' ? 'bg-green-100 text-green-600' : 
+                'bg-blue-100 text-blue-600'
               )}>
                 {status.message}
               </div>
             )}
+            
             <div className="flex justify-end gap-2">
-              <button className="text-sm" onClick={() => setOpen(false)} disabled={loading}>Cancel</button>
+              <button 
+                className="px-3 py-1 rounded text-sm border border-gray-300 hover:bg-gray-100" 
+                onClick={() => setOpen(false)} 
+                disabled={loading}
+              >
+                {loading ? 'Please wait...' : 'Cancel'}
+              </button>
               <button
                 onClick={processAndUpload}
                 disabled={loading || !files.length}
-                className={clsx('px-3 py-1 rounded text-sm text-white', loading ? 'bg-gray-400' : 'bg-green-600')}
+                className={clsx(
+                  'px-3 py-1 rounded text-sm text-white', 
+                  loading ? 'bg-gray-400' : files.length > 0 ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300'
+                )}
               >
-                {loading ? 'Processing…' : 'Process & Add Images'}
+                {loading ? 'Processing...' : `Process & Upload${files.length > 0 ? ` (${files.length})` : ''}`}
               </button>
             </div>
           </div>
@@ -422,8 +497,9 @@ const CmsApp: React.FC = () => (
 );
 
 // ───────────────────────────────────────────────────────────
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <CmsApp />
-  </React.StrictMode>
-); 
+// Export the component as a named function for Fast Refresh compatibility
+export default function App() {
+  return <CmsApp />;
+}
+
+createRoot(document.getElementById('root')!).render(<App />); 

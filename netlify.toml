@@ -8,10 +8,11 @@
   NODE_VERSION = "18"
 
 [dev]
-  command = "cd assemblage-web && npm run dev"
+  command = "npm run dev"
   port = 8888
-  functions = "netlify/functions"
-  targetPort = 5175
+  functions = "../netlify/functions"
+  targetPort = 5174  # Updated to match Vite's port
+  publish = "assemblage-web/dist"
 
 # Increase timeout for the metadata generation function
 [functions."generate-image-metadata"]
@@ -19,4 +20,19 @@
 
 # Increase timeout for the batch update background function
 [functions."batch-update-metadata-bg"]
-  timeout = 600 # seconds (10 minutes) 
+  timeout = 600 # seconds (10 minutes)
+
+# Configure upload function for larger payloads
+[functions."upload-and-process-image"]
+  timeout = 60 # seconds
+  maxRequestBodySize = 10 # MB
+
+# Enable more verbose logging
+[dev.environment]
+  NODE_ENV = "development"
+  DEBUG = "netlify:*"
+
+# Configure function serving
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["sharp"] 

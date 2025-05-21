@@ -1,7 +1,8 @@
-import { Handler } from '@netlify/functions';
+import { Handler, HandlerResponse } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
+import sharp from 'sharp';
 
 const supa = createClient(
   process.env.SUPABASE_URL as string,
@@ -9,130 +10,177 @@ const supa = createClient(
 );
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export const handler: Handler = async (event) => {
+// In-memory chunk storage (in production, use Redis or similar)
+const chunks = new Map<string, Buffer[]>();
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST,OPTIONS'
+};
+
+export const handler: Handler = async (event): Promise<HandlerResponse> => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        ...corsHeaders
       }
     };
   }
-  // Only allow POST for actual uploads
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        ...corsHeaders
       },
-      body: 'Method Not Allowed'
+      body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
 
   try {
-    const { fileName, base64 } = JSON.parse(event.body || '{}');
-    if (!fileName || !base64) {
+    const { fileName, base64, chunkIndex, totalChunks, fileSize } = JSON.parse(event.body || '{}');
+    if (!fileName || !base64 || typeof chunkIndex !== 'number' || !totalChunks) {
       return {
         statusCode: 400,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          ...corsHeaders
         },
-        body: 'Missing fileName or base64 data'
+        body: JSON.stringify({ error: 'Missing required fields' })
       };
     }
 
-    // Generate unique ID and storage path
-    const id = uuidv4().slice(0, 8);
-    const storagePath = `collages/${id}-${fileName}`;
+    // Generate a unique ID for the first chunk
+    const id = chunkIndex === 0 ? uuidv4().slice(0, 8) : fileName;
+    const chunk = Buffer.from(base64, 'base64');
 
-    // Upload to Storage
-    const buffer = Buffer.from(base64, 'base64');
-    const { error: uploadErr } = await supa.storage
-      .from('images')
-      .upload(storagePath, buffer, { upsert: true });
-    if (uploadErr) {
-      console.error('Storage upload error:', uploadErr);
+    // Store chunk
+    if (!chunks.has(fileName)) {
+      chunks.set(fileName, []);
+    }
+    chunks.get(fileName)![chunkIndex] = chunk;
+
+    // Check if we have all chunks
+    const fileChunks = chunks.get(fileName)!;
+    if (fileChunks.filter(Boolean).length === totalChunks) {
+      // Combine chunks
+      const buffer = Buffer.concat(fileChunks);
+      const storagePath = `collages/${id}-${fileName}`;
+
+      // Optimize image
+      const metadata = await sharp(buffer).metadata();
+      console.log(`[UPLOAD] Processing ${fileName}, original size: ${buffer.length} bytes, ${metadata.width}x${metadata.height}`);
+
+      let optimizedBuffer;
+      const sharpInstance = sharp(buffer);
+
+      // Resize if needed
+      if (metadata.width && metadata.width > 2000 || metadata.height && metadata.height > 2000) {
+        sharpInstance.resize(2000, 2000, {
+          fit: 'inside',
+          withoutEnlargement: true
+        });
+      }
+
+      // Convert to appropriate format
+      const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+      if (['png', 'webp'].includes(ext)) {
+        optimizedBuffer = await sharpInstance.webp({ quality: 80 }).toBuffer();
+      } else {
+        optimizedBuffer = await sharpInstance.jpeg({ quality: 85, mozjpeg: true }).toBuffer();
+      }
+
+      const compressionRatio = Math.round((1 - optimizedBuffer.length / buffer.length) * 100);
+      console.log(`[UPLOAD] Optimized ${fileName}: ${optimizedBuffer.length} bytes (${compressionRatio}% reduction)`);
+
+      // Upload to Storage
+      const { error: uploadErr } = await supa.storage
+        .from('images')
+        .upload(storagePath, optimizedBuffer, { upsert: true });
+
+      if (uploadErr) {
+        console.error('[UPLOAD] Storage upload error:', uploadErr);
+        throw new Error(`Storage upload failed: ${uploadErr.message}`);
+      }
+
+      // Get public URL
+      const { data: urlData } = supa.storage.from('images').getPublicUrl(storagePath);
+      const publicUrl = urlData.publicUrl;
+
+      // Create database entry
+      const { data: insertData, error: insertErr } = await supa.from('images')
+        .upsert(
+          { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imagetype: "pending" },
+          { onConflict: 'title' }
+        )
+        .select('id');
+
+      if (insertErr) {
+        console.error('[UPLOAD] DB insert error:', insertErr);
+        throw new Error(`Database insert failed: ${insertErr.message}`);
+      }
+
+      // Trigger metadata generation
+      try {
+        const baseUrl = process.env.URL || 'http://localhost:8888';
+        const metadataResponse = await fetch(`${baseUrl}/.netlify/functions/generate-image-metadata`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, publicUrl })
+        });
+        
+        if (!metadataResponse.ok) {
+          console.error('[UPLOAD] Metadata generation request failed:', await metadataResponse.text());
+        }
+      } catch (metadataError) {
+        console.error('[UPLOAD] Failed to trigger metadata generation:', metadataError);
+      }
+
+      // Clean up chunks
+      chunks.delete(fileName);
+
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers: {
           'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
+          ...corsHeaders
         },
-        body: JSON.stringify({ error: uploadErr.message })
+        body: JSON.stringify({
+          id,
+          replaced: insertData?.[0]?.id !== id,
+          src: publicUrl,
+          size: optimizedBuffer.length,
+          compressionRatio
+        })
       };
     }
 
-    // Get public URL and generate a time-limited signed URL for OpenAI fetch
-    const { data: urlData } = supa.storage.from('images').getPublicUrl(storagePath);
-    const publicUrl = urlData.publicUrl;
-    // Create a signed URL (60s expiry) for reliable external fetch
-    const { data: signedData, error: signedErr } = await supa.storage
-      .from('images')
-      .createSignedUrl(storagePath, 60);
-    const openAiUrl = signedErr ? publicUrl : signedData.signedUrl;
-
-    // Upsert initial row by title to avoid duplicates
-    const { data: insertData, error: insertErr } = await supa.from('images')
-      .upsert(
-        { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imagetype: "pending" },
-        { onConflict: 'title' }
-      )
-      .select('id');
-
-    if (insertErr) {
-      console.error('Initial DB insert error:', insertErr);
-      return {
-        statusCode: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'POST,OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type'
-        },
-        body: JSON.stringify({ error: 'Failed to save initial image record: ' + insertErr.message })
-      };
-    }
-
-    // Determine if an existing row was replaced
-    const actualId = insertData?.[0]?.id;
-    const replaced = actualId !== id;
-
-    // The direct invocation of generate-image-metadata is now removed.
-    // This will be handled by a Supabase trigger calling the generate-image-metadata function.
-    console.log(`[UPLOAD_FN] Image record created/updated for ID: ${actualId}. Metadata generation will be triggered by database.`);
-
+    // Return progress for intermediate chunks
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        ...corsHeaders
       },
-      // Return only the initial info; metadata will come via the async function
-      body: JSON.stringify({ id: actualId, replaced, src: publicUrl, description: "Processing...", tags: [], imagetype: "pending" })
+      body: JSON.stringify({
+        id: fileName,
+        chunksReceived: fileChunks.filter(Boolean).length,
+        totalChunks
+      })
     };
+
   } catch (e: any) {
-    console.error('[UPLOAD_FN] General catch error:', e.message);
+    console.error('[UPLOAD] General error:', e.message);
     return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST,OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type'
+        ...corsHeaders
       },
       body: JSON.stringify({ error: e.message })
     };

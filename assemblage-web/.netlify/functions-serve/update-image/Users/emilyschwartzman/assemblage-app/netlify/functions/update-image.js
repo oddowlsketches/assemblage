@@ -18792,9 +18792,8 @@ var imageSchema = z.object({
   src: z.string(),
   title: z.string(),
   tags: z.array(z.string()),
-  createdAt: z.string(),
+  createdAt: z.string()
   // ISO date string
-  imageType: z.enum(["texture", "narrative", "conceptual"]).optional()
 });
 var maskSchema = z.object({
   id: z.string(),

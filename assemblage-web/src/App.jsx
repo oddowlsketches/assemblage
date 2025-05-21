@@ -4,6 +4,7 @@ import { CollageService } from './core/CollageService';
 import './styles/legacy-app.css';
 import { getMaskDescriptor } from './masks/maskRegistry';
 import TemplateReview from './components/TemplateReview';
+import { getSupabase } from './supabaseClient';
 
 function MainApp() {
   const canvasRef = useRef(null);
@@ -18,23 +19,27 @@ function MainApp() {
     };
     window.addEventListener('resize', resize);
 
-    const initCollage = async () => {
-      try {
-        setIsLoading(true);
-        if (!serviceRef.current) {
-          serviceRef.current = new CollageService(cvs);
-          resize();
-        }
-        await serviceRef.current?.loadImages();
-        await serviceRef.current?.generateCollage();
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Failed to initialize collage service:', error);
-        setIsLoading(false);
-      }
-    };
+    // Initialize collage service and wire up loading events
+    const supabase = getSupabase();
+    if (!serviceRef.current) {
+      serviceRef.current = new CollageService(cvs, { supabaseClient: supabase });
+      resize();
+    }
+    serviceRef.current.events.on('imagesLoadingStart', () => setIsLoading(true));
+    serviceRef.current.events.on('imageLoaded', ({ loaded, total }) => {
+      // Optionally update a progress indicator: console.log(`Loaded ${loaded}/${total}`);
+    });
+    serviceRef.current.events.on('imagesLoaded', () => {
+      setIsLoading(false);
+      serviceRef.current.generateCollage();
+    });
+    serviceRef.current.events.on('imagesLoadError', (err) => {
+      console.error('Image load error:', err);
+      setIsLoading(false);
+    });
+    // Start loading images; initial collage draw will happen on 'imagesLoaded'
+    serviceRef.current.loadImages();
 
-    initCollage();
     return () => window.removeEventListener('resize', resize);
   }, []);
 
@@ -58,7 +63,7 @@ function MainApp() {
   const handleSave = () => serviceRef.current?.saveCollage();
 
   return (
-   <div id="wrapper">
+    <div id="wrapper">
       <header>
         <div className="header-text">
           <h1>Assemblage</h1>

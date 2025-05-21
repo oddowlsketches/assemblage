@@ -14717,15 +14717,27 @@ __export(batch_update_metadata_bg_exports, {
 });
 module.exports = __toCommonJS(batch_update_metadata_bg_exports);
 var import_supabase_js = __toESM(require_main5());
-var supa = (0, import_supabase_js.createClient)(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+async function testGenericFetch() {
+  console.log("[BATCH_UPDATE_BG] Attempting generic fetch to jsonplaceholder...");
+  try {
+    const response = await fetch("https://jsonplaceholder.typicode.com/todos/1");
+    console.log("[BATCH_UPDATE_BG] Generic fetch response status:", response.status);
+    if (response.ok) {
+      const data = await response.json();
+      console.log("[BATCH_UPDATE_BG] Generic fetch SUCCEEDED, data:", data ? "exists" : "null/undefined");
+    } else {
+      console.error("[BATCH_UPDATE_BG] Generic fetch FAILED with status:", response.status);
+    }
+  } catch (fetchErr) {
+    console.error("[BATCH_UPDATE_BG] Generic fetch EXCEPTION CAUGHT:", fetchErr.message, fetchErr.code, fetchErr.name);
+  }
+  console.log("[BATCH_UPDATE_BG] Finished generic fetch attempt.");
+}
 async function invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt = 1) {
-  console.log(`[BATCH_UPDATE] INVOKE_METADATA_START: Attempt ${attempt} for ID ${id}`);
+  console.log(`[BATCH_UPDATE_BG] INVOKE_METADATA_START: Attempt ${attempt} for ID ${id}`);
   const metadataFunctionUrl = `${functionHost}/.netlify/functions/generate-image-metadata`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25e3);
+  const timeoutId = setTimeout(() => controller.abort(), 45e3);
   try {
     const response = await fetch(metadataFunctionUrl, {
       method: "POST",
@@ -14736,76 +14748,184 @@ async function invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, atte
     clearTimeout(timeoutId);
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({ error: `Failed to parse error from generate-image-metadata, status: ${response.status}` }));
-      console.error(`[BATCH_UPDATE] Error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, response.status, errorBody);
+      console.error(`[BATCH_UPDATE_BG] Error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, response.status, errorBody);
       if (response.status >= 500 && attempt < 3) {
-        console.log(`[BATCH_UPDATE] Retrying metadata generation for ID ${id}, attempt ${attempt + 1} after server error...`);
-        await new Promise((resolve) => setTimeout(resolve, 3e3 * attempt));
+        console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id}, attempt ${attempt + 1} after server error...`);
+        await new Promise((resolve) => setTimeout(resolve, 5e3 * attempt));
         return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
       }
     } else {
-      console.log(`[BATCH_UPDATE] Successfully invoked generate-image-metadata for ID ${id} (Attempt ${attempt})`);
+      console.log(`[BATCH_UPDATE_BG] Successfully invoked generate-image-metadata for ID ${id} (Attempt ${attempt})`);
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    console.error(`[BATCH_UPDATE] Fetch error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, err.message, err.code, err.name);
+    console.error(`[BATCH_UPDATE_BG] Fetch error invoking generate-image-metadata for ID ${id} (Attempt ${attempt}):`, err.message, err.code, err.name);
     if ((err.code === "ETIMEDOUT" || err.code === "UND_ERR_CONNECT_TIMEOUT" || err.name === "AbortError" || err.message.includes("timed out")) && attempt < 3) {
-      console.log(`[BATCH_UPDATE] Retrying metadata generation for ID ${id} due to network/timeout error, attempt ${attempt + 1}...`);
-      await new Promise((resolve) => setTimeout(resolve, 5e3 * attempt));
+      console.log(`[BATCH_UPDATE_BG] Retrying metadata generation for ID ${id} due to network/timeout error, attempt ${attempt + 1}...`);
+      await new Promise((resolve) => setTimeout(resolve, 7e3 * attempt));
       return invokeGenerateMetadataWithRetry(id, publicUrl, functionHost, attempt + 1);
     } else {
-      console.error(`[BATCH_UPDATE] Failed to invoke generate-image-metadata for ID ${id} after ${attempt} attempts.`);
+      console.error(`[BATCH_UPDATE_BG] Failed to invoke generate-image-metadata for ID ${id} after ${attempt} attempts.`);
     }
   }
+}
+async function processBatchInBackground(siteUrl, supaClient) {
+  console.log("[BATCH_UPDATE_BG] Starting background processing task (after generic fetch test).");
+  const supa = supaClient;
+  console.log(`[BATCH_UPDATE_BG] SUPABASE_URL available: ${!!process.env.SUPABASE_URL}`);
+  console.log(`[BATCH_UPDATE_BG] SUPABASE_SERVICE_KEY available: ${!!process.env.SUPABASE_SERVICE_KEY ? "Exists (not logging value)" : "MISSING"}`);
+  console.log(`[BATCH_UPDATE_BG] Supa client object status: ${supa ? "Initialized" : "Not initialized"}`);
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY || !supa) {
+    console.error("[BATCH_UPDATE_BG] Critical error: Supabase environment variables or client missing. Exiting.");
+    return;
+  }
+  console.log("[BATCH_UPDATE_BG] Attempting DIRECT Supabase REST API fetch query...");
+  const directFetchUrl = `${process.env.SUPABASE_URL}/rest/v1/images?select=id&limit=1`;
+  const directFetchHeaders = {
+    "apikey": process.env.SUPABASE_SERVICE_KEY,
+    "Authorization": `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+    "Content-Type": "application/json"
+    // Good practice, though GET might not strictly need it for Supabase
+  };
+  try {
+    console.log(`[BATCH_UPDATE_BG] Direct Fetch URL: ${directFetchUrl}`);
+    console.log(`[BATCH_UPDATE_BG] Direct Fetch Headers: apikey set, Authorization set with Bearer token.`);
+    const directResponse = await fetch(directFetchUrl, { method: "GET", headers: directFetchHeaders });
+    console.log("[BATCH_UPDATE_BG] Direct Supabase fetch SUCCEEDED. Status:", directResponse.status);
+    if (directResponse.ok) {
+      const directData = await directResponse.json();
+      console.log("[BATCH_UPDATE_BG] Direct Supabase fetch data:", directData);
+    } else {
+      const errorText = await directResponse.text();
+      console.error("[BATCH_UPDATE_BG] Direct Supabase fetch FAILED. Status:", directResponse.status, "Body:", errorText);
+    }
+  } catch (directFetchErr) {
+    console.error("[BATCH_UPDATE_BG] Direct Supabase fetch EXCEPTION CAUGHT. Message:", directFetchErr && directFetchErr.message ? directFetchErr.message : "No message available");
+    console.error("[BATCH_UPDATE_BG] Full Direct Fetch Exception Object:", directFetchErr);
+  }
+  console.log("[BATCH_UPDATE_BG] Finished DIRECT Supabase REST API fetch attempt.");
+  try {
+    console.log("[BATCH_UPDATE_BG] Entering main try block. Attempting Supabase CLIENT ping query...");
+    let testData, testError;
+    try {
+      console.log("[BATCH_UPDATE_BG] ABOUT TO AWAIT Supabase ping query...");
+      const pingResult = await supa.from("images").select("id").limit(1);
+      console.log("[BATCH_UPDATE_BG] Supabase ping query AWAITED. Result object:", pingResult ? "exists" : "null/undefined");
+      if (pingResult) {
+        testData = pingResult.data;
+        testError = pingResult.error;
+      } else {
+        console.error("[BATCH_UPDATE_BG] Supabase ping query returned null/undefined result object.");
+        testError = { message: "Ping result was null or undefined" };
+      }
+      if (testError) {
+        console.error("[BATCH_UPDATE_BG] Ultra-simple Supabase ping query FAILED. Error message:", testError.message);
+        console.error("[BATCH_UPDATE_BG] Full Supabase error object:", testError);
+      } else {
+        console.log("[BATCH_UPDATE_BG] Ultra-simple Supabase ping query SUCCEEDED, data rows:", testData ? testData.length : "null/undefined");
+      }
+    } catch (pingCatchError) {
+      console.error("[BATCH_UPDATE_BG] Ultra-simple Supabase ping query EXCEPTION CAUGHT. Message:", pingCatchError && pingCatchError.message ? pingCatchError.message : "No message available");
+      console.error("[BATCH_UPDATE_BG] Full Ping Catch Error Object:", pingCatchError);
+    }
+    console.log("[BATCH_UPDATE_BG] After Supabase ping attempt block.");
+    console.log("[BATCH_UPDATE_BG] Ping test complete. Starting actual batch metadata processing.");
+    const BATCH_SIZE = 10;
+    const DELAY_BETWEEN_BATCHES = 3e3;
+    let offset = 0;
+    let imagesProcessedInThisRun = 0;
+    let consecutiveEmptyBatches = 0;
+    const MAX_CONSECUTIVE_EMPTY_BATCHES = 2;
+    while (true) {
+      console.log(`[BATCH_UPDATE_BG] Fetching batch of images. Offset: ${offset}, Limit: ${BATCH_SIZE}`);
+      const { data: images, error: fetchError } = await supa.from("images").select("id, public_url, file_name").or("llm_description.is.null,llm_tags.is.null,image_type.is.null,metadata_status.eq.pending_llm").order("created_at", { ascending: true }).range(offset, offset + BATCH_SIZE - 1);
+      if (fetchError) {
+        console.error("[BATCH_UPDATE_BG] Error fetching images batch:", JSON.stringify(fetchError));
+        console.log("[BATCH_UPDATE_BG] Stopping due to error fetching images batch.");
+        break;
+      }
+      if (!images || images.length === 0) {
+        console.log("[BATCH_UPDATE_BG] No more images found needing metadata processing in this batch.");
+        consecutiveEmptyBatches++;
+        if (consecutiveEmptyBatches >= MAX_CONSECUTIVE_EMPTY_BATCHES) {
+          console.log("[BATCH_UPDATE_BG] Reached max consecutive empty batches. Assuming processing is complete.");
+          break;
+        }
+        offset = 0;
+        console.log("[BATCH_UPDATE_BG] No images in batch, will try one more scan or break.");
+        await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES * 2));
+        continue;
+      }
+      consecutiveEmptyBatches = 0;
+      console.log(`[BATCH_UPDATE_BG] Fetched ${images.length} images in this batch. Processing...`);
+      for (const image of images) {
+        if (!image.id) {
+          console.warn(`[BATCH_UPDATE_BG] Image data is malformed (missing ID): ${JSON.stringify(image)}. Skipping.`);
+          continue;
+        }
+        if (!image.public_url) {
+          console.warn(`[BATCH_UPDATE_BG] Image ID ${image.id} (File: ${image.file_name || "N/A"}) is missing public_url. Skipping.`);
+          continue;
+        }
+        console.log(`[BATCH_UPDATE_BG] Requesting metadata for image ID ${image.id} (File: ${image.file_name || "N/A"}), URL: ${image.public_url}`);
+        try {
+          await invokeGenerateMetadataWithRetry(image.id, image.public_url, siteUrl);
+          imagesProcessedInThisRun++;
+        } catch (invokeError) {
+          console.error(`[BATCH_UPDATE_BG] Error during invokeGenerateMetadataWithRetry for image ID ${image.id}:`, invokeError.message);
+        }
+      }
+      if (images.length < BATCH_SIZE) {
+        console.log("[BATCH_UPDATE_BG] Processed the last image in the query results. Ending batch processing.");
+        break;
+      }
+      offset += BATCH_SIZE;
+      console.log(`[BATCH_UPDATE_BG] Batch complete. Total processed in run: ${imagesProcessedInThisRun}. Waiting ${DELAY_BETWEEN_BATCHES}ms before next batch.`);
+      await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+    }
+    console.log(`[BATCH_UPDATE_BG] Background metadata update cycle finished. Total images processed in this run: ${imagesProcessedInThisRun}`);
+  } catch (e) {
+    console.error("[BATCH_UPDATE_BG] General error in background processing task (outer try-catch):", e.message, e.code, e.name);
+  }
+  console.log("[BATCH_UPDATE_BG] processBatchInBackground function END");
 }
 var handler = async (event, context) => {
   if (event.httpMethod !== "GET" && event.httpMethod !== "POST") {
     return { statusCode: 405, body: "Method Not Allowed" };
   }
-  const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
-  const CHUNK_SIZE = 10;
-  const DELAY_BETWEEN_CHUNKS = 5e3;
+  await testGenericFetch();
+  let supa;
   try {
-    console.log("[BATCH_UPDATE] Starting batch metadata update process with chunking...");
-    const today = /* @__PURE__ */ new Date();
-    today.setHours(0, 0, 0, 0);
-    const isoToday = today.toISOString();
-    const { data: imagesToProcess, error: fetchError } = await supa.from("images").select("id, src, created_at, imagetype, description").or(`created_at.lt.${isoToday},imagetype.eq.pending,description.is.null,description.eq.'',description.eq.Processing...`);
-    if (fetchError) {
-      console.error("[BATCH_UPDATE] Error fetching images for reprocessing:", fetchError);
-      return { statusCode: 500, body: JSON.stringify({ error: "Failed to fetch images: " + fetchError.message }) };
-    }
-    if (!imagesToProcess || imagesToProcess.length === 0) {
-      console.log("[BATCH_UPDATE] No images found matching criteria for reprocessing.");
-      return { statusCode: 200, body: JSON.stringify({ message: "No images to reprocess." }) };
-    }
-    console.log(`[BATCH_UPDATE] Found ${imagesToProcess.length} images to reprocess. Starting chunked processing...`);
-    for (let i = 0; i < imagesToProcess.length; i += CHUNK_SIZE) {
-      const chunk = imagesToProcess.slice(i, i + CHUNK_SIZE);
-      console.log(`[BATCH_UPDATE] Processing chunk ${Math.floor(i / CHUNK_SIZE) + 1}/${Math.ceil(imagesToProcess.length / CHUNK_SIZE)}, ${chunk.length} images.`);
-      const chunkPromises = chunk.map((image) => {
-        if (image.src && image.id) {
-          invokeGenerateMetadataWithRetry(image.id, image.src, siteUrl);
-          return Promise.resolve();
-        } else {
-          console.warn(`[BATCH_UPDATE] Skipping image ID ${image.id || "unknown"} due to missing src or id.`);
-          return Promise.resolve();
-        }
-      });
-      await Promise.all(chunkPromises);
-      if (i + CHUNK_SIZE < imagesToProcess.length) {
-        console.log(`[BATCH_UPDATE] Finished chunk. Waiting ${DELAY_BETWEEN_CHUNKS / 1e3}s before next chunk.`);
-        await new Promise((resolve) => setTimeout(resolve, DELAY_BETWEEN_CHUNKS));
-      }
-    }
-    console.log("[BATCH_UPDATE] All chunks processed.");
+    supa = (0, import_supabase_js.createClient)(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_KEY
+    );
+    console.log("[BATCH_UPDATE_BG_HANDLER] Supabase client CREATED successfully in handler.");
+  } catch (initError) {
+    console.error("[BATCH_UPDATE_BG_HANDLER] Supabase client FAILED to create in handler:", initError.message);
     return {
-      statusCode: 200,
-      body: JSON.stringify({ message: `Triggered metadata reprocessing for ${imagesToProcess.length} images in chunks. Check function logs for detailed progress.` })
+      statusCode: 500,
+      body: JSON.stringify({ message: "Failed to initialize Supabase client in handler." }),
+      headers: { "Content-Type": "application/json" }
     };
-  } catch (e) {
-    console.error("[BATCH_UPDATE] General error:", e);
-    return { statusCode: 500, body: JSON.stringify({ error: e.message }) };
   }
+  if (!supa) {
+    console.error("[BATCH_UPDATE_BG_HANDLER] Supabase client is null/undefined after creation attempt. Exiting.");
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Supabase client null after creation in handler." }),
+      headers: { "Content-Type": "application/json" }
+    };
+  }
+  const siteUrl = process.env.URL || `http://localhost:${process.env.PORT || 9999}`;
+  processBatchInBackground(siteUrl, supa).catch((error) => {
+    console.error("[BATCH_UPDATE_BG] Unhandled error from processBatchInBackground:", error);
+  });
+  return {
+    statusCode: 202,
+    body: JSON.stringify({ message: "Batch metadata update process initiated. Check logs for progress." }),
+    headers: { "Content-Type": "application/json" }
+  };
 };
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

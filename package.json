@@ -17,7 +17,8 @@
     "dev:site": "cd assemblage-web && npm run dev",
     "db:push": "ts-node scripts/dbSync.ts",
     "db:studio": "supabase studio",
-    "seed:images": "node scripts/seedPublicImages.js"
+    "seed:images": "node scripts/seedPublicImages.js",
+    "reprocess-metadata": "ts-node scripts/reprocess_missing_metadata.ts"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
@@ -33,6 +34,7 @@
     "@supabase/supabase-js": "^2.43.4",
     "dotenv": "^16.5.0",
     "openai": "^4.98.0",
+    "sharp": "^0.34.2",
     "uuid": "^11.1.0",
     "zod": "^3.23.6"
   }

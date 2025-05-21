@@ -23,6 +23,15 @@ export default defineConfig({
   },
   server: {
     port: 5174,
-    host: true
+    host: true,
+    proxy: {
+      // Proxy /.netlify/functions requests to the Netlify Functions server
+      '/.netlify/functions': {
+        target: 'http://localhost:9999',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path
+      }
+    }
   }
 }) 
