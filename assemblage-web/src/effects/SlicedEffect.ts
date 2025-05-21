@@ -1,6 +1,6 @@
 import { EffectBase } from './EffectBase';
 
-export type SliceBehavior = 'random' | 'single-image' | 'alternating';
+export type SliceBehavior = 'single-image' | 'alternating';
 
 export interface SlicedEffectParams {
     sliceBehavior?: SliceBehavior;
@@ -16,16 +16,10 @@ export class SlicedEffect extends EffectBase {
 
     constructor(ctx: CanvasRenderingContext2D, images: HTMLImageElement[], params: SlicedEffectParams = {}) {
         super(ctx, images);
-        this.sliceBehavior = params.sliceBehavior || 'random';
+        this.sliceBehavior = params.sliceBehavior || 'single-image';
         
         // Determine number of slices based on behavior
-        if (this.sliceBehavior === 'random') {
-            // For random images, use 3-7 slices
-            this.numSlices = Math.min(
-                Math.max(3, Math.floor(Math.random() * 5) + 3),
-                params.maxSlices || 7
-            );
-        } else if (this.sliceBehavior === 'single-image') {
+        if (this.sliceBehavior === 'single-image') {
             // For single image, use 5-50 slices
             this.numSlices = Math.min(
                 Math.max(5, Math.floor(Math.random() * 46) + 5),

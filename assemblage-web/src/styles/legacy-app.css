@@ -98,7 +98,7 @@ header {
   top: 0;
   left: 0;
   width: 100%;
-  padding: 1rem 2rem;
+  padding: 1.5rem;
   z-index: 10;
   background: transparent;
   backdrop-filter: none;
@@ -115,16 +115,20 @@ header {
 }
 
 .header-text h1 {
+  font-family: 'Playfair Display', serif;
+  font-style: italic;
+  font-size: 2.5rem;
+  color: var(--text-color);
   margin: 0;
-  font-size: 2rem;
-  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .header-text .tagline {
-  margin: 0.5rem 0 0;
+  font-family: 'Space Grotesk', sans-serif;
   font-size: 1rem;
-  font-weight: 400;
-  color: #666;
+  margin: 0.5rem 0;
+  color: var(--text-color);
 }
 
 /* Buttons */
@@ -132,7 +136,6 @@ header {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px;
 }
 
 .header-controls button {
@@ -172,14 +175,21 @@ header {
 /* Responsive styles */
 @media (max-width: 768px) {
   header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
     padding: 10px;
+  }
+
+  .header-text {
+    flex: 1;
   }
 
   .header-text h1 {
     font-size: 24px;
   }
 
-  .tagline {
+  .header-text .tagline {
     display: none;
   }
 
@@ -273,7 +283,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
+  padding: 1.5rem;
   background: transparent;
   backdrop-filter: none;
   z-index: 10;

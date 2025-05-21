@@ -389,7 +389,7 @@ export function generateMosaic(canvas, images, params) {
     const { revealGrid } = createGridPattern(
         config.gridPatternType || 'clustered',
         config.gridSize || 8,
-        config.revealPercentage || 70,
+        config.operation === 'reveal' ? config.revealPercentage || 70 : 100, // Only use revealPercentage for reveal operation
         'reveal'
     );
     

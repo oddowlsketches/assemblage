@@ -84,6 +84,19 @@ function renderTiling(canvas, images, params) {
       tiles = createSquareTiling(tileCount, canvas.width, canvas.height, options);
   }
   
+  // Filter out any invalid tiles
+  tiles = tiles.filter(tile => {
+    if (!tile.points || !Array.isArray(tile.points) || tile.points.length === 0) {
+      return false;
+    }
+    // Also filter out tiles that are completely outside the canvas
+    const minX = Math.min(...tile.points.map(p => p.x));
+    const maxX = Math.max(...tile.points.map(p => p.x));
+    const minY = Math.min(...tile.points.map(p => p.y));
+    const maxY = Math.max(...tile.points.map(p => p.y));
+    return !(minX > canvas.width || maxX < 0 || minY > canvas.height || maxY < 0);
+  });
+  
   console.log(`Generated ${tiles.length} tiles for pattern type: ${patternType}`);
   
   // Options for drawing tiles
@@ -94,12 +107,6 @@ function renderTiling(canvas, images, params) {
   
   // Draw each tile with an image
   tiles.forEach((tile, index) => {
-    // Skip if tile doesn't have points
-    if (!tile.points || !Array.isArray(tile.points) || tile.points.length === 0) {
-      console.warn('Tile missing points:', tile);
-      return;
-    }
-    
     // Choose image based on the mode - always use random selection
     const imageIndex = Math.floor(Math.random() * images.length);
     const image = images[imageIndex];
