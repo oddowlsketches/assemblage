@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import clsx from 'clsx';
@@ -49,15 +49,42 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState({ processed: 0, total: 0, currentFile: '' });
+  const [progress, setProgress] = useState({ 
+    processed: 0, 
+    total: 0, 
+    currentFile: '',
+    currentFileProgress: 0 
+  });
   const [status, setStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const uploadQueueRef = useRef<boolean>(true);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     setFiles(Array.from(e.target.files));
   };
 
-  const uploadChunk = async (file: File, start: number): Promise<string> => {
+  const handleCancel = () => {
+    uploadQueueRef.current = false;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setLoading(false);
+    setStatus({ message: 'Upload cancelled', type: 'info' });
+    setTimeout(() => setOpen(false), 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      uploadQueueRef.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  const uploadChunk = async (file: File, start: number): Promise<{ id: string; status: string; message?: string }> => {
     try {
       const chunk = file.slice(start, start + CHUNK_SIZE);
       const base64 = await new Promise<string>((resolve, reject) => {
@@ -67,6 +94,7 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
         reader.readAsDataURL(chunk);
       });
 
+      abortControllerRef.current = new AbortController();
       const res = await fetch('/.netlify/functions/upload-and-process-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -76,7 +104,8 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
           chunkIndex: Math.floor(start / CHUNK_SIZE),
           totalChunks: Math.ceil(file.size / CHUNK_SIZE),
           fileSize: file.size
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!res.ok) {
@@ -85,8 +114,17 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
       }
 
       const result = await res.json();
-      return result.id;
+      
+      // Handle different response statuses
+      if (result.status === 'deferred') {
+        console.log(`[UPLOAD] Processing deferred for ${file.name}, will be handled in background`);
+      }
+      
+      return result;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Upload cancelled');
+      }
       console.error(`[UPLOAD] Chunk upload error for ${file.name}:`, error);
       throw error;
     }
@@ -95,12 +133,14 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
   const processAndUpload = async () => {
     if (!files.length) return;
     setLoading(true);
-    setProgress({ processed: 0, total: files.length, currentFile: '' });
+    uploadQueueRef.current = true;
+    setProgress({ processed: 0, total: files.length, currentFile: '', currentFileProgress: 0 });
     setStatus({ message: 'Preparing to upload images...', type: 'info' });
 
     try {
       for (const file of files) {
-        setProgress(prev => ({ ...prev, currentFile: file.name }));
+        if (!uploadQueueRef.current) break; // Check if cancelled
+        setProgress(prev => ({ ...prev, currentFile: file.name, currentFileProgress: 0 }));
         setStatus({ message: `Processing ${file.name}...`, type: 'info' });
 
         // Add file size check
@@ -110,15 +150,35 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
 
         // Upload file in chunks with retries
         const maxRetries = 3;
+        let uploadComplete = false;
+        let uploadId = '';
+
         for (let start = 0; start < file.size; start += CHUNK_SIZE) {
+          if (!uploadQueueRef.current) break; // Check if cancelled
           let retries = 0;
-          while (retries < maxRetries) {
+          while (retries < maxRetries && !uploadComplete) {
             try {
-              await uploadChunk(file, start);
+              const result = await uploadChunk(file, start);
+              
+              // Update progress
               const progress = Math.min(100, (start + CHUNK_SIZE) / file.size * 100);
-              setStatus({ message: `Uploading ${file.name}: ${Math.round(progress)}%`, type: 'info' });
+              setProgress(prev => ({ ...prev, currentFileProgress: Math.round(progress) }));
+              
+              if (result.status === 'uploaded' || result.status === 'deferred') {
+                uploadComplete = true;
+                uploadId = result.id;
+                break;
+              }
+              
+              setStatus({ 
+                message: `Uploading ${file.name}: ${Math.round(progress)}%${result.status === 'deferred' ? ' (processing in background)' : ''}`, 
+                type: 'info' 
+              });
               break;
             } catch (error) {
+              if (error instanceof Error && error.message === 'Upload cancelled') {
+                return;
+              }
               retries++;
               if (retries === maxRetries) {
                 throw error;
@@ -128,22 +188,36 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
           }
         }
 
-        setProgress(prev => ({ ...prev, processed: prev.processed + 1 }));
+        if (uploadComplete) {
+          setProgress(prev => ({ 
+            ...prev, 
+            processed: prev.processed + 1,
+            currentFileProgress: 100
+          }));
+        }
       }
 
-      setStatus({ 
-        message: `Uploaded ${files.length} images successfully. Metadata will appear shortly.`, 
-        type: 'success' 
-      });
-      
-      onUploaded();
-      setTimeout(() => setOpen(false), 1500);
+      if (uploadQueueRef.current) { // Only show success if not cancelled
+        setStatus({ 
+          message: `Uploaded ${files.length} images successfully. Metadata processing will complete in the background.`, 
+          type: 'success' 
+        });
+        
+        onUploaded();
+        setTimeout(() => setOpen(false), 1500);
+      }
       setFiles([]);
     } catch (e: any) {
       console.error(e);
-      setStatus({ message: e.message || 'Upload failed', type: 'error' });
+      setStatus({ 
+        message: e.message === 'Upload cancelled' 
+          ? 'Upload cancelled' 
+          : (e.message || 'Upload failed'), 
+        type: e.message === 'Upload cancelled' ? 'info' : 'error' 
+      });
     } finally {
       setLoading(false);
+      uploadQueueRef.current = true;
     }
   };
 
@@ -165,6 +239,7 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
                 multiple 
                 onChange={handleFilesChange}
                 className="w-full text-sm border rounded px-2 py-1" 
+                disabled={loading}
               />
               <p className="text-xs text-gray-500">
                 You can select multiple images. Images will be optimized automatically.
@@ -179,10 +254,18 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
                     style={{ width: `${Math.round((progress.processed / progress.total) * 100)}%` }}
                   ></div>
                 </div>
+                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                  <div 
+                    className="bg-green-600 h-1.5 rounded-full transition-all duration-300" 
+                    style={{ width: `${progress.currentFileProgress}%` }}
+                  ></div>
+                </div>
                 <p className="text-xs text-center">
                   {progress.processed} of {progress.total} images processed
                   {progress.currentFile && (
-                    <span className="block text-gray-500">{progress.currentFile}</span>
+                    <span className="block text-gray-500">
+                      {progress.currentFile} - {progress.currentFileProgress}%
+                    </span>
                   )}
                 </p>
               </div>
@@ -201,11 +284,15 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
             
             <div className="flex justify-end gap-2">
               <button 
-                className="px-3 py-1 rounded text-sm border border-gray-300 hover:bg-gray-100" 
-                onClick={() => setOpen(false)} 
-                disabled={loading}
+                className={clsx(
+                  "px-3 py-1 rounded text-sm",
+                  loading 
+                    ? "bg-red-600 text-white hover:bg-red-700" 
+                    : "border border-gray-300 hover:bg-gray-100"
+                )}
+                onClick={loading ? handleCancel : () => setOpen(false)} 
               >
-                {loading ? 'Please wait...' : 'Cancel'}
+                {loading ? 'Cancel Upload' : 'Close'}
               </button>
               <button
                 onClick={processAndUpload}

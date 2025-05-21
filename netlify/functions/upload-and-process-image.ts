@@ -1,6 +1,5 @@
 import { Handler, HandlerResponse } from '@netlify/functions';
 import { createClient } from '@supabase/supabase-js';
-import OpenAI from 'openai';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 
@@ -8,7 +7,6 @@ const supa = createClient(
   process.env.SUPABASE_URL as string,
   process.env.SUPABASE_SERVICE_KEY as string
 );
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // In-memory chunk storage (in production, use Redis or similar)
 const chunks = new Map<string, Buffer[]>();
@@ -19,25 +17,24 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST,OPTIONS'
 };
 
+const MAX_PROCESSING_TIME = 8000; // 8 seconds to leave buffer for response
+
 export const handler: Handler = async (event): Promise<HandlerResponse> => {
+  // Start timing the function
+  const startTime = Date.now();
+
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      }
+      headers: corsHeaders
     };
   }
 
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
+      headers: { ...corsHeaders },
       body: JSON.stringify({ error: 'Method not allowed' })
     };
   }
@@ -47,10 +44,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     if (!fileName || !base64 || typeof chunkIndex !== 'number' || !totalChunks) {
       return {
         statusCode: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        },
+        headers: { ...corsHeaders },
         body: JSON.stringify({ error: 'Missing required fields' })
       };
     }
@@ -68,55 +62,56 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     // Check if we have all chunks
     const fileChunks = chunks.get(fileName)!;
     if (fileChunks.filter(Boolean).length === totalChunks) {
+      // Check if we have enough time left
+      if (Date.now() - startTime > MAX_PROCESSING_TIME) {
+        return {
+          statusCode: 408,
+          headers: { ...corsHeaders },
+          body: JSON.stringify({ 
+            error: 'Processing timeout risk',
+            message: 'Upload received but processing deferred',
+            id,
+            status: 'deferred'
+          })
+        };
+      }
+
       // Combine chunks
       const buffer = Buffer.concat(fileChunks);
       const storagePath = `collages/${id}-${fileName}`;
 
-      // Optimize image
+      // Quick image optimization with reduced quality for speed
       const metadata = await sharp(buffer).metadata();
-      console.log(`[UPLOAD] Processing ${fileName}, original size: ${buffer.length} bytes, ${metadata.width}x${metadata.height}`);
-
       let optimizedBuffer;
-      const sharpInstance = sharp(buffer);
-
-      // Resize if needed - updated to handle very large images more gracefully
-      if (metadata.width && metadata.height) {
-        const maxDimension = Math.max(metadata.width, metadata.height);
-        if (maxDimension > 2000) {
-          const scale = 2000 / maxDimension;
-          sharpInstance.resize(
-            Math.round(metadata.width * scale),
-            Math.round(metadata.height * scale),
-            {
-              fit: 'inside',
-              withoutEnlargement: true
-            }
-          );
+      
+      try {
+        const sharpInstance = sharp(buffer);
+        
+        // Faster resize for very large images
+        if (metadata.width && metadata.height) {
+          const maxDimension = Math.max(metadata.width, metadata.height);
+          if (maxDimension > 2000) {
+            const scale = 2000 / maxDimension;
+            sharpInstance.resize(
+              Math.round(metadata.width * scale),
+              Math.round(metadata.height * scale),
+              { fit: 'inside', withoutEnlargement: true }
+            );
+          }
         }
-      }
 
-      // Convert to appropriate format with optimized settings
-      const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
-      if (['png', 'webp'].includes(ext)) {
-        optimizedBuffer = await sharpInstance
-          .webp({ 
-            quality: 80,
-            effort: 4, // Faster compression
-            force: true // Always convert to webp
-          })
-          .toBuffer();
-      } else {
+        // Faster compression settings
         optimizedBuffer = await sharpInstance
           .jpeg({ 
-            quality: 85,
-            mozjpeg: true,
-            force: true // Always convert to jpeg
+            quality: 80,
+            force: true,
+            optimizeScans: true
           })
           .toBuffer();
+      } catch (optimizeError) {
+        console.error('[UPLOAD] Image optimization failed:', optimizeError);
+        optimizedBuffer = buffer; // Fallback to original if optimization fails
       }
-
-      const compressionRatio = Math.round((1 - optimizedBuffer.length / buffer.length) * 100);
-      console.log(`[UPLOAD] Optimized ${fileName}: ${optimizedBuffer.length} bytes (${compressionRatio}% reduction)`);
 
       // Upload to Storage
       const { error: uploadErr } = await supa.storage
@@ -124,7 +119,6 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
         .upload(storagePath, optimizedBuffer, { upsert: true });
 
       if (uploadErr) {
-        console.error('[UPLOAD] Storage upload error:', uploadErr);
         throw new Error(`Storage upload failed: ${uploadErr.message}`);
       }
 
@@ -132,33 +126,32 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       const { data: urlData } = supa.storage.from('images').getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
-      // Create database entry
-      const { data: insertData, error: insertErr } = await supa.from('images')
-        .upsert(
-          { id, src: publicUrl, title: fileName, description: "Processing...", tags: [], imagetype: "pending" },
-          { onConflict: 'title' }
-        )
-        .select('id');
+      // Create initial database entry
+      const { error: insertErr } = await supa.from('images')
+        .upsert({
+          id,
+          src: publicUrl,
+          title: fileName,
+          description: "Processing...",
+          tags: [],
+          imagetype: "pending",
+          metadata_status: "pending_processing"
+        });
 
       if (insertErr) {
-        console.error('[UPLOAD] DB insert error:', insertErr);
         throw new Error(`Database insert failed: ${insertErr.message}`);
       }
 
-      // Trigger metadata generation
+      // Trigger background metadata generation
       try {
         const baseUrl = process.env.URL || 'http://localhost:8888';
-        const metadataResponse = await fetch(`${baseUrl}/.netlify/functions/generate-image-metadata`, {
+        fetch(`${baseUrl}/.netlify/functions/batch-update-metadata-bg`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, publicUrl })
-        });
-        
-        if (!metadataResponse.ok) {
-          console.error('[UPLOAD] Metadata generation request failed:', await metadataResponse.text());
-        }
-      } catch (metadataError) {
-        console.error('[UPLOAD] Failed to trigger metadata generation:', metadataError);
+          body: JSON.stringify({ forceProcess: true })
+        }).catch(err => console.error('[UPLOAD] Failed to trigger background processing:', err));
+      } catch (bgError) {
+        console.error('[UPLOAD] Error triggering background process:', bgError);
       }
 
       // Clean up chunks
@@ -166,16 +159,12 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
 
       return {
         statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders
-        },
+        headers: { ...corsHeaders },
         body: JSON.stringify({
           id,
-          replaced: insertData?.[0]?.id !== id,
+          status: 'uploaded',
           src: publicUrl,
-          size: optimizedBuffer.length,
-          compressionRatio
+          message: 'Upload complete, metadata processing queued'
         })
       };
     }
@@ -183,26 +172,24 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
     // Return progress for intermediate chunks
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
+      headers: { ...corsHeaders },
       body: JSON.stringify({
         id: fileName,
         chunksReceived: fileChunks.filter(Boolean).length,
-        totalChunks
+        totalChunks,
+        status: 'receiving'
       })
     };
 
   } catch (e: any) {
-    console.error('[UPLOAD] General error:', e.message);
+    console.error('[UPLOAD] Error:', e);
     return {
       statusCode: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders
-      },
-      body: JSON.stringify({ error: e.message })
+      headers: { ...corsHeaders },
+      body: JSON.stringify({ 
+        error: e.message,
+        status: 'error'
+      })
     };
   }
 }; 
