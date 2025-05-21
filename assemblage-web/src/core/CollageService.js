@@ -12,7 +12,7 @@ import maskImplementations from '../legacy/js/collage/maskImplementations.js';
 import { getMaskDescriptor } from '../masks/maskRegistry';
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
-import { EventEmitter } from 'events';
+import { EventEmitter } from '../utils/EventEmitter';
 import { getRandomTemplate } from '../templates/templateManager';
 
 export class CollageService {
