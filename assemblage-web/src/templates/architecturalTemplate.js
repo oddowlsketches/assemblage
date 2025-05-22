@@ -63,10 +63,16 @@ function renderArchitectural(canvas, images, params = {}) {
   preset.forEach((placement, index) => {
     const { maskName, x, y, width, height } = placement;
     
-    // Get mask descriptor from registry
-    const maskDesc = getMaskDescriptor(maskName);
+    // Try to get mask descriptor from 'architectural' or 'basic' families first
+    let maskDesc = getMaskDescriptor('architectural', maskName) || getMaskDescriptor('basic', maskName);
+
+    // If not found, try finding it without specifying a family (in case it's in another family or registered directly)
     if (!maskDesc) {
-      console.warn(`[ArchitecturalTemplate] Mask not found: ${maskName}`);
+        maskDesc = getMaskDescriptor(maskName);
+    }
+
+    if (!maskDesc) {
+      console.warn(`[ArchitecturalTemplate] Mask not found or no path data: ${maskName}`);
       return;
     }
     

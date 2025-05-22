@@ -75,7 +75,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
         imgSrcHeight: cellHeight * (selectedImage.height / baseImgDrawHeight),
         
         // Effect flags - determine if an effect *could* apply
-        applyReveal: Math.random() * 100 >= revealPct, // true if it should be hidden by reveal (image shown)
+        applyReveal: Math.random() * 100 < revealPct, // True if image should be HIDDEN (background revealed)
         applySwap: Math.random() * 100 < swapPct,
         applyRotate: Math.random() * 100 < rotatePct,
       });
@@ -86,25 +86,26 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   cells.forEach(cell => {
     ctx.save();
     
-    let showImage = true;
+    let imageShouldBeDrawn = true;
     let currentRotation = 0;
     let currentSwap = false;
 
     // Determine final state based on operation (OR logic)
     if (operation === 'reveal' && cell.applyReveal) {
-      showImage = false; // Reveal background by not drawing image
+      imageShouldBeDrawn = false; // Reveal background by not drawing image
     }
+    // For rotate and swap, the image is always drawn, but transformed.
+    // The `revealPct` only controls visibility for the 'reveal' operation.
     if (operation === 'rotate' && cell.applyRotate) {
-      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; // 90, 180, or 270 degrees
+      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; 
     }
-    if (operation === 'swap') { 
-        if(cell.applySwap) currentSwap = true; 
+    if (operation === 'swap' && cell.applySwap) { 
+        currentSwap = true; 
     }
 
-    // If reveal is the operation and this cell is marked for reveal, skip drawing its image part.
-    if (operation === 'reveal' && !showImage) {
+    if (!imageShouldBeDrawn) {
         ctx.restore();
-        return; // Background is already drawn, so just return.
+        return; 
     }
 
     // It's crucial to clip to the cell's destination rectangle *before* any rotation/swapping transformations

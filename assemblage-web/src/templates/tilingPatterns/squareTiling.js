@@ -62,6 +62,13 @@ export function createSquareTiling(count, width, height, options = {}) {
         y,
         width: w,
         height: h,
+        // Add points for compatibility with the main tiling renderer
+        points: [
+          { x: x, y: y },             // Top-left
+          { x: x + w, y: y },         // Top-right
+          { x: x + w, y: y + h },     // Bottom-right
+          { x: x, y: y + h }          // Bottom-left
+        ],
         row,
         col,
         type: 'square'
