@@ -29,12 +29,9 @@ const parameterGenerators = {
   
   scrambledMosaic: () => ({
     gridSize: 4 + Math.floor(Math.random() * 8), // 4-12
-    revealPct: 60 + Math.floor(Math.random() * 30), // 60-90
-    swapPct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of swap
-    rotatePct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of rotation
-    pattern: ['random', 'clustered', 'silhouette', 'portrait'][Math.floor(Math.random() * 4)],
-    cellShape: ['square', 'rectHorizontal', 'rectVertical', 'circle'][Math.floor(Math.random() * 4)],
-    operation: ['reveal', 'swap', 'rotate'][Math.floor(Math.random() * 3)],
+    revealPct: 10 + Math.floor(Math.random() * 80), // 10-90% chance to reveal background
+    swapPct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of some swap
+    rotatePct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of some rotation
     bgColor: randomVibrantColor(),
     useMultiply: true // Always use multiply blend
   }),

@@ -20,7 +20,6 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   
   // Get parameters with defaults
   const gridSize = params.gridSize || 8;
-  const operation = params.operation || 'reveal'; // Default to reveal if not specified
   const revealPct = params.revealPct === undefined ? 75 : params.revealPct; // Default 75 if undefined
   const swapPct = params.swapPct || 0;
   const rotatePct = params.rotatePct || 0;
@@ -86,26 +85,29 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   cells.forEach(cell => {
     ctx.save();
     
-    let imageShouldBeDrawn = true;
+    // Determine if the image segment for this cell should be drawn at all
+    // This is solely based on revealPct: if true, background shows.
+    const isRevealed = Math.random() * 100 < revealPct;
+
+    if (isRevealed) {
+      // If revealed, no image is drawn for this cell, just show the background.
+      // No transformations apply to an empty cell.
+      ctx.restore();
+      return; 
+    }
+
+    // If not revealed, the image segment will be drawn. Now determine transformations.
+    const applyRotate = Math.random() * 100 < rotatePct;
+    const applySwap = Math.random() * 100 < swapPct;
+    
     let currentRotation = 0;
     let currentSwap = false;
 
-    // Determine final state based on operation (OR logic)
-    if (operation === 'reveal' && cell.applyReveal) {
-      imageShouldBeDrawn = false; // Reveal background by not drawing image
+    if (applyRotate) {
+      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; // 90, 180, or 270 degrees
     }
-    // For rotate and swap, the image is always drawn, but transformed.
-    // The `revealPct` only controls visibility for the 'reveal' operation.
-    if (operation === 'rotate' && cell.applyRotate) {
-      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; 
-    }
-    if (operation === 'swap' && cell.applySwap) { 
-        currentSwap = true; 
-    }
-
-    if (!imageShouldBeDrawn) {
-        ctx.restore();
-        return; 
+    if (applySwap) { 
+      currentSwap = true; 
     }
 
     // It's crucial to clip to the cell's destination rectangle *before* any rotation/swapping transformations
@@ -125,19 +127,12 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
       ctx.scale(-1, 1); // Horizontal flip for swap
     }
     
-    // After rotating/swapping around the center, translate the drawing origin back to what would be the top-left
-    // of the cell content if it were not transformed, so drawing the image segment at (0,0) works as expected.
-    ctx.translate(-(cell.width / 2), -(cell.height / 2));
+    ctx.translate(-(cell.width / 2), -(cell.height / 2)); // Translate back from cell center
     
-    // Set blend mode (applies to this cell's image segment)
     if (params.useMultiply !== false) {
       ctx.globalCompositeOperation = 'multiply';
     }
     
-    // Draw the appropriate segment of the original image.
-    // The source rect (imgSrcX, etc.) defines what part of the *original full image* to take.
-    // The destination rect (0,0,cell.width,cell.height) draws it into the current transformed context,
-    // which has been clipped to this cell's original screen position.
     ctx.drawImage(
       selectedImage,
       cell.imgSrcX, cell.imgSrcY, cell.imgSrcWidth, cell.imgSrcHeight, 
@@ -212,12 +207,11 @@ const scrambledMosaicTemplate = {
   name: 'Scrambled Mosaic',
   generate: generateScrambledMosaic,
   params: {
-    gridSize: { type: 'number', min: 2, max: 16, default: 8 }, // Min 2 for meaningful grid
-    revealPct: { type: 'number', min: 0, max: 100, default: 75 },
+    gridSize: { type: 'number', min: 2, max: 16, default: 8 },
+    revealPct: { type: 'number', min: 0, max: 100, default: 25 }, // Default to 25% reveal
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
     // pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'random' }, // Pattern not used
-    operation: { type: 'select', options: ['reveal', 'swap', 'rotate', 'none'], default: 'reveal' }, // Added 'none'
     bgColor: { type: 'color', default: '#FFFFFF' },
     useMultiply: { type: 'boolean', default: true }
   }
