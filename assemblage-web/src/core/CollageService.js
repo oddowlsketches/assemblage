@@ -21,6 +21,8 @@ export class CollageService {
         this.ctx = canvas.getContext('2d');
         this.images = [];
         this.isLoadingImages = false; // Flag to prevent concurrent loads
+        this.imagesAttemptedToLoad = 0; // Track attempted loads
+        this.imagesSuccessfullyLoaded = 0; // Track successful loads
         this.currentEffect = null;
         this.currentEffectName = null;
         this.crystalVariant = 'standard';
@@ -187,10 +189,19 @@ export class CollageService {
 
     async loadImages() {
         if (!this.supabaseClient || this.isLoadingImages) {
+            if (this.isLoadingImages) {
+                console.warn('[CollageService] Attempted to load images while a load was already in progress.');
+                this.events.emit('imagesLoadingAlreadyInProgress');
+            }
             return;
         }
         this.isLoadingImages = true;
+        this.images = []; 
+        this.imagesAttemptedToLoad = 0;
+        this.imagesSuccessfullyLoaded = 0;
+        let imagesErrored = 0; // Counter for errored images
         this.events.emit('imagesLoadingStart');
+
         try {
             const { data: rows, error } = await this.supabaseClient
                 .from('images')
@@ -198,40 +209,72 @@ export class CollageService {
                 .order('created_at', { ascending: false });
 
             if (error) {
-                this.events.emit('imagesLoadError', error);
+                console.error('[CollageService] Supabase error fetching image list:', error);
+                this.events.emit('imagesLoadError', { type: 'list_fetch', error });
                 this.isLoadingImages = false;
+                return;
+            }
+            if (!rows || rows.length === 0) {
+                console.warn('[CollageService] No images found in Supabase.');
+                this.isLoadingImages = false;
+                this.events.emit('imagesLoaded', this.images); 
                 return;
             }
 
             this.events.emit('imagesMetadataLoaded', rows.length);
-            const total = rows.length;
-            this.images = [];
+            const totalToAttempt = rows.length;
+            this.imagesAttemptedToLoad = totalToAttempt;
+            let imagesProcessed = 0; 
+
+            if (totalToAttempt === 0) {
+                this.isLoadingImages = false;
+                this.events.emit('imagesLoaded', this.images);
+                console.log('[CollageService] Image loading complete (no images to load).');
+                return;
+            }
 
             rows.forEach(r => {
-                if (!r.src) return;
+                if (!r.src) {
+                    imagesProcessed++;
+                    imagesErrored++; // Count as an error or skipped item
+                    if (imagesProcessed === totalToAttempt) {
+                        this.isLoadingImages = false;
+                        this.events.emit('imagesLoaded', this.images);
+                        console.log(`[CollageService] Image loading complete (some rows had no src). Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
+                    }
+                    return;
+                }
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.src = r.src;
+                
                 img.onload = () => {
                     this.images.push(img);
+                    this.imagesSuccessfullyLoaded++;
                     if (this.generator) this.generator.images = this.images;
-                    if (this.crystalEffect) this.crystalEffect.images = this.images;
-                    if (this.architecturalEffect) this.architecturalEffect.images = this.images;
-                    const loaded = this.images.length;
-                    this.events.emit('imageLoaded', { loaded, total });
-                    if (loaded === total) {
+                    this.events.emit('imageLoaded', { loaded: this.imagesSuccessfullyLoaded, total: totalToAttempt });
+                    imagesProcessed++;
+                    if (imagesProcessed === totalToAttempt) {
                         this.isLoadingImages = false;
                         this.events.emit('imagesLoaded', this.images);
+                        console.log(`[CollageService] Image loading complete. Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
                     }
                 };
                 img.onerror = (e) => {
                     console.warn(`[CollageService] Failed to load ${r.src}`, e);
                     this.events.emit('imageLoadError', { src: r.src, error: e });
+                    imagesProcessed++;
+                    imagesErrored++;
+                    if (imagesProcessed === totalToAttempt) {
+                        this.isLoadingImages = false;
+                        this.events.emit('imagesLoaded', this.images); 
+                        console.log(`[CollageService] Image loading complete (with errors). Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
+                    }
                 };
             });
         } catch (e) {
-            console.error('[CollageService] Error loading images:', e);
-            this.events.emit('imagesLoadError', e);
+            console.error('[CollageService] General error in loadImages function:', e);
+            this.events.emit('imagesLoadError', { type: 'general_catch', error: e });
             this.isLoadingImages = false;
         }
     }
