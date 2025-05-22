@@ -15,31 +15,35 @@ export function renderCrystal(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Fill background
-  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  // Fill background FIRST, before any transformations
+  ctx.fillStyle = params.bgColor || '#FFFFFF'; // Use provided bgColor or default
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Scale drawing operations to match device pixel ratio
-  const dpr = window.devicePixelRatio || 1;
-  ctx.save();
-  ctx.scale(dpr, dpr);
+  // The CrystalEffect itself handles DPR scaling and positioning internally.
+  // We just pass the raw context and canvas dimensions.
 
   const variantVal = (params.variant || 'standard').toLowerCase() === 'isolated' ? 'Isolated' : 'Standard';
+  
   const settings = {
-    variant: variantVal,     // 'Standard' | 'Isolated' (match CrystalEffect)
-    imageMode: params.imageMode || 'unique',   // 'single' | 'unique'
+    variant: variantVal,
+    imageMode: params.imageMode || 'unique',
     complexity: Number(params.complexity) || 5,
     density: Number(params.density) || 5,
     seedPattern: params.seedPattern || 'random',
     template: params.template || 'hexagonal',
     blendOpacity: Number(params.blendOpacity) || 0.7,
-    useMultiply: params.useMultiply || true,
-    multiplyPct: Number(params.multiplyPct) || 100
+    useMultiply: params.useMultiply !== false, // Default to true if not specified
+    multiplyPct: Number(params.multiplyPct) || 100,
+    // Pass canvas dimensions directly to the effect if it needs them for centering/scaling
+    // These might not be used if CrystalEffect has its own way of getting dimensions.
+    canvasWidth: canvas.width,
+    canvasHeight: canvas.height,
+    dpr: window.devicePixelRatio || 1
   };
 
   const effect = new CrystalEffect(ctx, images, settings);
-  effect.draw();
-  ctx.restore();
+  effect.draw(); 
+  // No ctx.restore() needed if we didn't ctx.save() in this function for transformations
 }
 
 const crystalTemplate = {
@@ -55,7 +59,8 @@ const crystalTemplate = {
     template: { type: 'select', options: ['hexagonal', 'square', 'triangular'], default: 'hexagonal' },
     blendOpacity: { type: 'number', min: 0, max: 1, step: 0.1, default: 0.7 },
     useMultiply: { type: 'boolean', default: true },
-    multiplyPct: { type: 'number', min: 0, max: 100, default: 100 }
+    multiplyPct: { type: 'number', min: 0, max: 100, default: 100 },
+    bgColor: { type: 'color', default: '#FFFFFF' } // Added bgColor param
   }
 };
 

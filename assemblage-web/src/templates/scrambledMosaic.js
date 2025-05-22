@@ -14,22 +14,17 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Fill background
+  // Fill background (this will be visible through revealed tiles)
   ctx.fillStyle = params.bgColor || '#FFFFFF';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Get parameters with defaults
   const gridSize = params.gridSize || 8;
-  const operation = params.operation || 'reveal';
-  let revealPct = params.revealPct || 75;
+  const operation = params.operation || 'reveal'; // Default to reveal if not specified
+  const revealPct = params.revealPct === undefined ? 75 : params.revealPct; // Default 75 if undefined
   const swapPct = params.swapPct || 0;
   const rotatePct = params.rotatePct || 0;
-  const pattern = params.pattern || 'random';
-  
-  // For swap and rotate operations, show all tiles
-  if (operation === 'swap' || operation === 'rotate') {
-    revealPct = 100;
-  }
+  const pattern = params.pattern || 'random'; // Not used currently, but kept for potential future use
   
   // Calculate cell dimensions
   const cellWidth = canvas.width / gridSize;
@@ -37,93 +32,109 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   
   // Select a single image for the entire mosaic
   const selectedImage = images[Math.floor(Math.random() * images.length)];
-  if (!selectedImage || !selectedImage.complete) return;
-  
-  // Calculate image scaling to fill canvas while maintaining aspect ratio
-  const imgRatio = selectedImage.width / selectedImage.height;
-  const canvasRatio = canvas.width / canvas.height;
-  let scaledWidth, scaledHeight, offsetX = 0, offsetY = 0;
-  
-  if (imgRatio > canvasRatio) {
-    scaledHeight = canvas.height;
-    scaledWidth = canvas.height * imgRatio;
-    offsetX = (scaledWidth - canvas.width) / 2;
-  } else {
-    scaledWidth = canvas.width;
-    scaledHeight = canvas.width / imgRatio;
-    offsetY = (scaledHeight - canvas.height) / 2;
+  if (!selectedImage || !selectedImage.complete) {
+    console.warn('[ScrambledMosaic] Selected image not loaded or invalid.');
+    return;
   }
   
-  // Create grid of cells
+  // Calculate image scaling to fill canvas while maintaining aspect ratio (for the base image layer)
+  const imgRatio = selectedImage.width / selectedImage.height;
+  const canvasRatio = canvas.width / canvas.height;
+  let baseImgDrawWidth, baseImgDrawHeight, baseImgOffsetX = 0, baseImgOffsetY = 0;
+
+  if (imgRatio > canvasRatio) { // Image is wider than canvas
+    baseImgDrawHeight = canvas.height;
+    baseImgDrawWidth = canvas.height * imgRatio;
+    baseImgOffsetX = (canvas.width - baseImgDrawWidth) / 2; // Center it
+  } else { // Image is taller than or same aspect as canvas
+    baseImgDrawWidth = canvas.width;
+    baseImgDrawHeight = canvas.width / imgRatio;
+    baseImgOffsetY = (canvas.height - baseImgDrawHeight) / 2; // Center it
+  }
+
+  // Create grid of cells. Each cell defines a segment of the base image.
   const cells = [];
-  for (let y = 0; y < gridSize; y++) {
-    for (let x = 0; x < gridSize; x++) {
-      // Calculate source coordinates from the original image
-      const srcX = (x * cellWidth + offsetX) * (selectedImage.width / scaledWidth);
-      const srcY = (y * cellHeight + offsetY) * (selectedImage.height / scaledHeight);
-      const srcWidth = cellWidth * (selectedImage.width / scaledWidth);
-      const srcHeight = cellHeight * (selectedImage.height / scaledHeight);
+  for (let r = 0; r < gridSize; r++) { // row
+    for (let c = 0; c < gridSize; c++) { // col
+      // Source coordinates from the *centered and scaled* base image
+      // These are relative to the top-left of the *drawn* base image on the canvas
+      const srcX = c * cellWidth - baseImgOffsetX;
+      const srcY = r * cellHeight - baseImgOffsetY;
       
       cells.push({
-        x: x * cellWidth,
-        y: y * cellHeight,
+        col: c, row: r, // Store grid position for effects
+        destX: c * cellWidth, // Destination on canvas
+        destY: r * cellHeight,
         width: cellWidth,
         height: cellHeight,
-        srcX, srcY, srcWidth, srcHeight,
-        visible: Math.random() * 100 < revealPct,
-        swapped: Math.random() * 100 < swapPct,
-        rotation: Math.random() * 100 < rotatePct ? Math.random() * 360 : 0
+        // srcX/Y/Width/Height define the part of the *original* image to draw
+        // We need to map the canvas cell back to the original image pixels
+        imgSrcX: (c * cellWidth - baseImgOffsetX) * (selectedImage.width / baseImgDrawWidth),
+        imgSrcY: (r * cellHeight - baseImgOffsetY) * (selectedImage.height / baseImgDrawHeight),
+        imgSrcWidth: cellWidth * (selectedImage.width / baseImgDrawWidth),
+        imgSrcHeight: cellHeight * (selectedImage.height / baseImgDrawHeight),
+        
+        // Effect flags - determine if an effect *could* apply
+        applyReveal: Math.random() * 100 >= revealPct, // true if it should be hidden by reveal (image shown)
+        applySwap: Math.random() * 100 < swapPct,
+        applyRotate: Math.random() * 100 < rotatePct,
       });
     }
   }
   
-  // Apply pattern-specific visibility
-  switch (pattern) {
-    case 'clustered':
-      applyClustering(cells, gridSize);
-      break;
-    case 'silhouette':
-      applySilhouette(cells, gridSize);
-      break;
-    case 'portrait':
-      applyPortrait(cells, gridSize);
-      break;
-    // 'random' is default, no additional processing needed
-  }
-  
-  // Draw cells
+  // Draw cells. The base image is NOT drawn directly; only its segments in cells.
   cells.forEach(cell => {
-    if (!cell.visible) return;
-    
     ctx.save();
     
-    // Apply square cell shape clipping
+    let showImage = true;
+    let currentRotation = 0;
+    let currentSwap = false;
+
+    // Determine final state based on operation (OR logic)
+    if (operation === 'reveal' && cell.applyReveal) {
+      showImage = false; // Reveal background by not drawing image
+    }
+    if (operation === 'rotate' && cell.applyRotate) {
+      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; // 90, 180, or 270 degrees
+    }
+    if (operation === 'swap') { // Swap is more complex, needs a target. For now, just a visual flip.
+        if(cell.applySwap) currentSwap = true; 
+    }
+
+    // If reveal is the operation and this cell is marked for reveal, skip drawing its image part.
+    if (operation === 'reveal' && !showImage) {
+        ctx.restore();
+        return; // Background is already drawn, so just return.
+    }
+
+    // Translate to cell center for rotation/swap
+    ctx.translate(cell.destX + cell.width / 2, cell.destY + cell.height / 2);
+
+    if (currentRotation > 0) {
+      ctx.rotate(currentRotation * Math.PI / 180);
+    }
+    if (currentSwap) {
+      ctx.scale(-1, 1); // Horizontal flip for swap, can be more elaborate
+    }
+    
+    // Translate back from cell center
+    ctx.translate(-(cell.width / 2), -(cell.height / 2));
+
+    // Clip to the cell boundaries (after transformations, so clipping is axis-aligned to the transformed cell)
     ctx.beginPath();
-    ctx.rect(cell.x, cell.y, cell.width, cell.height);
+    ctx.rect(0, 0, cell.width, cell.height); // x,y are 0,0 because we translated
     ctx.clip();
     
-    // Set blend mode
+    // Set blend mode (applies to this cell's image segment)
     if (params.useMultiply !== false) {
       ctx.globalCompositeOperation = 'multiply';
     }
     
-    // Apply transformations
-    if (cell.swapped || cell.rotation) {
-      ctx.translate(cell.x + cell.width/2, cell.y + cell.height/2);
-      if (cell.rotation) {
-        ctx.rotate(cell.rotation * Math.PI / 180);
-      }
-      if (cell.swapped) {
-        ctx.scale(-1, 1);
-      }
-      ctx.translate(-cell.width/2, -cell.height/2);
-    }
-    
-    // Draw the appropriate section of the image
+    // Draw the appropriate segment of the original image
     ctx.drawImage(
       selectedImage,
-      cell.srcX, cell.srcY, cell.srcWidth, cell.srcHeight,
-      cell.x, cell.y, cell.width, cell.height
+      cell.imgSrcX, cell.imgSrcY, cell.imgSrcWidth, cell.imgSrcHeight, // Source rect from original image
+      0, 0, cell.width, cell.height // Destination rect (0,0 in translated/rotated context)
     );
     
     ctx.restore();
@@ -132,7 +143,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   return canvas;
 }
 
-// Helper functions for patterns
+// Helper functions for patterns (currently not used but kept for reference)
 function applyClustering(cells, gridSize) {
   // Create cluster centers
   const clusters = [];
@@ -194,13 +205,13 @@ const scrambledMosaicTemplate = {
   name: 'Scrambled Mosaic',
   generate: generateScrambledMosaic,
   params: {
-    gridSize: { type: 'number', min: 4, max: 16, default: 8 },
-    revealPct: { type: 'number', min: 40, max: 100, default: 75 },
+    gridSize: { type: 'number', min: 2, max: 16, default: 8 }, // Min 2 for meaningful grid
+    revealPct: { type: 'number', min: 0, max: 100, default: 75 },
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
-    pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'random' },
-    operation: { type: 'select', options: ['reveal', 'swap', 'rotate'], default: 'reveal' },
-    bgColor: { type: 'color', default: '#ffffff' },
+    // pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'random' }, // Pattern not used
+    operation: { type: 'select', options: ['reveal', 'swap', 'rotate', 'none'], default: 'reveal' }, // Added 'none'
+    bgColor: { type: 'color', default: '#FFFFFF' },
     useMultiply: { type: 'boolean', default: true }
   }
 };
