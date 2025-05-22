@@ -85,6 +85,7 @@ function renderArchitectural(canvas, images, params = {}) {
       ctx.translate(absX, absY);
       ctx.scale(absWidth / 100, absHeight / 100); // SVG viewBox is 100x100
       ctx.clip(path);
+      ctx.translate(-absX, -absY); // Translate back for image drawing
     } else {
       // Fallback to rectangular clip
       ctx.beginPath();

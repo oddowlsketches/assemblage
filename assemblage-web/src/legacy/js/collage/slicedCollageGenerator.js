@@ -78,7 +78,7 @@ export class SlicedCollageGenerator {
         }
 
         // Determine slice behavior
-        const sliceBehavior = parameters.sliceBehavior || 'random';
+        const sliceBehavior = parameters.sliceBehavior || 'single-image';
         let selectedImage = null;
         let secondImage = null;
         
@@ -86,14 +86,7 @@ export class SlicedCollageGenerator {
         
         // Calculate number of slices based on behavior
         let numSlices;
-        if (sliceBehavior === 'random') {
-            // For random images, use 3-7 slices
-            numSlices = Math.min(
-                Math.max(3, Math.floor(Math.random() * 5) + 3),
-                parameters.maxSlices || 7
-            );
-            console.log('Random behavior: using', numSlices, 'slices');
-        } else if (sliceBehavior === 'single-image') {
+        if (sliceBehavior === 'single-image') {
             // For single image, use 5-50 slices
             numSlices = Math.min(
                 Math.max(5, Math.floor(Math.random() * 46) + 5),

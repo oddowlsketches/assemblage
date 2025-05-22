@@ -5,16 +5,18 @@ import tilingTemplate from './tilingTemplate';
 import crystalTemplate from './crystalEffectTemplate';
 import slicedTemplate from './slicedTemplate';
 import pairedForms from './pairedForms';
+import architecturalTemplate from './architecturalTemplate';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'architectural';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
   crystal: 0.2,
   scrambledMosaic: 0.2,
   tiling: 0.2,
-  sliced: 0.2,
-  pairedForms: 0.2
+  sliced: 0.15,
+  pairedForms: 0.15,
+  architectural: 0.1
 };
 
 // Random parameter generators for each template
@@ -49,7 +51,7 @@ const parameterGenerators = {
   }),
 
   sliced: () => ({
-    sliceBehavior: ['random', 'single-image', 'alternating'][Math.floor(Math.random() * 3)],
+    sliceBehavior: ['single-image', 'alternating'][Math.floor(Math.random() * 2)],
     maxSlices: 10 + Math.floor(Math.random() * 30), // 10-40 slices
     sliceWidthVariation: 0.05 + Math.random() * 0.25, // 0.05-0.3
     bgColor: randomVibrantColor(),
@@ -62,6 +64,13 @@ const parameterGenerators = {
     complexity: 0.3 + Math.random() * 0.4, // 0.3-0.7
     alignmentType: ['edge', 'overlap', 'puzzle'][Math.floor(Math.random() * 3)],
     useMultiply: true, // Always use multiply blend
+    bgColor: randomVibrantColor()
+  }),
+
+  architectural: () => ({
+    style: ['classic', 'modern', 'gothic'][Math.floor(Math.random() * 3)],
+    imageMode: Math.random() > 0.5 ? 'single' : 'unique',
+    useMultiply: true,
     bgColor: randomVibrantColor()
   })
 } as const;
@@ -103,6 +112,8 @@ function getTemplateByType(type: TemplateType) {
       return slicedTemplate;
     case 'pairedForms':
       return pairedForms;
+    case 'architectural':
+      return architecturalTemplate;
     default:
       return crystalTemplate;
   }
@@ -110,6 +121,7 @@ function getTemplateByType(type: TemplateType) {
 
 // Export all templates and their parameter generators
 export const templates = {
+  architectural: architecturalTemplate,
   crystal: crystalTemplate,
   scrambledMosaic: scrambledMosaic,
   tiling: tilingTemplate,

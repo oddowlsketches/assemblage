@@ -25,7 +25,6 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   const swapPct = params.swapPct || 0;
   const rotatePct = params.rotatePct || 0;
   const pattern = params.pattern || 'random';
-  const cellShape = params.cellShape || 'square';
   
   // For swap and rotate operations, show all tiles
   if (operation === 'swap' || operation === 'rotate') {
@@ -36,6 +35,9 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   const cellWidth = canvas.width / gridSize;
   const cellHeight = canvas.height / gridSize;
   
+  // Select a single image for all tiles
+  const selectedImage = images[Math.floor(Math.random() * images.length)];
+  
   // Create grid of cells
   const cells = [];
   for (let y = 0; y < gridSize; y++) {
@@ -45,7 +47,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
         y: y * cellHeight,
         width: cellWidth,
         height: cellHeight,
-        image: images[Math.floor(Math.random() * images.length)],
+        image: selectedImage,
         visible: Math.random() * 100 < revealPct,
         swapped: Math.random() * 100 < swapPct,
         rotation: Math.random() * 100 < rotatePct ? Math.random() * 360 : 0
@@ -73,22 +75,9 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
     
     ctx.save();
     
-    // Apply cell shape clipping
+    // Apply square cell shape clipping
     ctx.beginPath();
-    switch (cellShape) {
-      case 'rectHorizontal':
-        ctx.rect(cell.x, cell.y + cell.height * 0.25, cell.width, cell.height * 0.5);
-        break;
-      case 'rectVertical':
-        ctx.rect(cell.x + cell.width * 0.25, cell.y, cell.width * 0.5, cell.height);
-        break;
-      case 'circle':
-        const radius = Math.min(cell.width, cell.height) * 0.4;
-        ctx.arc(cell.x + cell.width/2, cell.y + cell.height/2, radius, 0, Math.PI * 2);
-        break;
-      default: // square
-        ctx.rect(cell.x, cell.y, cell.width, cell.height);
-    }
+    ctx.rect(cell.x, cell.y, cell.width, cell.height);
     ctx.clip();
     
     // Set blend mode
@@ -203,7 +192,6 @@ const scrambledMosaicTemplate = {
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
     pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'random' },
-    cellShape: { type: 'select', options: ['square', 'rectHorizontal', 'rectVertical', 'circle'], default: 'square' },
     operation: { type: 'select', options: ['reveal', 'swap', 'rotate'], default: 'reveal' },
     bgColor: { type: 'color', default: '#ffffff' },
     useMultiply: { type: 'boolean', default: true }
