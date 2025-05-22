@@ -36,10 +36,10 @@ function renderTiling(canvas, images, params) {
   params = params || {};
   const patternType = params.patternType || 'squares';
   let tileCount = params.tileCount || 16;
-  // Clamp tileCount for Penrose
   if (patternType === 'penrose' && tileCount > 40) tileCount = 40;
-  // Always use unique images and multiply blend mode
-  const useUniqueImages = true;
+  
+  // Use parameter for unique images, default to true if not specified
+  const useUniqueImages = params.useUniqueImages !== false;
   const randomRotation = params.randomRotation === true;
   const tileSpacing = params.tileSpacing || 0;
   const fillStyle = params.fillStyle || 'fullBleed';

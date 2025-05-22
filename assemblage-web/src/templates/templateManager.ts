@@ -42,7 +42,7 @@ const parameterGenerators = {
   tiling: () => ({
     patternType: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille'][Math.floor(Math.random() * 6)],
     tileCount: 8 + Math.floor(Math.random() * 24), // 8-32 tiles
-    useUniqueImages: true, // Always use unique images
+    useUniqueImages: Math.random() > 0.3, // 70% chance of unique images, 30% chance of single image
     randomRotation: Math.random() > 0.5, // 50% chance of random rotation
     tileSpacing: Math.random() > 0.7 ? Math.floor(Math.random() * 4) : 0, // 30% chance of spacing
     fillStyle: 'fullBleed', // Always use full bleed

@@ -5,7 +5,8 @@ import { getMaskDescriptor } from '../masks/maskRegistry';
 
 // Helper function to extract path data from SVG string
 function getPathDataFromSvg(svgString) {
-  const match = svgString.match(/d="([^"]*)"/);
+  // Regex to find the d attribute in a path tag, allowing for other attributes and whitespace
+  const match = svgString.match(/<path[^>]*d="([^"]*)"[^>]*>/);
   return match ? match[1] : null;
 }
 

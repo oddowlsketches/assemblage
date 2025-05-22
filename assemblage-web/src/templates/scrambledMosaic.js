@@ -97,7 +97,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
     if (operation === 'rotate' && cell.applyRotate) {
       currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; // 90, 180, or 270 degrees
     }
-    if (operation === 'swap') { // Swap is more complex, needs a target. For now, just a visual flip.
+    if (operation === 'swap') { 
         if(cell.applySwap) currentSwap = true; 
     }
 
@@ -107,34 +107,40 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
         return; // Background is already drawn, so just return.
     }
 
-    // Translate to cell center for rotation/swap
+    // It's crucial to clip to the cell's destination rectangle *before* any rotation/swapping transformations
+    // that are specific to this cell's content.
+    ctx.beginPath();
+    ctx.rect(cell.destX, cell.destY, cell.width, cell.height);
+    ctx.clip();
+    
+    // Now, set up transformations for the content *within* this already clipped cell area.
+    // Translate to the cell's center for rotation/swapping to occur around the center.
     ctx.translate(cell.destX + cell.width / 2, cell.destY + cell.height / 2);
 
     if (currentRotation > 0) {
       ctx.rotate(currentRotation * Math.PI / 180);
     }
     if (currentSwap) {
-      ctx.scale(-1, 1); // Horizontal flip for swap, can be more elaborate
+      ctx.scale(-1, 1); // Horizontal flip for swap
     }
     
-    // Translate back from cell center
+    // After rotating/swapping around the center, translate the drawing origin back to what would be the top-left
+    // of the cell content if it were not transformed, so drawing the image segment at (0,0) works as expected.
     ctx.translate(-(cell.width / 2), -(cell.height / 2));
-
-    // Clip to the cell boundaries (after transformations, so clipping is axis-aligned to the transformed cell)
-    ctx.beginPath();
-    ctx.rect(0, 0, cell.width, cell.height); // x,y are 0,0 because we translated
-    ctx.clip();
     
     // Set blend mode (applies to this cell's image segment)
     if (params.useMultiply !== false) {
       ctx.globalCompositeOperation = 'multiply';
     }
     
-    // Draw the appropriate segment of the original image
+    // Draw the appropriate segment of the original image.
+    // The source rect (imgSrcX, etc.) defines what part of the *original full image* to take.
+    // The destination rect (0,0,cell.width,cell.height) draws it into the current transformed context,
+    // which has been clipped to this cell's original screen position.
     ctx.drawImage(
       selectedImage,
-      cell.imgSrcX, cell.imgSrcY, cell.imgSrcWidth, cell.imgSrcHeight, // Source rect from original image
-      0, 0, cell.width, cell.height // Destination rect (0,0 in translated/rotated context)
+      cell.imgSrcX, cell.imgSrcY, cell.imgSrcWidth, cell.imgSrcHeight, 
+      0, 0, cell.width, cell.height 
     );
     
     ctx.restore();
