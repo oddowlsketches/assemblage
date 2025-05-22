@@ -35,19 +35,41 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   const cellWidth = canvas.width / gridSize;
   const cellHeight = canvas.height / gridSize;
   
-  // Select a single image for all tiles
+  // Select a single image for the entire mosaic
   const selectedImage = images[Math.floor(Math.random() * images.length)];
+  if (!selectedImage || !selectedImage.complete) return;
+  
+  // Calculate image scaling to fill canvas while maintaining aspect ratio
+  const imgRatio = selectedImage.width / selectedImage.height;
+  const canvasRatio = canvas.width / canvas.height;
+  let scaledWidth, scaledHeight, offsetX = 0, offsetY = 0;
+  
+  if (imgRatio > canvasRatio) {
+    scaledHeight = canvas.height;
+    scaledWidth = canvas.height * imgRatio;
+    offsetX = (scaledWidth - canvas.width) / 2;
+  } else {
+    scaledWidth = canvas.width;
+    scaledHeight = canvas.width / imgRatio;
+    offsetY = (scaledHeight - canvas.height) / 2;
+  }
   
   // Create grid of cells
   const cells = [];
   for (let y = 0; y < gridSize; y++) {
     for (let x = 0; x < gridSize; x++) {
+      // Calculate source coordinates from the original image
+      const srcX = (x * cellWidth + offsetX) * (selectedImage.width / scaledWidth);
+      const srcY = (y * cellHeight + offsetY) * (selectedImage.height / scaledHeight);
+      const srcWidth = cellWidth * (selectedImage.width / scaledWidth);
+      const srcHeight = cellHeight * (selectedImage.height / scaledHeight);
+      
       cells.push({
         x: x * cellWidth,
         y: y * cellHeight,
         width: cellWidth,
         height: cellHeight,
-        image: selectedImage,
+        srcX, srcY, srcWidth, srcHeight,
         visible: Math.random() * 100 < revealPct,
         swapped: Math.random() * 100 < swapPct,
         rotation: Math.random() * 100 < rotatePct ? Math.random() * 360 : 0
@@ -97,27 +119,12 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
       ctx.translate(-cell.width/2, -cell.height/2);
     }
     
-    // Draw image
-    const img = cell.image;
-    if (img && img.complete) {
-      const imgRatio = img.width / img.height;
-      const cellRatio = cell.width / cell.height;
-      let drawWidth, drawHeight, offsetX, offsetY;
-      
-      if (imgRatio > cellRatio) {
-        drawHeight = cell.height;
-        drawWidth = cell.height * imgRatio;
-        offsetX = cell.x - (drawWidth - cell.width) / 2;
-        offsetY = cell.y;
-      } else {
-        drawWidth = cell.width;
-        drawHeight = cell.width / imgRatio;
-        offsetX = cell.x;
-        offsetY = cell.y - (drawHeight - cell.height) / 2;
-      }
-      
-      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-    }
+    // Draw the appropriate section of the image
+    ctx.drawImage(
+      selectedImage,
+      cell.srcX, cell.srcY, cell.srcWidth, cell.srcHeight,
+      cell.x, cell.y, cell.width, cell.height
+    );
     
     ctx.restore();
   });

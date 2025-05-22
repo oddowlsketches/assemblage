@@ -15,14 +15,13 @@ export function renderCrystal(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Scale drawing operations so CrystalEffect maths align with the logical pixel grid
+  // Fill background
+  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Scale drawing operations to match device pixel ratio
   const dpr = window.devicePixelRatio || 1;
   ctx.save();
-  
-  // Center the effect on the canvas
-  const canvasWidth = canvas.width / dpr;
-  const canvasHeight = canvas.height / dpr;
-  ctx.translate(canvasWidth / 2, canvasHeight / 2);
   ctx.scale(dpr, dpr);
 
   const variantVal = (params.variant || 'standard').toLowerCase() === 'isolated' ? 'Isolated' : 'Standard';
@@ -35,11 +34,7 @@ export function renderCrystal(canvas, images, params = {}) {
     template: params.template || 'hexagonal',
     blendOpacity: Number(params.blendOpacity) || 0.7,
     useMultiply: params.useMultiply || true,
-    multiplyPct: Number(params.multiplyPct) || 100,
-    // Add positioning parameters
-    centerX: 0,  // Will be centered due to translate above
-    centerY: 0,
-    scale: Math.min(canvasWidth, canvasHeight) / Math.max(canvasWidth, canvasHeight)
+    multiplyPct: Number(params.multiplyPct) || 100
   };
 
   const effect = new CrystalEffect(ctx, images, settings);

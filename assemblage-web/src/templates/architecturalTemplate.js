@@ -12,25 +12,25 @@ const AVAILABLE_MASKS = {
 
 const PRESETS = {
   classic: [
-    { maskName: 'architectural/archClassical', x: 0.3, y: 0.2, width: 0.4, height: 0.5 },
-    { maskName: 'architectural/windowRect', x: 0.1, y: 0.3, width: 0.2, height: 0.3 },
-    { maskName: 'architectural/windowRect', x: 0.7, y: 0.3, width: 0.2, height: 0.3 },
-    { maskName: 'architectural/columnPair', x: 0.05, y: 0.2, width: 0.1, height: 0.7 },
-    { maskName: 'architectural/columnPair', x: 0.85, y: 0.2, width: 0.1, height: 0.7 },
-    { maskName: 'architectural/facadeGrid', x: 0.1, y: 0.1, width: 0.8, height: 0.1 }
+    { maskName: 'archClassical', x: 0.3, y: 0.2, width: 0.4, height: 0.5 },
+    { maskName: 'windowRect', x: 0.1, y: 0.3, width: 0.2, height: 0.3 },
+    { maskName: 'windowRect', x: 0.7, y: 0.3, width: 0.2, height: 0.3 },
+    { maskName: 'columnPair', x: 0.05, y: 0.2, width: 0.1, height: 0.7 },
+    { maskName: 'columnPair', x: 0.85, y: 0.2, width: 0.1, height: 0.7 },
+    { maskName: 'facadeGrid', x: 0.1, y: 0.1, width: 0.8, height: 0.1 }
   ],
   modern: [
-    { maskName: 'basic/diamondMask', x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
-    { maskName: 'architectural/windowGrid', x: 0.4, y: 0.6, width: 0.2, height: 0.3 },
-    { maskName: 'basic/hexagonMask', x: 0.1, y: 0.1, width: 0.8, height: 0.05 }
+    { maskName: 'diamondMask', x: 0.2, y: 0.2, width: 0.6, height: 0.6 },
+    { maskName: 'windowGrid', x: 0.4, y: 0.6, width: 0.2, height: 0.3 },
+    { maskName: 'hexagonMask', x: 0.1, y: 0.1, width: 0.8, height: 0.05 }
   ],
   gothic: [
-    { maskName: 'architectural/triptychArch', x: 0.3, y: 0.1, width: 0.4, height: 0.6 },
-    { maskName: 'basic/arcMask', x: 0.1, y: 0.3, width: 0.2, height: 0.4 },
-    { maskName: 'basic/arcMask', x: 0.7, y: 0.3, width: 0.2, height: 0.4 },
-    { maskName: 'architectural/columnSingle', x: 0.05, y: 0.2, width: 0.08, height: 0.7 },
-    { maskName: 'architectural/columnSingle', x: 0.87, y: 0.2, width: 0.08, height: 0.7 },
-    { maskName: 'architectural/houseGable', x: 0.1, y: 0.05, width: 0.8, height: 0.15 }
+    { maskName: 'triptychArch', x: 0.3, y: 0.1, width: 0.4, height: 0.6 },
+    { maskName: 'arcMask', x: 0.1, y: 0.3, width: 0.2, height: 0.4 },
+    { maskName: 'arcMask', x: 0.7, y: 0.3, width: 0.2, height: 0.4 },
+    { maskName: 'columnSingle', x: 0.05, y: 0.2, width: 0.08, height: 0.7 },
+    { maskName: 'columnSingle', x: 0.87, y: 0.2, width: 0.08, height: 0.7 },
+    { maskName: 'houseGable', x: 0.1, y: 0.05, width: 0.8, height: 0.15 }
   ]
 };
 
@@ -56,11 +56,8 @@ function renderArchitectural(canvas, images, params = {}) {
   preset.forEach((placement, index) => {
     const { maskName, x, y, width, height } = placement;
     
-    // Parse family and name from maskName (e.g. 'architectural/archClassical')
-    const [family, name] = maskName.split('/');
-    
     // Get mask descriptor from registry
-    const maskDesc = getMaskDescriptor(family, name);
+    const maskDesc = getMaskDescriptor(maskName);
     if (!maskDesc) return;
     
     // Convert relative coordinates to absolute
