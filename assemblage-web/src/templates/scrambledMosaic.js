@@ -23,6 +23,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   const revealPct = params.revealPct === undefined ? 75 : params.revealPct; // Default 75 if undefined
   const swapPct = params.swapPct || 0;
   const rotatePct = params.rotatePct || 0;
+  const operation = params.operation || 'reveal'; // Restore operation parameter
   const pattern = params.pattern || 'random'; // Not used currently, but kept for potential future use
   
   // Calculate cell dimensions
@@ -53,13 +54,14 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
 
   // Create grid of cells. Each cell defines a segment of the base image.
   const cells = [];
-  for (let r = 0; r < gridSize; r++) { // row
-    for (let c = 0; c < gridSize; c++) { // col
-      // Source coordinates from the *centered and scaled* base image
-      // These are relative to the top-left of the *drawn* base image on the canvas
-      const srcX = c * cellWidth - baseImgOffsetX;
-      const srcY = r * cellHeight - baseImgOffsetY;
-      
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      let isVisible = true;
+      if (operation === 'reveal') {
+        isVisible = Math.random() * 100 > revealPct; // If true, image part is SHOWN, background NOT revealed
+      }
+      // For swap/rotate, all tiles are initially visible unless revealPct is also applied for a combined effect (which is not the current request)
+
       cells.push({
         col: c, row: r, // Store grid position for effects
         destX: c * cellWidth, // Destination on canvas
@@ -73,61 +75,45 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
         imgSrcWidth: cellWidth * (selectedImage.width / baseImgDrawWidth),
         imgSrcHeight: cellHeight * (selectedImage.height / baseImgDrawHeight),
         
-        // Effect flags - determine if an effect *could* apply
-        applyReveal: Math.random() * 100 < revealPct, // True if image should be HIDDEN (background revealed)
-        applySwap: Math.random() * 100 < swapPct,
-        applyRotate: Math.random() * 100 < rotatePct,
+        visible: isVisible, 
+        applySwap: (operation === 'swap') && (Math.random() * 100 < swapPct),
+        applyRotate: (operation === 'rotate') && (Math.random() * 100 < rotatePct),
       });
     }
   }
   
   // Draw cells. The base image is NOT drawn directly; only its segments in cells.
   cells.forEach(cell => {
-    ctx.save();
-    
-    // Determine if the image segment for this cell should be drawn at all
-    // This is solely based on revealPct: if true, background shows.
-    const isRevealed = Math.random() * 100 < revealPct;
-
-    if (isRevealed) {
-      // If revealed, no image is drawn for this cell, just show the background.
-      // No transformations apply to an empty cell.
-      ctx.restore();
+    if (!cell.visible && operation === 'reveal') { // Only skip drawing if operation is 'reveal' and cell is marked not visible
+      ctx.restore(); // Assuming ctx.save() was at the start of an outer loop or this cell processing
       return; 
     }
+    ctx.save(); // Save for this cell's transformations
 
-    // If not revealed, the image segment will be drawn. Now determine transformations.
-    const applyRotate = Math.random() * 100 < rotatePct;
-    const applySwap = Math.random() * 100 < swapPct;
-    
-    let currentRotation = 0;
-    let currentSwap = false;
-
-    if (applyRotate) {
-      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90; // 90, 180, or 270 degrees
-    }
-    if (applySwap) { 
-      currentSwap = true; 
-    }
-
-    // It's crucial to clip to the cell's destination rectangle *before* any rotation/swapping transformations
-    // that are specific to this cell's content.
+    // Clipping to the cell's destination rectangle (BEFORE transformations)
     ctx.beginPath();
     ctx.rect(cell.destX, cell.destY, cell.width, cell.height);
     ctx.clip();
-    
-    // Now, set up transformations for the content *within* this already clipped cell area.
-    // Translate to the cell's center for rotation/swapping to occur around the center.
-    ctx.translate(cell.destX + cell.width / 2, cell.destY + cell.height / 2);
 
+    let currentRotation = 0;
+    let currentSwap = false;
+
+    if (cell.applyRotate) {
+      currentRotation = (Math.floor(Math.random() * 3) + 1) * 90;
+    }
+    if (cell.applySwap) { 
+      currentSwap = true; 
+    }
+    
+    // Transformations for the content *within* the clipped cell
+    ctx.translate(cell.destX + cell.width / 2, cell.destY + cell.height / 2);
     if (currentRotation > 0) {
       ctx.rotate(currentRotation * Math.PI / 180);
     }
     if (currentSwap) {
-      ctx.scale(-1, 1); // Horizontal flip for swap
+      ctx.scale(-1, 1); 
     }
-    
-    ctx.translate(-(cell.width / 2), -(cell.height / 2)); // Translate back from cell center
+    ctx.translate(-(cell.width / 2), -(cell.height / 2));
     
     if (params.useMultiply !== false) {
       ctx.globalCompositeOperation = 'multiply';
@@ -208,10 +194,10 @@ const scrambledMosaicTemplate = {
   generate: generateScrambledMosaic,
   params: {
     gridSize: { type: 'number', min: 2, max: 16, default: 8 },
-    revealPct: { type: 'number', min: 0, max: 100, default: 25 }, // Default to 25% reveal
-    swapPct: { type: 'number', min: 0, max: 100, default: 0 },
-    rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
-    // pattern: { type: 'select', options: ['random', 'clustered', 'silhouette', 'portrait'], default: 'random' }, // Pattern not used
+    revealPct: { type: 'number', min: 0, max: 100, default: 75 }, // Applies when operation is 'reveal'
+    swapPct: { type: 'number', min: 0, max: 100, default: 0 },   // Applies when operation is 'swap'
+    rotatePct: { type: 'number', min: 0, max: 100, default: 0 }, // Applies when operation is 'rotate'
+    operation: { type: 'select', options: ['reveal', 'swap', 'rotate', 'none'], default: 'reveal' },
     bgColor: { type: 'color', default: '#FFFFFF' },
     useMultiply: { type: 'boolean', default: true }
   }

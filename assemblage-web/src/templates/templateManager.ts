@@ -28,10 +28,11 @@ const parameterGenerators = {
   }),
   
   scrambledMosaic: () => ({
-    gridSize: 4 + Math.floor(Math.random() * 8), // 4-12
-    revealPct: 10 + Math.floor(Math.random() * 80), // 10-90% chance to reveal background
-    swapPct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of some swap
-    rotatePct: Math.random() < 0.3 ? 20 + Math.floor(Math.random() * 30) : 0, // 30% chance of some rotation
+    gridSize: 4 + Math.floor(Math.random() * 9), // 4-12
+    operation: ['reveal', 'swap', 'rotate', 'none'][Math.floor(Math.random() * 4)],
+    revealPct: 10 + Math.floor(Math.random() * 81), // 10-90%
+    swapPct: Math.random() < 0.4 ? 20 + Math.floor(Math.random() * 61) : 0, // 40% chance of 20-80% swap
+    rotatePct: Math.random() < 0.4 ? 20 + Math.floor(Math.random() * 61) : 0, // 40% chance of 20-80% rotation
     bgColor: randomVibrantColor(),
     useMultiply: true // Always use multiply blend
   }),

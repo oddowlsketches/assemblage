@@ -6,9 +6,8 @@ import { randomVibrantColor, getComplimentaryColor } from '../utils/colors'; // 
 
 // Helper function to extract path data from SVG string
 function getPathDataFromSvg(svgString) {
-  // Regex to find the d attribute in a path tag, allowing for other attributes and whitespace
-  const match = svgString.match(/<path[^>]*d="([^"]*)"[^>]*>/);
-  return match ? match[1] : null;
+  const match = svgString.match(/<path[^>]*d=(?:"([^"]*)"|'([^']*)')/);
+  return match ? (match[1] || match[2]) : null;
 }
 
 // Available mask families and their masks from the registry
@@ -43,12 +42,14 @@ const PRESETS = {
 };
 
 function renderArchitectural(canvas, images, params = {}) {
-  if (!canvas || images.length === 0) return;
-  
+  if (!canvas || !images || images.length === 0) {
+    console.warn('[ArchitecturalTemplate] Canvas or images not provided.');
+    return;
+  }
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  const baseBgColor = params.bgColor || '#FFFFFF';
+  const baseBgColor = params.bgColor || randomVibrantColor();
   ctx.fillStyle = baseBgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
@@ -57,16 +58,13 @@ function renderArchitectural(canvas, images, params = {}) {
   const useUniqueImages = params.imageMode === 'unique';
   const singleImage = useUniqueImages ? null : images[Math.floor(Math.random() * images.length)];
 
-  const dpr = window.devicePixelRatio || 1;
-
-  preset.forEach((placement, index) => {
+  preset.forEach((placement) => {
     const { maskName, x, y, width, height } = placement;
     
-    let maskDesc = getMaskDescriptor('architectural', maskName) || getMaskDescriptor('basic', maskName);
-    if (!maskDesc) maskDesc = getMaskDescriptor(maskName);
+    let maskDesc = getMaskDescriptor('architectural', maskName) || getMaskDescriptor('basic', maskName) || getMaskDescriptor(maskName);
 
     if (!maskDesc || maskDesc.kind !== 'svg' || !maskDesc.getSvg) {
-      console.warn(`[ArchitecturalTemplate] SVG Mask not found or invalid for: ${maskName}`);
+      console.warn(`[Architectural] SVG Mask not found or invalid for: ${maskName}`);
       return;
     }
 
@@ -76,77 +74,75 @@ function renderArchitectural(canvas, images, params = {}) {
     const absHeight = height * canvas.height;
 
     ctx.save();
-    ctx.beginPath(); // Start a new path for clipping
-    // Create a simple rectangular clipping path for the placement area first
+    // Overall clip to the placement area bounds first
+    ctx.beginPath();
     ctx.rect(absX, absY, absWidth, absHeight);
     ctx.clip();
+    ctx.translate(absX, absY); // Translate to the placement origin
 
-    // Decide if this placement will be a solid color or an image
-    const isSolidColor = Math.random() < 0.2; // 20% chance for solid color
+    const useSolidColor = Math.random() < 0.2; // 20% chance for solid color
 
-    if (isSolidColor) {
-      ctx.fillStyle = getComplimentaryColor(baseBgColor); // Or use another randomVibrantColor()
-      if (params.useMultiply !== false) {
-        ctx.globalCompositeOperation = 'multiply';
+    if (useSolidColor) {
+      ctx.fillStyle = getComplimentaryColor(baseBgColor);
+      if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
+      const svgPathData = getPathDataFromSvg(maskDesc.getSvg());
+      if (svgPathData) {
+        const path = new Path2D(svgPathData);
+        ctx.scale(absWidth / 100, absHeight / 100); // Scale SVG path (viewBox 0 0 100 100)
+        ctx.fill(path);
+      } else {
+        ctx.fillRect(0, 0, absWidth, absHeight); // Fallback to fill rect if path fails
       }
-      ctx.fillRect(absX, absY, absWidth, absHeight);
-      ctx.globalCompositeOperation = 'source-over'; // Reset for next iteration
     } else {
       const imageToUse = useUniqueImages ? images[Math.floor(Math.random() * images.length)] : singleImage;
       if (!imageToUse || !imageToUse.complete) {
-        console.warn(`[ArchitecturalTemplate] Image not loaded for ${maskName}`);
+        console.warn(`[Architectural] Image not loaded for ${maskName}`);
+        ctx.restore(); return;
+      }
+
+      const svgPathData = getPathDataFromSvg(maskDesc.getSvg());
+      if (!svgPathData) {
+        console.warn(`[Architectural] No path data for mask ${maskName}, drawing full image in rect.`);
+        // Draw image filling the pre-clipped rectangular placement area if no path
+        const imgAspect = imageToUse.width / imageToUse.height;
+        const placementAspect = absWidth / absHeight;
+        let drawW, drawH, drawX = 0, drawY = 0;
+        if (imgAspect > placementAspect) {
+          drawH = absHeight; drawW = absHeight * imgAspect; drawX = (absWidth - drawW) / 2;
+        } else {
+          drawW = absWidth; drawH = absWidth / imgAspect; drawY = (absHeight - drawH) / 2;
+        }
+        if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
+        ctx.drawImage(imageToUse, drawX, drawY, drawW, drawH);
         ctx.restore();
         return;
       }
 
-      // Attempt to draw SVG as an image for robust masking
-      const svgString = maskDesc.getSvg();
-      const svgImage = new Image();
-      const svgUrl = 'data:image/svg+xml;base64,' + btoa(svgString);
-      
-      svgImage.onload = () => {
-        ctx.save(); // Save context for this specific drawing operation
-        // Create a temporary canvas for the mask
-        const tempMaskCanvas = document.createElement('canvas');
-        tempMaskCanvas.width = absWidth * dpr;
-        tempMaskCanvas.height = absHeight * dpr;
-        const tempMaskCtx = tempMaskCanvas.getContext('2d');
-        if(!tempMaskCtx) { ctx.restore(); return; }
+      const path = new Path2D(svgPathData);
+      ctx.save(); // Save for clipping
+      ctx.scale(absWidth / 100, absHeight / 100); // Scale context to draw mask as 100x100 units
+      ctx.clip(path); // Clip to the scaled SVG path
+      ctx.scale(100 / absWidth, 100 / absHeight); // Scale back context for image drawing
 
-        // Draw the SVG mask onto the temporary canvas
-        tempMaskCtx.drawImage(svgImage, 0, 0, absWidth * dpr, absHeight * dpr);
+      // Draw image to fill the original absWidth/absHeight of the placement area
+      const imgAspect = imageToUse.width / imageToUse.height;
+      const placementAspect = absWidth / absHeight;
+      let drawW, drawH, drawX = 0, drawY = 0;
 
-        // Draw the image, then use the mask
-        // Calculate fill/fit for the image within absWidth/absHeight
-        const imgAspect = imageToUse.width / imageToUse.height;
-        const placementAspect = absWidth / absHeight;
-        let drawImgWidth, drawImgHeight, imgDrawX = absX, imgDrawY = absY;
-
-        if (imgAspect > placementAspect) { // Image wider than placement area
-            drawImgHeight = absHeight;
-            drawImgWidth = absHeight * imgAspect;
-            imgDrawX = absX - (drawImgWidth - absWidth) / 2; // Center X
-        } else { // Image taller than or same aspect as placement area
-            drawImgWidth = absWidth;
-            drawImgHeight = absWidth / imgAspect;
-            imgDrawY = absY - (drawImgHeight - absHeight) / 2; // Center Y
-        }
-        
-        ctx.globalCompositeOperation = params.useMultiply !== false ? 'multiply' : 'source-over';
-        ctx.drawImage(imageToUse, imgDrawX, imgDrawY, drawImgWidth, drawImgHeight);
-        
-        // Apply the mask from the temporary canvas
-        ctx.globalCompositeOperation = 'destination-in';
-        ctx.drawImage(tempMaskCanvas, absX, absY, absWidth, absHeight);
-
-        ctx.restore(); // Restore from specific drawing operation
-      };
-      svgImage.onerror = () => {
-        console.warn(`[ArchitecturalTemplate] Failed to load SVG as image for mask: ${maskName}`);
-      };
-      svgImage.src = svgUrl;
+      if (imgAspect > placementAspect) {
+        drawH = absHeight;
+        drawW = absHeight * imgAspect;
+        drawX = (absWidth - drawW) / 2; 
+      } else {
+        drawW = absWidth;
+        drawH = absWidth / imgAspect;
+        drawY = (absHeight - drawH) / 2;
+      }
+      if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
+      ctx.drawImage(imageToUse, drawX, drawY, drawW, drawH);
+      ctx.restore(); // Restore from clipping save
     }
-    ctx.restore(); // Restore from initial save (after clipping path)
+    ctx.restore(); // Restore from initial save (after translate)
   });
   
   return canvas;
@@ -159,7 +155,7 @@ const architecturalTemplate = {
   params: {
     style: { type: 'select', options: ['classic', 'modern', 'gothic'], default: 'classic' },
     imageMode: { type: 'select', options: ['single', 'unique'], default: 'unique' },
-    bgColor: { type: 'color', default: '#ffffff' },
+    bgColor: { type: 'color', default: '#FFFFFF' },
     useMultiply: { type: 'boolean', default: true }
   }
 };
