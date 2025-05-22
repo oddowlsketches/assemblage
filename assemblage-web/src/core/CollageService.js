@@ -1,28 +1,27 @@
 // CollageService.js
 import paper from 'paper';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGenerator.js';
 import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
 import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
 import { CrystalEffect } from '../effects/CrystalEffect';
 import { ArchitecturalEffect } from '../effects/ArchitecturalEffect';
-import { getRandomCrystalSettings } from '../effects/randomCrystal';
-import { PromptPlanner } from '../planner/PromptPlanner';
 import maskImplementations from '../legacy/js/collage/maskImplementations.js';
-import { getMaskDescriptor } from '../masks/maskRegistry';
+import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry';
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
 import { EventEmitter } from '../utils/EventEmitter';
 import { getRandomTemplate } from '../templates/templateManager';
+import { getSupabase, getImageUrl } from '../supabaseClient';
 
 export class CollageService {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.images = [];
-        this.isLoadingImages = false; // Flag to prevent concurrent loads
-        this.imagesAttemptedToLoad = 0; // Track attempted loads
-        this.imagesSuccessfullyLoaded = 0; // Track successful loads
+        this.isLoadingImages = false;
+        this.imagesAttemptedToLoad = 0;
+        this.imagesSuccessfullyLoaded = 0;
         this.currentEffect = null;
         this.currentEffectName = null;
         this.crystalVariant = 'standard';
@@ -31,11 +30,9 @@ export class CollageService {
         this.masks = maskImplementations;
         this.supabaseClient = null;
 
-        // Store options
         this.options = options;
         this.events = new EventEmitter();
         
-        // Initialize Supabase client
         if (options.supabaseClient) {
             this.supabaseClient = options.supabaseClient;
             console.log('[CollageService] Using provided Supabase client instance.');
@@ -46,47 +43,17 @@ export class CollageService {
                 this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
                 console.log('[CollageService] Created new Supabase client instance (fallback).');
             } else {
-                console.error('[CollageService] Supabase URL or Anon Key is missing. Images will not load from Supabase.');
+                console.error('[CollageService] Supabase URL or Anon Key is missing.');
             }
         }
         
-        // Initialize Paper.js
-        this.initializePaper();
-        
-        // Initialize the legacy collage generator
         this.generator = new CollageGenerator(this.canvas, { verbose: false });
-        this.legacyAdapter = new LegacyCollageAdapter(this.generator);
         
-        // Only initialize crystal generators if enabled
-        if (options.initCrystals !== false) {
-            this.crystalEffect = new CrystalEffect(this.ctx, [], { variant: this.crystalVariant });
-            this.crystalGenerator = new IsolatedCrystalGenerator(this.ctx, this.canvas);
-        } else {
-            this.crystalEffect = null;
-            this.crystalGenerator = null;
-        }
-        
-        // Initialize the architectural effect
-        this.architecturalEffect = new ArchitecturalEffect(this.ctx, []);
-        
-        // Initialize the prompt planner
-        this.promptPlanner = new PromptPlanner(Object.keys(this.masks));
-        
-        // Initialize the template renderer
         this.templateRenderer = new TemplateRenderer(this);
         
-        // Set default parameters
         this.parameters = {
             cleanTiling: false,
-            // Add other parameters as needed
         };
-
-        // Set initial effect
-        if (options.initCrystals !== false) {
-            this.setEffect('crystal');
-        } else {
-            this.setEffect('architectural');
-        }
     }
 
     initializePaper() {
@@ -95,12 +62,10 @@ export class CollageService {
             this.paperProject = paper.project;
             this.paperView = paper.view;
             
-            // Configure Paper.js view
             this.paperView.onFrame = () => {
                 // Animation frame callback if needed
             };
             
-            // Handle window resize
             window.addEventListener('resize', () => {
                 this.paperView.viewSize = new paper.Size(
                     this.canvas.width / this.devicePixelRatio,
@@ -113,10 +78,8 @@ export class CollageService {
     createPaperProject(canvas) {
         if (!canvas) return null;
         
-        // Create a new project
         const project = new paper.Project();
         
-        // Create a new view
         const view = new paper.View(canvas);
         view.viewSize = new paper.Size(
             canvas.width / this.devicePixelRatio,
@@ -133,16 +96,12 @@ export class CollageService {
     }
 
     resizeCanvas() {
-        // Get the canvas container dimensions
         const container = this.canvas.parentElement;
+        if (!container) return;
         const containerWidth = container.clientWidth;
-        // Use window.innerHeight if container height is 0
         const containerHeight = container.clientHeight || window.innerHeight;
-        
-        // Get device pixel ratio
         const devicePixelRatio = window.devicePixelRatio || 1;
         
-        // Log initial dimensions
         console.log('[CollageService] Initial canvas dimensions:', {
             containerWidth,
             containerHeight,
@@ -154,28 +113,18 @@ export class CollageService {
             transform: this.ctx.getTransform()
         });
         
-        // Set display size (CSS pixels) to match container
         this.canvas.style.width = `${containerWidth}px`;
         this.canvas.style.height = `${containerHeight}px`;
-        
-        // Set actual canvas buffer size (scaled by DPR)
         this.canvas.width = Math.floor(containerWidth * devicePixelRatio);
         this.canvas.height = Math.floor(containerHeight * devicePixelRatio);
         
-        // Reset transform to identity – templates will draw in CSS pixel space,
-        // but the backing store has higher resolution to remain crisp on HiDPI.
-        // This avoids double-scaling that previously caused drawings to appear
-        // twice as large as the visible canvas.
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         
-        // Enable high-quality image rendering
         this.ctx.imageSmoothingEnabled = true;
         this.ctx.imageSmoothingQuality = 'high';
         
-        // Store the device pixel ratio for use in drawing operations
         this.devicePixelRatio = devicePixelRatio;
         
-        // Log final dimensions and transform
         console.log('[CollageService] Final canvas dimensions:', {
             width: this.canvas.width,
             height: this.canvas.height,
@@ -188,18 +137,21 @@ export class CollageService {
     }
 
     async loadImages() {
-        if (!this.supabaseClient || this.isLoadingImages) {
-            if (this.isLoadingImages) {
-                console.warn('[CollageService] Attempted to load images while a load was already in progress.');
-                this.events.emit('imagesLoadingAlreadyInProgress');
-            }
+        if (!this.supabaseClient) {
+            console.error('[CollageService] Supabase client not initialized. Cannot load images.');
+            this.events.emit('imagesLoadError', { type: 'client_missing' });
             return;
         }
+        if (this.isLoadingImages) {
+            console.warn('[CollageService] Image load already in progress.');
+            this.events.emit('imagesLoadingAlreadyInProgress');
+            return;
+        }
+
         this.isLoadingImages = true;
-        this.images = []; 
-        this.imagesAttemptedToLoad = 0;
+        this.images = [];
         this.imagesSuccessfullyLoaded = 0;
-        let imagesErrored = 0; // Counter for errored images
+        let imagesErrored = 0;
         this.events.emit('imagesLoadingStart');
 
         try {
@@ -214,62 +166,55 @@ export class CollageService {
                 this.isLoadingImages = false;
                 return;
             }
+
             if (!rows || rows.length === 0) {
                 console.warn('[CollageService] No images found in Supabase.');
                 this.isLoadingImages = false;
-                this.events.emit('imagesLoaded', this.images); 
+                this.events.emit('imagesLoaded', this.images);
                 return;
             }
 
-            this.events.emit('imagesMetadataLoaded', rows.length);
-            const totalToAttempt = rows.length;
+            const totalToAttempt = rows.filter(r => r.src).length;
             this.imagesAttemptedToLoad = totalToAttempt;
-            let imagesProcessed = 0; 
+            let imagesProcessed = 0;
 
             if (totalToAttempt === 0) {
                 this.isLoadingImages = false;
                 this.events.emit('imagesLoaded', this.images);
-                console.log('[CollageService] Image loading complete (no images to load).');
+                console.log('[CollageService] Image loading complete (no valid image sources to load).');
                 return;
             }
 
             rows.forEach(r => {
-                if (!r.src) {
+                if (!r.src) return;
+
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = getImageUrl(r.src);
+                img.dataset.supabaseSrc = r.src;
+                img.dataset.imageId = r.id;
+                
+                const onDone = () => {
                     imagesProcessed++;
-                    imagesErrored++; // Count as an error or skipped item
                     if (imagesProcessed === totalToAttempt) {
                         this.isLoadingImages = false;
                         this.events.emit('imagesLoaded', this.images);
-                        console.log(`[CollageService] Image loading complete (some rows had no src). Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
+                        console.log(`[CollageService] Image loading complete. Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}. Errored: ${imagesErrored}.`);
                     }
-                    return;
-                }
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = r.src;
-                
+                };
+
                 img.onload = () => {
                     this.images.push(img);
                     this.imagesSuccessfullyLoaded++;
                     if (this.generator) this.generator.images = this.images;
                     this.events.emit('imageLoaded', { loaded: this.imagesSuccessfullyLoaded, total: totalToAttempt });
-                    imagesProcessed++;
-                    if (imagesProcessed === totalToAttempt) {
-                        this.isLoadingImages = false;
-                        this.events.emit('imagesLoaded', this.images);
-                        console.log(`[CollageService] Image loading complete. Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
-                    }
+                    onDone();
                 };
                 img.onerror = (e) => {
                     console.warn(`[CollageService] Failed to load ${r.src}`, e);
                     this.events.emit('imageLoadError', { src: r.src, error: e });
-                    imagesProcessed++;
                     imagesErrored++;
-                    if (imagesProcessed === totalToAttempt) {
-                        this.isLoadingImages = false;
-                        this.events.emit('imagesLoaded', this.images); 
-                        console.log(`[CollageService] Image loading complete (with errors). Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}`);
-                    }
+                    onDone();
                 };
             });
         } catch (e) {
@@ -279,35 +224,15 @@ export class CollageService {
         }
     }
 
-    setEffect(effect) {
-        // Store the effect name for reference
-        this.currentEffectName = effect;
-        this.generator.currentEffect = effect;
+    setEffect(effectName) {
+        this.currentEffectName = effectName;
+        this.generator.currentEffect = effectName;
         
-        // Create the appropriate effect instance based on the name
-        if (effect === 'crystal') {
-            this.currentEffect = this.crystalEffect;
-        } else if (effect === 'architectural') {
-            this.currentEffect = this.architecturalEffect;
-        } else {
-            // Default to crystal effect
-            this.currentEffect = this.crystalEffect;
-        }
-        
-        console.log('[CollageService] Setting effect to:', effect);
+        console.log('[CollageService] Setting effect to:', effectName);
     }
 
     setCrystalVariant(variant) {
         this.crystalVariant = variant;
-        // Ensure images are loaded before creating effect if crystalEffect might use them immediately
-        if (this.images.length > 0 && this.crystalEffect) {
-            this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant });
-        } else if (this.crystalEffect) {
-            // If images not loaded, crystalEffect might be initialized with an empty array for now
-            this.crystalEffect.images = []; 
-            this.crystalEffect.settings.variant = variant;
-            console.warn("[CollageService] CrystalEffect variant set, but images not yet loaded for it.");
-        }
     }
 
     async generateCollage(userPrompt = '') {
@@ -315,31 +240,24 @@ export class CollageService {
             console.warn('Cannot generate collage: canvas not available');
             return;
         }
-        if (this.images.length === 0 && !this.isLoadingImages) {
-            console.log('[CollageService] Images not loaded. Attempting to load images before generating collage...');
-            await this.loadImages(); // Ensure images are loaded
-            if (this.images.length === 0) { // Check again after load attempt
-                console.warn('Cannot generate collage: images still not available after load attempt.');
-                return;
+        if (!this.images || this.images.length === 0) {
+            if (!this.isLoadingImages) {
+                console.log('[CollageService] Images not available. Attempting to load...');
+                await this.loadImages();
+                if (!this.images || this.images.length === 0) {
+                    console.warn('Cannot generate collage: images still not available after load attempt.');
+                    return;
+                }
+            } else {
+                 console.warn('Cannot generate collage: images are currently loading. Try again shortly.');
+                 return;
             }
-        } else if (this.isLoadingImages) {
-            console.warn('Cannot generate collage: images are currently loading. Try again shortly.');
-            return;
         }
 
-        // Get a random template and its parameters
         const { type, template, params } = getRandomTemplate();
         console.log(`[CollageService] Using template: ${type} with params:`, params);
-
-        // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        // Generate the collage using the template
         template.generate(this.canvas, this.images, params);
-
-        // Get the background color from the canvas and update UI colors
-        const bgColor = this.getBackgroundColor();
-        this.updateUIColors(bgColor);
     }
 
     async applyCrystalEffect() {
@@ -356,10 +274,8 @@ export class CollageService {
         }
         try {
             if (this.crystalVariant === 'isolated') {
-                // Use the legacy isolated crystal generator
                 await this.crystalGenerator.generateCrystalField(this.images);
             } else {
-                // Use the new CrystalEffect class
                 this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant: 'standard' });
                 this.crystalEffect.draw();
             }
@@ -370,36 +286,26 @@ export class CollageService {
 
     shiftPerspective(userPrompt = '') {
         if (!this.ctx) return;
-        
-        // Clear the canvas
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Generate a new collage with the prompt
         this.generateCollage(userPrompt);
     }
 
     saveCollage() {
         if (!this.canvas) return;
         
-        // Create a download link
         const link = document.createElement('a');
         link.download = 'assemblage-collage.png';
         link.href = this.canvas.toDataURL('image/png');
         link.click();
     }
 
-    // Get the background color from the canvas
     getBackgroundColor() {
-        // Get a sample of the background color from the center of the canvas
         const centerX = Math.floor(this.canvas.width / 2);
         const centerY = Math.floor(this.canvas.height / 2);
         const pixelData = this.ctx.getImageData(centerX, centerY, 1, 1).data;
         return `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
     }
     
-    // Update UI colors based on the background color
     updateUIColors(bgColor) {
-        // Convert RGB to HSL for easier color manipulation
         const rgbToHsl = (r, g, b) => {
             r /= 255;
             g /= 255;
@@ -409,7 +315,7 @@ export class CollageService {
             let h, s, l = (max + min) / 2;
             
             if (max === min) {
-                h = s = 0; // achromatic
+                h = s = 0;
             } else {
                 const d = max - min;
                 s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
@@ -424,7 +330,6 @@ export class CollageService {
             return [h * 360, s * 100, l * 100];
         };
         
-        // Extract RGB values from the background color
         const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
         if (!rgbMatch) return;
         
@@ -432,26 +337,18 @@ export class CollageService {
         const g = parseInt(rgbMatch[2]);
         const b = parseInt(rgbMatch[3]);
         
-        // Convert to HSL
         const [h, s, l] = rgbToHsl(r, g, b);
         
-        // Create complementary color (opposite on the color wheel)
         const complementaryH = (h + 180) % 360;
         
-        // Create a complementary color with good contrast
         const complementaryColor = `hsl(${complementaryH}, ${Math.min(s + 20, 100)}%, ${Math.max(l - 20, 20)}%)`;
         
-        // Update CSS variables
         document.documentElement.style.setProperty('--background-color', bgColor);
         document.documentElement.style.setProperty('--text-color', complementaryColor);
         document.documentElement.style.setProperty('--button-border-color', complementaryColor);
         document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
     }
 
-    /**
-     * Generate a collage from a mask plan JSON (from LLM)
-     * @param {object} plan - The mask plan JSON
-     */
     async generateCollageFromPlan(plan) {
         console.log('[CollageService] generateCollageFromPlan called with:', plan);
         if (!plan || !Array.isArray(plan.masks)) {
@@ -462,7 +359,6 @@ export class CollageService {
             console.warn('No images loaded for collage');
             return;
         }
-        // Fill the canvas with a random background color
         const colors = [
             '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
             '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#2ECC71'
@@ -490,7 +386,6 @@ export class CollageService {
             const svg = maskFn(params || {});
             console.log(`[CollageService] Generated SVG for ${family}/${type}:`, svg);
 
-            // Use the robust SVG to Path2D converter
             const maskPath = svgToPath2D(svg);
             console.log('[CollageService] maskPath:', maskPath);
             if (!maskPath) {
@@ -498,29 +393,23 @@ export class CollageService {
                 continue;
             }
 
-            // Pick a random image from the loaded images
             const img = this.images[Math.floor(Math.random() * this.images.length)];
             console.log('[CollageService] image for mask:', img);
             if (!img || !img.complete) continue;
 
-            // Save context, apply mask, and draw image with multiply blending
             this.ctx.save();
-            // Scale the mask from SVG viewBox (100x100) to canvas size
             this.ctx.setTransform(
                 this.canvas.width / 100, 0, 0,
                 this.canvas.height / 100, 0, 0
             );
             this.ctx.clip(maskPath);
-            // Reset transform so image draws normally
             this.ctx.setTransform(1, 0, 0, 1, 0, 0);
             this.ctx.globalCompositeOperation = 'multiply';
 
-            // Fit the image to the canvas (can be improved for aspect ratio)
             this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
 
             this.ctx.restore();
         }
-        // Reset composite mode
         this.ctx.globalCompositeOperation = 'source-over';
     }
 
@@ -543,7 +432,6 @@ export class CollageService {
 
         console.log('[CollageService] Drawing template:', template);
 
-        // Clear the canvas and apply background color
         if (template.defaultBG) {
             this.ctx.fillStyle = template.defaultBG;
         } else {
@@ -551,7 +439,6 @@ export class CollageService {
         }
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Edge-to-edge placement for pairedForms
         if (template.key === 'pairedForms') {
             const formCount = template.placements.length;
             const cellW = this.canvas.width / formCount;
@@ -567,11 +454,9 @@ export class CollageService {
                 const maskPath = svgToPath2D(svg);
                 if (!maskPath) continue;
                 this.ctx.save();
-                // Snap to row, no rotation
                 this.ctx.translate(i * cellW, 0);
                 this.ctx.scale(cellW / 100, cellH / 100);
                 this.ctx.clip(maskPath);
-                // Aspect-ratio logic
                 const imgAspect = img.width / img.height;
                 const maskAspect = cellW / cellH;
                 let drawWidth = cellW;
@@ -593,7 +478,6 @@ export class CollageService {
             return;
         }
 
-        // Process each placement
         for (let i = 0; i < template.placements.length; i++) {
             const placement = template.placements[i];
             const img = this.images[i % this.images.length];
@@ -603,7 +487,6 @@ export class CollageService {
                 continue;
             }
 
-            // Split maskName into family and name
             const [family, maskName] = placement.maskName.split('/');
             console.log(`[CollageService] Processing mask: ${family}/${maskName}`, placement);
             
@@ -613,7 +496,6 @@ export class CollageService {
                 continue;
             }
 
-            // Convert relative coordinates to actual canvas coordinates
             const actualWidth = placement.width * this.canvas.width;
             const actualHeight = placement.height * this.canvas.height;
             const actualX = placement.x * this.canvas.width;
@@ -626,7 +508,6 @@ export class CollageService {
                 y: actualY
             });
 
-            // Generate SVG string and create mask
             const maskDescriptor = getMaskDescriptor(template.mask);
             if (!maskDescriptor || maskDescriptor.kind !== 'svg') {
                 console.error(`Invalid or missing mask: ${template.mask}`);
@@ -636,57 +517,45 @@ export class CollageService {
             console.log('[CollageService] Generated SVG string:', svgString);
 
             try {
-                // Create Path2D from SVG
                 const maskPath = svgToPath2D(svgString);
                 if (!maskPath) {
                     console.warn('Failed to create Path2D from SVG');
                     continue;
                 }
 
-                // Save context state
                 this.ctx.save();
 
-                // Move to placement position and apply rotation if specified
                 this.ctx.translate(actualX, actualY);
                 if (placement.rotation) {
                     this.ctx.rotate((placement.rotation * Math.PI) / 180);
                 }
                 
-                // Scale the mask to actual dimensions
                 this.ctx.scale(actualWidth / 100, actualHeight / 100);
 
-                // Apply the clipping path
                 this.ctx.clip(maskPath);
 
-                // Calculate image drawing dimensions to maintain aspect ratio
                 const imgAspect = img.width / img.height;
                 const maskAspect = actualWidth / actualHeight;
                 let drawWidth = actualWidth;
                 let drawHeight = actualHeight;
-                let drawX = 0; // Draw at origin since we're already translated
+                let drawX = 0;
                 let drawY = 0;
 
                 if (imgAspect > maskAspect) {
-                    // Image is wider than mask
                     drawHeight = actualWidth / imgAspect;
                     drawY = (actualHeight - drawHeight) / 2;
                 } else {
-                    // Image is taller than mask
                     drawWidth = actualHeight * imgAspect;
                     drawX = (actualWidth - drawWidth) / 2;
                 }
 
-                // Draw the image with multiply blend mode
                 this.ctx.globalCompositeOperation = 'multiply';
                 this.ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
 
-                // Reset composite operation
                 this.ctx.globalCompositeOperation = 'source-over';
 
-                // Restore context state
                 this.ctx.restore();
 
-                // Add a subtle stroke around the mask
                 this.ctx.save();
                 this.ctx.translate(actualX, actualY);
                 if (placement.rotation) {
@@ -711,34 +580,23 @@ export class CollageService {
             await this.loadImages();
             if (this.images.length === 0) {
                 console.warn('Cannot render template: images still not available after load attempt.');
-                // Potentially return a placeholder or throw an error
                 return null; 
             }
         } else if (this.isLoadingImages) {
             console.warn('Cannot render template: images are currently loading. Try again shortly.');
             return null;
         }
-        // Delegate to the template renderer
         return this.templateRenderer.renderTemplate(key, params);
     }
     
-    /**
-     * Save feedback about a template
-     */
     saveTemplateFeedback(key, params, liked) {
         return this.templateRenderer.saveFeedback(key, params, liked);
     }
     
-    /**
-     * Get all available templates
-     */
     getAllTemplates() {
         return this.templateRenderer.getAllTemplates();
     }
     
-    /**
-     * Get a template by key
-     */
     getTemplate(key) {
         return this.templateRenderer.getTemplate(key);
     }
