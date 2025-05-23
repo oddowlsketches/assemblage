@@ -56,7 +56,10 @@ function renderArchitectural(canvas, images, params = {}) {
   const style = params.style || 'classic';
   const preset = PRESETS[style] || PRESETS.classic;
   const useUniqueImages = params.imageMode === 'unique';
-  const singleImage = useUniqueImages ? null : images[Math.floor(Math.random() * images.length)];
+  let singleImage = null;
+  if (!useUniqueImages && images.length > 0) {
+    singleImage = images[Math.floor(Math.random() * images.length)];
+  }
 
   preset.forEach((placement) => {
     const { maskName, x, y, width, height } = placement;
@@ -74,25 +77,41 @@ function renderArchitectural(canvas, images, params = {}) {
     const absHeight = height * canvas.height;
 
     ctx.save();
-    // Overall clip to the placement area bounds first
-    ctx.beginPath();
-    ctx.rect(absX, absY, absWidth, absHeight);
-    ctx.clip();
-    ctx.translate(absX, absY); // Translate to the placement origin
+    // Translate to the placement's top-left corner
+    ctx.translate(absX, absY);
+
+    const svgPathData = getPathDataFromSvg(maskDesc.getSvg());
+    let pathForClipping = null;
+    if (svgPathData) {
+      pathForClipping = new Path2D(svgPathData);
+    } else {
+      console.warn(`[Architectural] No path data for mask ${maskName}, using full rect.`);
+      // Create a rectangular path if SVG path extraction fails, to still clip to placement bounds
+      pathForClipping = new Path2D();
+      pathForClipping.rect(0, 0, absWidth, absHeight); 
+      // Note: if using rect for fallback, scaling below needs to be to absWidth/absHeight, not 100x100
+    }
+
+    // Scale the context so that the 100x100 viewBox of the SVG path maps to absWidth x absHeight
+    // This scaling applies to the pathForClipping itself when used.
+    // If it's the fallback rectangular path, we scale to 1x1 essentially, since it's already in absWidth/Height.
+    if (svgPathData) {
+      ctx.scale(absWidth / 100, absHeight / 100);
+    }
+    
+    ctx.clip(pathForClipping);
+
+    // Reset scale if we scaled for SVG, so image drawing is in placement's original coordinate space (0,0 to absWidth,absHeight)
+    if (svgPathData) {
+      ctx.scale(100 / absWidth, 100 / absHeight);
+    }
 
     const useSolidColor = Math.random() < 0.2; // 20% chance for solid color
 
     if (useSolidColor) {
       ctx.fillStyle = getComplimentaryColor(baseBgColor);
       if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
-      const svgPathData = getPathDataFromSvg(maskDesc.getSvg());
-      if (svgPathData) {
-        const path = new Path2D(svgPathData);
-        ctx.scale(absWidth / 100, absHeight / 100); // Scale SVG path (viewBox 0 0 100 100)
-        ctx.fill(path);
-      } else {
-        ctx.fillRect(0, 0, absWidth, absHeight); // Fallback to fill rect if path fails
-      }
+      ctx.fillRect(0, 0, absWidth, absHeight); // Fill the clipped, translated area
     } else {
       const imageToUse = useUniqueImages ? images[Math.floor(Math.random() * images.length)] : singleImage;
       if (!imageToUse || !imageToUse.complete) {
@@ -100,49 +119,23 @@ function renderArchitectural(canvas, images, params = {}) {
         ctx.restore(); return;
       }
 
-      const svgPathData = getPathDataFromSvg(maskDesc.getSvg());
-      if (!svgPathData) {
-        console.warn(`[Architectural] No path data for mask ${maskName}, drawing full image in rect.`);
-        // Draw image filling the pre-clipped rectangular placement area if no path
-        const imgAspect = imageToUse.width / imageToUse.height;
-        const placementAspect = absWidth / absHeight;
-        let drawW, drawH, drawX = 0, drawY = 0;
-        if (imgAspect > placementAspect) {
-          drawH = absHeight; drawW = absHeight * imgAspect; drawX = (absWidth - drawW) / 2;
-        } else {
-          drawW = absWidth; drawH = absWidth / imgAspect; drawY = (absHeight - drawH) / 2;
-        }
-        if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
-        ctx.drawImage(imageToUse, drawX, drawY, drawW, drawH);
-        ctx.restore();
-        return;
-      }
-
-      const path = new Path2D(svgPathData);
-      ctx.save(); // Save for clipping
-      ctx.scale(absWidth / 100, absHeight / 100); // Scale context to draw mask as 100x100 units
-      ctx.clip(path); // Clip to the scaled SVG path
-      ctx.scale(100 / absWidth, 100 / absHeight); // Scale back context for image drawing
-
-      // Draw image to fill the original absWidth/absHeight of the placement area
       const imgAspect = imageToUse.width / imageToUse.height;
       const placementAspect = absWidth / absHeight;
       let drawW, drawH, drawX = 0, drawY = 0;
 
-      if (imgAspect > placementAspect) {
+      if (imgAspect > placementAspect) { // Image wider than placement
         drawH = absHeight;
         drawW = absHeight * imgAspect;
         drawX = (absWidth - drawW) / 2; 
-      } else {
+      } else { // Image taller or same aspect
         drawW = absWidth;
         drawH = absWidth / imgAspect;
         drawY = (absHeight - drawH) / 2;
       }
       if (params.useMultiply !== false) ctx.globalCompositeOperation = 'multiply';
       ctx.drawImage(imageToUse, drawX, drawY, drawW, drawH);
-      ctx.restore(); // Restore from clipping save
     }
-    ctx.restore(); // Restore from initial save (after translate)
+    ctx.restore(); 
   });
   
   return canvas;
