@@ -72,7 +72,7 @@ export class CollageService {
         try {
             const { data: rows, error } = await this.supabaseClient
                 .from('images')
-                .select('id, src')
+                .select('id, src, image_type')
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -83,24 +83,23 @@ export class CollageService {
             this.imageMetadata = rows || [];
             console.log(`[CollageService] Loaded metadata for ${this.imageMetadata.length} images`);
             
-            // If no metadata loaded but we're in development, create dummy metadata
             if (this.imageMetadata.length === 0 && import.meta.env.MODE === 'development') {
                 console.log('[CollageService] No metadata found, creating dummy entries for development');
-                // Create 50 dummy metadata entries
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
-                    src: `dummy-${i}.jpg`
+                    src: `dummy-${i}.jpg`,
+                    image_type: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         } catch (e) {
             console.error('[CollageService] Error loading image metadata:', e);
             
-            // In development, create dummy metadata
             if (import.meta.env.MODE === 'development') {
                 console.log('[CollageService] Creating dummy metadata for development');
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
-                    src: `dummy-${i}.jpg`
+                    src: `dummy-${i}.jpg`,
+                    image_type: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         }
@@ -108,11 +107,10 @@ export class CollageService {
 
     // Lazy load specific images by IDs
     async loadImagesByIds(imageIds) {
-        // In development mode with placeholder, return a selection of placeholders
         if (import.meta.env.MODE === 'development') {
             if (!this.placeholderImages || this.placeholderImages.length === 0) {
                 console.warn('[CollageService] Placeholder images array is empty in loadImagesByIds. Attempting to load.');
-                await this.loadPlaceholder(); // Attempt to load them
+                await this.loadPlaceholder();
             }
             
             const validPlaceholders = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
@@ -122,16 +120,18 @@ export class CollageService {
                 return [];
             }
             
-            // Map requested IDs to available valid placeholders, cycling through placeholders if needed
             return imageIds.map((id, idx) => {
-                return validPlaceholders[idx % validPlaceholders.length];
+                const placeholder = validPlaceholders[idx % validPlaceholders.length];
+                if (placeholder) {
+                    placeholder.image_type = this.imageMetadata.find(m => m.id === `dummy-${idx % 50}`)?.image_type || 'conceptual';
+                }
+                return placeholder;
             });
         }
         
         const imagesToLoad = imageIds.filter(id => !this.imageCache.has(id));
         
         if (imagesToLoad.length === 0) {
-            // All requested images are already cached
             return Array.from(imageIds).map(id => this.imageCache.get(id)).filter(img => img);
         }
 
@@ -145,6 +145,7 @@ export class CollageService {
                 img.src = getImageUrl(metadata.src);
                 img.dataset.supabaseSrc = metadata.src;
                 img.dataset.imageId = id;
+                img.image_type = metadata.image_type || 'unknown';
                 
                 img.onload = () => {
                     this.addToCache(id, img);
