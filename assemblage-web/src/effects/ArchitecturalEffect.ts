@@ -16,7 +16,9 @@ const validArchMasks = [
   'basic/diamondMask',
   'basic/hexagonMask',
   'basic/circleMask',
-  'abstract/polygonSoft',
+  'basic/triangleMask',
+  'basic/semiCircleMask',
+  'basic/rectangleMask'
 ];
 
 // Architectural composition presets keyed by prompt
@@ -68,123 +70,305 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
 
   // Three equal arches in a row
   archSeries: (w, h) => {
-    // Add more variation to size and position
-    const sizeVariation = 0.15; // 15% variation
-    const positionVariation = 0.2; // 20% variation
-    
-    // Randomly determine if we want larger or smaller arches
-    const baseSizeFactor = 0.4 + (Math.random() * 2 - 1) * sizeVariation;
-    const size = h * baseSizeFactor;
-    
-    // Randomly position the baseline
-    const baseY = h * (0.3 + (Math.random() * 2 - 1) * positionVariation);
-    
-    // Create three arches with varying positions
-    return [0.25, 0.5, 0.75].map((fx, i) => {
-      // Add individual position variation to each arch
-      const xVariation = (Math.random() * 2 - 1) * positionVariation;
-      const x = w * (fx + xVariation);
+    const numShapes = 2 + Math.floor(Math.random() * 3); // 2-4 shapes now (was 3-5)
+    const placements: MaskPlacement[] = [];
+    const MIN_SHAPE_HEIGHT = h * 0.65; // Minimum 65% of canvas height (was 0.55)
+    const MAX_SHAPE_HEIGHT = h * 0.95; // Maximum 95% of canvas height
+
+    // Chance for a special layout: 2-3 large arches at the bottom
+    if (Math.random() < 0.35) { 
+      const numBottomArches = 2 + Math.floor(Math.random() * 2); // Ensure 2 or 3 arches
+      const archHeight = h * (0.9 + Math.random() * 0.08); // 90-98% of canvas height
+      let archWidth = archHeight * (0.55 + Math.random() * 0.3); // Aspect ratio 0.55 to 0.85 of height
+
+      if (numBottomArches === 2) {
+        archWidth = Math.min(w * 0.49, archWidth); // Ensure two arches fit, with small gap
+        const spacing = w * 0.02; 
+        const totalWidth = archWidth * 2 + spacing;
+        let startX = (w - totalWidth) / 2;
+        placements.push({
+          maskName: 'architectural/archClassical', 
+          x: startX,
+          y: h - archHeight - (h * 0.01), // Closer to bottom edge
+          width: archWidth,
+          height: archHeight,
+          rotation: 0,
+          layer: 1
+        });
+        placements.push({
+          maskName: 'architectural/archClassical',
+          x: startX + archWidth + spacing,
+          y: h - archHeight - (h * 0.01),
+          width: archWidth,
+          height: archHeight,
+          rotation: 0,
+          layer: 1
+        });
+      } else { // Three arches
+        archWidth = Math.min(w * 0.32, archWidth); // Ensure three arches fit
+        const spacing = w * 0.02;
+        const totalWidth = archWidth * 3 + spacing * 2;
+        let startX = (w - totalWidth) / 2;
+        for(let k=0; k < 3; k++) {
+            placements.push({
+                maskName: 'architectural/archClassical',
+                x: startX + (archWidth + spacing) * k,
+                y: h - archHeight - (h * 0.01),
+                width: archWidth,
+                height: archHeight,
+                rotation: 0,
+                layer: 1
+            });
+        }
+      }
+      return placements;
+    }
+
+    // Regular arch series logic: make them larger and fewer, only classical arches
+    let currentX = w * (0.01 + Math.random() * 0.01); // Start very very close to the left edge
+
+    for (let i = 0; i < numShapes; i++) {
+      const shapeHeight = Math.max(MIN_SHAPE_HEIGHT, Math.min(MAX_SHAPE_HEIGHT, h * (0.75 + Math.random() * 0.2))); // Generally larger (75-95% h)
+      let shapeWidth = shapeHeight * (0.5 + Math.random() * 0.35); // Aspect ratio 0.5 to 0.85 of height
+      shapeWidth = Math.min(shapeWidth, w * 0.7); // Cap width 
+
+      let xPos = currentX;
+      if (i === 0 && numShapes < 3) { // If only 1 or 2 shapes (now only 2 is possible here)
+          xPos = (w - (shapeWidth * numShapes + (w * 0.01 * (numShapes -1))) ) /2 + (Math.random() -0.5) * w * 0.02 ;
+          xPos = Math.max(w*0.01, xPos); 
+      }
+
+      if (xPos + shapeWidth > w * 0.99) { 
+        xPos = w * 0.99 - shapeWidth;
+      }
+      if (xPos < w * 0.01) xPos = w * 0.01;
       
-      // Add slight size variation to each arch
-      const individualSizeFactor = 1 + (Math.random() * 2 - 1) * 0.1;
-      const individualSize = size * individualSizeFactor;
+      const yPos = h * (0.02 + Math.random() * 0.08); // Y position range 2-10% from top (was 2-12%)
       
-      return {
-        maskName: validArchMasks[Math.floor(Math.random() * validArchMasks.length)],
-        x: x - individualSize/2,
-        y: baseY,
-        width: individualSize,
-        height: individualSize,
-        rotation: 0,
+      placements.push({
+        maskName: 'architectural/archClassical', 
+        x: xPos,
+        y: yPos,
+        width: shapeWidth,
+        height: shapeHeight,
+        rotation: (Math.random() - 0.5) * 4, // Rotation up to 2 degrees
         layer: i
-      };
-    });
+      });
+
+      if (i === 0 && numShapes < 3) { 
+          currentX = xPos + shapeWidth + (w*0.01 * (Math.random() * 0.5));
+      } else {
+          const overlapFactor = 0.15 + Math.random() * 0.4; // Overlap from 15% to 55%
+          currentX += shapeWidth * (1 - overlapFactor) ;
+      }
+      
+      if (currentX > w * 0.99 && i < numShapes -1 ) { 
+        break; 
+      }
+    }
+    return placements;
   },
 
   // Three concentric arches
   nestedArches: (w, h) => {
-    // Randomly choose between centered and offset variations
-    const variation = Math.random() > 0.5 ? 'centered' : 'offset';
+    console.log('[nestedArches preset] Called with dimensions:', w, h);
+    const variation = Math.random() > 0.3 ? 'offset' : 'centered'; // Increased chance of offset from 50% to 70%
+    console.log('[nestedArches preset] Using variation:', variation);
     
-    // Helper function to add subtle variance
-    const addVariance = (value: number, variancePercent: number = 0.15) => {
-      const variance = value * variancePercent;
-      return value + (Math.random() * 2 - 1) * variance;
-    };
-    
-    // Randomly determine if we want larger or smaller arches
-    const baseSizeFactor = 0.8 + (Math.random() * 2 - 1) * 0.2;
+    const placements: MaskPlacement[] = [];
+    const numShapes = 2 + Math.floor(Math.random() * 3); // 2-4 nested shapes (was 3-4)
+    const baseSizeFactor = 0.98; // Start with 98% of canvas min dimension (was 95%)
     const baseSize = Math.min(w, h) * baseSizeFactor;
     
-    // Use different arch types for variety
+    // Use a variety of mask shapes that work well
+    const shapeMasks = [
+      'architectural/archClassical',
+      'architectural/archFlat',
+      'altar/nicheArch',
+      'altar/gableAltar',
+      'basic/circleMask',
+      'basic/diamondMask',
+      'basic/hexagonMask',
+      'basic/triangleMask',
+      'basic/semiCircleMask'
+    ];
+    
+    // Shuffle the masks array to get random order
+    const shuffled = [...shapeMasks].sort(() => Math.random() - 0.5);
+    
     if (variation === 'centered') {
-      // Original centered version with more variance
       const centerX = w * 0.5;
       const centerY = h * 0.5;
       
-      // Add more position variance to center
-      const varianceX = addVariance(centerX, 0.1);
-      const varianceY = addVariance(centerY, 0.1);
-      
-      // Create three arches with varying scales
-      const scales = [1, 0.7, 0.4];
-      // Randomly adjust the scale ratios
-      const scaleVariation = 0.1;
-      const adjustedScales = scales.map(scale => 
-        scale + (Math.random() * 2 - 1) * scaleVariation
-      );
-      
-      return adjustedScales.map((scale, i) => {
-        // Add more size variance
-        const sizeVariance = addVariance(baseSize * scale, 0.1);
+      // Create nested shapes from largest to smallest
+      for (let i = 0; i < numShapes; i++) {
+        const sizeFactor = 1 - (i * 0.12); // Each inner shape is 12% smaller (was 15%)
+        const currentSize = baseSize * sizeFactor;
         
-        return {
-          maskName: validArchMasks[Math.floor(Math.random() * validArchMasks.length)],
-          x: varianceX - sizeVariance/2,
-          y: varianceY - sizeVariance/2,
-          width: sizeVariance,
-          height: sizeVariance,
-          rotation: 0,
-          layer: i
-        };
-      });
-    } else {
-      // New offset version with more variance
-      const bottomY = h * 0.7; // Position at 70% of height
-      
-      // Random x offset for each arch with more variance
-      const xOffsets = [
-        addVariance(w * 0.4, 0.15), // Left arch
-        addVariance(w * 0.5, 0.15), // Middle arch
-        addVariance(w * 0.6, 0.15)  // Right arch
-      ];
-      
-      // Add more variance to bottom position
-      const varianceBottomY = addVariance(bottomY, 0.1);
-      
-      // Create three arches with varying scales
-      const scales = [1, 0.7, 0.4];
-      // Randomly adjust the scale ratios
-      const scaleVariation = 0.1;
-      const adjustedScales = scales.map(scale => 
-        scale + (Math.random() * 2 - 1) * scaleVariation
-      );
-      
-      return adjustedScales.map((scale, i) => {
-        // Add more size variance
-        const sizeVariance = addVariance(baseSize * scale, 0.1);
+        // Use different aspect ratios for different shapes
+        const maskName = shuffled[i % shuffled.length];
+        let shapeWidth, shapeHeight;
         
-        return {
-          maskName: validArchMasks[Math.floor(Math.random() * validArchMasks.length)],
-          x: xOffsets[i] - sizeVariance/2,
-          y: varianceBottomY - sizeVariance, // Bottom align with variance
-          width: sizeVariance,
-          height: sizeVariance,
+        if (maskName.includes('arch') || maskName.includes('gable')) {
+          // Arches and gables are taller than wide
+          shapeHeight = currentSize;
+          shapeWidth = shapeHeight * 0.75;
+        } else if (maskName.includes('diamond')) {
+          // Diamonds are square-ish but slightly taller
+          shapeHeight = currentSize;
+          shapeWidth = currentSize * 0.85;
+        } else if (maskName.includes('hexagon')) {
+          // Hexagons are wider
+          shapeHeight = currentSize * 0.9;
+          shapeWidth = currentSize;
+        } else if (maskName.includes('semiCircle')) {
+          // Semi-circles depend on orientation
+          shapeHeight = currentSize;
+          shapeWidth = currentSize;
+        } else {
+          // Default square-ish shapes
+          shapeHeight = currentSize;
+          shapeWidth = currentSize;
+        }
+        
+        placements.push({
+          maskName: maskName,
+          x: centerX - shapeWidth / 2,
+          y: centerY - shapeHeight / 2,
+          width: shapeWidth,
+          height: shapeHeight,
           rotation: 0,
-          layer: i
-        };
-      });
+          layer: numShapes - i - 1 // Reverse layer order so largest is on bottom
+        });
+      }
+    } else { // 'offset' variation - create staggered overlapping compositions
+      // Don't center the group - instead create dynamic staggered layouts
+      
+      // Special staggered composition types
+      const compositionType = Math.random();
+      
+      if (compositionType < 0.3 && numShapes >= 3) {
+        // Diagonal cascade - shapes progressively offset diagonally
+        const stepX = w * 0.15; // Horizontal step between shapes
+        const stepY = h * 0.12; // Vertical step between shapes
+        const startX = w * 0.1; // Start from left side
+        const startY = h * 0.1; // Start from top
+        
+        for (let i = 0; i < numShapes; i++) {
+          const sizeFactor = 1 - (i * 0.15); // Progressive size reduction
+          const currentSize = baseSize * sizeFactor * 0.8; // Slightly smaller for cascade
+          
+          const maskName = shuffled[i % shuffled.length];
+          let shapeWidth, shapeHeight;
+          
+          // Dynamic sizing based on mask type
+          if (maskName.includes('arch') || maskName.includes('gable')) {
+            shapeHeight = currentSize * 1.1;
+            shapeWidth = shapeHeight * 0.7;
+          } else if (maskName.includes('diamond') || maskName.includes('hexagon')) {
+            shapeHeight = currentSize;
+            shapeWidth = currentSize * 0.9;
+          } else {
+            shapeHeight = currentSize;
+            shapeWidth = currentSize;
+          }
+          
+          placements.push({
+            maskName: maskName,
+            x: startX + (i * stepX),
+            y: startY + (i * stepY),
+            width: shapeWidth,
+            height: shapeHeight,
+            rotation: (Math.random() - 0.5) * 10, // Slight rotation variation
+            layer: numShapes - i - 1
+          });
+        }
+      } else if (compositionType < 0.6) {
+        // Horizontal overlap - shapes overlap horizontally with vertical offset
+        const totalWidth = w * 0.9;
+        const overlapFactor = 0.3 + Math.random() * 0.2; // 30-50% overlap
+        
+        for (let i = 0; i < numShapes; i++) {
+          const sizeFactor = 0.9 - (i * 0.1); // Less aggressive size reduction
+          const currentSize = baseSize * sizeFactor;
+          
+          const maskName = shuffled[i % shuffled.length];
+          let shapeWidth, shapeHeight;
+          
+          if (maskName.includes('arch') || maskName.includes('gable')) {
+            shapeHeight = currentSize;
+            shapeWidth = shapeHeight * 0.7;
+          } else if (maskName.includes('triangle')) {
+            shapeHeight = currentSize * 0.9;
+            shapeWidth = currentSize;
+          } else {
+            shapeHeight = currentSize * 0.95;
+            shapeWidth = currentSize * 0.95;
+          }
+          
+          // Calculate position with overlap
+          const xProgress = i / (numShapes - 1 || 1);
+          const baseX = (w - shapeWidth) * xProgress;
+          const verticalWave = Math.sin(xProgress * Math.PI) * h * 0.15; // Sine wave vertical offset
+          
+          placements.push({
+            maskName: maskName,
+            x: baseX,
+            y: (h - shapeHeight) / 2 + verticalWave,
+            width: shapeWidth,
+            height: shapeHeight,
+            rotation: (Math.random() - 0.5) * 8,
+            layer: i % 2 ? i : numShapes - i - 1 // Alternate layering for overlap effect
+          });
+        }
+      } else {
+        // Clustered overlap - shapes cluster with significant overlap
+        const clusterCenterX = w * (0.3 + Math.random() * 0.4); // Cluster can be anywhere 30-70% across
+        const clusterCenterY = h * (0.3 + Math.random() * 0.4);
+        const clusterSpread = Math.min(w, h) * 0.3; // How far shapes spread from center
+        
+        for (let i = 0; i < numShapes; i++) {
+          const sizeFactor = 0.85 - (i * 0.12);
+          const currentSize = baseSize * sizeFactor;
+          
+          const maskName = shuffled[i % shuffled.length];
+          let shapeWidth, shapeHeight;
+          
+          // Size variations by shape type
+          if (maskName.includes('circle')) {
+            shapeHeight = currentSize;
+            shapeWidth = currentSize;
+          } else if (maskName.includes('arch')) {
+            shapeHeight = currentSize * 1.1;
+            shapeWidth = shapeHeight * 0.65;
+          } else if (maskName.includes('diamond')) {
+            shapeHeight = currentSize;
+            shapeWidth = currentSize * 0.8;
+          } else {
+            shapeHeight = currentSize * 0.95;
+            shapeWidth = currentSize * 0.95;
+          }
+          
+          // Position shapes in a cluster with controlled randomness
+          const angle = (i / numShapes) * Math.PI * 2 + Math.random() * 0.5;
+          const distance = clusterSpread * (0.3 + i * 0.2); // Shapes get further from center
+          
+          placements.push({
+            maskName: maskName,
+            x: clusterCenterX + Math.cos(angle) * distance - shapeWidth / 2,
+            y: clusterCenterY + Math.sin(angle) * distance - shapeHeight / 2,
+            width: shapeWidth,
+            height: shapeHeight,
+            rotation: (Math.random() - 0.5) * 15,
+            layer: Math.floor(Math.random() * numShapes) // Random layering for organic feel
+          });
+        }
+      }
     }
+    
+    console.log('[nestedArches preset] Returning placements:', placements.length, 'items');
+    console.log('[nestedArches preset] First placement:', placements[0]);
+    return placements;
   },
 
   // Minimal coliseum with large central arch
@@ -443,14 +627,15 @@ type ShapeType = 'door' | 'window' | 'arch' | 'column' | 'cornice';
 // Define favored masks for architectural effect
 const favoredMasks = [
   'architectural/archClassical',
-  'architectural/columnPair',
-  'architectural/columnSingle',
-  'architectural/columnTriplet',
+  'architectural/archFlat',
   'architectural/houseGable',
-  'altar/nicheStack',
   'altar/nicheArch',
-  'architectural/windowRect',
+  'altar/gableAltar',
   'basic/triangleMask',
+  'basic/diamondMask',
+  'basic/hexagonMask',
+  'basic/circleMask',
+  'basic/semiCircleMask'
 ];
 
 // Helper to pick a random favored mask
@@ -770,7 +955,7 @@ export class ArchitecturalEffect extends EffectBase {
             let svgDesc = maskFn(); // Call the function that returns the descriptor
             let svg = '';
             if (svgDesc && svgDesc.kind === 'svg' && typeof svgDesc.getSvg === 'function') {
-              svg = svgDesc.getSvg({}); // Call getSvg on the descriptor
+              svg = svgDesc.getSvg(); // Call getSvg on the descriptor without arguments
             }
             const maskPathFromSvg = svgToPath2D(svg);
             path = maskPathFromSvg || new Path2D();

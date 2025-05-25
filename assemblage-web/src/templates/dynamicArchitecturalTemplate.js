@@ -8,6 +8,7 @@ import { randomVibrantColor } from '../utils/colors';
  * @param {Object} params - Configuration parameters from templateManager
  */
 function renderDynamicArchitectural(canvas, images, params = {}) {
+  console.log('[DATemplate] Received params:', JSON.parse(JSON.stringify(params))); // Log incoming params
   if (!canvas || !images || images.length === 0) {
     console.warn('[DynamicArchitecturalTemplate] Canvas or images not provided.');
     return;
@@ -22,11 +23,12 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
 
   // --- Randomization for "New" button behavior ---
   let currentStyle = params.style || dynamicArchitecturalTemplate.params.style.default;
+  
+  // If the style somehow comes in as 'random' (e.g. from old saved params, or if UI still sends it)
+  // we now pick only from the valid, refined styles.
   if (currentStyle === 'random') {
-    const availableStyles = dynamicArchitecturalTemplate.params.style.options.filter(s => s !== 'random');
-    // Add a chance to use the 'random' promptText which triggers generateArchitecturalPlan in the effect
-    const effectiveStyles = [...availableStyles, 'random']; // Allow fallback to the effect's own random generator
-    currentStyle = effectiveStyles[Math.floor(Math.random() * effectiveStyles.length)];
+    const availableStyles = dynamicArchitecturalTemplate.params.style.options; // These are now only ['archSeries', 'nestedArches']
+    currentStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
   }
 
   const randomizedUseColorBlockEcho = params.useColorBlockEcho !== undefined ? params.useColorBlockEcho : Math.random() < 0.7; // 70% chance for echo now
@@ -74,7 +76,7 @@ const dynamicArchitecturalTemplate = {
   name: 'Dynamic Architectural',
   generate: renderDynamicArchitectural,
   params: {
-    style: { type: 'select', options: ['random', 'singleArch', 'archSeries', 'nestedArches', 'coliseum', 'classic', 'modern', 'gothic'], default: 'random' },
+    style: { type: 'select', options: ['archSeries', 'nestedArches'], default: Math.random() > 0.5 ? 'nestedArches' : 'archSeries' },
     imageMode: { type: 'select', options: ['unique', 'single'], default: 'unique' },
     useMultiply: { type: 'boolean', default: true },
     useComplementaryShapes: { type: 'boolean', default: false }, // Existing complementary shapes, different from echo

@@ -524,7 +524,21 @@ export class CollageService {
                 return;
             }
             
-            const renderOutput = await this.templateRenderer.renderTemplate(templateKey, { userPrompt, images: this.images });
+            // Generate random parameters for the template if using the "New" button functionality
+            let templateParams = { userPrompt, images: this.images };
+            
+            // Import parameter generators from templateManager
+            if (templateKey === 'dynamicArchitectural') {
+                // Use the random parameter generator from templateManager
+                const { generators } = await import('../templates/templateManager');
+                if (generators && generators.dynamicArchitectural) {
+                    const randomParams = generators.dynamicArchitectural();
+                    templateParams = { ...templateParams, ...randomParams };
+                    console.log(`[CollageService] Using random parameters for ${templateKey}:`, randomParams);
+                }
+            }
+            
+            const renderOutput = await this.templateRenderer.renderTemplate(templateKey, templateParams);
             
             if (renderOutput && renderOutput.bgColor) {
                 console.log(`[CollageService] Finished rendering template: ${templateKey}. BG: ${renderOutput.bgColor}`);

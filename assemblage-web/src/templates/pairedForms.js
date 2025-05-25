@@ -13,48 +13,51 @@ import { getComplementaryColor } from '../utils/colorUtils.js';
 function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity) {
   if (!composition || composition.length < 2) return;
   
-  for (let i = 0; i < composition.length; i++) {
-    for (let j = i + 1; j < composition.length; j++) {
-      const shape1 = composition[i];
-      const shape2 = composition[j];
+  const MAX_PASSES = 3; // Number of passes for refinement
 
-      if (!shape1._drawParams) shape1._drawParams = {};
-      if (!shape2._drawParams) shape2._drawParams = {};
+  for (let pass = 0; pass < MAX_PASSES; pass++) {
+    for (let i = 0; i < composition.length; i++) {
+      for (let j = i + 1; j < composition.length; j++) {
+        const shape1 = composition[i];
+        const shape2 = composition[j];
 
-      const s1Bounds = { x: shape1.x, y: shape1.y, width: shape1.width, height: shape1.height, right: shape1.x + shape1.width, bottom: shape1.y + shape1.height, cx: shape1.x + shape1.width/2, cy: shape1.y + shape1.height/2 };
-      const s2Bounds = { x: shape2.x, y: shape2.y, width: shape2.width, height: shape2.height, right: shape2.x + shape2.width, bottom: shape2.y + shape2.height, cx: shape2.x + shape2.width/2, cy: shape2.y + shape2.height }; 
+        if (!shape1._drawParams) shape1._drawParams = {};
+        if (!shape2._drawParams) shape2._drawParams = {};
 
-      const adjacencyTolerance = Math.min(s1Bounds.width, s1Bounds.height, s2Bounds.width, s2Bounds.height) * 0.20; // Increased tolerance
-      const overlapForTouch = 2; // How much to overlap to ensure contact
+        const s1Bounds = { x: shape1.x, y: shape1.y, width: shape1.width, height: shape1.height, right: shape1.x + shape1.width, bottom: shape1.y + shape1.height, cx: shape1.x + shape1.width/2, cy: shape1.y + shape1.height/2 };
+        const s2Bounds = { x: shape2.x, y: shape2.y, width: shape2.width, height: shape2.height, right: shape2.x + shape2.width, bottom: shape2.y + shape2.height, cx: shape2.x + shape2.width/2, cy: shape2.y + shape2.height }; 
 
-      // Check for potential horizontal adjacency (centers are somewhat aligned vertically, and x-positions are close)
-      const yCenterDiff = Math.abs(s1Bounds.cy - s2Bounds.cy);
-      const xDiff = Math.min(Math.abs(s1Bounds.right - s2Bounds.x), Math.abs(s2Bounds.right - s1Bounds.x));
-      const horizontallyAdjacent = xDiff < adjacencyTolerance && yCenterDiff < (s1Bounds.height + s2Bounds.height) * 0.3;
+        const adjacencyTolerance = Math.min(s1Bounds.width, s1Bounds.height, s2Bounds.width, s2Bounds.height) * 0.3; // Was 0.25
+        const overlapForTouch = 5; // Was 3
 
-      // Check for potential vertical adjacency (centers are somewhat aligned horizontally, and y-positions are close)
-      const xCenterDiff = Math.abs(s1Bounds.cx - s2Bounds.cx);
-      const yDiff = Math.min(Math.abs(s1Bounds.bottom - s2Bounds.y), Math.abs(s2Bounds.bottom - s1Bounds.y));
-      const verticallyAdjacent = yDiff < adjacencyTolerance && xCenterDiff < (s1Bounds.width + s2Bounds.width) * 0.3;
+        // Check for potential horizontal adjacency (centers are somewhat aligned vertically, and x-positions are close)
+        const yCenterDiff = Math.abs(s1Bounds.cy - s2Bounds.cy);
+        const xDiff = Math.min(Math.abs(s1Bounds.right - s2Bounds.x), Math.abs(s2Bounds.right - s1Bounds.x));
+        const horizontallyAdjacent = xDiff < adjacencyTolerance && yCenterDiff < (s1Bounds.height + s2Bounds.height) * 0.3;
 
-      if (!horizontallyAdjacent && !verticallyAdjacent) continue;
+        // Check for potential vertical adjacency (centers are somewhat aligned horizontally, and y-positions are close)
+        const xCenterDiff = Math.abs(s1Bounds.cx - s2Bounds.cx);
+        const yDiff = Math.min(Math.abs(s1Bounds.bottom - s2Bounds.y), Math.abs(s2Bounds.bottom - s1Bounds.y));
+        const verticallyAdjacent = yDiff < adjacencyTolerance && xCenterDiff < (s1Bounds.width + s2Bounds.width) * 0.3;
 
-      // --- SemiCircle + SemiCircle --- 
-      if (shape1.type === 'semiCircle' && shape2.type === 'semiCircle') {
-        if (horizontallyAdjacent) {
-          shape1.y = s2Bounds.cy - shape1.height / 2; // Align vertical centers
-          shape2.y = s1Bounds.cy - shape2.height / 2;
-          if (s1Bounds.cx < s2Bounds.cx) { // s1 left of s2
-            shape1._drawParams.orientation = 'right'; shape2._drawParams.orientation = 'left';
-            shape2.x = shape1.x + shape1.width - overlapForTouch;
-          } else { // s2 left of s1
-            shape2._drawParams.orientation = 'right'; shape1._drawParams.orientation = 'left';
-            shape1.x = shape2.x + shape2.width - overlapForTouch;
-          }
-        } else if (verticallyAdjacent) {
-          shape1.x = s2Bounds.cx - shape1.width / 2; // Align horizontal centers
-          shape2.x = s1Bounds.cx - shape2.width / 2;
-          if (Math.random() < 0.6) { // 60% for horizontal seam
+        if (!horizontallyAdjacent && !verticallyAdjacent) continue;
+
+        // --- SemiCircle + SemiCircle --- 
+        if (shape1.type === 'semiCircle' && shape2.type === 'semiCircle') {
+          if (horizontallyAdjacent) {
+            shape1.y = s2Bounds.cy - shape1.height / 2; // Align vertical centers
+            shape2.y = s1Bounds.cy - shape2.height / 2;
+            if (s1Bounds.cx < s2Bounds.cx) { // s1 left of s2
+              shape1._drawParams.orientation = 'right'; shape2._drawParams.orientation = 'left';
+              shape2.x = shape1.x + shape1.width - overlapForTouch;
+            } else { // s2 left of s1
+              shape2._drawParams.orientation = 'right'; shape1._drawParams.orientation = 'left';
+              shape1.x = shape2.x + shape2.width - overlapForTouch;
+            }
+          } else if (verticallyAdjacent) {
+            shape1.x = s2Bounds.cx - shape1.width / 2; // Align horizontal centers
+            shape2.x = s1Bounds.cx - shape2.width / 2;
+            // Always use top/bottom orientation for vertical adjacency
             if (s1Bounds.cy < s2Bounds.cy) { // s1 above s2
               shape1._drawParams.orientation = 'bottom'; shape2._drawParams.orientation = 'top';
               shape2.y = shape1.y + shape1.height - overlapForTouch;
@@ -62,128 +65,92 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
               shape2._drawParams.orientation = 'bottom'; shape1._drawParams.orientation = 'top';
               shape1.y = shape2.y + shape2.height - overlapForTouch;
             }
-          } else { // S-curve style
-            if (s1Bounds.cy < s2Bounds.cy) {
-              shape1._drawParams.orientation = 'left'; shape2._drawParams.orientation = 'right';
-            } else {
-              shape1._drawParams.orientation = 'right'; shape2._drawParams.orientation = 'left';
+          }
+        } 
+        // --- Triangle + Triangle ---
+        else if (shape1.type === 'triangle' && shape2.type === 'triangle') {
+          if (horizontallyAdjacent) {
+            shape1.y = s2Bounds.cy - shape1.height / 2; // Align vertical centers
+            shape2.y = s1Bounds.cy - shape2.height / 2; // Align vertical centers
+            if (s1Bounds.cx < s2Bounds.cx) { // s1 left of s2
+              shape1._drawParams.orientation = 'right-flat'; 
+              shape2._drawParams.orientation = 'left-flat';
+              shape2.x = shape1.x + shape1.width - overlapForTouch;
+            } else { // s2 left of s1
+              shape2._drawParams.orientation = 'right-flat'; 
+              shape1._drawParams.orientation = 'left-flat';
+              shape1.x = shape2.x + shape2.width - overlapForTouch;
             }
-             // Nudge y for S-curve if they were significantly offset vertically by initial placement
-            if (yDiff > adjacencyTolerance * 0.5) {
-                 if (s1Bounds.cy < s2Bounds.cy) shape2.y = shape1.y + shape1.height * 0.3 - overlapForTouch;
-                 else shape1.y = shape2.y + shape2.height * 0.3 - overlapForTouch;
+          } else if (verticallyAdjacent) {
+            shape1.x = s2Bounds.cx - shape1.width / 2; // Align horizontal centers
+            shape2.x = s1Bounds.cx - shape2.width / 2; // Align horizontal centers
+            if (s1Bounds.cy < s2Bounds.cy) { // s1 above s2
+              shape1._drawParams.orientation = 'bottom-flat'; 
+              shape2._drawParams.orientation = 'top-flat';
+              shape2.y = shape1.y + shape1.height - overlapForTouch;
+            } else { // s2 above s1
+              shape2._drawParams.orientation = 'bottom-flat'; 
+              shape1._drawParams.orientation = 'top-flat';
+              shape1.y = shape2.y + shape2.height - overlapForTouch;
             }
           }
         }
-      } 
-      // --- SemiCircle + Triangle --- 
-      else if ((shape1.type === 'semiCircle' && shape2.type === 'triangle') || (shape1.type === 'triangle' && shape2.type === 'semiCircle')) {
-        const semi = shape1.type === 'semiCircle' ? shape1 : shape2;
-        const tri = shape1.type === 'triangle' ? shape1 : shape2;
-        const semiBounds = shape1.type === 'semiCircle' ? s1Bounds : s2Bounds;
-        const triBounds = shape1.type === 'triangle' ? s1Bounds : s2Bounds;
+        // --- Rectangle + SemiCircle ---
+        else if ((shape1.type === 'rectangular' && shape2.type === 'semiCircle') || (shape1.type === 'semiCircle' && shape2.type === 'rectangular')) {
+          const rect = shape1.type === 'rectangular' ? shape1 : shape2;
+          const semi = shape1.type === 'semiCircle' ? shape1 : shape2;
+          const rectBounds = shape1.type === 'rectangular' ? s1Bounds : s2Bounds;
+          const semiBounds = shape1.type === 'semiCircle' ? s1Bounds : s2Bounds;
 
-        if (horizontallyAdjacent) {
-          semi.y = triBounds.cy - semi.height / 2;
-          tri.y = semiBounds.cy - tri.height / 2;
-          if (semiBounds.cx < triBounds.cx) { // Semi left, Tri right
-            semi._drawParams.orientation = 'right'; tri._drawParams.orientation = 'left-flat';
-            tri.x = semi.x + semi.width - overlapForTouch;
-          } else { // Tri left, Semi right
-            tri._drawParams.orientation = 'right-flat'; semi._drawParams.orientation = 'left';
-            semi.x = tri.x + tri.width - overlapForTouch;
-          }
-        } else if (verticallyAdjacent) {
-          semi.x = triBounds.cx - semi.width / 2;
-          tri.x = semiBounds.cx - tri.width / 2;
-          if (semiBounds.cy < triBounds.cy) { // Semi top, Tri bottom
-            semi._drawParams.orientation = 'bottom'; tri._drawParams.orientation = 'top-flat';
-            tri.y = semi.y + semi.height - overlapForTouch;
-          } else { // Tri top, Semi bottom
-            tri._drawParams.orientation = 'bottom-flat'; semi._drawParams.orientation = 'top';
-            semi.y = tri.y + tri.height - overlapForTouch;
+          if (horizontallyAdjacent) {
+            rect.y = semiBounds.cy - rect.height / 2;
+            semi.y = rectBounds.cy - semi.height / 2;
+            if (rectBounds.cx < semiBounds.cx) { // Rect left, Semi right
+              semi._drawParams.orientation = 'left'; // Flat side of semi towards rect
+              semi.x = rect.x + rect.width - overlapForTouch;
+            } else { // Semi left, Rect right
+              semi._drawParams.orientation = 'right';
+              rect.x = semi.x + semi.width - overlapForTouch;
+            }
+          } else if (verticallyAdjacent) {
+            rect.x = semiBounds.cx - rect.width / 2;
+            semi.x = rectBounds.cx - semi.width / 2;
+            if (rectBounds.cy < semiBounds.cy) { // Rect top, Semi bottom
+              semi._drawParams.orientation = 'top';
+              semi.y = rect.y + rect.height - overlapForTouch;
+            } else { // Semi top, Rect bottom
+              semi._drawParams.orientation = 'bottom';
+              rect.y = semi.y + semi.height - overlapForTouch;
+            }
           }
         }
-      }
-      // --- Triangle + Triangle ---
-      else if (shape1.type === 'triangle' && shape2.type === 'triangle') {
-        if (horizontallyAdjacent) {
-          shape1.y = s2Bounds.cy - shape1.height / 2;
-          shape2.y = s1Bounds.cy - shape2.height / 2;
-          if (s1Bounds.cx < s2Bounds.cx) {
-            shape1._drawParams.orientation = 'right-flat'; shape2._drawParams.orientation = 'left-flat';
-            shape2.x = shape1.x + shape1.width - overlapForTouch;
-          } else {
-            shape2._drawParams.orientation = 'right-flat'; shape1._drawParams.orientation = 'left-flat';
-            shape1.x = shape2.x + shape2.width - overlapForTouch;
-          }
-        } else if (verticallyAdjacent) {
-          shape1.x = s2Bounds.cx - shape1.width / 2;
-          shape2.x = s1Bounds.cx - shape2.width / 2;
-          if (s1Bounds.cy < s2Bounds.cy) {
-            shape1._drawParams.orientation = 'bottom-flat'; shape2._drawParams.orientation = 'top-flat';
-            shape2.y = shape1.y + shape1.height - overlapForTouch;
-          } else {
-            shape2._drawParams.orientation = 'bottom-flat'; shape1._drawParams.orientation = 'top-flat';
-            shape1.y = shape2.y + shape2.height - overlapForTouch;
-          }
-        }
-      }
-      // --- Rectangle + SemiCircle ---
-      else if ((shape1.type === 'rectangular' && shape2.type === 'semiCircle') || (shape1.type === 'semiCircle' && shape2.type === 'rectangular')) {
-        const rect = shape1.type === 'rectangular' ? shape1 : shape2;
-        const semi = shape1.type === 'semiCircle' ? shape1 : shape2;
-        const rectBounds = shape1.type === 'rectangular' ? s1Bounds : s2Bounds;
-        const semiBounds = shape1.type === 'semiCircle' ? s1Bounds : s2Bounds;
+        // --- Rectangle + Triangle ---
+         else if ((shape1.type === 'rectangular' && shape2.type === 'triangle') || (shape1.type === 'triangle' && shape2.type === 'rectangular')) {
+          const rect = shape1.type === 'rectangular' ? shape1 : shape2;
+          const tri = shape1.type === 'triangle' ? shape1 : shape2;
+          const rectBounds = shape1.type === 'rectangular' ? s1Bounds : s2Bounds;
+          const triBounds = shape1.type === 'triangle' ? s1Bounds : s2Bounds;
 
-        if (horizontallyAdjacent) {
-          rect.y = semiBounds.cy - rect.height / 2;
-          semi.y = rectBounds.cy - semi.height / 2;
-          if (rectBounds.cx < semiBounds.cx) { // Rect left, Semi right
-            semi._drawParams.orientation = 'left'; // Flat side of semi towards rect
-            semi.x = rect.x + rect.width - overlapForTouch;
-          } else { // Semi left, Rect right
-            semi._drawParams.orientation = 'right';
-            rect.x = semi.x + semi.width - overlapForTouch;
-          }
-        } else if (verticallyAdjacent) {
-          rect.x = semiBounds.cx - rect.width / 2;
-          semi.x = rectBounds.cx - semi.width / 2;
-          if (rectBounds.cy < semiBounds.cy) { // Rect top, Semi bottom
-            semi._drawParams.orientation = 'top';
-            semi.y = rect.y + rect.height - overlapForTouch;
-          } else { // Semi top, Rect bottom
-            semi._drawParams.orientation = 'bottom';
-            rect.y = semi.y + semi.height - overlapForTouch;
-          }
-        }
-      }
-      // --- Rectangle + Triangle ---
-       else if ((shape1.type === 'rectangular' && shape2.type === 'triangle') || (shape1.type === 'triangle' && shape2.type === 'rectangular')) {
-        const rect = shape1.type === 'rectangular' ? shape1 : shape2;
-        const tri = shape1.type === 'triangle' ? shape1 : shape2;
-        const rectBounds = shape1.type === 'rectangular' ? s1Bounds : s2Bounds;
-        const triBounds = shape1.type === 'triangle' ? s1Bounds : s2Bounds;
-
-        if (horizontallyAdjacent) {
-          rect.y = triBounds.cy - rect.height / 2;
-          tri.y = rectBounds.cy - tri.height / 2;
-          if (rectBounds.cx < triBounds.cx) { // Rect left, Tri right
-            tri._drawParams.orientation = 'left-flat'; // Flat side of tri towards rect
-            tri.x = rect.x + rect.width - overlapForTouch;
-          } else { // Tri left, Rect right
-            tri._drawParams.orientation = 'right-flat';
-            rect.x = tri.x + tri.width - overlapForTouch;
-          }
-        } else if (verticallyAdjacent) {
-          rect.x = triBounds.cx - rect.width / 2;
-          tri.x = rectBounds.cx - tri.width / 2;
-          if (rectBounds.cy < triBounds.cy) { // Rect top, Tri bottom
-            tri._drawParams.orientation = 'top-flat';
-            tri.y = rect.y + rect.height - overlapForTouch;
-          } else { // Tri top, Rect bottom
-            tri._drawParams.orientation = 'bottom-flat';
-            rect.y = tri.y + tri.height - overlapForTouch;
+          if (horizontallyAdjacent) {
+            rect.y = triBounds.cy - rect.height / 2;
+            tri.y = rectBounds.cy - tri.height / 2;
+            if (rectBounds.cx < triBounds.cx) { // Rect left, Tri right
+              tri._drawParams.orientation = 'left-flat'; // Flat side of tri towards rect
+              tri.x = rect.x + rect.width - overlapForTouch;
+            } else { // Tri left, Rect right
+              tri._drawParams.orientation = 'right-flat';
+              rect.x = tri.x + tri.width - overlapForTouch;
+            }
+          } else if (verticallyAdjacent) {
+            rect.x = triBounds.cx - rect.width / 2;
+            tri.x = rectBounds.cx - tri.width / 2;
+            if (rectBounds.cy < triBounds.cy) { // Rect top, Tri bottom
+              tri._drawParams.orientation = 'top-flat';
+              tri.y = rect.y + rect.height - overlapForTouch;
+            } else { // Tri top, Rect bottom
+              tri._drawParams.orientation = 'bottom-flat';
+              rect.y = tri.y + tri.height - overlapForTouch;
+            }
           }
         }
       }
@@ -242,6 +209,9 @@ export function generatePairedForms(canvas, images, params) {
   
   // Apply final alignment adjustments for better edge contacts
   finalizeEdgeContacts(composition, canvas.width, canvas.height, complexity);
+  
+  // Center and scale the composition
+  composition = centerAndScaleComposition(composition, canvas.width, canvas.height);
   
   // Draw the composition
   drawComposition(ctx, composition, images, params.useMultiply !== false, formType, params);
@@ -370,37 +340,40 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   
   function pickType(index, count) {
     if (formType === 'mixed') {
+      // Special case: if we have exactly 2 forms, 40% chance of two rectangles
+      if (count === 2 && index === 0 && Math.random() < 0.4) {
+        // Store this decision for the second shape
+        tempShapesData._forceRectangularPair = true;
+        return 'rectangular';
+      }
+      
+      // If we're the second shape and first was forced rectangular
+      if (index === 1 && tempShapesData._forceRectangularPair) {
+        return 'rectangular';
+      }
+      
       const types = [
-        { type: 'rectangular', weight: 3 },
-        { type: 'semiCircle', weight: 7 }, // Further increased weight for semiCircle
-        { type: 'triangle', weight: 5 },   // Increased weight for triangle
-        { type: 'hexagon', weight: 1 }    // Reduced weight for hexagon
+        { type: 'rectangular', weight: 6 }, // Increased weight for rectangles
+        { type: 'semiCircle', weight: 5 },
+        { type: 'triangle', weight: 4 }
       ];
       
       const weightedTypes = types.reduce((acc, item) => acc.concat(Array(item.weight).fill(item.type)), []);
       
       const complementaryPairs = {
         'semiCircle': [
-          { type: 'semiCircle', weight: 8 }, 
-          { type: 'triangle', weight: 4 }, 
-          { type: 'rectangular', weight: 3 }
+          { type: 'semiCircle', weight: 6 }, 
+          { type: 'rectangular', weight: 5 }
         ], 
         'triangle': [
-          { type: 'triangle', weight: 7 }, 
-          { type: 'semiCircle', weight: 4 }, 
-          { type: 'rectangular', weight: 3 },
-          { type: 'hexagon', weight: 1 }
+          { type: 'triangle', weight: 5 }, 
+          { type: 'rectangular', weight: 5 }
         ], 
         'rectangular': [
-          { type: 'rectangular', weight: 5}, 
-          { type: 'semiCircle', weight: 4 }, 
-          { type: 'triangle', weight: 4 }, 
-          { type: 'hexagon', weight: 1 }
-        ],
-        'hexagon': [ 
-          { type: 'triangle', weight: 5 }, 
-          { type: 'rectangular', weight: 3 }
-        ] 
+          { type: 'rectangular', weight: 8 }, // High chance of another rectangle
+          { type: 'semiCircle', weight: 3 }, 
+          { type: 'triangle', weight: 3 }
+        ]
       };
 
       if (index > 0 && tempShapesData[index - 1]) {
@@ -424,10 +397,10 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   }
   
   const isVerticalSplit = Math.random() < 0.5 + (complexity * 0.2 - 0.1); 
-  const variationFactor = (0.05 + complexity * 0.25);
+  const variationFactor = (0.05 + complexity * 0.15); // Reduced variation for more consistent sizing
   
-  const useMargins = Math.random() < (complexity * 0.3 + 0.02); // Reduced chance of margins
-  const marginFactor = useMargins ? (0.03 + Math.random() * complexity * 0.07) : 0; // Smaller margins
+  const useMargins = Math.random() < (complexity * 0.15); // Further reduced chance of margins
+  const marginFactor = useMargins ? (0.01 + Math.random() * complexity * 0.03) : 0; // Much smaller margins
   
   const effectiveWidth = width * (1 - marginFactor * 2);
   const effectiveHeight = height * (1 - marginFactor * 2);
@@ -442,24 +415,24 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      shapeHeight = effectiveHeight * (0.55 + Math.random() * 0.35); // Range 55-90%
+      shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
       const yPos = marginY + (effectiveHeight - shapeHeight) / 2;
 
       if (formCount === 2) {
-        shapeWidth = effectiveWidth * (0.45 + Math.random() * 0.1); // Aim for roughly half each
+        shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04); // Aim for roughly half each, less variation
       } else {
         shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapeWidth = Math.max(effectiveWidth * 0.3, Math.min(shapeWidth, effectiveWidth * 0.7)); 
+      shapeWidth = Math.max(effectiveWidth * 0.35, Math.min(shapeWidth, effectiveWidth * 0.75)); 
       
       let actualX = currentX;
       if (!useMargins && i > 0 && lastShapeBounds) { // If no margins and not the first shape
-         actualX = lastShapeBounds.right -1; // Force overlap slightly for finalizeEdgeContacts
+         actualX = lastShapeBounds.right; // Force overlap slightly for finalizeEdgeContacts
       }
 
       const newShape = { type: shapeType, x: actualX, y: yPos, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) };
       tempShapesData.push(newShape);
-      currentX = actualX + shapeWidth + (useMargins ? effectiveWidth * 0.01 : 0); // Minimal spacing if margins
+      currentX = actualX + shapeWidth + (useMargins ? effectiveWidth * 0.005 : 0); // Even smaller spacing if margins
       lastShapeType = shapeType;
       lastShapeBounds = { right: actualX + shapeWidth };
     }
@@ -468,24 +441,24 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      shapeWidth = effectiveWidth * (0.55 + Math.random() * 0.35);
+      shapeWidth = effectiveWidth * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
       const xPos = marginX + (effectiveWidth - shapeWidth) / 2; 
 
       if (formCount === 2) {
-        shapeHeight = effectiveHeight * (0.45 + Math.random() * 0.1);
+        shapeHeight = effectiveHeight * (0.48 + Math.random() * 0.04); // Less variation
       } else {
         shapeHeight = effectiveHeight / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapeHeight = Math.max(effectiveHeight * 0.3, Math.min(shapeHeight, effectiveHeight * 0.7)); 
+      shapeHeight = Math.max(effectiveHeight * 0.35, Math.min(shapeHeight, effectiveHeight * 0.75)); 
 
       let actualY = currentY;
       if (!useMargins && i > 0 && lastShapeBounds) {
-        actualY = lastShapeBounds.bottom -1; // Force overlap
+        actualY = lastShapeBounds.bottom; // Force overlap
       }
       
       const newShape = { type: shapeType, x: xPos, y: actualY, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) };
       tempShapesData.push(newShape);
-      currentY = actualY + shapeHeight + (useMargins ? effectiveHeight * 0.01 : 0);
+      currentY = actualY + shapeHeight + (useMargins ? effectiveHeight * 0.005 : 0);
       lastShapeType = shapeType;
       lastShapeBounds = { bottom: actualY + shapeHeight };
     }
@@ -510,6 +483,9 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     }
   }
   
+  // Clean up our temporary flag
+  delete tempShapesData._forceRectangularPair;
+  
   composition.push(...tempShapesData);
   return composition;
 }
@@ -517,10 +493,9 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
 // Add a helper function to check compatibility (can be defined outside or locally)
 function areShapesCompatibleForTouching(type1, type2) {
   const compatibleMap = {
-    'rectangular': ['rectangular', 'semiCircle', 'triangle'],
-    'semiCircle': ['semiCircle', 'rectangular', 'triangle'],
-    'triangle': ['triangle', 'rectangular', 'semiCircle', 'hexagon'],
-    'hexagon': ['triangle'] // Hexagons are trickier for simple edge touching
+    'rectangular': ['rectangular', 'semiCircle', 'triangle'], // Rect can touch all three
+    'semiCircle': ['semiCircle', 'rectangular'], // SemiCircle can only touch another SemiCircle or a Rectangle
+    'triangle': ['triangle', 'rectangular']     // Triangle can only touch another Triangle or a Rectangle
   };
   return compatibleMap[type1] && compatibleMap[type1].includes(type2);
 }
@@ -546,8 +521,6 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
       drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else if (shapeType === 'triangle') {
       drawTriangle(ctx, shape, img, useMultiply, keepImageUpright, params);
-    } else if (shapeType === 'hexagon') {
-      drawHexagon(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else {
       drawRectangle(ctx, shape, img, useMultiply, keepImageUpright, params);
     }
@@ -843,312 +816,68 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
   ctx.restore();
 }
 
-// Add drawHexagon function
-function drawHexagon(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
-  const maskFn = maskRegistry.basic?.hexagonMask;
-  const HEX_HEIGHT = 86.6025; // Tight bounding box height for hexagon
-  if (maskFn) {
-    const maskObj = maskFn({});
-    const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
-    const maskPath = svgToPath2D(svg);
-    if (maskPath) {
-      ctx.save();
-      ctx.translate(shape.x, shape.y);
-      const rotation = shape._drawParams?.rotation || 0;
-      // Uniform scale and center
-      const scale = Math.min(shape.width / 100, shape.height / HEX_HEIGHT);
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - HEX_HEIGHT * scale) / 2);
-      ctx.translate(100 * scale / 2, HEX_HEIGHT * scale / 2);
-      ctx.rotate(rotation);
-      ctx.translate(-100 * scale / 2, -HEX_HEIGHT * scale / 2);
-      ctx.scale(scale, scale);
-      ctx.clip(maskPath);
+// Add a new function to center and scale the composition
+function centerAndScaleComposition(composition, canvasWidth, canvasHeight) {
+  if (!composition || composition.length === 0) return composition;
 
-      // Store the mask rotation angle
-      const maskAngle = rotation;
+  const MARGIN_PERCENT = 0.005; // Was 0.01 (1% margin), now 0.5%
 
-      // Conditional Color Block Echo logic
-      let applyEcho = false;
-      const echoPreference = params.echoPreference || 'default';
-      if (echoPreference === 'always') applyEcho = true;
-      else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
-      else if (echoPreference === 'default') {
-        applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
-      }
-      const bgColorForEcho = shape.bgColor || randomVibrantColor();
+  // Calculate current bounding box of the composition
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  composition.forEach(shape => {
+    minX = Math.min(minX, shape.x);
+    minY = Math.min(minY, shape.y);
+    maxX = Math.max(maxX, shape.x + shape.width);
+    maxY = Math.max(maxY, shape.y + shape.height);
+  });
 
-      if (applyEcho) {
-        const echoColor = getComplementaryColor(bgColorForEcho);
-        ctx.save();
-        ctx.fillStyle = echoColor;
-        ctx.globalAlpha = 0.75;
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.fillRect(0, 0, 100, 86.6025);
-        ctx.restore();
-      }
+  const currentCompWidth = maxX - minX;
+  const currentCompHeight = maxY - minY;
 
-      ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  if (currentCompWidth <= 0 || currentCompHeight <= 0) return composition; // Avoid division by zero or negative scales
 
-      // If keepImageUpright is true, counter-rotate context within the clipped mask space
-      // This needs to happen before drawing the image, and after the main mask rotation & scaling.
-      // The counter-rotation should be around the center of the *original unscaled mask unit space* (100xHEX_HEIGHT)
-      if (keepImageUpright && maskAngle !== 0) {
-        // Translate to center of unscaled mask, rotate, translate back
-        ctx.translate(50, 43.30125); 
-        ctx.rotate(-maskAngle);
-        ctx.translate(-50, -43.30125);
-      }
+  // Determine target dimensions with margin
+  const targetCanvasWidth = canvasWidth * (1 - MARGIN_PERCENT * 2);
+  const targetCanvasHeight = canvasHeight * (1 - MARGIN_PERCENT * 2);
 
-      // Aspect-ratio cover logic
-      const destW = 100;
-      const destH = HEX_HEIGHT;
-      const destAspect = destW / destH;
-      const imgAspect = img.width / img.height;
-      let sx, sy, sWidth, sHeight;
-      if (imgAspect > destAspect) {
-        sHeight = img.height;
-        sWidth = sHeight * destAspect;
-        sx = (img.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = img.width;
-        sHeight = sWidth / destAspect;
-        sx = 0;
-        sy = (img.height - sHeight) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
-      ctx.restore();
-      return;
-    }
-  }
-  // fallback: draw a regular hexagon path (inscribed in 100x86.6025)
-  ctx.save();
-  ctx.translate(shape.x, shape.y);
-  const rotationFallback = shape._drawParams?.rotation || 0;
-  const scaleFallback = Math.min(shape.width / 100, shape.height / HEX_HEIGHT);
-  ctx.translate((shape.width - 100 * scaleFallback) / 2, (shape.height - HEX_HEIGHT * scaleFallback) / 2);
-  ctx.translate(100 * scaleFallback / 2, HEX_HEIGHT * scaleFallback / 2);
-  ctx.rotate(rotationFallback);
-  ctx.translate(-100 * scaleFallback / 2, -HEX_HEIGHT * scaleFallback / 2);
-  ctx.scale(scaleFallback, scaleFallback);
-  ctx.beginPath();
-  const points = [
-    [0, HEX_HEIGHT / 2],
-    [25, 0],
-    [75, 0],
-    [100, HEX_HEIGHT / 2],
-    [75, HEX_HEIGHT],
-    [25, HEX_HEIGHT]
-  ];
-  for (let i = 0; i < points.length; i++) {
-    const [px, py] = points[i];
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  }
-  ctx.closePath();
-  ctx.clip();
+  // Calculate scale factor
+  const scaleX = targetCanvasWidth / currentCompWidth;
+  const scaleY = targetCanvasHeight / currentCompHeight;
+  const scale = Math.min(scaleX, scaleY);
 
-  // Store the mask rotation angle for fallback
-  const maskAngleFallback = rotationFallback;
+  // Apply scale and translate to new positions
+  composition.forEach(shape => {
+    // Scale position relative to the composition's top-left corner
+    shape.x = (shape.x - minX) * scale;
+    shape.y = (shape.y - minY) * scale;
+    // Scale dimensions
+    shape.width *= scale;
+    shape.height *= scale;
+  });
 
-  // Conditional Color Block Echo logic
-  let applyEcho = false;
-  const echoPreference = params.echoPreference || 'default';
-  if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
-  else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
-  }
-  const bgColorForEcho = shape.bgColor || randomVibrantColor();
-
-  if (applyEcho) {
-    const echoColor = getComplementaryColor(bgColorForEcho);
-    ctx.save();
-    ctx.fillStyle = echoColor;
-    ctx.globalAlpha = 0.75;
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.fillRect(0, 0, 100, 86.6025);
-    ctx.restore();
-  }
-
-  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
-
-  // If keepImageUpright is true, counter-rotate context within the clipped mask space
-  // This needs to happen before drawing the image, and after the main mask rotation & scaling.
-  // The counter-rotation should be around the center of the *original unscaled mask unit space* (100xHEX_HEIGHT)
-  if (keepImageUpright && maskAngleFallback !== 0) {
-    ctx.translate(50, 43.30125); 
-    ctx.rotate(-maskAngleFallback);
-    ctx.translate(-50, -43.30125);
-  }
-  // Aspect-ratio logic
-  const destW = 100;
-  const destH = HEX_HEIGHT;
-  const destAspect = destW / destH;
-  const imgAspect = img.width / img.height;
-  let sx, sy, sWidth, sHeight;
-  if (imgAspect > destAspect) {
-    sHeight = img.height;
-    sWidth = sHeight * destAspect;
-    sx = (img.width - sWidth) / 2;
-    sy = 0;
-  } else {
-    sWidth = img.width;
-    sHeight = sWidth / destAspect;
-    sx = 0;
-    sy = (img.height - sHeight) / 2;
-  }
-  ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
-  ctx.restore();
-}
-
-/**
- * Draw a beam shape properly aligned to touch other shapes
- */
-function drawBeam(ctx, shape, img, useMultiply) {
-  // Use maskRegistry for beam
-  const maskFn = maskRegistry.basic?.beamMask;
-  if (maskFn) {
-    const maskObj = maskFn({});
-    const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
-    // Debug: print SVG string, bounding box, and orientation
-    if (window.debugPairedForms) {
-      console.log('[drawBeam] SVG:', svg);
-      console.log('[drawBeam] Bounding box:', { x: shape.x, y: shape.y, width: shape.width, height: shape.height });
-      console.log('[drawBeam] Orientation:', shape._drawParams?.orientation);
-    }
-    const maskPath = svgToPath2D(svg);
-    if (maskPath) {
-      ctx.save();
-      
-      // --- ORIENTATION LOGIC ---
-      // Default orientation: horizontal with wider top
-      let angle = 0;
-      const orientation = shape._drawParams?.orientation;
-      switch (orientation) {
-        case 'vertical': angle = Math.PI / 2; break;
-        case 'vertical-flipped': angle = -Math.PI / 2; break;
-        case 'horizontal-flipped': angle = Math.PI; break;
-        // 'horizontal' or undefined: angle = 0
-      }
-      
-      // Uniform scale and center
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      ctx.rotate(angle);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
-      ctx.scale(scale, scale);
-      ctx.clip(maskPath);
-      if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-      
-      // --- ASPECT RATIO FIX (cover) ---
-      const destW = 100;
-      const destH = 100;
-      const destAspect = destW / destH;
-      const imgAspect = img.width / img.height;
-      let sx, sy, sWidth, sHeight;
-      if (imgAspect > destAspect) {
-        sHeight = img.height;
-        sWidth = sHeight * destAspect;
-        sx = (img.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = img.width;
-        sHeight = sWidth / destAspect;
-        sx = 0;
-        sy = (img.height - sHeight) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
-      
-      // Debug outline
-      if (window.debugPairedForms) {
-        ctx.strokeStyle = 'orange';
-        ctx.lineWidth = 2;
-        ctx.stroke(maskPath);
-      }
-      
-      ctx.restore();
-      return;
-    }
-  }
+  // Calculate new bounding box after scaling
+  minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+  composition.forEach(shape => {
+    minX = Math.min(minX, shape.x);
+    minY = Math.min(minY, shape.y);
+    maxX = Math.max(maxX, shape.x + shape.width);
+    maxY = Math.max(maxY, shape.y + shape.height);
+  });
   
-  // fallback to old logic if maskRegistry fails
-  ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(shape.x + shape.width / 2, shape.y);
-  ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
-  ctx.lineTo(shape.x, shape.y + shape.height);
-  ctx.closePath();
-  ctx.clip();
-  if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-  ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
-  ctx.restore();
-}
+  const scaledCompWidth = maxX - minX;
+  const scaledCompHeight = maxY - minY;
 
-// Export the template module
-// Debug utility function to check if triangles are touching their neighbors
-function checkTriangleTouching(composition) {
-  // Skip debug in production
-  if (!window.debugPairedForms) return;
-  
-  for (let i = 0; i < composition.length; i++) {
-    const shape = composition[i];
-    if (shape.type !== 'triangle') continue;
-    
-    for (let j = 0; j < composition.length; j++) {
-      if (i === j) continue;
-      const otherShape = composition[j];
-      
-      // Rectangle bounding box check for proximity
-      const isNearby = (
-        shape.x < otherShape.x + otherShape.width + 5 &&
-        shape.x + shape.width > otherShape.x - 5 &&
-        shape.y < otherShape.y + otherShape.height + 5 &&
-        shape.y + shape.height > otherShape.y - 5
-      );
-      
-      if (isNearby) {
-        console.log('Triangle', i, 'is near shape', j);
-        if (shape._drawParams && shape._drawParams.vertices) {
-          console.log('Triangle vertices:', shape._drawParams.vertices);
-        }
-      }
-    }
-  }
-}
+  // Calculate translation to center the scaled composition
+  const transX = (canvasWidth - scaledCompWidth) / 2 - minX;
+  const transY = (canvasHeight - scaledCompHeight) / 2 - minY;
 
-// Helper: Align the flat edge of two beams for edge-to-edge contact
-function alignBeamEdges(shape1, shape2, direction) {
-  // direction: 'horizontal' or 'vertical'
-  // shape1 is the reference, shape2 is nudged
-  // Both shapes must have .width and .height
-  // Both must have _drawParams.orientation set
-  // The beam mask uses a tight viewBox, so the flat edge is at y=0 or y=height (horizontal), x=0 or x=width (vertical)
-  if (direction === 'horizontal') {
-    // Align right edge of shape1 to left edge of shape2
-    // For horizontal beams, the flat edge is at the bottom for 'horizontal', at the top for 'horizontal-flipped'
-    // We'll align the bottom of shape1 to the top of shape2
-    if (shape1._drawParams.orientation === 'horizontal' && shape2._drawParams.orientation === 'horizontal-flipped') {
-      // shape1's bottom to shape2's top
-      shape2.x = shape1.x + shape1.width;
-      shape2.y = shape1.y; // align y
-    } else if (shape1._drawParams.orientation === 'horizontal-flipped' && shape2._drawParams.orientation === 'horizontal') {
-      // shape2's bottom to shape1's top
-      shape1.x = shape2.x + shape2.width;
-      shape1.y = shape2.y;
-    }
-  } else if (direction === 'vertical') {
-    // Align bottom edge of shape1 to top edge of shape2
-    // For vertical beams, the flat edge is at the right for 'vertical', at the left for 'vertical-flipped'
-    if (shape1._drawParams.orientation === 'vertical' && shape2._drawParams.orientation === 'vertical-flipped') {
-      shape2.y = shape1.y + shape1.height;
-      shape2.x = shape1.x;
-    } else if (shape1._drawParams.orientation === 'vertical-flipped' && shape2._drawParams.orientation === 'vertical') {
-      shape1.y = shape2.y + shape2.height;
-      shape1.x = shape2.x;
-    }
-  }
+  // Apply translation
+  composition.forEach(shape => {
+    shape.x += transX;
+    shape.y += transY;
+  });
+
+  return composition;
 }
 
 // Export the main function as default
@@ -1158,7 +887,7 @@ const pairedForms = {
   render: generatePairedForms,
   params: {
     formCount: { type: 'number', min: 2, max: 5, default: 2 },
-    formType: { type: 'select', options: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'], default: 'mixed' },
+    formType: { type: 'select', options: ['rectangular', 'semiCircle', 'triangle', 'mixed'], default: 'mixed' },
     complexity: { type: 'number', min: 0, max: 1, default: 0.5 },
     alignmentType: { type: 'select', options: ['edge', 'overlap', 'puzzle'], default: 'edge' },
     useMultiply: { type: 'boolean', default: true },

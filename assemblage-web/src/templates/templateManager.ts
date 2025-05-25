@@ -71,13 +71,17 @@ const parameterGenerators = {
     bgColor: randomVibrantColor()
   }),
 
-  dynamicArchitectural: () => ({
-    style: ['random', 'singleArch', 'archSeries', 'nestedArches', 'coliseum', 'classic', 'modern', 'gothic'][Math.floor(Math.random() * 8)],
-    imageMode: Math.random() > 0.5 ? 'single' : 'unique',
-    useComplementaryShapes: Math.random() > 0.4, // 60% chance of complementary shapes
-    useMultiply: true,
-    bgColor: randomVibrantColor()
-  }),
+  dynamicArchitectural: () => {
+    const selectedStyle = Math.random() < 0.9 ? 'nestedArches' : 'archSeries'; // Skewed for testing
+    console.log('[TemplateManager] dynamicArchitectural generating style:', selectedStyle); // Log for testing
+    return {
+      style: selectedStyle,
+      imageMode: Math.random() > 0.5 ? 'single' : 'unique',
+      useComplementaryShapes: Math.random() > 0.4, 
+      useMultiply: true,
+      bgColor: randomVibrantColor()
+    };
+  },
   
   floatingElements: () => ({
     elementCount: 3 + Math.floor(Math.random() * 7), // 3-10 elements
