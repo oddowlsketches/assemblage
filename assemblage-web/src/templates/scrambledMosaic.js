@@ -151,11 +151,33 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
       srcY = ((cell.row + Math.floor(gridSize / 2)) % gridSize) * imgCellHeight;
     }
     
-    // Draw the image portion into the square cell
+    // Maintain aspect ratio when drawing into square cells
+    const srcAspect = srcWidth / srcHeight;
+    const cellAspect = 1; // Square cells
+    
+    let drawX = cell.x;
+    let drawY = cell.y;
+    let drawWidth = cell.size;
+    let drawHeight = cell.size;
+    
+    // Use cover behavior to maintain aspect ratio
+    if (srcAspect > cellAspect) {
+      // Source is wider - fit to height and crop width
+      drawHeight = cell.size;
+      drawWidth = drawHeight * srcAspect;
+      drawX = cell.x - (drawWidth - cell.size) / 2;
+    } else {
+      // Source is taller - fit to width and crop height  
+      drawWidth = cell.size;
+      drawHeight = drawWidth / srcAspect;
+      drawY = cell.y - (drawHeight - cell.size) / 2;
+    }
+    
+    // Draw the image portion maintaining aspect ratio
     ctx.drawImage(
       selectedImage,
       srcX, srcY, srcWidth, srcHeight,
-      cell.x, cell.y, cell.size, cell.size
+      drawX, drawY, drawWidth, drawHeight
     );
     
     // Add subtle outline to prevent visible gaps

@@ -166,25 +166,37 @@ function drawImageInTile(ctx, image, tile, scale) {
   
   if (imageAspect > tileAspect) {
     // Image is wider than tile - fit to height and crop width
-    drawHeight = tileHeight;
+    drawHeight = tileHeight * scale;
     drawWidth = drawHeight * imageAspect;
     dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
     dy = tile.points[0].y;
   } else {
     // Image is taller than tile - fit to width and crop height
-    drawWidth = tileWidth;
+    drawWidth = tileWidth * scale;
     drawHeight = drawWidth / imageAspect;
     dx = tile.points[0].x;
     dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
   }
   
-  // Apply the scale factor while maintaining aspect ratio
-  drawWidth *= scale;
-  drawHeight *= scale;
+  // Ensure minimum coverage - if scale results in gaps, increase size
+  const minWidth = tileWidth * 1.1; // 10% overflow to prevent gaps
+  const minHeight = tileHeight * 1.1;
   
-  // Recenter after scaling
-  dx -= (drawWidth - tileWidth) / 2;
-  dy -= (drawHeight - tileHeight) / 2;
+  if (drawWidth < minWidth) {
+    const ratio = minWidth / drawWidth;
+    drawWidth = minWidth;
+    drawHeight *= ratio;
+    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
+    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
+  }
+  
+  if (drawHeight < minHeight) {
+    const ratio = minHeight / drawHeight;
+    drawHeight = minHeight;
+    drawWidth *= ratio;
+    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
+    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
+  }
 
   ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
 }

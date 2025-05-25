@@ -151,10 +151,11 @@ function renderTiling(canvas, images, params) {
     if (tileWidth > 0 && tileHeight > 0) {
         const imageAspect = image.width / image.height;
         const tileAspect = tileWidth / tileHeight;
+        // Use larger scale to ensure complete coverage with overflow
         if (imageAspect > tileAspect) {
-            drawOptions.scale = (tileHeight * 1.2) / image.height; 
+            drawOptions.scale = (tileHeight * 1.5) / image.height; 
         } else {
-            drawOptions.scale = (tileWidth * 1.2) / image.width; 
+            drawOptions.scale = (tileWidth * 1.5) / image.width; 
         }
     }
     
