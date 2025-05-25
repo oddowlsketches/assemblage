@@ -244,7 +244,7 @@ export function generatePairedForms(canvas, images, params) {
   finalizeEdgeContacts(composition, canvas.width, canvas.height, complexity);
   
   // Draw the composition
-  drawComposition(ctx, composition, images, params.useMultiply !== false, formType);
+  drawComposition(ctx, composition, images, params.useMultiply !== false, formType, params);
   
   return { canvas, bgColor: bgColorToUse };
 }
@@ -528,7 +528,7 @@ function areShapesCompatibleForTouching(type1, type2) {
 /**
  * Draw a composition on the canvas
  */
-function drawComposition(ctx, composition, images, useMultiply, formType = 'rectangular') {
+function drawComposition(ctx, composition, images, useMultiply, formType = 'rectangular', params = {}) {
   // Run the debug check if enabled
   if (window.debugPairedForms) {
     checkTriangleTouching(composition);
@@ -539,20 +539,17 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
     const img = images[imageIndex];
     ctx.save();
     
-    // Use the shape's own type rather than the global formType
-    // This enables mixed compositions
     const shapeType = shape.type || formType;
+    const keepImageUpright = params.keepImageUpright !== undefined ? params.keepImageUpright : true; // Default to true for pairedForms
     
-    // Draw based on shape type
     if (shapeType === 'semiCircle') {
-      drawSemiCircle(ctx, shape, img, useMultiply);
+      drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else if (shapeType === 'triangle') {
-      drawTriangle(ctx, shape, img, useMultiply);
+      drawTriangle(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else if (shapeType === 'hexagon') {
-      drawHexagon(ctx, shape, img, useMultiply);
+      drawHexagon(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else {
-      // Default to rectangular
-      drawRectangle(ctx, shape, img, useMultiply);
+      drawRectangle(ctx, shape, img, useMultiply, keepImageUpright, params);
     }
     ctx.restore();
   }
@@ -561,7 +558,7 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
 /**
  * Draw a rectangular shape properly aligned to touch other shapes
  */
-function drawRectangle(ctx, shape, img, useMultiply) {
+function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
   const maskFn = maskRegistry.basic?.rectangleMask;
   if (!maskFn) {
     console.warn("[PairedForms] RectangleMask not found in registry.");
@@ -608,15 +605,14 @@ function drawRectangle(ctx, shape, img, useMultiply) {
 
   // Conditional Color Block Echo based on imageType
   let applyEcho = false;
-  const echoPreference = params.echoPreference || 'default'; // New param: default, always, never, texture_only
+  const echoPreference = params.echoPreference || 'default';
 
   if (echoPreference === 'always') {
     applyEcho = true;
-  } else if (echoPreference === 'texture_only' && img && img.image_type === 'texture') {
+  } else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') {
     applyEcho = true;
   } else if (echoPreference === 'default') {
-    // Original logic: apply if useMultiply is true and random chance, or if shape.useColorBlockEcho is set
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_type === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
   }
   // if echoPreference is 'never', applyEcho remains false
 
@@ -657,7 +653,7 @@ function drawRectangle(ctx, shape, img, useMultiply) {
 /**
  * Draw a semi-circle shape properly aligned to touch other shapes
  */
-function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true) {
+function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
   const maskFn = maskRegistry.basic?.semiCircleMask;
   if (!maskFn) {
     console.warn("[PairedForms] semiCircleMask not found."); return;
@@ -707,9 +703,9 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true) {
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.image_type === 'texture') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_type === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
   }
   const bgColorForEcho = shape.bgColor || randomVibrantColor();
 
@@ -756,7 +752,7 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true) {
 /**
  * Draw a triangle shape properly aligned to touch other shapes
  */
-function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true) {
+function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
   const maskFn = maskRegistry.basic?.triangleMask;
   if (!maskFn) {
     console.warn("[PairedForms] triangleMask not found."); return;
@@ -802,9 +798,9 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true) {
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.image_type === 'texture') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_type === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
   }
   const bgColorForEcho = shape.bgColor || randomVibrantColor();
 
@@ -848,7 +844,7 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true) {
 }
 
 // Add drawHexagon function
-function drawHexagon(ctx, shape, img, useMultiply, keepImageUpright = true) {
+function drawHexagon(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
   const maskFn = maskRegistry.basic?.hexagonMask;
   const HEX_HEIGHT = 86.6025; // Tight bounding box height for hexagon
   if (maskFn) {
@@ -875,9 +871,9 @@ function drawHexagon(ctx, shape, img, useMultiply, keepImageUpright = true) {
       let applyEcho = false;
       const echoPreference = params.echoPreference || 'default';
       if (echoPreference === 'always') applyEcho = true;
-      else if (echoPreference === 'texture_only' && img && img.image_type === 'texture') applyEcho = true;
+      else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
       else if (echoPreference === 'default') {
-        applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_type === 'texture' ? 0.85 : 0.45));
+        applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
       }
       const bgColorForEcho = shape.bgColor || randomVibrantColor();
 
@@ -959,9 +955,9 @@ function drawHexagon(ctx, shape, img, useMultiply, keepImageUpright = true) {
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.image_type === 'texture') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_type === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
   }
   const bgColorForEcho = shape.bgColor || randomVibrantColor();
 

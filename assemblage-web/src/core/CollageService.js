@@ -72,7 +72,7 @@ export class CollageService {
         try {
             const { data: rows, error } = await this.supabaseClient
                 .from('images')
-                .select('id, src, image_type')
+                .select('id, src, imagetype')
                 .order('created_at', { ascending: false });
 
             if (error) {
@@ -88,7 +88,7 @@ export class CollageService {
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
-                    image_type: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
+                    imagetype: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         } catch (e) {
@@ -99,7 +99,7 @@ export class CollageService {
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
-                    image_type: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
+                    imagetype: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         }
@@ -123,7 +123,8 @@ export class CollageService {
             return imageIds.map((id, idx) => {
                 const placeholder = validPlaceholders[idx % validPlaceholders.length];
                 if (placeholder) {
-                    placeholder.image_type = this.imageMetadata.find(m => m.id === `dummy-${idx % 50}`)?.image_type || 'conceptual';
+                    const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
+                    placeholder.imagetype = dummyMeta?.imagetype || (Math.random() < 0.3 ? 'texture' : 'conceptual');
                 }
                 return placeholder;
             });
@@ -145,7 +146,7 @@ export class CollageService {
                 img.src = getImageUrl(metadata.src);
                 img.dataset.supabaseSrc = metadata.src;
                 img.dataset.imageId = id;
-                img.image_type = metadata.image_type || 'unknown';
+                img.imagetype = metadata.imagetype || 'unknown';
                 
                 img.onload = () => {
                     this.addToCache(id, img);
