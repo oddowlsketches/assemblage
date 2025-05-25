@@ -35,6 +35,11 @@ export const getSupabase = () => {
 export function getImageUrl(imagePath) {
   if (!imagePath) return '/images/collages/placeholder.png'; // Default placeholder if path is empty
 
+  // Check if imagePath is already a full URL (starts with http:// or https://)
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath; // Return the full URL as-is
+  }
+
   if (APP_ENV === 'development') {
     // In development, point to a local placeholder. 
     // Assuming your placeholders are in `public/images/collages/` and you want to use one generic one.
