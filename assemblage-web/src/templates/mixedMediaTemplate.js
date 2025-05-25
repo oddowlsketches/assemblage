@@ -116,20 +116,25 @@ function renderMixedMedia(canvas, images, params = {}) {
   const compositionTypes = ['dynamic', 'balanced', 'hierarchical'];
   const compositionType = params.compositionType || compositionTypes[Math.floor(Math.random() * compositionTypes.length)];
 
+  // Corrected maskOptions list
   const maskOptions = [
     'basic/circleMask',
     'basic/hexagonMask',
     'basic/diamondMask',
     'basic/triangleMask',
     'basic/semiCircleMask',
-    'basic/rectangleMask',
+    'basic/rectangleMask',      
     'architectural/archClassical',
-    'architectural/archFlat',
     'abstract/blobIrregular',
     'abstract/polygonSoft',
-    'abstract/cloudLike',
-    'altar/nicheArch',
-    'altar/gableAltar'
+    'altar/nicheArch',          
+    'altar/gableAltar',           
+    'narrative/panelRectWide',    
+    'narrative/panelRectTall',    
+    'narrative/panelSquare',      
+    'narrative/panelGutter',      
+    'sliced/sliceHorizontalWide', // Adding some slices back for variety
+    'sliced/sliceVerticalWide'
   ];
 
   let elements = [];

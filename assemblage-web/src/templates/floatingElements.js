@@ -16,7 +16,7 @@ const GOLDEN_RATIO = 1.618;
 const suitableMasks = [
   'basic/circleMask', 'basic/ovalMask', 'basic/diamondMask', 'basic/hexagonMask', 
   'basic/semiCircleMask', 'basic/triangleMask', 'basic/rectangleMask',
-  'abstract/blobIrregular', 'abstract/polygonSoft', 'abstract/cloudLike', 'abstract/archBlob',
+  'abstract/blobIrregular', 'abstract/polygonSoft', 'abstract/cloudLike',
   'sliced/sliceHorizontalWide', 'sliced/sliceVerticalWide', // Representing simple strips
   // Add more as deemed suitable, avoiding overly complex ones for floating elements
 ];
@@ -81,23 +81,27 @@ export function generateFloatingElements(canvas, images, params) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Fill with a single background color
-  const bgColorToUse = params.bgColor || randomVibrantColor(); // Use random vibrant if no specific color
+  const bgColorToUse = params.bgColor || randomVibrantColor();
   ctx.fillStyle = bgColorToUse;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // Create composition plan
+  let styleToUse = params.style;
+  const availableStyles = ['horizon', 'ascending', 'scattered'];
+  if (!styleToUse || !availableStyles.includes(styleToUse) || styleToUse === 'random') {
+      styleToUse = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  }
+  console.log(`[FloatingElements] Using style: ${styleToUse}`);
+
   const elements = createFloatingComposition(
     canvas.width,
     canvas.height,
-    params.elementCount || 4,
-    params.style || 'horizon'
+    params.elementCount || 5, // Default element count if not specified
+    styleToUse 
   );
   
-  // Draw elements
   drawFloatingElements(ctx, elements, images, params);
   
-  return { canvas, bgColor: bgColorToUse }; // Return canvas and bgColor used (use bgColorToUse)
+  return { canvas, bgColor: bgColorToUse };
 }
 
 /**
@@ -121,7 +125,8 @@ function createFloatingComposition(width, height, elementCount, style) {
     
     case 'strata':
       // Horizontal bands at different levels
-      return createStrataComposition(width, height, elementCount);
+      console.warn('[FloatingElements] Strata style selected but is deprecated. Falling back to horizon.');
+      return createHorizonComposition(width, height, elementCount);
     
     default:
       return createHorizonComposition(width, height, elementCount);
@@ -133,80 +138,67 @@ function createFloatingComposition(width, height, elementCount, style) {
  */
 function createHorizonComposition(width, height, elementCount) {
   const elements = [];
-  const majorElementCount = Math.max(1, Math.floor(elementCount * 0.3)); // ~30% are major elements
+  const numElements = Math.max(2, Math.min(elementCount, 4)); // Reduced further to 2-4 for more impact
+  const majorElementCount = Math.max(1, Math.floor(numElements * 0.5)); // Up to 50% major, at least 1
   
-  for (let i = 0; i < elementCount; i++) {
-    const isMajor = i < majorElementCount; // First few elements can be larger
+  // Increase MIN_ELEMENT_SIDE and general sizes for Horizon style
+  const MIN_ELEMENT_SIDE = Math.max(120, Math.min(width, height) * 0.30); // Min side 30% of canvas min, or 120px
+
+  for (let i = 0; i < numElements; i++) {
+    const isMajor = i < majorElementCount;
     let size;
     if (isMajor) {
-      // Major elements: 40-80% of canvas min dim, more likely to be larger
-      size = Math.min(width, height) * (0.4 + Math.pow(Math.random(), 2) * 0.4);
+      size = Math.min(width, height) * (0.55 + Math.random() * 0.25); // Major: 55-80%
     } else {
-      // Minor elements: 20-50% of canvas min dim
-      size = Math.min(width, height) * (0.2 + Math.random() * 0.3);
+      // Minor elements also need to be substantial if only 2-4 elements total
+      size = Math.min(width, height) * (0.40 + Math.random() * 0.20); // Minor: 40-60%
     }
+    size = Math.max(MIN_ELEMENT_SIDE, size);
+    if (isMajor && numElements > 1 && majorElementCount < numElements && elements.length > 0 && elements[0].width) { 
+        // Ensure major is actually larger than the first minor if it exists.
+        size = Math.max(size, elements[0].width * 1.1); // At least 10% bigger than first minor if ranges made it smaller
+    }    
+    size = Math.min(size, Math.min(width,height) * 0.95); // Cap size to 95%
 
-    // Allow elements to be positioned to bleed off canvas
-    // X: can range from -size/2 (left bleed) up to width - size/2 (right bleed)
-    // More central tendency but allows for full bleed with larger sizes
-    const x = (width * (0.1 + Math.random() * 0.8)) - size / 2 + (Math.random() - 0.5) * width * 0.4;
+    const segmentWidth = width / (numElements + 1); 
+    const xAnchor = segmentWidth * (i + 1);
+    const xJitter = segmentWidth * 0.2 * (Math.random() - 0.5); // Less X jitter
+    let x = xAnchor + xJitter - size / 2;
     
-    // Y: similar logic, allowing bleed top/bottom, centered around a horizon line
-    const horizonY = height * (0.4 + Math.random() * 0.2); // Horizon line fluctuates
-    const y = horizonY - size / 2 + (Math.random() - 0.5) * height * 0.3;
+    const horizonY = height * (0.4 + Math.random() * 0.2); // Horizon line 40-60% height
+    const yJitter = height * 0.1 * (Math.random() - 0.5);
+    let y = horizonY + yJitter - size / 2;
+
+    const maxOffCanvas = 0.20; // Allow up to 20% off canvas now they are bigger
+    x = Math.max(-size * maxOffCanvas, Math.min(width - size * (1 - maxOffCanvas), x));
+    y = Math.max(-size * maxOffCanvas, Math.min(height - size * (1 - maxOffCanvas), y));
     
     elements.push({
       type: getRandomMask(),
-      x: x,
-      y: y,
-      width: size,
-      height: size, // Keep square for now, can be element.width * (0.7 + Math.random()*0.6) for variety
-      rotation: (Math.random() - 0.5) * (isMajor ? 15 : 30),
-      opacity: 0.65 + Math.random() * 0.35, // Range 0.65 - 1.0
-      blendMode: Math.random() < 0.6 ? 'multiply' : 'source-over',
-      layer: i // Simple layering, could be randomized
+      x: x, y: y, width: size, height: size, 
+      rotation: (Math.random() - 0.5) * (isMajor ? 8 : 12), // Slightly increased allowed rotation
+      opacity: 0.88 + Math.random() * 0.12, 
+      blendMode: Math.random() < 0.7 ? 'multiply' : 'source-over', 
+      layer: i 
     });
   }
   
-  // Sort before overlap detection to ensure layer property is stable for top/bottom determination
   const sortedElements = elements.sort((a, b) => a.layer - b.layer);
-
-  // --- BEGIN Overlap Detection Logic ---
-  let extendedElements = sortedElements; // Already sorted, now treat as ExtendedElement
-  const OVERLAP_THRESHOLD = 0.3; 
-
+  let extendedElements = sortedElements;
+  const OVERLAP_THRESHOLD = 0.05; 
   for (let i = 0; i < extendedElements.length; i++) {
     for (let j = i + 1; j < extendedElements.length; j++) {
-      const elementA = extendedElements[i];
-      const elementB = extendedElements[j];
-
+      const elementA = extendedElements[i]; const elementB = extendedElements[j];
       const overlapPercentage = calculateOverlap(elementA, elementB);
-
       if (overlapPercentage > OVERLAP_THRESHOLD) {
-        // elementA.layer and elementB.layer determine drawing order (lower is earlier/further back)
-        // Since array is pre-sorted by layer, elementB (later index) is generally on top of elementA if layers are different or same.
-        let topElement = elementB; 
-        let bottomElement = elementA;
-        // Double check layering if explicit layer props differ significantly, though sort should handle it.
-        if (elementA.layer > elementB.layer) { // A is explicitly on top
-            topElement = elementA;
-            bottomElement = elementB;
-        }
-
-        console.log(`[FloatingElements Overlap] Significant overlap (${(overlapPercentage * 100).toFixed(1)}%) between element at original index for ${elementA.type} (layer ${elementA.layer}) and ${elementB.type} (layer ${elementB.layer}). Top: ${topElement.type}`);
-
+        let topElement = elementB; if (elementA.layer > elementB.layer) { topElement = elementA; }
         if (!topElement.overlapEcho || !topElement.overlapEcho.active) {
-          topElement.overlapEcho = {
-            active: true,
-            useComplementary: Math.random() < 0.5, 
-          };
+          topElement.overlapEcho = { active: true, useComplementary: Math.random() < 0.5 };
         }
       }
     }
   }
-  // --- END Overlap Detection Logic ---
-  
-  return extendedElements; // Return elements that might have overlapEcho properties
+  return extendedElements;
 }
 
 /**
@@ -214,40 +206,68 @@ function createHorizonComposition(width, height, elementCount) {
  */
 function createAscendingComposition(width, height, elementCount) {
   const elements = [];
-  const columns = Math.max(1, Math.floor(elementCount / 3)); // More dynamic columns
+  const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements
+  const columns = Math.max(1, Math.floor(numElements / 2.5)); // Fewer columns for larger elements: 1-2 for 3-5 els, 2-3 for 6-7 els
   const columnWidth = width / columns;
-  const majorElementCount = Math.max(1, Math.floor(elementCount * 0.2)); // Approx 20% major
-  
-  for (let i = 0; i < elementCount; i++) {
-    const isMajor = i < majorElementCount; // First few can be major
+  const majorElementCount = Math.max(1, Math.floor(numElements * 0.35)); // ~35% major
+  const MIN_ELEMENT_SIDE = Math.max(90, Math.min(width, height) * 0.22); // Min side 22% or 90px
+
+  for (let i = 0; i < numElements; i++) {
+    const isMajor = i < majorElementCount; 
     const column = i % columns;
     const row = Math.floor(i / columns);
-    const x = columnWidth * column + columnWidth / 2;
     
-    const baseY = height * (isMajor ? 0.6 : 0.8); // Major elements can start higher
-    const riseAmount = row * height * (isMajor ? 0.1 : 0.15);
-    const y = baseY - riseAmount;
+    let x = columnWidth * column + columnWidth / 2; 
+    const baseY = height * (isMajor ? 0.70 : 0.85); // Start lower
+    const riseFactor = (height * 0.80) / Math.max(1, Math.ceil(numElements / columns)); // Total rise over available rows
+    let y = baseY - (row * riseFactor * (isMajor ? 0.8 : 1.0) ); // Major elements rise a bit less per row to stay larger longer
     
     let size;
     if (isMajor) {
-      size = Math.min(width, height) * (0.35 + Math.random() * 0.35); // 35-70%
+      size = Math.min(columnWidth * 0.8, height * 0.45) * (0.70 + Math.random() * 0.30); // 70-100% of up to 80% col width or 45% height
     } else {
-      size = Math.min(width, height) * (0.1 + Math.random() * 0.1); // 10-20%
+      size = Math.min(columnWidth * 0.7, height * 0.30) * (0.60 + Math.random() * 0.40); // 60-100% of up to 70% col width or 30% height
     }
-    
+    size = Math.max(MIN_ELEMENT_SIDE, size);
+    size = Math.min(size, columnWidth * 0.9, height * 0.6); // Cap size
+
+    x = x - size / 2 + (Math.random() - 0.5) * columnWidth * 0.1; // Minimal X jitter
+    y = y - size / 2; // Adjust Y based on size
+
+    const maxOffCanvas = 0.1;
+    x = Math.max(-size * maxOffCanvas, Math.min(width - size * (1 - maxOffCanvas), x));
+    // Ensure elements ascend from bottom, allow top to bleed
+    y = Math.max(-size * 0.3, Math.min(height - size * (1 - maxOffCanvas), y)); 
+    if (y + size > height * 1.1) { // Prevent excessive bottom bleed
+        y = height * 1.1 - size;
+    }
+
     elements.push({
       type: getRandomMask(),
-      x: x - size / 2 + (Math.random() - 0.5) * columnWidth * 0.2,
-      y: y - size / 2,
-      width: size,
-      height: size, 
-      rotation: (Math.random() - 0.5) * 30 + (row * (isMajor ? 5 : 10)),
-      opacity: Math.max(0.5, 1 - row * 0.15),
-      layer: elementCount - i
+      x: x, y: y, width: size, height: size, 
+      rotation: (Math.random() - 0.5) * (isMajor ? 4 : 8), // Very minimal rotation
+      opacity: Math.max(0.7, 0.9 - row * 0.1), // Fade slightly with row, higher base
+      layer: numElements - i, 
+      blendMode: Math.random() < 0.65 ? 'multiply' : 'source-over'
     });
   }
-  
-  return elements.sort((a,b) => a.layer - b.layer);
+  // Apply overlap echo logic (copied from createHorizonComposition, can be refactored)
+  const sortedElements = elements.sort((a,b) => a.layer - b.layer);
+  let extendedElements = sortedElements;
+  const OVERLAP_THRESHOLD = 0.05; 
+  for (let i = 0; i < extendedElements.length; i++) {
+    for (let j = i + 1; j < extendedElements.length; j++) {
+      const elementA = extendedElements[i]; const elementB = extendedElements[j];
+      const overlapPercentage = calculateOverlap(elementA, elementB);
+      if (overlapPercentage > OVERLAP_THRESHOLD) {
+        let topElement = elementB; if (elementA.layer > elementB.layer) { topElement = elementA; }
+        if (!topElement.overlapEcho || !topElement.overlapEcho.active) {
+          topElement.overlapEcho = { active: true, useComplementary: Math.random() < 0.5 };
+        }
+      }
+    }
+  }
+  return extendedElements;
 }
 
 /**
@@ -255,13 +275,16 @@ function createAscendingComposition(width, height, elementCount) {
  */
 function createScatteredComposition(width, height, elementCount) {
   const elements = [];
+  const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements for scattered
   const guides = [];
-  const phi = GOLDEN_RATIO;
-  const majorElementCount = Math.max(1, Math.floor(elementCount * 0.2));
-  
-  for (let i = 0; i < elementCount; i++) {
-    const angle = i * 2.39996; 
-    const radius = Math.sqrt(i / elementCount) * Math.min(width, height) * 0.4; // Spread more
+  const majorElementCount = Math.max(1, Math.floor(numElements * 0.4)); // ~40% major
+  const MIN_ELEMENT_SIDE = Math.max(90, Math.min(width, height) * 0.22); // Min side 22% or 90px
+
+  // Phyllotaxis distribution for guide points
+  for (let i = 0; i < numElements; i++) {
+    const angle = i * (Math.PI * 2 / numElements) * (GOLDEN_RATIO -1) * 2.1; // Slightly adjust constant for spread
+    // Ensure radius allows elements to reach edges or overlap center more easily
+    const radius = Math.sqrt((i + 0.5) / (numElements)) * Math.min(width, height) * 0.48; 
     guides.push({
       x: width / 2 + Math.cos(angle) * radius,
       y: height / 2 + Math.sin(angle) * radius
@@ -272,62 +295,50 @@ function createScatteredComposition(width, height, elementCount) {
     const isMajor = i < majorElementCount;
     let size;
     if (isMajor) {
-      size = Math.min(width, height) * (0.4 + Math.random() * 0.3); // 40-70%
+      size = Math.min(width, height) * (0.50 + Math.random() * 0.25); // Major: 50-75%
     } else {
-      size = Math.min(width, height) * (0.1 + Math.random() * 0.15); // 10-25%
+      size = Math.min(width, height) * (0.30 + Math.random() * 0.20); // Minor: 30-50%
     }
-    const offset = (Math.random() * 20 - 10) * (isMajor ? 0.5 : 1); // Major elements less offset
+    size = Math.max(MIN_ELEMENT_SIDE, size);
+    size = Math.min(size, Math.min(width, height) * 0.85); // Cap size
+    
+    // Reduced offset from guide point to make them cluster more around guides
+    const offsetX = (Math.random() - 0.5) * size * 0.15; 
+    const offsetY = (Math.random() - 0.5) * size * 0.15;
+    let x = guide.x - size / 2 + offsetX;
+    let y = guide.y - size / 2 + offsetY;
+
+    const maxOffCanvas = 0.20; // Allow some bleed
+    x = Math.max(-size * maxOffCanvas, Math.min(width - size * (1 - maxOffCanvas), x));
+    y = Math.max(-size * maxOffCanvas, Math.min(height - size * (1 - maxOffCanvas), y));
     
     elements.push({
       type: getRandomMask(),
-      x: guide.x - size / 2 + offset,
-      y: guide.y - size / 2 + offset,
-      width: size,
-      height: size,
-      rotation: (Math.random() * 360),
-      opacity: 0.6 + Math.random() * 0.4,
-      layer: i
+      x: x, y: y, width: size, height: size,
+      rotation: (Math.random() - 0.5) * 10, // Slightly more rotation allowed than ascending, max +/- 5 degrees
+      opacity: 0.85 + Math.random() * 0.15,
+      layer: i,
+      blendMode: Math.random() < 0.65 ? 'multiply' : 'source-over'
     });
   });
   
-  return elements.sort((a,b) => a.layer - b.layer);
-}
-
-/**
- * Create horizontal strata composition
- */
-function createStrataComposition(width, height, elementCount) {
-  const elements = [];
-  // Max 3-5 strata, each with 1-4 elements
-  const strataCount = Math.min(5, Math.max(3, Math.ceil(elementCount / 3))); 
-  let elementsPlaced = 0;
-  
-  for (let i = 0; i < strataCount && elementsPlaced < elementCount; i++) {
-    // Vary Y position more, allow some overlap potential
-    const y = height * (0.15 + i * ((0.8 - 0.15) / strataCount) + (Math.random()-0.5) * 0.1); 
-    const elementsInStrata = Math.min(Math.ceil(Math.random() * 3) + 1, elementCount - elementsPlaced); // 1-4 elements per strata
-    
-    for (let j = 0; j < elementsInStrata && elementsPlaced < elementCount; j++) {
-      const x = width * (0.1 + Math.random() * 0.8); // More random X
-      const aspectRatio = 2 + Math.random() * 4; // Aspect ratio 2:1 to 6:1
-      const stripeHeight = height * (0.04 + Math.random() * 0.06); // 4-10% height
-      const stripeWidth = Math.min(width * 0.9, stripeHeight * aspectRatio); // Cap width
-      
-      elements.push({
-        type: Math.random() < 0.7 ? 'basic/rectangleMask' : getRandomMask(), // Mostly rectangles, some other shapes
-        x: x - stripeWidth / 2,
-        y: y - stripeHeight / 2,
-        width: stripeWidth,
-        height: stripeHeight,
-        rotation: (Math.random() - 0.5) * 10, // Slight rotation
-        opacity: 0.7 + Math.random() * 0.3,
-        layer: i + Math.random() * 0.5 // Add jitter to layer for sorting
-      });
-      elementsPlaced++;
+  // Apply overlap echo logic (as in other functions)
+  const sortedElements = elements.sort((a,b) => a.layer - b.layer);
+  let extendedElements = sortedElements;
+  const OVERLAP_THRESHOLD = 0.05; 
+  for (let i = 0; i < extendedElements.length; i++) {
+    for (let j = i + 1; j < extendedElements.length; j++) {
+      const elementA = extendedElements[i]; const elementB = extendedElements[j];
+      const overlapPercentage = calculateOverlap(elementA, elementB);
+      if (overlapPercentage > OVERLAP_THRESHOLD) {
+        let topElement = elementB; if (elementA.layer > elementB.layer) { topElement = elementA; }
+        if (!topElement.overlapEcho || !topElement.overlapEcho.active) {
+          topElement.overlapEcho = { active: true, useComplementary: Math.random() < 0.5 };
+        }
+      }
     }
   }
-  
-  return elements.sort((a, b) => a.layer - b.layer);
+  return extendedElements;
 }
 
 /**
@@ -522,7 +533,7 @@ const floatingElements = {
   generate: generateFloatingElements,
   params: {
     elementCount: { type: 'number', min: 3, max: 12, default: 5 },
-    style: { type: 'select', options: ['horizon', 'ascending', 'scattered', 'strata'], default: 'horizon' },
+    style: { type: 'select', options: ['horizon', 'ascending', 'scattered', 'random'], default: 'random' },
     bgColor: { type: 'color' },
     useMultiply: { type: 'boolean', default: true },
     useColorBlockEcho: { type: 'boolean', default: true },
