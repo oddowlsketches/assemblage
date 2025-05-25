@@ -142,16 +142,16 @@ function createHorizonComposition(width, height, elementCount) {
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.5)); // Up to 50% major, at least 1
   
   // Increase MIN_ELEMENT_SIDE and general sizes for Horizon style
-  const MIN_ELEMENT_SIDE = Math.max(120, Math.min(width, height) * 0.30); // Min side 30% of canvas min, or 120px
+  const MIN_ELEMENT_SIDE = Math.max(180, Math.min(width, height) * 0.45); // Min side 45% of canvas min, or 180px
 
   for (let i = 0; i < numElements; i++) {
     const isMajor = i < majorElementCount;
     let size;
     if (isMajor) {
-      size = Math.min(width, height) * (0.55 + Math.random() * 0.25); // Major: 55-80%
+      size = Math.min(width, height) * (0.80 + Math.random() * 0.35); // Major: 80-115%
     } else {
       // Minor elements also need to be substantial if only 2-4 elements total
-      size = Math.min(width, height) * (0.40 + Math.random() * 0.20); // Minor: 40-60%
+      size = Math.min(width, height) * (0.60 + Math.random() * 0.30); // Minor: 60-90%
     }
     size = Math.max(MIN_ELEMENT_SIDE, size);
     if (isMajor && numElements > 1 && majorElementCount < numElements && elements.length > 0 && elements[0].width) { 
@@ -210,7 +210,7 @@ function createAscendingComposition(width, height, elementCount) {
   const columns = Math.max(1, Math.floor(numElements / 2.5)); // Fewer columns for larger elements: 1-2 for 3-5 els, 2-3 for 6-7 els
   const columnWidth = width / columns;
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.35)); // ~35% major
-  const MIN_ELEMENT_SIDE = Math.max(90, Math.min(width, height) * 0.22); // Min side 22% or 90px
+  const MIN_ELEMENT_SIDE = Math.max(135, Math.min(width, height) * 0.33); // Min side 33% or 135px
 
   for (let i = 0; i < numElements; i++) {
     const isMajor = i < majorElementCount; 
@@ -223,13 +223,20 @@ function createAscendingComposition(width, height, elementCount) {
     let y = baseY - (row * riseFactor * (isMajor ? 0.8 : 1.0) ); // Major elements rise a bit less per row to stay larger longer
     
     let size;
+    let baseSize;
     if (isMajor) {
-      size = Math.min(columnWidth * 0.8, height * 0.45) * (0.70 + Math.random() * 0.30); // 70-100% of up to 80% col width or 45% height
+      // Scaled up base size calculation
+      baseSize = Math.min(columnWidth * 1.2, height * 0.675); // Target approx 1.5x previous: 0.8*1.5=1.2, 0.45*1.5=0.675
+      size = baseSize * (0.70 + Math.random() * 0.30); // Original multiplier range, applied to new larger base
     } else {
-      size = Math.min(columnWidth * 0.7, height * 0.30) * (0.60 + Math.random() * 0.40); // 60-100% of up to 70% col width or 30% height
+      // Scaled up base size calculation
+      baseSize = Math.min(columnWidth * 1.05, height * 0.45); // Target approx 1.5x previous: 0.7*1.5=1.05, 0.3*1.5=0.45
+      size = baseSize * (0.60 + Math.random() * 0.40); // Original multiplier range, applied to new larger base
     }
     size = Math.max(MIN_ELEMENT_SIDE, size);
-    size = Math.min(size, columnWidth * 0.9, height * 0.6); // Cap size
+    // Apply a general 1.5x scaling factor and then cap
+    size *= 1.5;
+    size = Math.min(size, columnWidth * 1.35, height * 0.9); // Cap size (original caps * 1.5, roughly)
 
     x = x - size / 2 + (Math.random() - 0.5) * columnWidth * 0.1; // Minimal X jitter
     y = y - size / 2; // Adjust Y based on size
@@ -278,7 +285,7 @@ function createScatteredComposition(width, height, elementCount) {
   const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements for scattered
   const guides = [];
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.4)); // ~40% major
-  const MIN_ELEMENT_SIDE = Math.max(90, Math.min(width, height) * 0.22); // Min side 22% or 90px
+  const MIN_ELEMENT_SIDE = Math.max(135, Math.min(width, height) * 0.33); // Min side 33% or 135px
 
   // Phyllotaxis distribution for guide points
   for (let i = 0; i < numElements; i++) {
@@ -295,12 +302,12 @@ function createScatteredComposition(width, height, elementCount) {
     const isMajor = i < majorElementCount;
     let size;
     if (isMajor) {
-      size = Math.min(width, height) * (0.50 + Math.random() * 0.25); // Major: 50-75%
+      size = Math.min(width, height) * (0.75 + Math.random() * 0.375); // Major: 75-112.5%
     } else {
-      size = Math.min(width, height) * (0.30 + Math.random() * 0.20); // Minor: 30-50%
+      size = Math.min(width, height) * (0.45 + Math.random() * 0.30); // Minor: 45-75%
     }
     size = Math.max(MIN_ELEMENT_SIDE, size);
-    size = Math.min(size, Math.min(width, height) * 0.85); // Cap size
+    size = Math.min(size, Math.min(width, height) * 0.90); // Cap size to 90% (increased from 0.85)
     
     // Reduced offset from guide point to make them cluster more around guides
     const offsetX = (Math.random() - 0.5) * size * 0.15; 
