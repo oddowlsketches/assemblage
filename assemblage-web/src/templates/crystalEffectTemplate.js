@@ -2,7 +2,8 @@
 // Template wrapper around the existing CrystalEffect class so it fits
 // the new template-review system (Canvas, images, params)
 
-import { CrystalEffect } from '../effects/CrystalEffect';
+import { CrystalEffect } from '../effects/CrystalEffect.ts';
+import { randomVibrantColor } from '../utils/colors.js'; // Import randomVibrantColor
 
 /**
  * Render Crystal collage using CrystalEffect
@@ -16,13 +17,20 @@ export function renderCrystal(canvas, images, params = {}) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Fill background FIRST, before any transformations
-  ctx.fillStyle = params.bgColor || '#FFFFFF'; // Use provided bgColor or default
+  const bgColorToUse = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  ctx.fillStyle = bgColorToUse;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // The CrystalEffect itself handles DPR scaling and positioning internally.
   // We just pass the raw context and canvas dimensions.
 
-  const variantVal = (params.variant || 'standard').toLowerCase() === 'isolated' ? 'Isolated' : 'Standard';
+  let variantVal = params.variant || 'standard';
+  if (variantVal.toLowerCase() === 'standard') { // If default or explicitly standard, randomize
+    variantVal = Math.random() < 0.5 ? 'Standard' : 'Isolated';
+    console.log(`[CrystalTemplate] Randomized variant to: ${variantVal}`);
+  } else {
+    variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize if other value
+  }
   
   const settings = {
     variant: variantVal,
@@ -44,12 +52,13 @@ export function renderCrystal(canvas, images, params = {}) {
   const effect = new CrystalEffect(ctx, images, settings);
   effect.draw(); 
   // No ctx.restore() needed if we didn't ctx.save() in this function for transformations
+  return { canvas, bgColor: bgColorToUse }; // Return canvas and the bgColor used
 }
 
 const crystalTemplate = {
   key: 'crystal',
   name: 'Crystal',
-  generate: renderCrystal,
+  render: renderCrystal,
   params: {
     variant: { type: 'select', options: ['standard', 'isolated'], default: 'standard' },
     imageMode: { type: 'select', options: ['single', 'unique'], default: 'unique' },
@@ -60,7 +69,7 @@ const crystalTemplate = {
     blendOpacity: { type: 'number', min: 0, max: 1, step: 0.1, default: 0.7 },
     useMultiply: { type: 'boolean', default: true },
     multiplyPct: { type: 'number', min: 0, max: 100, default: 100 },
-    bgColor: { type: 'color', default: '#FFFFFF' } // Added bgColor param
+    bgColor: { type: 'color', default: '#FFFFFF' } // UI default, code will handle fallback
   }
 };
 

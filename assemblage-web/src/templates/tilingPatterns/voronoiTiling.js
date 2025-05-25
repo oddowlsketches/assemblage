@@ -182,89 +182,124 @@ function sortPointsByAngle(points, centroid) {
  * @param {Object} options - Additional options
  */
 export function drawVoronoiCell(ctx, cell, image, options = {}) {
-  const { randomRotation = false, debug = false } = options;
-  
-  // Save context state
-  ctx.save();
-  
-  // Move to the cell's center
-  ctx.translate(cell.x, cell.y);
-  
-  if (randomRotation) {
-    // Random rotation (Voronoi cells look interesting with any rotation)
-    const rotation = Math.random() * Math.PI * 2;
-    ctx.rotate(rotation);
+  const { 
+    randomRotation = false, 
+    debug = false,
+    tileOpacity = 1,
+    // tileBlendMode is ignored
+    applyEcho = false,
+    echoColor = '#000000',
+    scale = 1 // Generic scale from drawOptions
+  } = options;
+
+  if (!cell || !cell.points || cell.points.length < 3 || !image || !image.complete) {
+    if (debug) console.warn("Voronoi cell, points, or image invalid for drawing.");
+    return;
   }
   
-  // Create clipping path for the cell
-  ctx.beginPath();
+  ctx.save();
   
-  // Draw the polygon path
-  const points = cell.points;
-  if (points.length > 0) {
-    // Move to the first point (relative to the translated origin)
-    ctx.moveTo(points[0].x - cell.x, points[0].y - cell.y);
-    
-    // Connect to all other points
-    for (let i = 1; i < points.length; i++) {
-      ctx.lineTo(points[i].x - cell.x, points[i].y - cell.y);
+  // Move to the cell's centroid (cell.x, cell.y)
+  ctx.translate(cell.x, cell.y);
+  
+  // Create clipping path for the cell using points relative to the centroid
+  const relativePoints = cell.points.map(p => ({ x: p.x - cell.x, y: p.y - cell.y }));
+
+  ctx.beginPath();
+  if (relativePoints.length > 0) {
+    ctx.moveTo(relativePoints[0].x, relativePoints[0].y);
+    for (let i = 1; i < relativePoints.length; i++) {
+      ctx.lineTo(relativePoints[i].x, relativePoints[i].y);
     }
     ctx.closePath();
   }
-  
-  // Apply clipping and draw the image
-  ctx.clip();
-  
-  if (image && image.complete) {
-    // Calculate cell bounds
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    points.forEach(point => {
-      minX = Math.min(minX, point.x - cell.x);
-      minY = Math.min(minY, point.y - cell.y);
-      maxX = Math.max(maxX, point.x - cell.x);
-      maxY = Math.max(maxY, point.y - cell.y);
-    });
-    
-    const cellWidth = maxX - minX;
-    const cellHeight = maxY - minY;
-    
-    // Calculate dimensions to ensure full coverage while preserving aspect ratio
-    const imageAspect = image.width / image.height;
-    const cellAspect = cellWidth / cellHeight;
-    
-    let drawWidth, drawHeight, offsetX, offsetY;
-    
-    if (imageAspect > cellAspect) {
-      // Image is wider than cell - fit to height
-      drawHeight = cellHeight;
-      drawWidth = drawHeight * imageAspect;
-      offsetX = (cellWidth - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      // Image is taller than cell - fit to width
-      drawWidth = cellWidth;
-      drawHeight = drawWidth / imageAspect;
-      offsetX = 0;
-      offsetY = (cellHeight - drawHeight) / 2;
-    }
-    
-    // Draw the image centered in the cell
-    ctx.drawImage(
-      image,
-      minX + offsetX,
-      minY + offsetY,
-      drawWidth,
-      drawHeight
-    );
-  }
-  
-  // Debug outline
+
   if (debug) {
-    ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)'; // Green for path outline before clip
     ctx.lineWidth = 1;
     ctx.stroke();
   }
   
-  // Restore context state
+  ctx.clip();
+
+  // Optional rotation around the cell's center (which is 0,0 in current translated coords)
+  if (randomRotation) {
+    const rotationAngle = Math.random() * Math.PI * 2; // Any angle for Voronoi
+    if (rotationAngle > 0) {
+        ctx.rotate(rotationAngle);
+    }
+  }
+  
+  // Echo and Image drawing
+  if (applyEcho) {
+    // Color block echo is active: Draw color base first
+    ctx.globalAlpha = tileOpacity * 0.75;
+    ctx.fillStyle = echoColor;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fill(); // Fill the clipped and transformed path
+  }
+
+  // Always draw the image with multiply blend mode
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = tileOpacity;
+  drawImageInVoronoiCell(ctx, image, relativePoints, debug);
+  
+  if (debug) {
+    ctx.strokeStyle = 'rgba(255,0,0,0.8)'; 
+    ctx.lineWidth = 1.5;
+    // Re-trace path for stroke after fill/clip
+    ctx.beginPath();
+    if (relativePoints.length > 0) {
+        ctx.moveTo(relativePoints[0].x, relativePoints[0].y);
+        for (let i = 1; i < relativePoints.length; i++) {
+            ctx.lineTo(relativePoints[i].x, relativePoints[i].y);
+        }
+        ctx.closePath();
+    }
+    ctx.stroke();
+  }
+  
   ctx.restore();
+}
+
+// Helper to draw the image within the Voronoi cell boundaries
+function drawImageInVoronoiCell(ctx, image, relativeCellPoints, debug) {
+  if (!image || !image.complete || !relativeCellPoints || relativeCellPoints.length < 3) return;
+
+  // Calculate bounding box of the cell from its relative points
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  relativeCellPoints.forEach(p => {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  });
+  const cellBoundingBoxWidth = maxX - minX;
+  const cellBoundingBoxHeight = maxY - minY;
+
+  if (cellBoundingBoxWidth <= 0 || cellBoundingBoxHeight <= 0) return;
+
+  const imageAspect = image.width / image.height;
+  const boxAspect = cellBoundingBoxWidth / cellBoundingBoxHeight;
+
+  let drawWidth, drawHeight;
+  const bleedFactor = 1.15; // Ensure image slightly larger than bounding box for irregular shapes
+
+  if (imageAspect > boxAspect) { // Image is wider than cell's bounding box
+    drawHeight = cellBoundingBoxHeight * bleedFactor;
+    drawWidth = drawHeight * imageAspect;
+  } else { // Image is taller or same aspect as cell's bounding box
+    drawWidth = cellBoundingBoxWidth * bleedFactor;
+    drawHeight = drawWidth / imageAspect;
+  }
+
+  // Center the scaled image over the cell's bounding box (which is centered at 0,0 due to prior translation)
+  const drawX = minX + (cellBoundingBoxWidth - drawWidth) / 2;
+  const drawY = minY + (cellBoundingBoxHeight - drawHeight) / 2;
+  
+  ctx.drawImage(image, 0, 0, image.width, image.height, drawX, drawY, drawWidth, drawHeight);
+
+  if (debug) {
+    // console.log("drawImageInVoronoiCell:", { minX, minY, cellBoundingBoxWidth, cellBoundingBoxHeight, imageAspect, drawX, drawY, drawWidth, drawHeight });
+  }
 }

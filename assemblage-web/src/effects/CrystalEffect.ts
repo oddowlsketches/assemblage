@@ -241,7 +241,9 @@ export class CrystalEffect extends EffectBase {
     // Create fragments from grouped points
     for (let i = 0; i < seedPoints.length; i++) {
       const points = pointsBySeed[i];
-      if (!points || points.length < 5) continue;
+      if (!points || points.length < 5) {
+        continue;
+      }
 
       const vertices = this.getConvexHull(points);
       if (vertices.length >= 3) {
@@ -250,13 +252,13 @@ export class CrystalEffect extends EffectBase {
           vertices,
           x: center.x,
           y: center.y,
-          opacity: this.settings.blendOpacity || 0.7,
+          opacity: this.settings.variant === 'Standard' ? 0.9 : (this.settings.blendOpacity || 0.75),
           rotation: (Math.random() * 20 - 10),
           size: Math.max(bounds.width, bounds.height) / 4
         });
       }
     }
-
+    console.log(`[CrystalEffect createVoronoiCells] Created ${fragments.length} fragments from ${seedPoints.length} seed points.`);
     return fragments;
   }
 
@@ -310,7 +312,11 @@ export class CrystalEffect extends EffectBase {
   }
 
   private drawFragment(fragment: Fragment): void {
-    if (!fragment.image || !fragment.image.complete) return;
+    if (!fragment.image || !fragment.image.complete) {
+      console.warn(`[CrystalEffect drawFragment] Skipping fragment, image missing or not complete. Image: ${fragment.image?.src}, Complete: ${fragment.image?.complete}`);
+      return;
+    }
+    console.log(`[CrystalEffect drawFragment] Drawing fragment with image: ${fragment.image.src.substring(fragment.image.src.lastIndexOf('/')+1)}`);
 
     this.ctx.save();
     
@@ -412,13 +418,22 @@ export class CrystalEffect extends EffectBase {
       this.drawIsolatedCrystal();
     } else {
       this.drawStandardCrystal();
+      // For Standard variant, images need to be assigned here before the drawing loop
+      this.fragments.forEach(fragment => {
+        this.assignImageToFragment(fragment);
+      });
     }
 
+    console.log(`[CrystalEffect draw] Generated ${this.fragments.length} fragments. Variant: ${this.settings.variant}`);
+
     // Draw all fragments with proper blend mode
-    this.ctx.globalCompositeOperation = 'multiply';
+    this.ctx.globalCompositeOperation = 'multiply'; // Set once before loop
     this.fragments.forEach(fragment => {
-      if (fragment.image) {
+      // Image assignment is now done above for Standard, and within drawIsolatedCrystal for Isolated
+      if (fragment.image) { 
         this.drawFragment(fragment);
+      } else {
+        console.warn(`[CrystalEffect draw loop] Skipping fragment, no image assigned. Index: (not available), Variant: ${this.settings.variant}`);
       }
     });
     
@@ -431,42 +446,38 @@ export class CrystalEffect extends EffectBase {
     const canvasWidth = this.ctx.canvas.width;
     const canvasHeight = this.ctx.canvas.height;
     
-    // Calculate center point using actual canvas dimensions
-    const centerX = canvasWidth / 2;
-    const centerY = canvasHeight / 2;
-    
-    // Calculate size based on the smaller canvas dimension
-    const size = Math.min(canvasWidth, canvasHeight) * 0.8;
+    // For full-bleed, the "size" for density calculation can be the diagonal or average dimension
+    const effectiveSizeForDensity = Math.sqrt(canvasWidth * canvasWidth + canvasHeight * canvasHeight) / 2; // Or Math.max(canvasWidth, canvasHeight) * 0.7 etc.
     
     // Use complexity from settings to determine facets
     const facets = this.settings.complexity * 2;
     
-    // Generate seed points within a centered square region
+    // Generate seed points across the entire canvas
     const seedPoints = this.generateSeedPoints(
-      centerX, 
-      centerY, 
-      size * 0.4, // Keep points within a tighter boundary
+      canvasWidth / 2, 
+      canvasHeight / 2, 
+      effectiveSizeForDensity, // Use a radius that covers the canvas for seed points
       facets * this.settings.density
     );
     
     // Create fragments with resolution based on complexity
     const resolution = 50 + this.settings.complexity * 5;
     
-    // Create a centered square outline
-    const canvasOutline = [
-      { x: centerX - size/2, y: centerY - size/2 },
-      { x: centerX + size/2, y: centerY - size/2 },
-      { x: centerX + size/2, y: centerY + size/2 },
-      { x: centerX - size/2, y: centerY + size/2 }
+    // Create a full canvas outline for a full-bleed effect
+    const fullCanvasOutline = [
+      { x: 0, y: 0 },
+      { x: canvasWidth, y: 0 },
+      { x: canvasWidth, y: canvasHeight },
+      { x: 0, y: canvasHeight }
     ];
     
-    this.fragments = this.createVoronoiCells(seedPoints, canvasOutline, resolution);
+    this.fragments = this.createVoronoiCells(seedPoints, fullCanvasOutline, resolution);
 
-    // Draw all fragments
-    this.fragments.forEach(fragment => {
-      this.assignImageToFragment(fragment);
-      this.drawFragment(fragment);
-    });
+    // Assign images to fragments (moved from drawIsolatedCrystal and drawStandardCrystal to the main draw loop)
+    // this.fragments.forEach(fragment => {
+    //   this.assignImageToFragment(fragment);
+    // });
+    // Images are assigned and drawn in the main draw() method after this runs
   }
 
   private drawIsolatedCrystal(): void {

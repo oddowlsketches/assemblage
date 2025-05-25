@@ -4,14 +4,14 @@ import { createClient } from '@supabase/supabase-js';
 import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGenerator.js';
 import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
 import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
-import { CrystalEffect } from '../effects/CrystalEffect';
-import { ArchitecturalEffect } from '../effects/ArchitecturalEffect';
+import { CrystalEffect } from '../effects/CrystalEffect.ts';
+import { ArchitecturalEffect } from '../effects/ArchitecturalEffect.ts';
 import maskImplementations from '../legacy/js/collage/maskImplementations.js';
-import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry';
+import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry.ts';
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
-import { EventEmitter } from '../utils/EventEmitter';
-import { getRandomTemplate } from '../templates/templateManager';
+import { EventEmitter } from '../utils/EventEmitter.ts';
+import { getRandomTemplate } from '../templates/templateManager.ts';
 import { getSupabase, getImageUrl } from '../supabaseClient';
 
 export class CollageService {
@@ -29,6 +29,12 @@ export class CollageService {
         this.paperView = null;
         this.masks = maskImplementations;
         this.supabaseClient = null;
+        
+        // Lazy loading configuration
+        this.imageMetadata = []; // Store metadata without loading images
+        this.imageCache = new Map(); // Cache loaded images by ID
+        this.maxCacheSize = 50; // Maximum images to keep in cache
+        this.placeholderImages = []; // Placeholder for development
 
         this.options = options;
         this.events = new EventEmitter();
@@ -54,6 +60,169 @@ export class CollageService {
         this.parameters = {
             cleanTiling: false,
         };
+    }
+
+    // Load only image metadata (not the actual images)
+    async loadImageMetadata() {
+        if (!this.supabaseClient) {
+            console.error('[CollageService] Supabase client not initialized.');
+            return;
+        }
+
+        try {
+            const { data: rows, error } = await this.supabaseClient
+                .from('images')
+                .select('id, src')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                console.error('[CollageService] Error fetching image metadata:', error);
+                return;
+            }
+
+            this.imageMetadata = rows || [];
+            console.log(`[CollageService] Loaded metadata for ${this.imageMetadata.length} images`);
+            
+            // If no metadata loaded but we're in development, create dummy metadata
+            if (this.imageMetadata.length === 0 && import.meta.env.MODE === 'development') {
+                console.log('[CollageService] No metadata found, creating dummy entries for development');
+                // Create 50 dummy metadata entries
+                this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
+                    id: `dummy-${i}`,
+                    src: `dummy-${i}.jpg`
+                }));
+            }
+        } catch (e) {
+            console.error('[CollageService] Error loading image metadata:', e);
+            
+            // In development, create dummy metadata
+            if (import.meta.env.MODE === 'development') {
+                console.log('[CollageService] Creating dummy metadata for development');
+                this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
+                    id: `dummy-${i}`,
+                    src: `dummy-${i}.jpg`
+                }));
+            }
+        }
+    }
+
+    // Lazy load specific images by IDs
+    async loadImagesByIds(imageIds) {
+        // In development mode with placeholder, return a selection of placeholders
+        if (import.meta.env.MODE === 'development') {
+            if (!this.placeholderImages || this.placeholderImages.length === 0) {
+                console.warn('[CollageService] Placeholder images array is empty in loadImagesByIds. Attempting to load.');
+                await this.loadPlaceholder(); // Attempt to load them
+            }
+            
+            const validPlaceholders = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
+            
+            if (validPlaceholders.length === 0) {
+                console.warn('[CollageService] No valid placeholder images available after filtering in loadImagesByIds. Returning empty array.');
+                return [];
+            }
+            
+            // Map requested IDs to available valid placeholders, cycling through placeholders if needed
+            return imageIds.map((id, idx) => {
+                return validPlaceholders[idx % validPlaceholders.length];
+            });
+        }
+        
+        const imagesToLoad = imageIds.filter(id => !this.imageCache.has(id));
+        
+        if (imagesToLoad.length === 0) {
+            // All requested images are already cached
+            return Array.from(imageIds).map(id => this.imageCache.get(id)).filter(img => img);
+        }
+
+        const loadPromises = imagesToLoad.map(async (id) => {
+            const metadata = this.imageMetadata.find(m => m.id === id);
+            if (!metadata || !metadata.src) return null;
+
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.src = getImageUrl(metadata.src);
+                img.dataset.supabaseSrc = metadata.src;
+                img.dataset.imageId = id;
+                
+                img.onload = () => {
+                    this.addToCache(id, img);
+                    resolve(img);
+                };
+                img.onerror = () => {
+                    console.warn(`[CollageService] Failed to load image ${id}`);
+                    resolve(null);
+                };
+            });
+        });
+
+        await Promise.all(loadPromises);
+        return Array.from(imageIds).map(id => this.imageCache.get(id)).filter(img => img);
+    }
+
+    // Load placeholder image for development
+    async loadPlaceholder() {
+        if (this.placeholderImages && this.placeholderImages.length === 20 && this.placeholderImages.every(img => img instanceof Image)) {
+            // If already loaded and all are Image instances, check completion and broken status
+            const allCompleteAndNotBroken = this.placeholderImages.every(img => img.complete && !img.isBroken);
+            if (allCompleteAndNotBroken && this.placeholderImages.filter(img => img.complete && !img.isBroken).length > 0) {
+                 console.log('[CollageService] Placeholder images already loaded and valid.');
+                 return true;
+            }
+            // If some are broken or not complete, attempt to reload them or re-verify
+            console.log('[CollageService] Placeholder array exists, but some may be invalid. Re-checking/loading.');
+        }
+        
+        this.placeholderImages = Array(20).fill(null);
+        let loadedCount = 0;
+        let errorCount = 0;
+        const promises = [];
+
+        for (let i = 0; i < 20; i++) {
+            const promise = new Promise((resolveIteration) => {
+                const img = new Image();
+                img.isBroken = false; 
+                img.src = `/images/collages/placeholder${i + 1}.png`;
+                this.placeholderImages[i] = img;
+
+                img.onload = () => {
+                    loadedCount++;
+                    resolveIteration(true);
+                };
+                img.onerror = () => {
+                    errorCount++;
+                    img.isBroken = true; // Mark as broken
+                    console.warn(`[CollageService] Failed to load placeholder${i + 1}.png`);
+                    resolveIteration(false);
+                };
+            });
+            promises.push(promise);
+        }
+
+        return Promise.all(promises).then(results => {
+            console.log(`[CollageService] All placeholder images processed. Loaded: ${loadedCount}, Errored: ${errorCount}`);
+            // Resolve true if at least one image loaded successfully
+            return loadedCount > 0;
+        });
+    }
+
+    // Add image to cache with LRU eviction
+    addToCache(id, image) {
+        if (this.imageCache.size >= this.maxCacheSize) {
+            // Remove least recently used image
+            const firstKey = this.imageCache.keys().next().value;
+            this.imageCache.delete(firstKey);
+        }
+        this.imageCache.set(id, image);
+    }
+
+    // Get random image IDs for collage
+    getRandomImageIds(count) {
+        if (this.imageMetadata.length === 0) return [];
+        
+        const shuffled = [...this.imageMetadata].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, Math.min(count, this.imageMetadata.length)).map(m => m.id);
     }
 
     initializePaper() {
@@ -240,24 +409,156 @@ export class CollageService {
             console.warn('Cannot generate collage: canvas not available');
             return;
         }
-        if (!this.images || this.images.length === 0) {
-            if (!this.isLoadingImages) {
-                console.log('[CollageService] Images not available. Attempting to load...');
-                await this.loadImages();
-                if (!this.images || this.images.length === 0) {
-                    console.warn('Cannot generate collage: images still not available after load attempt.');
-                    return;
-                }
-            } else {
-                 console.warn('Cannot generate collage: images are currently loading. Try again shortly.');
-                 return;
+        
+        // Load metadata if not already loaded and not in development (dev uses placeholders)
+        if (this.imageMetadata.length === 0 && import.meta.env.MODE !== 'development') {
+            console.log('[CollageService] Loading image metadata...');
+            await this.loadImageMetadata();
+            // If still no metadata, and not in dev, we might have an issue fetching from Supabase
+            // For now, we'll let it try to proceed, image loading might fail later.
+            // Or, decide if we should fallback to old full loadImages() here.
+            if (this.imageMetadata.length === 0) {
+                 console.warn('[CollageService] Image metadata is empty after attempting to load (and not in dev mode).');
             }
         }
 
-        const { type, template, params } = getRandomTemplate();
-        console.log(`[CollageService] Using template: ${type} with params:`, params);
+        // In development, ensure placeholders are loaded and valid
+        if (import.meta.env.MODE === 'development') {
+            const placeholdersReady = await this.loadPlaceholder(); // Ensures placeholders are attempted to load
+            if (!placeholdersReady || this.placeholderImages.filter(img => img && img.complete && !img.isBroken).length === 0) {
+                console.error('[CollageService] No valid placeholder images available. Cannot generate collage.');
+                this.isRendering = false;
+                this.events.emit('renderEnd', { success: false, error: 'No valid placeholders' });
+                return;
+            }
+            this.images = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
+            if (this.images.length === 0) { // Double check after filter
+                console.error('[CollageService] Filtering placeholders resulted in an empty image list. Cannot generate.');
+                this.isRendering = false;
+                this.events.emit('renderEnd', { success: false, error: 'No valid placeholders after filter' });
+                return;
+            }
+        }
+
+
+        if (this.isRendering) {
+            console.warn('[CollageService] Render already in progress. Skipping.');
+            return;
+        }
+        this.isRendering = true;
+        this.events.emit('renderStart');
+
+        let selectedTemplate;
+        if (this.currentEffectName) {
+            selectedTemplate = this.templateRenderer.getTemplate(this.currentEffectName);
+            if (!selectedTemplate) {
+                 console.warn(`[CollageService] No template found for effect: ${this.currentEffectName}. Falling back to random.`);
+                 selectedTemplate = this.templateRenderer.getRandomTemplate();
+            }
+        } else {
+            selectedTemplate = this.templateRenderer.getRandomTemplate();
+        }
+
+        if (!selectedTemplate || !selectedTemplate.key) {
+            console.error("[CollageService] Failed to get a valid template or template has no key.");
+            this.isRendering = false;
+            this.events.emit('renderEnd', { success: false, error: 'No valid template' });
+            return;
+        }
+        
+        const templateKey = selectedTemplate.key;
+        console.log(`[CollageService] Using template: ${templateKey}`);
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        template.generate(this.canvas, this.images, params);
+
+        let numImagesNeeded = 3; // Default
+        if (selectedTemplate.params && selectedTemplate.params.imageCount && selectedTemplate.params.imageCount.default) {
+            numImagesNeeded = selectedTemplate.params.imageCount.default;
+        } else if (templateKey === 'crystalEffect' || templateKey === 'dynamicArchitectural') { // Note: crystalEffect key might be 'crystal'
+            numImagesNeeded = 5 + Math.floor(Math.random() * 4); 
+        } else if (templateKey === 'tilingTemplate') {
+            numImagesNeeded = 10 + Math.floor(Math.random() * 11); 
+        }
+
+
+        // Load images via IDs if NOT in dev mode (dev mode uses placeholders assigned above)
+        if (import.meta.env.MODE !== 'development') {
+            const imageIdsToLoad = this.getRandomImageIds(numImagesNeeded);
+            const currentImages = await this.loadImagesByIds(imageIdsToLoad);
+
+            if (!currentImages || currentImages.length === 0) {
+                // If specific images failed, and we have globally loaded images (from an old full load), use them.
+                // This an old fallback, ideally loadImagesByIds should be robust or imageMetadata sufficient.
+                if(this.images && this.images.length > 0) { 
+                     console.warn('[CollageService] No specific images loaded for template, using existing general pool (if any).');
+                } else {
+                    console.error('[CollageService] No images available (neither specific IDs nor general pool). Cannot render.');
+                    this.isRendering = false;
+                    this.events.emit('renderEnd', { success: false, error: 'No images for template' });
+                    return;
+                }
+            } else {
+                 this.images = currentImages.filter(img => img && img.complete && !img.isBroken); // Ensure only valid images
+                 if (this.images.length === 0) {
+                    console.error('[CollageService] No valid images after filtering loaded-by-ID images. Cannot render.');
+                    this.isRendering = false;
+                    this.events.emit('renderEnd', { success: false, error: 'No valid images after ID load and filter' });
+                    return;
+                 }
+            }
+        }
+        
+        // Ensure the generator (if used by a template directly, less common now) has the latest images
+        if (this.generator) {
+          this.generator.images = this.images;
+        }
+
+        try {
+            // Ensure this.images passed to renderTemplate are valid
+            if (!this.images || this.images.length === 0 || this.images.every(img => !img || img.isBroken || !img.complete)) {
+                console.error(`[CollageService] No valid images to send to template ${templateKey}. Aborting render.`);
+                this.events.emit('renderEnd', { success: false, error: 'No valid images for rendering', templateKey });
+                this.isRendering = false;
+                return;
+            }
+            
+            const renderOutput = await this.templateRenderer.renderTemplate(templateKey, { userPrompt, images: this.images });
+            
+            if (renderOutput && renderOutput.bgColor) {
+                console.log(`[CollageService] Finished rendering template: ${templateKey}. BG: ${renderOutput.bgColor}`);
+                this.updateUIColors(renderOutput.bgColor); 
+            } else {
+                console.warn(`[CollageService] Template ${templateKey} did not return a bgColor. UI colors not updated dynamically.`);
+                this.updateUIColors(this.getBackgroundColor()); 
+            }
+            this.events.emit('renderEnd', { success: true, templateKey });
+        } catch (error) {
+            console.error(`[CollageService] Error during template rendering (${templateKey}):`, error);
+            this.events.emit('renderEnd', { success: false, error: error.message, templateKey });
+        } finally {
+            this.isRendering = false;
+        }
+    }
+
+    // Estimate how many images a template needs
+    estimateImageCount(templateType, params) {
+        switch (templateType) {
+            case 'crystal':
+                return params.crystalCount || 20;
+            case 'tiling':
+                return params.tileCount || 20;
+            case 'scrambledMosaic':
+                const gridSize = params.gridSize || 6;
+                return gridSize * gridSize;
+            case 'sliced':
+                return params.sliceBehavior === 'single-image' ? 1 : 10;
+            case 'pairedForms':
+                return params.formCount || 3;
+            case 'dynamicArchitectural':
+                return params.imageMode === 'single' ? 1 : 8;
+            default:
+                return 20; // Default fallback
+        }
     }
 
     async applyCrystalEffect() {
@@ -306,6 +607,17 @@ export class CollageService {
     }
     
     updateUIColors(bgColor) {
+        // Helper function to convert hex to RGB
+        const hexToRgb = (hex) => {
+            // Remove # if present
+            hex = hex.replace('#', '');
+            // Parse the hex values
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            return { r, g, b };
+        };
+        
         const rgbToHsl = (r, g, b) => {
             r /= 255;
             g /= 255;
@@ -330,20 +642,46 @@ export class CollageService {
             return [h * 360, s * 100, l * 100];
         };
         
-        const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-        if (!rgbMatch) return;
+        let r, g, b;
         
-        const r = parseInt(rgbMatch[1]);
-        const g = parseInt(rgbMatch[2]);
-        const b = parseInt(rgbMatch[3]);
+        // Check if it's a hex color
+        if (bgColor.startsWith('#')) {
+            const rgb = hexToRgb(bgColor);
+            r = rgb.r;
+            g = rgb.g;
+            b = rgb.b;
+        } else {
+            // Try to parse as rgb format
+            const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+            if (!rgbMatch) {
+                console.warn('[CollageService] Invalid color format for updateUIColors:', bgColor);
+                return;
+            }
+            r = parseInt(rgbMatch[1]);
+            g = parseInt(rgbMatch[2]);
+            b = parseInt(rgbMatch[3]);
+        }
         
         const [h, s, l] = rgbToHsl(r, g, b);
         
         const complementaryH = (h + 180) % 360;
         
-        const complementaryColor = `hsl(${complementaryH}, ${Math.min(s + 20, 100)}%, ${Math.max(l - 20, 20)}%)`;
+        // Adjust lightness for better contrast
+        let textL;
+        if (l > 50) {
+            // Light background - use dark text
+            textL = Math.max(l - 60, 10);
+        } else {
+            // Dark background - use light text
+            textL = Math.min(l + 60, 90);
+        }
         
-        document.documentElement.style.setProperty('--background-color', bgColor);
+        const complementaryColor = `hsl(${complementaryH}, ${Math.min(s + 20, 100)}%, ${textL}%)`;
+        
+        // Convert bgColor to CSS format if it was hex
+        const cssBgColor = bgColor.startsWith('#') ? bgColor : bgColor;
+        
+        document.documentElement.style.setProperty('--background-color', cssBgColor);
         document.documentElement.style.setProperty('--text-color', complementaryColor);
         document.documentElement.style.setProperty('--button-border-color', complementaryColor);
         document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
@@ -579,12 +917,12 @@ export class CollageService {
             console.log('[CollageService] Images not loaded. Attempting to load images before rendering template...');
             await this.loadImages();
             if (this.images.length === 0) {
-                console.warn('Cannot render template: images still not available after load attempt.');
-                return null; 
+                console.warn('Cannot draw template: images still not available after load attempt.');
+                return;
             }
         } else if (this.isLoadingImages) {
-            console.warn('Cannot render template: images are currently loading. Try again shortly.');
-            return null;
+            console.warn('Cannot draw template: images are currently loading. Try again shortly.');
+            return;
         }
         return this.templateRenderer.renderTemplate(key, params);
     }

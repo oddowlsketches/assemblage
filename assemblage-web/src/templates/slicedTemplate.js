@@ -19,7 +19,7 @@ export async function renderSliced(canvas, images, params = {}) {
   const gen = new SlicedCollageGenerator(ctx, canvas);
 
   // Determine background color
-  const bgCol = params.bgColor || randomVibrantColor();
+  const bgCol = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
   // Monkey-patch generator bg color chooser so legacy code uses ours
   gen.generateBackgroundColor = () => bgCol;
 
@@ -41,6 +41,7 @@ export async function renderSliced(canvas, images, params = {}) {
 
   // Reset composite
   ctx.globalCompositeOperation = 'source-over';
+  return { canvas, bgColor: bgCol }; // Return canvas and the bgColor used
 }
 
 const slicedTemplate = {

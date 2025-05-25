@@ -3,6 +3,9 @@
  * Creates a grid of squares for use in the tiling template
  */
 
+import { svgToPath2D } from '../../core/svgUtils'; // Assuming path is correct
+import { maskRegistry } from '../../masks/maskRegistry.ts';
+
 /**
  * Generate data for square tiling
  * @param {number} count - Approximate number of tiles to generate
@@ -87,66 +90,101 @@ export function createSquareTiling(count, width, height, options = {}) {
  * @param {Object} options - Additional options
  */
 export function drawSquareTile(ctx, tile, image, options = {}) {
-  const { randomRotation = false, debug = false } = options;
+  if (!tile || !tile.points || tile.points.length < 4) return;
   
-  // Save context state
+  const { 
+    randomRotation = false, 
+    debug = false, 
+    scale = 1, 
+    tileOpacity = 1,
+    tileBlendMode = 'source-over',
+    applyEcho = false,
+    useEchoVariation = false,
+    echoColor = '#000000'
+  } = options;
+
   ctx.save();
-  
-  // Apply transformations if needed
-  ctx.translate(tile.x + tile.width / 2, tile.y + tile.height / 2);
-  
-  if (randomRotation) {
-    // Randomly rotate in 90° increments
-    const rotation = Math.floor(Math.random() * 4) * (Math.PI / 2);
-    ctx.rotate(rotation);
-  }
-  
-  // Create clipping path
+
+  // Create path for the square tile
   ctx.beginPath();
-  ctx.rect(-tile.width / 2, -tile.height / 2, tile.width, tile.height);
-  ctx.closePath();
-  
-  // Apply clipping and draw the image
-  ctx.clip();
-  
-  if (image && image.complete) {
-    // Calculate dimensions to ensure full coverage while preserving aspect ratio
-    const imageAspect = image.width / image.height;
-    const tileAspect = tile.width / tile.height;
-    
-    let drawWidth, drawHeight, offsetX, offsetY;
-    
-    if (imageAspect > tileAspect) {
-      // Image is wider than tile - fit to height
-      drawHeight = tile.height;
-      drawWidth = drawHeight * imageAspect;
-      offsetX = (tile.width - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      // Image is taller than tile - fit to width
-      drawWidth = tile.width;
-      drawHeight = drawWidth / imageAspect;
-      offsetX = 0;
-      offsetY = (tile.height - drawHeight) / 2;
-    }
-    
-    // Draw the image centered in the tile
-    ctx.drawImage(
-      image,
-      -tile.width / 2 + offsetX,
-      -tile.height / 2 + offsetY,
-      drawWidth,
-      drawHeight
-    );
+  ctx.moveTo(tile.points[0].x, tile.points[0].y);
+  for (let i = 1; i < tile.points.length; i++) {
+    ctx.lineTo(tile.points[i].x, tile.points[i].y);
   }
-  
-  // Debug outline
+  ctx.closePath();
+
   if (debug) {
-    ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+    ctx.strokeStyle = 'rgba(255,0,0,0.5)';
     ctx.lineWidth = 1;
     ctx.stroke();
   }
   
-  // Restore context state
+  ctx.clip();
+
+  // Apply rotation if needed
+  if (randomRotation) {
+    const angle = Math.floor(Math.random() * 4) * 90; // 0, 90, 180, 270
+    if (angle > 0) {
+      ctx.translate(tile.points[0].x + tile.width / 2, tile.points[0].y + tile.height / 2);
+      ctx.rotate(angle * Math.PI / 180);
+      ctx.translate(-(tile.points[0].x + tile.width / 2), -(tile.points[0].y + tile.height / 2));
+    }
+  }
+
+  // Image drawing logic considering echo
+  if (applyEcho && echoColor && typeof echoColor === 'string' && echoColor.startsWith('#')) {
+    // Color block echo is active for this tile: Draw color base first
+    ctx.globalAlpha = tileOpacity * 0.85; 
+    ctx.fillStyle = echoColor;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fill(); 
+    console.log(`[DrawSquareTile] Echo drawn: color=${echoColor}, opacity=${ctx.globalAlpha}`);
+    
+    // Now draw image on top with multiply
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = tileOpacity; 
+    drawImageInTile(ctx, image, tile, scale);
+  } else {
+    // If not applying echo, draw image as per original blend mode or default to multiply
+    ctx.globalCompositeOperation = options.tileBlendMode || 'multiply'; 
+    ctx.globalAlpha = tileOpacity; 
+    drawImageInTile(ctx, image, tile, scale);
+  }
+  
   ctx.restore();
+}
+
+// Helper to draw the image within the tile boundaries, maintaining aspect ratio
+function drawImageInTile(ctx, image, tile, scale) {
+  const tileWidth = tile.width;
+  const tileHeight = tile.height;
+  const imageAspect = image.width / image.height;
+  const tileAspect = tileWidth / tileHeight;
+  
+  // Calculate dimensions to maintain aspect ratio (cover behavior)
+  let drawWidth, drawHeight, dx, dy;
+  
+  if (imageAspect > tileAspect) {
+    // Image is wider than tile - fit to height and crop width
+    drawHeight = tileHeight;
+    drawWidth = drawHeight * imageAspect;
+    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
+    dy = tile.points[0].y;
+  } else {
+    // Image is taller than tile - fit to width and crop height
+    drawWidth = tileWidth;
+    drawHeight = drawWidth / imageAspect;
+    dx = tile.points[0].x;
+    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
+  }
+  
+  // Apply the scale factor while maintaining aspect ratio
+  drawWidth *= scale;
+  drawHeight *= scale;
+  
+  // Recenter after scaling
+  dx -= (drawWidth - tileWidth) / 2;
+  dy -= (drawHeight - tileHeight) / 2;
+
+  ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
 }

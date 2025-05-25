@@ -5,7 +5,6 @@ export const vibrantColors = [
   '#4ECDC4', // Turquoise
   '#45B7D1', // Sky Blue
   '#96CEB4', // Sage Green
-  '#FFEEAD', // Cream
   '#D4A5A5', // Dusty Rose
   '#9B59B6', // Purple
   '#3498DB', // Blue

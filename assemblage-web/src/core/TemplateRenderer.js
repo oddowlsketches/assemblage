@@ -1,6 +1,5 @@
 // TemplateRenderer.js
-import templates from '../templates';
-import { getMaskDescriptor } from '../masks/maskRegistry';
+import { getMaskDescriptor } from '../masks/maskRegistry.ts';
 import templateModules from '../templates/index';
 
 /**
@@ -35,14 +34,26 @@ export class TemplateRenderer {
    * Get a template by key
    */
   getTemplate(key) {
-    return templates.find(t => t.key === key);
+    return templateModules.find(t => t.key === key);
   }
   
   /**
    * Get all templates
    */
   getAllTemplates() {
-    return templates;
+    return templateModules;
+  }
+  
+  /**
+   * Get a random template
+   */
+  getRandomTemplate() {
+    const allTemplates = this.getAllTemplates();
+    if (!allTemplates || allTemplates.length === 0) {
+      console.error('[TemplateRenderer] No templates available to choose from.');
+      return null;
+    }
+    return allTemplates[Math.floor(Math.random() * allTemplates.length)];
   }
   
   /**
@@ -80,15 +91,14 @@ export class TemplateRenderer {
     }
     
     try {
-      await handler(this.canvas, images, mergedParams);
+      // The handler (template's generate function) now returns { canvas, bgColor }
+      const result = await handler(this.canvas, images, mergedParams);
+      return result; // Pass through the object
     } catch (error) {
       console.error(`Error rendering template ${key}:`, error);
+      return { canvas: this.canvas, bgColor: null }; // Return default on error
     }
-    
-    return this.canvas;
   }
-  
-
   
   /**
    * Save feedback about a template

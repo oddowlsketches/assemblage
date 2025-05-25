@@ -116,60 +116,112 @@ function chooseWeighted(items, weights) {
  * @param {Object} options - Additional options
  */
 export function drawModularTile(ctx, tile, image, options = {}) {
-  const { randomRotation = false, debug = false } = options;
+  const { 
+    randomRotation = false, 
+    debug = false,
+    tileOpacity = 1,
+    // tileBlendMode is ignored
+    applyEcho = false,
+    echoColor = '#000000',
+    scale = 1 // Passed from drawOptions, may or may not be used depending on how modular cell size is determined
+  } = options;
+
+  if (!tile || !tile.points || tile.points.length < 4 || !image || !image.complete) {
+    if (debug) console.warn("Modular tile, points, or image invalid for drawing.");
+    return;
+  }
   
-  // Save context state
   ctx.save();
   
-  // Apply transformations if needed
-  ctx.translate(tile.x + tile.width / 2, tile.y + tile.height / 2);
-  
-  if (randomRotation) {
-    // Randomly rotate in 90° increments
-    const rotation = Math.floor(Math.random() * 4) * (Math.PI / 2);
-    ctx.rotate(rotation);
-  }
-  
-  // Create clipping path
+  // Modular tiles have absolute points. Create path first.
   ctx.beginPath();
-  ctx.rect(-tile.width / 2, -tile.height / 2, tile.width, tile.height);
-  ctx.closePath();
-  
-  // Apply clipping and draw the image
-  ctx.clip();
-  
-  if (image && image.complete) {
-    // Preserve aspect ratio when drawing the image
-    const imgAspect = image.width / image.height;
-    const tileAspect = tile.width / tile.height;
-    
-    let drawWidth = tile.width;
-    let drawHeight = tile.height;
-    let drawX = -tile.width / 2;
-    let drawY = -tile.height / 2;
-    
-    if (imgAspect > tileAspect) {
-      // Image is wider than the tile
-      drawHeight = tile.width / imgAspect;
-      drawY = -drawHeight / 2;
-    } else {
-      // Image is taller than the tile
-      drawWidth = tile.height * imgAspect;
-      drawX = -drawWidth / 2;
-    }
-    
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-    ctx.globalCompositeOperation = 'source-over';
+  ctx.moveTo(tile.points[0].x, tile.points[0].y);
+  for (let i = 1; i < tile.points.length; i++) {
+    ctx.lineTo(tile.points[i].x, tile.points[i].y);
   }
-  
-  // Debug outline
+  ctx.closePath();
+
   if (debug) {
-    ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)'; // Green for path outline before clip
     ctx.lineWidth = 1;
     ctx.stroke();
   }
   
-  // Restore context state
+  ctx.clip();
+
+  // Optional rotation around the tile's geometric center
+  if (randomRotation) {
+    const centerX = tile.x + tile.width / 2; // tile.x, tile.y is top-left of the rectangle
+    const centerY = tile.y + tile.height / 2;
+    
+    const rotationAngle = Math.floor(Math.random() * 4) * (90 * Math.PI / 180); // 0, 90, 180, 270
+    if (rotationAngle > 0) {
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotationAngle);
+        ctx.translate(-centerX, -centerY);
+    }
+  }
+  
+  // Echo and Image drawing
+  if (applyEcho) {
+    // Color block echo is active: Draw color base first
+    ctx.globalAlpha = tileOpacity * 0.75;
+    ctx.fillStyle = echoColor;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fill(); // Fill the clipped and transformed path
+  }
+
+  // Always draw the image with multiply blend mode
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = tileOpacity;
+  // tile.width and tile.height are the dimensions of the rectangular cell
+  drawImageInModularCell(ctx, image, tile, scale, debug);
+  
+  if (debug) {
+    ctx.strokeStyle = 'rgba(255,0,0,0.8)'; 
+    ctx.lineWidth = 1.5;
+    // Re-trace path for stroke after fill/clip
+    ctx.beginPath();
+    ctx.moveTo(tile.points[0].x, tile.points[0].y);
+    for (let i = 1; i < tile.points.length; i++) {
+        ctx.lineTo(tile.points[i].x, tile.points[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  
   ctx.restore();
+}
+
+// Helper to draw the image within the modular (rectangular) cell boundaries
+function drawImageInModularCell(ctx, image, tile, scaleOpt, debug) {
+  // scaleOpt is the generic scale from drawOptions, tile itself has width/height
+  if (!image || !image.complete || !tile || tile.width <= 0 || tile.height <= 0) return;
+
+  const tileWidth = tile.width;
+  const tileHeight = tile.height;
+  const imageAspect = image.width / image.height;
+  const tileAspect = tileWidth / tileHeight;
+  
+  let drawWidth, drawHeight;
+  const bleedFactor = 1.1; // Ensure image slightly larger than tile
+
+  if (imageAspect > tileAspect) { // Image is wider than tile
+    drawHeight = tileHeight * bleedFactor;
+    drawWidth = drawHeight * imageAspect;
+  } else { // Image is taller or same aspect as tile
+    drawWidth = tileWidth * bleedFactor;
+    drawHeight = drawWidth / imageAspect;
+  }
+
+  // Center the scaled image within the tile
+  // tile.x, tile.y is the top-left of the tile
+  const drawX = tile.x + (tileWidth - drawWidth) / 2;
+  const drawY = tile.y + (tileHeight - drawHeight) / 2;
+  
+  ctx.drawImage(image, 0, 0, image.width, image.height, drawX, drawY, drawWidth, drawHeight);
+
+  if (debug) {
+    // console.log("drawImageInModularCell:", { tileX: tile.x, tileY: tile.y, tileWidth, tileHeight, imageAspect, drawX, drawY, drawWidth, drawHeight });
+  }
 }

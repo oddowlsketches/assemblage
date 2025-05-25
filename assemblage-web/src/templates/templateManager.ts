@@ -5,18 +5,24 @@ import tilingTemplate from './tilingTemplate';
 import crystalTemplate from './crystalEffectTemplate';
 import slicedTemplate from './slicedTemplate';
 import pairedForms from './pairedForms';
-import architecturalTemplate from './architecturalTemplate';
+import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate';
+import floatingElements from './floatingElements';
+import layeredGeometric from './layeredGeometric';
+import architecturalComposition from './architecturalComposition';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'architectural';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'architecturalComposition';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
-  crystal: 0.2,
-  scrambledMosaic: 0.2,
-  tiling: 0.2,
-  sliced: 0.15,
-  pairedForms: 0.15,
-  architectural: 0.1
+  crystal: 0.1,
+  scrambledMosaic: 0.15,
+  tiling: 0.15,
+  sliced: 0.1,
+  pairedForms: 0.1,
+  dynamicArchitectural: 0.1,
+  floatingElements: 0.1,
+  layeredGeometric: 0.1,
+  architecturalComposition: 0.1
 };
 
 // Random parameter generators for each template
@@ -65,11 +71,39 @@ const parameterGenerators = {
     bgColor: randomVibrantColor()
   }),
 
-  architectural: () => ({
-    style: ['classic', 'modern', 'gothic'][Math.floor(Math.random() * 3)],
+  dynamicArchitectural: () => ({
+    style: ['random', 'singleArch', 'archSeries', 'nestedArches', 'coliseum', 'classic', 'modern', 'gothic'][Math.floor(Math.random() * 8)],
     imageMode: Math.random() > 0.5 ? 'single' : 'unique',
+    useComplementaryShapes: Math.random() > 0.4, // 60% chance of complementary shapes
     useMultiply: true,
     bgColor: randomVibrantColor()
+  }),
+  
+  floatingElements: () => ({
+    elementCount: 3 + Math.floor(Math.random() * 7), // 3-10 elements
+    style: ['horizon', 'ascending', 'scattered', 'strata'][Math.floor(Math.random() * 4)],
+    bgColor: randomVibrantColor(),
+    groundColor: randomVibrantColor(),
+    useMultiply: true
+  }),
+  
+  layeredGeometric: () => ({
+    layerCount: 3 + Math.floor(Math.random() * 5), // 3-7 layers
+    style: ['dynamic', 'cascade', 'radial', 'fibonacci'][Math.floor(Math.random() * 4)],
+    useColorBlocking: Math.random() > 0.7, // 30% chance
+    useBlendModes: Math.random() > 0.3, // 70% chance
+    showOutlines: false,
+    bgColor: randomVibrantColor(),
+    useMultiply: true
+  }),
+  
+  architecturalComposition: () => ({
+    style: ['facade', 'portal', 'rhythmic', 'shrine'][Math.floor(Math.random() * 4)],
+    complexity: 0.3 + Math.random() * 0.5, // 0.3-0.8
+    useColorBlocking: Math.random() > 0.6, // 40% chance
+    showOutlines: false,
+    bgColor: randomVibrantColor(),
+    useMultiply: true
   })
 } as const;
 
@@ -110,8 +144,14 @@ function getTemplateByType(type: TemplateType) {
       return slicedTemplate;
     case 'pairedForms':
       return pairedForms;
-    case 'architectural':
-      return architecturalTemplate;
+    case 'dynamicArchitectural':
+      return dynamicArchitecturalTemplate;
+    case 'floatingElements':
+      return floatingElements;
+    case 'layeredGeometric':
+      return layeredGeometric;
+    case 'architecturalComposition':
+      return architecturalComposition;
     default:
       return crystalTemplate;
   }
@@ -119,12 +159,15 @@ function getTemplateByType(type: TemplateType) {
 
 // Export all templates and their parameter generators
 export const templates = {
-  architectural: architecturalTemplate,
   crystal: crystalTemplate,
   scrambledMosaic: scrambledMosaic,
   tiling: tilingTemplate,
   sliced: slicedTemplate,
-  pairedForms: pairedForms
+  pairedForms: pairedForms,
+  dynamicArchitectural: dynamicArchitecturalTemplate,
+  floatingElements: floatingElements,
+  layeredGeometric: layeredGeometric,
+  architecturalComposition: architecturalComposition
 } as const;
 
 export const generators = parameterGenerators; 

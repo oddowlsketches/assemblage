@@ -8,7 +8,9 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<MaskReview />} />
+        <Route path="/mask-review" element={<MaskReview />} />
         <Route path="/mask-review.html" element={<MaskReview />} />
+        <Route path="*" element={<MaskReview />} />
       </Routes>
     </Router>
   )

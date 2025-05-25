@@ -158,15 +158,11 @@ function facadeGrid({}: MaskParams = {}) {
   </svg>`;
 }
 
-function houseGable({ width = 30, baseHeight = 40, roofHeight = 20 }: MaskParams = {}) {
-  // House shape: rectangle with triangle roof
-  const left = 50 - width / 2;
-  const right = 50 + width / 2;
-  const baseTop = 100 - baseHeight;
-  const roofPeakY = baseTop - roofHeight;
+// Edge-to-edge houseGable
+function houseGable() {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <rect x='${left}' y='${baseTop}' width='${width}' height='${baseHeight}' fill='white'/>
-    <polygon points='${left},${baseTop} ${right},${baseTop} 50,${roofPeakY}' fill='white'/>
+    <rect x='0' y='40' width='100' height='60' fill='white'/>
+    <polygon points='0,40 100,40 50,0' fill='white'/>
   </svg>`;
 }
 
@@ -349,15 +345,11 @@ function nicheOffset({ offset = 10, width = 28, height = 44, legHeight = 30, sma
   return svg;
 }
 
-function gableAltar({ width = 40, baseHeight = 40, gableHeight = 30 }: MaskParams = {}) {
-  // Altar with rectangular base and triangular gable top
-  const left = 50 - width / 2;
-  const right = 50 + width / 2;
-  const baseTop = 100 - baseHeight;
-  const gablePeakY = baseTop - gableHeight;
+// Edge-to-edge gableAltar
+function gableAltar() {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <rect x='${left}' y='${baseTop}' width='${width}' height='${baseHeight}' fill='white'/>
-    <polygon points='${left},${baseTop} ${right},${baseTop} 50,${gablePeakY}' fill='white'/>
+    <rect x='0' y='50' width='100' height='50' fill='white'/>
+    <polygon points='0,50 100,50 50,0' fill='white'/>
   </svg>`;
 }
 
@@ -394,17 +386,17 @@ function panelGutter({ margin = 10 }: MaskParams = {}) {
 }
 
 // --- BASIC FAMILY ---
-function circleMask({ cx = 50, cy = 50, r = 30 }: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='${cx}' cy='${cy}' r='${r}' fill='white'/></svg>`;
+// Edge-to-edge circle
+function circleMask() {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='white'/></svg>`;
 }
-
+// Edge-to-edge oval (fills box)
 function ovalMask({ cx = 50, cy = 50, rx = 32, ry = 20 }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='white'/></svg>`;
 }
-
-function diamondMask({ cx = 50, cy = 50, w = 40, h = 40 }: MaskParams = {}) {
-  const points = `${cx},${cy - h / 2} ${cx + w / 2},${cy} ${cx},${cy + h / 2} ${cx - w / 2},${cy}`;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
+// Edge-to-edge diamond
+function diamondMask() {
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='50,0 100,50 50,100 0,50' fill='white'/></svg>`;
 }
 
 // Hexagon mask with tight bounding box: width = 100 (flat-to-flat), height = 86.6025 (point-to-point)
@@ -456,6 +448,7 @@ function triangleMask({ orientation = 'up' }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
+// Edge-to-edge beam (horizontal, fills box)
 function beamMask({ widthTop = 80, widthBottom = 40, height = 80, orientation = 'horizontal' }: MaskParams = {}) {
   // Beam shape with tight viewBox and orientation support
   // orientation: 'horizontal', 'vertical', 'horizontal-flipped', 'vertical-flipped'
@@ -506,6 +499,7 @@ function beamMask({ widthTop = 80, widthBottom = 40, height = 80, orientation = 
   </svg>`;
 }
 
+// Edge-to-edge donut (outer circle fills box, inner circle centered)
 function donutMask() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -525,6 +519,7 @@ function donutMask() {
   `;
 }
 
+// Edge-to-edge arc (outer arc touches left/right/top, inner arc is inset)
 function arcMask() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -546,6 +541,11 @@ function arcMask() {
       />
     </svg>
   `;
+}
+
+function rectangleMask({}: MaskParams = {}) {
+  // Edge-to-edge rectangle
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='0' y='0' width='100' height='100' fill='white'/></svg>`;
 }
 
 const registry: Record<string, Record<string, MaskGenerator>> = {
@@ -597,6 +597,7 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
     beamMask: () => ({ kind: 'svg', getSvg: () => beamMask() }),
     donutMask: () => ({ kind: 'svg', getSvg: () => donutMask() }),
     arcMask: () => ({ kind: 'svg', getSvg: () => arcMask() }),
+    rectangleMask: () => ({ kind: 'svg', getSvg: () => rectangleMask() }),
   },
   narrative: {
     panelRectWide: () => ({ kind: 'svg', getSvg: () => panelRectWide() }),
@@ -610,7 +611,9 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
 
 // --- Mask Metadata ---
 export type MaskFamily = keyof typeof registry;
-export const maskMetadata: Record<string, { description: string; tags: string[] }> = {};
+export const maskMetadata: Record<string, { description: string; tags: string[] }> = {
+  rectangleMask: { description: 'Edge-to-edge rectangle mask', tags: ['rectangle', 'basic', 'edge-to-edge'] },
+};
 
 export const maskRegistry = registry;
 

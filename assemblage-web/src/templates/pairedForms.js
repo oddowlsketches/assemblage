@@ -1,5 +1,7 @@
-import maskRegistry from '../masks/maskRegistry';
+import { maskRegistry } from '../masks/maskRegistry.ts';
 import { svgToPath2D } from '../core/svgUtils.js';
+import { randomVibrantColor } from '../utils/colors.js';
+import { getComplementaryColor } from '../utils/colorUtils.js';
 
 /**
  * Apply final alignment adjustments to ensure better edge contacts
@@ -21,14 +23,15 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
       continue;
     }
     
-    // Check if shapes are adjacent
+    // Check if shapes are adjacent (increased tolerance)
+    const adjacencyTolerance = 15; // Increased from 5
     const horizontallyAdjacent = 
-      Math.abs((shape1.x + shape1.width) - shape2.x) < 5 ||
-      Math.abs((shape2.x + shape2.width) - shape1.x) < 5;
+      Math.abs((shape1.x + shape1.width) - shape2.x) < adjacencyTolerance ||
+      Math.abs((shape2.x + shape2.width) - shape1.x) < adjacencyTolerance;
       
     const verticallyAdjacent = 
-      Math.abs((shape1.y + shape1.height) - shape2.y) < 5 ||
-      Math.abs((shape2.y + shape2.height) - shape1.y) < 5;
+      Math.abs((shape1.y + shape1.height) - shape2.y) < adjacencyTolerance ||
+      Math.abs((shape2.y + shape2.height) - shape1.y) < adjacencyTolerance;
       
     // Handle special case: beam + beam pairing
     if (shape1.type === 'beam' && shape2.type === 'beam') {
@@ -119,13 +122,13 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
         
         // Set proper orientation for edge contact
         if (shape1.x < shape2.x) {
-          // First shape is on the left
-          shape1._drawParams.orientation = 'right'; // Flat edge on right
-          shape2._drawParams.orientation = 'left';  // Flat edge on left
+          shape1._drawParams.orientation = 'right'; 
+          shape2._drawParams.orientation = 'left';  
+          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} right, ${shape2.imageIndex} left`);
         } else {
-          // First shape is on the right
-          shape1._drawParams.orientation = 'left';  // Flat edge on left
-          shape2._drawParams.orientation = 'right'; // Flat edge on right
+          shape1._drawParams.orientation = 'left';  
+          shape2._drawParams.orientation = 'right'; 
+          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} left, ${shape2.imageIndex} right`);
         }
       }
       else if (verticallyAdjacent) {
@@ -213,24 +216,25 @@ export function generatePairedForms(canvas, images, params) {
   
   const ctx = canvas.getContext('2d');
   
-  // Always enable debug outlines for Paired Forms
-  window.debugPairedForms = true;
+  // Enable debug outlines only if requested
+  window.debugPairedForms = params.debug || false;
 
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   // Fill with background color
-  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  const bgColorToUse = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  ctx.fillStyle = bgColorToUse;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // Interpret parameters
-  const formCount = parseInt(params.formCount) || 3;
+  // Interpret parameters - default to 2 forms (diptych)
+  const formCount = parseInt(params.formCount) || 2;
   const formType = params.formType || 'mixed';
   const complexity = parseFloat(params.complexity) || 0.5;
   const alignmentType = params.alignmentType || 'edge';
   
   // Create a plan for the composition
-  const composition = createDiptychTriptych(
+  let composition = createDiptychTriptych(
     canvas.width, 
     canvas.height, 
     formCount, 
@@ -238,202 +242,241 @@ export function generatePairedForms(canvas, images, params) {
     formType
   );
   
+  // Apply composition rules for better visual quality
+  composition = applyCompositionRules(composition, canvas.width, canvas.height);
+  
+  // Apply modular grid for consistent spacing
+  composition = applyModularGrid(composition, canvas.width, canvas.height);
+  
   // Apply final alignment adjustments for better edge contacts
   finalizeEdgeContacts(composition, canvas.width, canvas.height, complexity);
   
   // Draw the composition
   drawComposition(ctx, composition, images, params.useMultiply !== false, formType);
   
-  return canvas;
+  return { canvas, bgColor: bgColorToUse };
+}
+
+// Design principles constants
+const GOLDEN_RATIO = 1.618;
+const RULE_OF_THIRDS = 1/3;
+const MIN_ELEMENT_SIZE = 0.1; // 10% of canvas
+const MAX_ELEMENT_SIZE = 0.7; // 70% of canvas
+
+/**
+ * Apply composition rules to improve visual quality
+ */
+function applyCompositionRules(shapes, canvasWidth, canvasHeight) {
+  if (!shapes || shapes.length === 0) return shapes;
+  
+  // Sort shapes by size to establish hierarchy
+  const sortedBySize = [...shapes].sort((a, b) => (b.width * b.height) - (a.width * a.height));
+  
+  // Apply visual hierarchy
+  sortedBySize.forEach((shape, index) => {
+    if (index === 0) {
+      // Primary element - ensure it's prominent but not overwhelming
+      const area = shape.width * shape.height;
+      const canvasArea = canvasWidth * canvasHeight;
+      const ratio = area / canvasArea;
+      
+      if (ratio > MAX_ELEMENT_SIZE) {
+        // Scale down if too large
+        const scale = Math.sqrt(MAX_ELEMENT_SIZE / ratio);
+        shape.width *= scale;
+        shape.height *= scale;
+      } else if (ratio < 0.3) {
+        // Scale up if too small for primary element
+        const scale = Math.sqrt(0.3 / ratio);
+        shape.width *= scale;
+        shape.height *= scale;
+      }
+    }
+  });
+  
+  // Apply golden ratio for adjacent shapes when possible
+  for (let i = 0; i < shapes.length - 1; i++) {
+    const shape1 = shapes[i];
+    const shape2 = shapes[i + 1];
+    
+    const area1 = shape1.width * shape1.height;
+    const area2 = shape2.width * shape2.height;
+    const ratio = area1 / area2;
+    
+    // If ratio is close to golden ratio, adjust slightly to match exactly
+    if (ratio > 1.4 && ratio < 1.8) {
+      const targetArea = area1 / GOLDEN_RATIO;
+      const scale = Math.sqrt(targetArea / area2);
+      shape2.width *= scale;
+      shape2.height *= scale;
+    }
+  }
+  
+  return shapes;
+}
+
+/**
+ * Ensure proper spacing and alignment using modular grid
+ */
+function applyModularGrid(shapes, canvasWidth, canvasHeight) {
+  const GRID_UNIT = 4; // Base unit for spacing - REDUCED from 8
+  
+  // Round positions and sizes to grid
+  shapes.forEach(shape => {
+    shape.x = Math.round(shape.x / GRID_UNIT) * GRID_UNIT;
+    shape.y = Math.round(shape.y / GRID_UNIT) * GRID_UNIT;
+    shape.width = Math.round(shape.width / GRID_UNIT) * GRID_UNIT;
+    shape.height = Math.round(shape.height / GRID_UNIT) * GRID_UNIT;
+  });
+  
+  // Ensure shapes either touch exactly or have clear separation
+  for (let i = 0; i < shapes.length - 1; i++) {
+    for (let j = i + 1; j < shapes.length; j++) {
+      const shape1 = shapes[i];
+      const shape2 = shapes[j];
+      
+      // Check horizontal spacing
+      const hGap = Math.min(
+        Math.abs(shape2.x - (shape1.x + shape1.width)),
+        Math.abs(shape1.x - (shape2.x + shape2.width))
+      );
+      
+      // Check vertical spacing
+      const vGap = Math.min(
+        Math.abs(shape2.y - (shape1.y + shape1.height)),
+        Math.abs(shape1.y - (shape2.y + shape2.height))
+      );
+      
+      // If shapes are almost touching (within 1 grid unit), make them touch exactly
+      if (hGap > 0 && hGap < GRID_UNIT && vGap > shape1.height * 0.5) {
+        if (shape1.x < shape2.x) {
+          shape2.x = shape1.x + shape1.width;
+        } else {
+          shape1.x = shape2.x + shape2.width;
+        }
+      }
+      
+      if (vGap > 0 && vGap < GRID_UNIT && hGap > shape1.width * 0.5) {
+        if (shape1.y < shape2.y) {
+          shape2.y = shape1.y + shape1.height;
+        } else {
+          shape1.y = shape2.y + shape2.height;
+        }
+      }
+    }
+  }
+  
+  return shapes;
 }
 
 /**
  * Create a simple diptych or triptych composition
  */
 function createDiptychTriptych(width, height, formCount, complexity, formType = 'rectangular') {
-  const composition = [];
-  // Helper to pick a random type for 'mixed'
+  const composition = []; 
+  const tempShapesData = []; 
+  
   function pickType(index, count) {
     if (formType === 'mixed') {
       const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon'];
-      
-      // For mixed shapes, try to ensure adjacent shapes can fit well together
-      if (index > 0) {
-        // Consider what would work well with the previous shape
-        const prevType = shapes[index-1].type;
-        
-        // If we know the previous type, bias selection toward complementary shapes
-        if (prevType === 'semiCircle') {
-          // After a semi-circle, prefer rectangle or a triangle
-          // Triangle edge can meet the curve nicely
-          return Math.random() < 0.7 ? 
-            (Math.random() < 0.4 ? 'rectangular' : 'triangle') : 
-            'semiCircle';
-        } 
-        else if (prevType === 'triangle') {
-          // After a triangle, prefer semi-circle since they create nice contacts
-          return Math.random() < 0.7 ? 
-            (Math.random() < 0.7 ? 'semiCircle' : 'rectangular') : 
-            'triangle';
+      const complementaryPairs = {
+        'semiCircle': ['triangle', 'rectangular'], 
+        'triangle': ['semiCircle', 'hexagon'], 
+        'hexagon': ['triangle', 'rectangular'], 
+        'rectangular': ['semiCircle', 'triangle', 'hexagon'] 
+      };
+      if (index > 0 && tempShapesData[index - 1]) {
+        const prevType = tempShapesData[index - 1].type;
+        const complements = complementaryPairs[prevType] || types;
+        if (Math.random() < 0.8) {
+          return complements[Math.floor(Math.random() * complements.length)];
         }
-        // After rectangle, any shape works well
       }
-      
-      // Default random selection
       return types[Math.floor(Math.random() * types.length)];
     }
     return formType;
   }
   
-  // Determine whether to create horizontal or vertical composition
-  // complexity affects this probability - higher complexity prefers more varied orientations
-  const isVerticalSplit = Math.random() < (complexity * 0.4 + 0.3); // 30-70% chance based on complexity
+  const isVerticalSplit = Math.random() < 0.5 + (complexity * 0.2 - 0.1); 
+  const variationFactor = (0.05 + complexity * 0.25);
+  const useMargins = Math.random() < (complexity * 0.6 + 0.1); 
+  const marginFactor = useMargins ? (0.05 + Math.random() * complexity * 0.1) : 0; 
   
-  // Scale factor - higher complexity means more varying sizes between forms
-  // But we'll keep it more conservative to ensure shapes display properly
-  const variationFactor = 0.1 + complexity * 0.3; // 10-40% size variation
-  
-  // EDGE-TO-EDGE PLACEMENT FUNCTIONS
-  
-  // Calculate dimensions for the shapes based on formCount, allowing for size variety
-  const shapes = [];
-  
-  // Add margin factor to create space sometimes (higher complexity = more likely to have margins)
-  const useMargins = Math.random() < complexity;
-  const marginFactor = useMargins ? 0.05 + (Math.random() * 0.15) : 0; // 5-20% margin when used
-  
-  // Adjust canvas dimensions to account for margins
   const effectiveWidth = width * (1 - marginFactor * 2);
   const effectiveHeight = height * (1 - marginFactor * 2);
   const marginX = width * marginFactor;
   const marginY = height * marginFactor;
   
   if (isVerticalSplit) {
-    // Create vertical split composition (shapes arranged side by side)
-    let remainingWidth = effectiveWidth;
     let currentX = marginX;
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      if (shapeType === 'hexagon') {
-        // For hexagons, use 0.75 * width for edge-to-edge
-        shapeWidth = effectiveWidth / (formCount - (formCount - 1) * 0.25);
-        shapeHeight = effectiveHeight;
+      shapeHeight = effectiveHeight * (0.6 + Math.random() * 0.4); // Vary height a bit too
+      const yPos = marginY + (effectiveHeight - shapeHeight) / 2; // Center vertically
+
+      if (formCount === 2) {
+        shapeWidth = effectiveWidth * (0.35 + Math.random() * 0.25); // Each takes 35-60% of width
+      } else if (shapeType === 'hexagon') {
+        shapeWidth = effectiveWidth / (formCount * 0.8); // Approximation for denser packing
       } else {
-        // Determine size as a portion of remaining space with variation
-        const portion = 1 / (formCount - i);
-        if (i === 0) {
-          shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-        } else {
-          shapeWidth = Math.floor(remainingWidth * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-        }
-        shapeHeight = effectiveHeight;
+        shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapes.push({
-        type: shapeType,
-        x: currentX,
-        y: marginY,
-        width: shapeWidth,
-        height: shapeHeight,
-        imageIndex: Math.floor(Math.random() * 1000)
-      });
-      if (shapeType === 'hexagon') {
-        currentX += shapeWidth * 0.75;
-        remainingWidth -= shapeWidth * 0.75;
-      } else {
-        remainingWidth -= shapeWidth;
-        currentX += shapeWidth;
-      }
+      shapeWidth = Math.max(effectiveWidth * 0.2, shapeWidth); // Min width
+      
+      tempShapesData.push({ type: shapeType, x: currentX, y: yPos, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) });
+      currentX += shapeWidth + (useMargins ? effectiveWidth * 0.05 : 0); // Add some spacing if margins active
     }
-  } else {
-    // Create horizontal split composition (shapes stacked vertically)
-    let remainingHeight = effectiveHeight;
+  } else { // Horizontal split
     let currentY = marginY;
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      if (shapeType === 'hexagon') {
-        // For hexagons, use 0.75 * height for edge-to-edge
-        shapeWidth = effectiveWidth;
-        shapeHeight = effectiveHeight / (formCount - (formCount - 1) * 0.25);
+      shapeWidth = effectiveWidth * (0.6 + Math.random() * 0.4);
+      const xPos = marginX + (effectiveWidth - shapeWidth) / 2; // Center horizontally
+
+      if (formCount === 2) {
+        shapeHeight = effectiveHeight * (0.35 + Math.random() * 0.25); // Each takes 35-60% of height
+      } else if (shapeType === 'hexagon') {
+        shapeHeight = effectiveHeight / (formCount * 0.8);
       } else {
-        // Determine size as a portion of remaining space with variation
-        const portion = 1 / (formCount - i);
-        if (i === 0) {
-          shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/2 + Math.random() * variationFactor)));
-        } else {
-          shapeHeight = Math.floor(remainingHeight * (portion * (1 - variationFactor/3 + Math.random() * (variationFactor/1.5))));
-        }
-        shapeWidth = effectiveWidth;
+        shapeHeight = effectiveHeight / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapes.push({
-        type: shapeType,
-        x: marginX,
-        y: currentY,
-        width: shapeWidth,
-        height: shapeHeight,
-        imageIndex: Math.floor(Math.random() * 1000)
-      });
-      if (shapeType === 'hexagon') {
-        currentY += shapeHeight * 0.75;
-        remainingHeight -= shapeHeight * 0.75;
-      } else {
-        remainingHeight -= shapeHeight;
-        currentY += shapeHeight;
-      }
+      shapeHeight = Math.max(effectiveHeight * 0.2, shapeHeight); // Min height
+
+      tempShapesData.push({ type: shapeType, x: xPos, y: currentY, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) });
+      currentY += shapeHeight + (useMargins ? effectiveHeight * 0.05 : 0); // Add spacing if margins
     }
   }
-  
-  // Now transform each shape to ensure proper edge touching
-  for (let i = 0; i < shapes.length; i++) {
-    const shape = shapes[i];
-    
-    // Apply a slight adjustment to ensure shapes touch
-    if (i > 0) {
-      const prevShape = shapes[i-1];
-      
+
+  // Distribute shapes more centrally if they don't fill the space and margins were not primary intent
+  if (formCount === 2 && !useMargins) {
       if (isVerticalSplit) {
-        // For side-by-side shapes, ensure x positions are contiguous
-        shape.x = prevShape.x + prevShape.width;
-        
-        // Ensure vertical alignment - bias toward edge touching based on shape types
-        if ((prevShape.type === 'semiCircle' && shape.type === 'triangle') ||
-            (prevShape.type === 'triangle' && shape.type === 'semiCircle')) {
-          // For semi-circle + triangle pairs, align centers for better visual contact
-          const prevCenter = prevShape.y + prevShape.height / 2;
-          const shapeCenter = shape.y + shape.height / 2;
-          
-          // Move the second shape to better align with the first
-          shape.y += (prevCenter - shapeCenter) * 0.7; // 70% alignment for some variety
-        }
+          const totalWidth = tempShapesData.reduce((sum, s) => sum + s.width, 0);
+          let shiftX = (effectiveWidth - totalWidth) / 2;
+          if (totalWidth < effectiveWidth * 0.8) { // Only shift if there's significant gap
+            tempShapesData.forEach(s => s.x += shiftX);
+          }
       } else {
-        // For stacked shapes, ensure y positions are contiguous
-        shape.y = prevShape.y + prevShape.height;
-        
-        // Ensure horizontal alignment - bias toward edge touching based on shape types
-        if ((prevShape.type === 'semiCircle' && shape.type === 'triangle') ||
-            (prevShape.type === 'triangle' && shape.type === 'semiCircle')) {
-          // For semi-circle + triangle pairs, align centers for better visual contact
-          const prevCenter = prevShape.x + prevShape.width / 2;
-          const shapeCenter = shape.x + shape.width / 2;
-          
-          // Move the second shape to better align with the first
-          shape.x += (prevCenter - shapeCenter) * 0.7; // 70% alignment for some variety
-        }
+          const totalHeight = tempShapesData.reduce((sum, s) => sum + s.height, 0);
+          let shiftY = (effectiveHeight - totalHeight) / 2;
+          if (totalHeight < effectiveHeight * 0.8) {
+            tempShapesData.forEach(s => s.y += shiftY);
+          }
       }
-    }
-    
-    // Add shape to the final composition
+  }
+
+  for (let i = 0; i < tempShapesData.length; i++) {
+    const shapeData = { ...tempShapesData[i] }; 
     composition.push({
-      type: shape.type,
-      x: shape.x,
-      y: shape.y,
-      width: shape.width,
-      height: shape.height,
-      imageIndex: shape.imageIndex
+      type: shapeData.type,
+      x: shapeData.x,
+      y: shapeData.y,
+      width: shapeData.width,
+      height: shapeData.height,
+      imageIndex: shapeData.imageIndex
     });
   }
-  
   return composition;
 }
 
@@ -474,242 +517,242 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
  * Draw a rectangular shape properly aligned to touch other shapes
  */
 function drawRectangle(ctx, shape, img, useMultiply) {
-  // Use maskRegistry for rectangle
   const maskFn = maskRegistry.basic?.rectangleMask;
-  if (maskFn) {
-    const svg = maskFn({});
-    const maskPath = svgToPath2D(svg);
-    if (maskPath) {
-      ctx.save();
-      ctx.translate(shape.x, shape.y);
-      ctx.scale(shape.width / 100, shape.height / 100);
-      ctx.clip(maskPath);
-      if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-      // Aspect-ratio logic
-      const imageAspect = img.width / img.height;
-      const shapeAspect = shape.width / shape.height;
-      let sourceX, sourceY, sourceWidth, sourceHeight;
-      if (imageAspect > shapeAspect) {
-        sourceHeight = img.height;
-        sourceWidth = img.height * shapeAspect;
-        sourceX = (img.width - sourceWidth) / 2;
-        sourceY = 0;
-      } else {
-        sourceWidth = img.width;
-        sourceHeight = img.width / shapeAspect;
-        sourceX = 0;
-        sourceY = (img.height - sourceHeight) / 2;
-      }
-      ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, 100, 100);
-      ctx.restore();
-      return;
+  if (!maskFn) {
+    console.warn("[PairedForms] RectangleMask not found in registry.");
+    // Basic fallback if no mask (no echo, direct draw)
+    ctx.save();
+    ctx.fillStyle = '#DDD'; // Placeholder if image fails
+    ctx.fillRect(shape.x, shape.y, shape.width, shape.height);
+    if (img && img.complete) {
+        if (useMultiply) ctx.globalCompositeOperation = 'multiply';
+        ctx.drawImage(img, shape.x, shape.y, shape.width, shape.height);
     }
+    ctx.restore();
+    return;
   }
-  // fallback to old logic if maskRegistry fails
-  ctx.beginPath();
+
+  const svgDesc = maskFn({});
+  const svg = (svgDesc && typeof svgDesc.getSvg === 'function') ? svgDesc.getSvg({}) : '';
+  const maskPath = svgToPath2D(svg);
+
+  if (!maskPath) {
+    console.warn("[PairedForms] Could not create Path2D for rectangleMask."); return;
+  }
+
+  ctx.save();
+  
+  const maskUnitSize = 100;
+  const scale = Math.min(shape.width / maskUnitSize, shape.height / maskUnitSize);
+  const scaledMaskWidth = maskUnitSize * scale;
+  const scaledMaskHeight = maskUnitSize * scale;
+  const offsetX = shape.x + (shape.width - scaledMaskWidth) / 2;
+  const offsetY = shape.y + (shape.height - scaledMaskHeight) / 2;
+
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  
+  // Rectangle mask typically doesn't need rotation unless shape.angle is specifically used
   if (shape.angle) {
-    const centerX = shape.x + shape.width / 2;
-    const centerY = shape.y + shape.height / 2;
-    ctx.translate(centerX, centerY);
-    ctx.rotate(shape.angle);
-    ctx.rect(-shape.width / 2, -shape.height / 2, shape.width, shape.height);
-  } else {
-    ctx.rect(shape.x, shape.y, shape.width, shape.height);
+    ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
+    ctx.rotate(shape.angle * Math.PI / 180);
+    ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
   }
-  ctx.clip();
-  if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-  // Aspect-ratio logic
-  const imageAspect = img.width / img.height;
-  const shapeAspect = shape.width / shape.height;
-  let sourceX, sourceY, sourceWidth, sourceHeight;
-  if (imageAspect > shapeAspect) {
-    sourceHeight = img.height;
-    sourceWidth = img.height * shapeAspect;
-    sourceX = (img.width - sourceWidth) / 2;
-    sourceY = 0;
-  } else {
-    sourceWidth = img.width;
-    sourceHeight = img.width / shapeAspect;
-    sourceX = 0;
-    sourceY = (img.height - sourceHeight) / 2;
+
+  ctx.clip(maskPath);
+
+  const applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < 0.5);
+  const bgColorForEcho = shape.bgColor || randomVibrantColor();
+
+  if (applyEcho) {
+    const echoColor = getComplementaryColor(bgColorForEcho);
+    ctx.save();
+    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = 0.75; 
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, maskUnitSize, maskUnitSize); 
+    ctx.restore();
   }
-  ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, shape.x, shape.y, shape.width, shape.height);
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-  ctx.lineWidth = 0.5;
-  ctx.stroke();
+
+  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  ctx.globalAlpha = 1.0; 
+
+  if (img && img.complete) {
+    const imageAspect = img.width / img.height;
+    const targetAspect = 1; // Mask unit space is 1:1
+    let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+    if (imageAspect > targetAspect) { 
+      sWidth = img.height * targetAspect;
+      sx = (img.width - sWidth) / 2;
+    } else { 
+      sHeight = img.width / targetAspect;
+      sy = (img.height - sHeight) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+  } else {
+      console.warn('[PairedForms drawRectangle] Image not available or not complete');
+  }
+  
+  ctx.restore();
 }
 
 /**
  * Draw a semi-circle shape properly aligned to touch other shapes
  */
 function drawSemiCircle(ctx, shape, img, useMultiply) {
-  // Use maskRegistry for semiCircle
-  console.log('[drawSemiCircle] maskRegistry.basic keys:', Object.keys(maskRegistry.basic || {}));
   const maskFn = maskRegistry.basic?.semiCircleMask;
-  console.log('[drawSemiCircle] maskFn exists:', !!maskFn);
-  if (maskFn) {
-    const maskObj = maskFn({});
-    const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
-    console.log('[drawSemiCircle] SVG string:', svg);
-    const maskPath = svgToPath2D(svg);
-    if (maskPath) {
-      const orientation = shape._drawParams?.orientation;
-      let angle = 0;
-      switch (orientation) {
-        case 'left': angle = Math.PI / 2; break;
-        case 'right': angle = -Math.PI / 2; break;
-        case 'top': angle = Math.PI; break;
-        // 'bottom' or undefined: angle = 0
-      }
-      console.log('[drawSemiCircle] orientation:', orientation, 'angle:', angle, 'using maskRegistry');
-      ctx.save();
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      ctx.rotate(angle);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      // Uniform scale and center
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
-      ctx.scale(scale, scale);
-      ctx.clip(maskPath);
-      if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-      // --- ASPECT RATIO FIX START ---
-      // Draw the image to fill the shape's pixel area, preserving aspect ratio (cover)
-      // Compute the destination box in mask coordinates (0,0,100,100), but draw into shape.width/height
-      // So, after scaling, we want to draw into (0,0,100,100), but the image should be cropped to cover the shape
-      // Calculate the aspect ratios
-      const destW = 100;
-      const destH = 100;
-      const destAspect = destW / destH;
-      const imgAspect = img.width / img.height;
-      let sx, sy, sWidth, sHeight;
-      if (imgAspect > destAspect) {
-        // Image is wider than mask: crop sides
-        sHeight = img.height;
-        sWidth = sHeight * destAspect;
-        sx = (img.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        // Image is taller than mask: crop top/bottom
-        sWidth = img.width;
-        sHeight = sWidth / destAspect;
-        sx = 0;
-        sy = (img.height - sHeight) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
-      // --- ASPECT RATIO FIX END ---
-      ctx.restore();
-      return;
-    }
+  if (!maskFn) {
+    console.warn("[PairedForms] semiCircleMask not found."); return;
   }
-  // fallback to old logic if maskRegistry fails
-  console.log('[drawSemiCircle] using fallback logic');
+  const svgDesc = maskFn({});
+  const svg = (svgDesc && typeof svgDesc.getSvg === 'function') ? svgDesc.getSvg({}) : '';
+  const maskPath = svgToPath2D(svg);
+  if (!maskPath) {
+    console.warn("[PairedForms] Could not create Path2D for semiCircleMask."); return;
+  }
+
   ctx.save();
-  ctx.arc(
-    shape.x + shape.width / 2,
-    shape.y + shape.height,
-    Math.min(shape.width, shape.height) / 2,
-    Math.PI, 2 * Math.PI
-  );
-  ctx.closePath();
-  ctx.clip();
-  if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-  // Aspect-ratio logic
-  const imageAspect = img.width / img.height;
-  const shapeAspect = shape.width / shape.height;
-  let sourceX, sourceY, sourceWidth, sourceHeight;
-  if (imageAspect > shapeAspect) {
-    sourceHeight = img.height;
-    sourceWidth = img.height * shapeAspect;
-    sourceX = (img.width - sourceWidth) / 2;
-    sourceY = 0;
-  } else {
-    sourceWidth = img.width;
-    sourceHeight = img.width / shapeAspect;
-    sourceX = 0;
-    sourceY = (img.height - sourceHeight) / 2;
+  
+  // Center the mask within the shape's allocated bounds, preserving mask aspect ratio (1:1 for semicircle)
+  const maskUnitSize = 100; // Masks are designed in a 100x100 unit space
+  const scale = Math.min(shape.width / maskUnitSize, shape.height / maskUnitSize);
+  const scaledMaskWidth = maskUnitSize * scale;
+  const scaledMaskHeight = maskUnitSize * scale; // Semicircle in a 100x100 box is effectively 100x50 or 50x100 visually, but mask path is 100x100
+
+  const offsetX = shape.x + (shape.width - scaledMaskWidth) / 2;
+  const offsetY = shape.y + (shape.height - scaledMaskHeight) / 2;
+
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale); // Uniform scale for the 100x100 unit mask
+
+  // Apply orientation rotation around the center of the 0-100 unit space
+  const orientation = shape._drawParams?.orientation;
+  let angle = 0;
+  switch (orientation) {
+    case 'left': angle = Math.PI / 2; break;
+    case 'right': angle = -Math.PI / 2; break;
+    case 'top': angle = Math.PI; break;
+    // 'bottom' or undefined (default for semicircle mask) is angle = 0
   }
-  ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, shape.x, shape.y, shape.width, shape.height);
-  ctx.restore();
+  if (angle !== 0) {
+    ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
+    ctx.rotate(angle);
+    ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
+  }
+
+  ctx.clip(maskPath); // Clip to the (now transformed and scaled) 0-100 unit path
+
+  // Color Block Echo logic
+  const applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < 0.5);
+  const bgColorForEcho = shape.bgColor || randomVibrantColor(); // Ensure a valid color for complementary calculation
+
+  if (applyEcho) {
+    const echoColor = getComplementaryColor(bgColorForEcho);
+    ctx.save(); // Save before changing GCO for echo
+    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = 0.75;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, maskUnitSize, maskUnitSize); // Fill the 0-100 unit space
+    ctx.restore(); // Restore GCO and alpha for image drawing
+  }
+
+  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  ctx.globalAlpha = 1.0;
+
+  const imgToDraw = img;
+  if (imgToDraw && imgToDraw.complete) {
+    const imageAspect = imgToDraw.width / imgToDraw.height;
+    const targetAspect = 1; // Mask unit space is 1:1
+    let sx = 0, sy = 0, sWidth = imgToDraw.width, sHeight = imgToDraw.height;
+    if (imageAspect > targetAspect) {
+      sWidth = imgToDraw.height * targetAspect;
+      sx = (imgToDraw.width - sWidth) / 2;
+    } else {
+      sHeight = imgToDraw.width / targetAspect;
+      sy = (imgToDraw.height - sHeight) / 2;
+    }
+    ctx.drawImage(imgToDraw, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+  } else {
+      console.warn('[PairedForms drawSemiCircle] Image not available or not complete');
+  }
+  
+  ctx.restore(); // Restore from outer save
 }
 
 /**
  * Draw a triangle shape properly aligned to touch other shapes
  */
 function drawTriangle(ctx, shape, img, useMultiply) {
-  // Use maskRegistry for triangle
   const maskFn = maskRegistry.basic?.triangleMask;
-  if (maskFn) {
-    const maskObj = maskFn({});
-    const svg = maskObj.getSvg ? maskObj.getSvg() : maskObj;
-    const maskPath = svgToPath2D(svg);
-    if (maskPath) {
-      ctx.save();
-      // --- ORIENTATION LOGIC ---
-      // Default orientation: flat edge on bottom
-      let angle = 0;
-      const orientation = shape._drawParams?.orientation;
-      switch (orientation) {
-        case 'top-flat': angle = Math.PI; break;
-        case 'left-flat': angle = -Math.PI / 2; break;
-        case 'right-flat': angle = Math.PI / 2; break;
-        // 'bottom-flat' or undefined: angle = 0
-      }
-      // Uniform scale and center
-      ctx.translate(shape.x + shape.width / 2, shape.y + shape.height / 2);
-      ctx.rotate(angle);
-      ctx.translate(-shape.width / 2, -shape.height / 2);
-      const scale = Math.min(shape.width, shape.height) / 100;
-      ctx.translate((shape.width - 100 * scale) / 2, (shape.height - 100 * scale) / 2);
-      ctx.scale(scale, scale);
-      ctx.clip(maskPath);
-      if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-      // --- ASPECT RATIO FIX (cover) ---
-      const destW = 100;
-      const destH = 100;
-      const destAspect = destW / destH;
-      const imgAspect = img.width / img.height;
-      let sx, sy, sWidth, sHeight;
-      if (imgAspect > destAspect) {
-        sHeight = img.height;
-        sWidth = sHeight * destAspect;
-        sx = (img.width - sWidth) / 2;
-        sy = 0;
-      } else {
-        sWidth = img.width;
-        sHeight = sWidth / destAspect;
-        sx = 0;
-        sy = (img.height - sHeight) / 2;
-      }
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, destW, destH);
-      ctx.restore();
-      return;
-    }
+  if (!maskFn) {
+    console.warn("[PairedForms] triangleMask not found."); return;
   }
-  // fallback to old logic if maskRegistry fails
+  const svgDesc = maskFn({});
+  const svg = (svgDesc && typeof svgDesc.getSvg === 'function') ? svgDesc.getSvg({}) : '';
+  const maskPath = svgToPath2D(svg);
+  if (!maskPath) {
+    console.warn("[PairedForms] Could not create Path2D for triangleMask."); return;
+  }
+
   ctx.save();
-  ctx.beginPath();
-  ctx.moveTo(shape.x + shape.width / 2, shape.y);
-  ctx.lineTo(shape.x, shape.y + shape.height);
-  ctx.lineTo(shape.x + shape.width, shape.y + shape.height);
-  ctx.closePath();
-  ctx.clip();
-  if (useMultiply) ctx.globalCompositeOperation = 'multiply';
-  // Aspect-ratio logic
-  const imageAspect = img.width / img.height;
-  const shapeAspect = shape.width / shape.height;
-  let sourceX, sourceY, sourceWidth, sourceHeight;
-  if (imageAspect > shapeAspect) {
-    sourceHeight = img.height;
-    sourceWidth = img.height * shapeAspect;
-    sourceX = (img.width - sourceWidth) / 2;
-    sourceY = 0;
-  } else {
-    sourceWidth = img.width;
-    sourceHeight = img.width / shapeAspect;
-    sourceX = 0;
-    sourceY = (img.height - sourceHeight) / 2;
+
+  const maskUnitSize = 100;
+  const scale = Math.min(shape.width / maskUnitSize, shape.height / maskUnitSize);
+  const scaledMaskWidth = maskUnitSize * scale;
+  const scaledMaskHeight = maskUnitSize * scale;
+  const offsetX = shape.x + (shape.width - scaledMaskWidth) / 2;
+  const offsetY = shape.y + (shape.height - scaledMaskHeight) / 2;
+
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  
+  let angle = 0;
+  const orientation = shape._drawParams?.orientation;
+  switch (orientation) {
+    case 'top-flat': angle = Math.PI; break;
+    case 'left-flat': angle = -Math.PI / 2; break;
+    case 'right-flat': angle = Math.PI / 2; break;
   }
-  ctx.drawImage(img, sourceX, sourceY, sourceWidth, sourceHeight, shape.x, shape.y, shape.width, shape.height);
+  if (angle !== 0) {
+    ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
+    ctx.rotate(angle);
+    ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
+  }
+
+  ctx.clip(maskPath);
+
+  const applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < 0.5);
+  const bgColorForEcho = shape.bgColor || randomVibrantColor();
+
+  if (applyEcho) {
+    const echoColor = getComplementaryColor(bgColorForEcho);
+    ctx.save();
+    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = 0.75;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, maskUnitSize, maskUnitSize);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  ctx.globalAlpha = 1.0;
+
+  if (img && img.complete) {
+    const imageAspect = img.width / img.height;
+    const targetAspect = 1; 
+    let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+    if (imageAspect > targetAspect) {
+      sWidth = img.height * targetAspect;
+      sx = (img.width - sWidth) / 2;
+    } else {
+      sHeight = img.width / targetAspect;
+      sy = (img.height - sHeight) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+  } else {
+      console.warn('[PairedForms drawTriangle] Image not available or not complete');
+  }
+
   ctx.restore();
 }
 
@@ -957,7 +1000,7 @@ function alignBeamEdges(shape1, shape2, direction) {
 const pairedForms = {
   key: 'pairedForms',
   name: 'Paired Forms',
-  generate: generatePairedForms,
+  render: generatePairedForms,
   params: {
     formCount: { type: 'number', min: 2, max: 5, default: 2 },
     formType: { type: 'select', options: ['rectangular', 'semiCircle', 'triangle', 'hexagon', 'mixed'], default: 'mixed' },

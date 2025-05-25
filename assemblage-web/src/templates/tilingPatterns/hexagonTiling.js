@@ -113,72 +113,113 @@ export function createHexagonalTiling(count, width, height, options = {}) {
  * @param {Object} options - Additional options
  */
 export function drawHexagonalTile(ctx, tile, image, options = {}) {
-  const { randomRotation = false, debug = false } = options;
+  const { 
+    randomRotation = false, 
+    debug = false,
+    tileOpacity = 1,
+    // tileBlendMode is ignored
+    applyEcho = false,
+    echoColor = '#000000',
+    scale = 1 // Passed from drawOptions, but hexagon size is primary driver here
+  } = options;
+
+  if (!tile || !tile.points || tile.points.length < 6 || !image || !image.complete) {
+    if (debug) console.warn("Hexagonal tile, points, or image invalid for drawing.");
+    return;
+  }
   
-  // Save context state
   ctx.save();
   
-  // Move to the center of the hexagon
+  // Move to the center of the hexagon (tile.x, tile.y)
+  // The tile.points are already relative to this center.
   ctx.translate(tile.x, tile.y);
   
-  if (randomRotation) {
-    // Randomly rotate in multiples of 60° (for regular hexagons)
-    const rotation = Math.floor(Math.random() * 6) * (Math.PI / 3);
-    ctx.rotate(rotation);
-  }
-  
-  // Create clipping path for the hexagon
+  // Create clipping path for the hexagon using its relative points
   ctx.beginPath();
-  
-  // Draw the hexagon path
-  const points = tile.points;
-  ctx.moveTo(points[0].x, points[0].y);
-  for (let i = 1; i < points.length; i++) {
-    ctx.lineTo(points[i].x, points[i].y);
+  ctx.moveTo(tile.points[0].x, tile.points[0].y);
+  for (let i = 1; i < tile.points.length; i++) {
+    ctx.lineTo(tile.points[i].x, tile.points[i].y);
   }
   ctx.closePath();
-  
-  // Apply clipping and draw the image
-  ctx.clip();
-  
-  if (image && image.complete) {
-    // Calculate dimensions to ensure full coverage while preserving aspect ratio
-    const imageAspect = image.width / image.height;
-    const diameter = tile.size * 2;
-    
-    let drawWidth, drawHeight, offsetX, offsetY;
-    
-    if (imageAspect > 1) {
-      // Image is wider than tall - fit to height
-      drawHeight = diameter;
-      drawWidth = drawHeight * imageAspect;
-      offsetX = (diameter - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      // Image is taller than wide - fit to width
-      drawWidth = diameter;
-      drawHeight = drawWidth / imageAspect;
-      offsetX = 0;
-      offsetY = (diameter - drawHeight) / 2;
-    }
-    
-    // Draw the image centered in the hexagon
-    ctx.drawImage(
-      image,
-      -diameter/2 + offsetX,
-      -diameter/2 + offsetY,
-      drawWidth,
-      drawHeight
-    );
-  }
-  
-  // Debug outline
+
   if (debug) {
-    ctx.strokeStyle = 'rgba(255,0,0,0.8)';
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)'; // Green for path outline before clip
     ctx.lineWidth = 1;
     ctx.stroke();
   }
   
-  // Restore context state
+  ctx.clip();
+
+  // Optional rotation around the hexagon's center (which is 0,0 in current translated coords)
+  if (randomRotation) {
+    const rotationAngle = Math.floor(Math.random() * 6) * (60 * Math.PI / 180); // 0, 60, 120, etc. degrees
+    if (rotationAngle > 0) {
+        ctx.rotate(rotationAngle);
+    }
+  }
+  
+  // Echo and Image drawing
+  if (applyEcho) {
+    // Color block echo is active: Draw color base first
+    ctx.globalAlpha = tileOpacity * 0.75;
+    ctx.fillStyle = echoColor;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fill(); // Fill the clipped and transformed path
+  }
+
+  // Always draw the image with multiply blend mode
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = tileOpacity;
+  drawImageInHexagon(ctx, image, tile.size, debug);
+  
+  if (debug) {
+    // Stroke again after clipping/drawing to see final boundary
+    ctx.strokeStyle = 'rgba(255,0,0,0.8)'; 
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); // Must re-trace path for stroke after fill/clip
+    ctx.moveTo(tile.points[0].x, tile.points[0].y);
+    for (let i = 1; i < tile.points.length; i++) {
+        ctx.lineTo(tile.points[i].x, tile.points[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  
   ctx.restore();
+}
+
+// Helper to draw the image within the hexagonal boundaries
+function drawImageInHexagon(ctx, image, hexSize, debug) {
+  if (!image || !image.complete || hexSize <= 0) return;
+
+  // For a flat-topped hexagon, the bounding box is width = 2 * size, height = sqrt(3) * size.
+  // However, to ensure coverage when rotated, it's safer to use a circular bounding area of radius = hexSize.
+  // We want to cover a square of side length 2 * hexSize, centered at (0,0) in current coords.
+  const diameter = hexSize * 2;
+  const boundingBoxWidth = diameter;
+  const boundingBoxHeight = diameter; // Use diameter to ensure coverage for all rotations
+
+  const imageAspect = image.width / image.height;
+  const boxAspect = boundingBoxWidth / boundingBoxHeight; // This will be 1
+
+  let drawWidth, drawHeight;
+  const bleedFactor = 1.1; // Ensure image slightly larger than bounding box
+
+  if (imageAspect > boxAspect) { // Image wider than bounding box (or box is square)
+    drawHeight = boundingBoxHeight * bleedFactor;
+    drawWidth = drawHeight * imageAspect;
+  } else { // Image taller or same aspect as bounding box
+    drawWidth = boundingBoxWidth * bleedFactor;
+    drawHeight = drawWidth / imageAspect;
+  }
+
+  // Center the scaled image at (0,0) in the current translated coordinate system
+  const drawX = -drawWidth / 2;
+  const drawY = -drawHeight / 2;
+  
+  ctx.drawImage(image, 0, 0, image.width, image.height, drawX, drawY, drawWidth, drawHeight);
+
+  if (debug) {
+    // console.log("drawImageInHexagon:", { hexSize, diameter, imageAspect, drawX, drawY, drawWidth, drawHeight });
+  }
 }

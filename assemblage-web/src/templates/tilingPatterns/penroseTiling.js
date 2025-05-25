@@ -100,44 +100,125 @@ export function createPenroseTiling(count, width, height, options = {}) {
 }
 
 export function drawPenroseTile(ctx, tile, image, options = {}) {
+  const { 
+    randomRotation = false, // Penrose tiles often have inherent/interesting orientations
+    debug = false,
+    tileOpacity = 1,
+    // tileBlendMode is ignored
+    applyEcho = false,
+    echoColor = '#000000',
+    scale = 1 // Generic scale from drawOptions
+  } = options;
+
+  if (!tile || !tile.points || tile.points.length < 4 || !image || !image.complete) {
+    if (debug) console.warn("Penrose tile, points, or image invalid for drawing.");
+    return;
+  }
+
   ctx.save();
+  
+  // Penrose tiles from createPenroseTiling have absolute points.
   ctx.beginPath();
   ctx.moveTo(tile.points[0].x, tile.points[0].y);
   for (let i = 1; i < tile.points.length; i++) {
     ctx.lineTo(tile.points[i].x, tile.points[i].y);
   }
   ctx.closePath();
-  ctx.clip();
-  if (image && image.complete) {
-    // Calculate bounding box
-    let minX = Math.min(...tile.points.map(p => p.x)), maxX = Math.max(...tile.points.map(p => p.x));
-    let minY = Math.min(...tile.points.map(p => p.y)), maxY = Math.max(...tile.points.map(p => p.y));
-    const boxWidth = maxX - minX;
-    const boxHeight = maxY - minY;
-    // Aspect ratio logic: fill the rhombus, centered, with possible bleed
-    const imageAspect = image.width / image.height;
-    const tileAspect = boxWidth / boxHeight;
-    let drawWidth, drawHeight, offsetX, offsetY;
-    if (imageAspect > tileAspect) {
-      drawHeight = boxHeight;
-      drawWidth = drawHeight * imageAspect;
-      offsetX = (boxWidth - drawWidth) / 2;
-      offsetY = 0;
-    } else {
-      drawWidth = boxWidth;
-      drawHeight = drawWidth / imageAspect;
-      offsetX = 0;
-      offsetY = (boxHeight - drawHeight) / 2;
-    }
-    ctx.drawImage(
-      image,
-      minX + offsetX,
-      minY + offsetY,
-      drawWidth,
-      drawHeight
-    );
+
+  if (debug) {
+    ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)'; // Green for path outline before clip
+    ctx.lineWidth = 1;
+    ctx.stroke();
   }
+  
+  ctx.clip();
+
+  // Optional rotation around the tile's geometric center
+  // For Penrose, random rotation might obscure specific patterns, use judiciously.
+  if (randomRotation) {
+    const centerX = tile.points.reduce((sum, p) => sum + p.x, 0) / tile.points.length;
+    const centerY = tile.points.reduce((sum, p) => sum + p.y, 0) / tile.points.length;
+    
+    // Arbitrary rotation for Penrose rhombs, could be 0, PI/5, 2*PI/5 etc. for specific alignments
+    // For now, general 90-degree random rotation like other rectangular/diamond shapes
+    const rotationAngle = Math.floor(Math.random() * 4) * (90 * Math.PI / 180);
+    if (rotationAngle > 0) {
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotationAngle);
+        ctx.translate(-centerX, -centerY);
+    }
+  }
+  
+  // Echo and Image drawing
+  if (applyEcho) {
+    // Color block echo is active: Draw color base first
+    ctx.globalAlpha = tileOpacity * 0.75;
+    ctx.fillStyle = echoColor;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fill(); // Fill the clipped and transformed path
+  }
+
+  // Always draw the image with multiply blend mode
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = tileOpacity;
+  drawImageInPenroseRhomb(ctx, image, tile.points, debug);
+  
+  if (debug) {
+    ctx.strokeStyle = 'rgba(255,0,0,0.8)'; 
+    ctx.lineWidth = 1.5;
+    // Re-trace path for stroke after fill/clip
+    ctx.beginPath();
+    ctx.moveTo(tile.points[0].x, tile.points[0].y);
+    for (let i = 1; i < tile.points.length; i++) {
+        ctx.lineTo(tile.points[i].x, tile.points[i].y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  }
+  
   ctx.restore();
+}
+
+// Helper to draw the image within the Penrose rhomb boundaries
+function drawImageInPenroseRhomb(ctx, image, rhombPoints, debug) {
+  if (!image || !image.complete || !rhombPoints || rhombPoints.length < 4) return;
+
+  // Calculate bounding box of the rhomb from its absolute points
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  rhombPoints.forEach(p => {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y);
+  });
+  const rhombBoundingBoxWidth = maxX - minX;
+  const rhombBoundingBoxHeight = maxY - minY;
+
+  if (rhombBoundingBoxWidth <= 0 || rhombBoundingBoxHeight <= 0) return;
+
+  const imageAspect = image.width / image.height;
+  const boxAspect = rhombBoundingBoxWidth / rhombBoundingBoxHeight;
+
+  let drawWidth, drawHeight;
+  const bleedFactor = 1.1; // Ensure image slightly larger than bounding box
+
+  if (imageAspect > boxAspect) { // Image is wider than rhomb's bounding box
+    drawHeight = rhombBoundingBoxHeight * bleedFactor;
+    drawWidth = drawHeight * imageAspect;
+  } else { // Image is taller or same aspect as rhomb's bounding box
+    drawWidth = rhombBoundingBoxWidth * bleedFactor;
+    drawHeight = drawWidth / imageAspect;
+  }
+
+  // Center the scaled image over the rhomb's bounding box
+  const drawX = minX + (rhombBoundingBoxWidth - drawWidth) / 2;
+  const drawY = minY + (rhombBoundingBoxHeight - drawHeight) / 2;
+  
+  ctx.drawImage(image, 0, 0, image.width, image.height, drawX, drawY, drawWidth, drawHeight);
+
+  if (debug) {
+    // console.log("drawImageInPenroseRhomb:", { minX, minY, rhombBoundingBoxWidth, rhombBoundingBoxHeight, imageAspect, drawX, drawY, drawWidth, drawHeight });
+  }
 }
 
 // Precomputed Penrose 'sun' patch (10 thick, 10 thin rhombs)

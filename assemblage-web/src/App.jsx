@@ -25,20 +25,15 @@ function MainApp() {
       serviceRef.current = new CollageService(cvs, { supabaseClient: supabase });
       resize();
     }
-    serviceRef.current.events.on('imagesLoadingStart', () => setIsLoading(true));
-    serviceRef.current.events.on('imageLoaded', ({ loaded, total }) => {
-      // Optionally update a progress indicator: console.log(`Loaded ${loaded}/${total}`);
-    });
-    serviceRef.current.events.on('imagesLoaded', () => {
+    // Load only metadata initially (not all images)
+    serviceRef.current.loadImageMetadata().then(() => {
       setIsLoading(false);
+      // Generate initial collage with lazy loading
       serviceRef.current.generateCollage();
-    });
-    serviceRef.current.events.on('imagesLoadError', (err) => {
-      console.error('Image load error:', err);
+    }).catch(err => {
+      console.error('Failed to load image metadata:', err);
       setIsLoading(false);
     });
-    // Start loading images; initial collage draw will happen on 'imagesLoaded'
-    serviceRef.current.loadImages();
 
     return () => window.removeEventListener('resize', resize);
   }, []);

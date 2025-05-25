@@ -9,10 +9,162 @@
 <body>
   <div id="gallery"></div>
   <script type="module">
-    import { CollageService } from "./src/core/CollageService.js";
-    import maskRegistry from "./src/masks/maskRegistry.ts";
-    
-    // ... existing code ...
+    import registry, { maskMetadata } from "./src/masks/maskRegistry.ts";
+
+    const gallery = document.getElementById('gallery');
+    const exampleImgUrl = '/images/collages/imgfffd72f0.jpg';
+
+    // Utility to convert SVG string to a combined Path2D
+    function svgStringToPath2D(svgString) {
+      try {
+        const svg = new DOMParser().parseFromString(svgString, 'image/svg+xml').querySelector('svg');
+        const path2d = new Path2D();
+        if (!svg) return null;
+        // Combine all supported shapes
+        svg.querySelectorAll('path').forEach(el => {
+          const d = el.getAttribute('d');
+          if (d) path2d.addPath(new Path2D(d));
+        });
+        svg.querySelectorAll('rect').forEach(el => {
+          const x = parseFloat(el.getAttribute('x')) || 0;
+          const y = parseFloat(el.getAttribute('y')) || 0;
+          const w = parseFloat(el.getAttribute('width')) || 100;
+          const h = parseFloat(el.getAttribute('height')) || 100;
+          const p = new Path2D();
+          p.rect(x, y, w, h);
+          path2d.addPath(p);
+        });
+        svg.querySelectorAll('circle').forEach(el => {
+          const cx = parseFloat(el.getAttribute('cx')) || 50;
+          const cy = parseFloat(el.getAttribute('cy')) || 50;
+          const r = parseFloat(el.getAttribute('r')) || 50;
+          const p = new Path2D();
+          p.arc(cx, cy, r, 0, 2 * Math.PI);
+          path2d.addPath(p);
+        });
+        svg.querySelectorAll('ellipse').forEach(el => {
+          const cx = parseFloat(el.getAttribute('cx')) || 50;
+          const cy = parseFloat(el.getAttribute('cy')) || 50;
+          const rx = parseFloat(el.getAttribute('rx')) || 50;
+          const ry = parseFloat(el.getAttribute('ry')) || 50;
+          const p = new Path2D();
+          p.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+          path2d.addPath(p);
+        });
+        svg.querySelectorAll('polygon').forEach(el => {
+          const points = el.getAttribute('points');
+          if (points) {
+            const pts = points.trim().split(/\s+/).map(pt => pt.split(',').map(Number));
+            const p = new Path2D();
+            if (pts.length) {
+              p.moveTo(pts[0][0], pts[0][1]);
+              for (let i = 1; i < pts.length; i++) {
+                p.lineTo(pts[i][0], pts[i][1]);
+              }
+              p.closePath();
+            }
+            path2d.addPath(p);
+          }
+        });
+        return path2d;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Load the example image once
+    const img = new window.Image();
+    img.src = exampleImgUrl;
+    img.onload = () => {
+      Object.entries(registry).forEach(([family, types]) => {
+        const group = document.createElement('div');
+        group.className = 'mask-group';
+
+        const heading = document.createElement('h2');
+        heading.textContent = family;
+        group.appendChild(heading);
+
+        Object.entries(types).forEach(([type, fn]) => {
+          const figure = document.createElement('figure');
+
+          // Canvas preview
+          const canvas = document.createElement('canvas');
+          canvas.width = 300;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          let drew = false;
+          try {
+            const desc = fn();
+            if (desc.kind === 'svg' && typeof desc.getSvg === 'function') {
+              const svgString = desc.getSvg();
+              const path2d = svgStringToPath2D(svgString);
+              if (path2d) {
+                ctx.save();
+                ctx.scale(3, 3); // scale up to fill canvas (SVG is 100x100)
+                // 1. Draw the image first
+                const aspect = img.width / img.height;
+                let drawW = 100, drawH = 100, drawX = 0, drawY = 0;
+                if (aspect > 1) {
+                  drawW = 100 * aspect;
+                  drawX = -(drawW - 100) / 2;
+                } else {
+                  drawH = 100 / aspect;
+                  drawY = -(drawH - 100) / 2;
+                }
+                ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                // 2. Mask with the shape
+                ctx.globalCompositeOperation = 'destination-in';
+                ctx.fillStyle = '#fff';
+                ctx.fill(path2d);
+                ctx.restore();
+                drew = true;
+              }
+            }
+          } catch (e) {
+            // ignore, fallback below
+          }
+          if (!drew) {
+            ctx.fillStyle = '#eee';
+            ctx.fillRect(0, 0, 300, 300);
+            ctx.fillStyle = '#c00';
+            ctx.font = 'bold 18px sans-serif';
+            ctx.fillText('Error', 120, 150);
+          }
+
+          // Metadata (TODO: restore or regenerate mask metadata)
+          const meta = maskMetadata[type] || {};
+          const desc = meta.description || '(No description)';
+          const tags = meta.tags ? meta.tags.join(', ') : '(No tags)';
+
+          // Append elements directly
+          figure.appendChild(canvas);
+
+          const caption = document.createElement('figcaption');
+          caption.innerHTML = `<b>${type}</b>`;
+          figure.appendChild(caption);
+
+          const descDiv = document.createElement('div');
+          descDiv.style.fontSize = '12px';
+          descDiv.style.color = '#666';
+          descDiv.style.marginTop = '2px';
+          descDiv.textContent = desc;
+          figure.appendChild(descDiv);
+
+          const tagsDiv = document.createElement('div');
+          tagsDiv.style.fontSize = '11px';
+          tagsDiv.style.color = '#999';
+          tagsDiv.textContent = tags;
+          figure.appendChild(tagsDiv);
+
+          group.appendChild(figure);
+        });
+
+        gallery.appendChild(group);
+      });
+    };
+    img.onerror = () => {
+      gallery.innerHTML = '<div style="color:#c00;font-size:1.5em;padding:2em;">Failed to load example image.</div>';
+    };
   </script>
 </body>
 </html> 
