@@ -34,7 +34,7 @@ const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
 );
 
 const Sidebar: React.FC = () => (
-  <aside className="w-48 bg-gray-100 h-screen p-4 border-r border-gray-200">
+  <aside className="w-48 bg-gray-100 h-screen p-4 border-r border-gray-200 hidden md:block">
     <nav className="space-y-2 text-sm">
       <a className="block font-medium text-blue-600" href="#">Images</a>
       <span className="block text-gray-400 cursor-not-allowed">Masks (soon)</span>
@@ -580,18 +580,30 @@ const ImagesPage: React.FC = () => {
         )
       )}
 
-      {/* Basic Modal Placeholder */}
       {selectedImage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-30" onClick={handleCloseModal}>
-          <div className="bg-white p-6 rounded shadow-xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-xl font-semibold mb-4">{selectedImage.title}</h2>
-            <img src={selectedImage.src} alt={selectedImage.title} className="w-full h-64 object-contain mb-4 rounded" />
-            <p className="text-sm"><strong className="w-20 inline-block">ID:</strong> {selectedImage.id}</p>
-            <p className="text-sm"><strong className="w-20 inline-block">Description:</strong> {selectedImage.description}</p>
-            <p className="text-sm"><strong className="w-20 inline-block">Tags:</strong> {selectedImage.tags.join(', ')}</p>
-            <p className="text-sm"><strong className="w-20 inline-block">Type:</strong> {selectedImage.imagetype}</p>
-            <button onClick={handleCloseModal} className="mt-6 px-3 py-1 rounded bg-blue-600 text-white text-sm float-right">Close</button>
-            {/* Edit form will go here later */}
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm md:max-w-2xl max-h-[90vh] overflow-y-auto relative">
+            <button 
+              onClick={handleCloseModal} 
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 bg-white rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 z-10"
+              aria-label="Close modal"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+            <img 
+              src={selectedImage.src} 
+              alt={selectedImage.title} 
+              className="w-full h-auto object-contain max-h-[60vh] rounded-t-lg" 
+            />
+            <div className="p-4 space-y-2">
+              <h2 className="text-lg font-semibold">{selectedImage.title}</h2>
+              {selectedImage.description && (
+                <p className="text-sm text-gray-600">{selectedImage.description}</p>
+              )}
+              <TagChips tags={selectedImage.tags} />
+              <p className="text-xs text-gray-400">ID: {selectedImage.id}</p>
+              <p className="text-xs text-gray-400">Type: {selectedImage.imagetype}</p>
+            </div>
           </div>
         </div>
       )}
@@ -600,9 +612,11 @@ const ImagesPage: React.FC = () => {
 };
 
 const CmsApp: React.FC = () => (
-  <div className="flex h-screen">
+  <div className="flex h-screen bg-gray-50">
     <Sidebar />
-    <ImagesPage />
+    <main className="flex-1 overflow-y-auto">
+      <ImagesPage />
+    </main>
   </div>
 );
 
