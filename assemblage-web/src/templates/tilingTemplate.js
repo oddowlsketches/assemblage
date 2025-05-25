@@ -118,9 +118,16 @@ function renderTiling(canvas, images, params) {
       return { canvas, bgColor }; 
   }
 
+  // Determine if we should use a single image for all tiles (15% chance)
+  const useSingleImageForAllTiles = Math.random() < 0.15;
+  let singleImage = null;
+  if (useSingleImageForAllTiles && imageSources.length > 0) {
+    singleImage = imageSources[Math.floor(Math.random() * imageSources.length)];
+    console.log(`[TilingTemplate] Using single image for all tiles: ${singleImage.src}`);
+  }
+
   tiles.forEach((tile, index) => {
-    const imageIndex = Math.floor(Math.random() * imageSources.length);
-    const image = imageSources[imageIndex];
+    const image = singleImage ? singleImage : imageSources[Math.floor(Math.random() * imageSources.length)];
     if (!image || !image.complete) return;
 
     let applyEchoToThisTile = false;

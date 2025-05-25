@@ -32,9 +32,16 @@ export function renderCrystal(canvas, images, params = {}) {
     variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize if other value
   }
   
+  let imageModeVal = params.imageMode || 'unique';
+  if (imageModeVal.toLowerCase() === 'unique') { // If default or explicitly unique, randomize
+    imageModeVal = Math.random() < 0.15 ? 'single' : 'unique'; // 15% chance for single image mode
+    console.log(`[CrystalTemplate] Randomized imageMode to: ${imageModeVal}`);
+  }
+  // No explicit normalization needed if 'single' is passed, as the effect handles it.
+
   const settings = {
     variant: variantVal,
-    imageMode: params.imageMode || 'unique',
+    imageMode: imageModeVal, // Use the potentially randomized value
     complexity: Number(params.complexity) || 5,
     density: Number(params.density) || 5,
     seedPattern: params.seedPattern || 'random',
