@@ -124,11 +124,11 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
         if (shape1.x < shape2.x) {
           shape1._drawParams.orientation = 'right'; 
           shape2._drawParams.orientation = 'left';  
-          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} right, ${shape2.imageIndex} left`);
+          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} right, ${shape2.imageIndex} left (vertical join)`);
         } else {
           shape1._drawParams.orientation = 'left';  
           shape2._drawParams.orientation = 'right'; 
-          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} left, ${shape2.imageIndex} right`);
+          console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} left, ${shape2.imageIndex} right (vertical join)`);
         }
       }
       else if (verticallyAdjacent) {
@@ -137,15 +137,40 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
         shape1.x = avgX;
         shape2.x = avgX;
         
-        // Set proper orientation for edge contact
-        if (shape1.y < shape2.y) {
-          // First shape is on top
-          shape1._drawParams.orientation = 'bottom'; // Flat edge on bottom
-          shape2._drawParams.orientation = 'top';    // Flat edge on top
+        // 50% chance for horizontal alignment (flat edges top/bottom)
+        if (Math.random() < 0.5) {
+            if (shape1.y < shape2.y) {
+                shape1._drawParams.orientation = 'bottom'; // Flat edge bottom
+                shape2._drawParams.orientation = 'top';    // Flat edge top
+                console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} bottom, ${shape2.imageIndex} top (horizontal join)`);
+            } else {
+                shape1._drawParams.orientation = 'top';    // Flat edge top
+                shape2._drawParams.orientation = 'bottom'; // Flat edge bottom
+                console.log(`[PairedForms finalizeContacts] Semi-circles: ${shape1.imageIndex} top, ${shape2.imageIndex} bottom (horizontal join)`);
+            }
         } else {
-          // First shape is on bottom
-          shape1._drawParams.orientation = 'top';    // Flat edge on top
-          shape2._drawParams.orientation = 'bottom'; // Flat edge on bottom
+            // Original behavior: align for vertical join (flat edges left/right, requires rotation if they were stacked)
+            // This case implies they are stacked one above the other. For them to join flat side to flat side *vertically*,
+            // one needs to be rotated to face up/down, and the other similarly.
+            // However, the original logic for semi-circles only handled left/right for horizontal adjacency.
+            // Let's ensure they are oriented to *allow* a vertical visual join if not doing horizontal.
+            // This might mean one faces left and one faces right, and they are stacked.
+            // For a visually 'joined' pair when stacked, we'd usually want them to form a circle or an S-curve.
+            // The current options are 'left', 'right', 'top', 'bottom'.
+            // If shape1 is above shape2:
+            //  - shape1 'left', shape2 'left' (C shape)
+            //  - shape1 'right', shape2 'right' (reverse C)
+            //  - shape1 'left', shape2 'right' (S shape)
+            //  - shape1 'right', shape2 'left' (reverse S)
+            //  Let's default to an S-curve like formation if not doing direct horizontal join.
+            if (shape1.y < shape2.y) {
+                shape1._drawParams.orientation = 'left'; 
+                shape2._drawParams.orientation = 'right'; 
+            } else {
+                shape1._drawParams.orientation = 'right'; 
+                shape2._drawParams.orientation = 'left'; 
+            }
+            console.log(`[PairedForms finalizeContacts] Semi-circles: stacked, attempting visual (non-flat) join.`);
         }
       }
     }
@@ -378,28 +403,67 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   
   function pickType(index, count) {
     if (formType === 'mixed') {
-      const types = ['rectangular', 'semiCircle', 'triangle', 'hexagon'];
+      // Increased weights for semiCircle and pairs that touch well
+      const types = [
+        { type: 'rectangular', weight: 3 },
+        { type: 'semiCircle', weight: 5 }, // Increased weight
+        { type: 'triangle', weight: 4 },
+        { type: 'hexagon', weight: 2 }
+      ];
+      
+      const weightedTypes = types.reduce((acc, item) => acc.concat(Array(item.weight).fill(item.type)), []);
+      
       const complementaryPairs = {
-        'semiCircle': ['triangle', 'rectangular'], 
-        'triangle': ['semiCircle', 'hexagon'], 
-        'hexagon': ['triangle', 'rectangular'], 
-        'rectangular': ['semiCircle', 'triangle', 'hexagon'] 
+        'semiCircle': [
+          { type: 'semiCircle', weight: 6 }, // Favor semi-circle pairs
+          { type: 'triangle', weight: 3 }, 
+          { type: 'rectangular', weight: 2 }
+        ], 
+        'triangle': [
+          { type: 'triangle', weight: 5 }, // Favor triangle pairs
+          { type: 'semiCircle', weight: 3 }, 
+          { type: 'hexagon', weight: 2 },
+          { type: 'rectangular', weight: 2 }
+        ], 
+        'rectangular': [
+          { type: 'rectangular', weight: 4}, // Favor rectangle pairs
+          { type: 'semiCircle', weight: 3 }, 
+          { type: 'triangle', weight: 3 }, 
+          { type: 'hexagon', weight: 2 }
+        ],
+        'hexagon': [ // Hexagons are a bit harder to pair neatly by just touching an edge
+          { type: 'triangle', weight: 4 }, 
+          { type: 'rectangular', weight: 3 }
+        ] 
       };
+
       if (index > 0 && tempShapesData[index - 1]) {
         const prevType = tempShapesData[index - 1].type;
-        const complements = complementaryPairs[prevType] || types;
-        if (Math.random() < 0.8) {
-          return complements[Math.floor(Math.random() * complements.length)];
+        const complementsPool = complementaryPairs[prevType] || types; // Fallback to general types if no specific complements
+        
+        // Create a weighted pool for complements
+        const weightedComplements = complementsPool.reduce((acc, item) => {
+            // Ensure item has a type and weight, otherwise use general types
+            if (item && typeof item === 'object' && item.type && item.weight) {
+                return acc.concat(Array(item.weight).fill(item.type));
+            }
+            return acc; // Skip if item is not a valid weighted type object
+        }, []);
+
+        if (weightedComplements.length > 0 && Math.random() < 0.85) { // Increased chance to pick a complement
+          return weightedComplements[Math.floor(Math.random() * weightedComplements.length)];
         }
       }
-      return types[Math.floor(Math.random() * types.length)];
+      return weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
     }
     return formType;
   }
   
   const isVerticalSplit = Math.random() < 0.5 + (complexity * 0.2 - 0.1); 
   const variationFactor = (0.05 + complexity * 0.25);
-  const useMargins = Math.random() < (complexity * 0.6 + 0.1); 
+  
+  // Favor edge-to-edge contact slightly more by reducing unconditional margin chance
+  const useMargins = Math.random() < (complexity * 0.4 + 0.05); 
   const marginFactor = useMargins ? (0.05 + Math.random() * complexity * 0.1) : 0; 
   
   const effectiveWidth = width * (1 - marginFactor * 2);
@@ -407,25 +471,34 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   const marginX = width * marginFactor;
   const marginY = height * marginFactor;
   
+  let lastShapeType = null;
+
   if (isVerticalSplit) {
     let currentX = marginX;
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      shapeHeight = effectiveHeight * (0.6 + Math.random() * 0.4); // Vary height a bit too
-      const yPos = marginY + (effectiveHeight - shapeHeight) / 2; // Center vertically
+      shapeHeight = effectiveHeight * (0.6 + Math.random() * 0.4); 
+      const yPos = marginY + (effectiveHeight - shapeHeight) / 2;
 
       if (formCount === 2) {
-        shapeWidth = effectiveWidth * (0.35 + Math.random() * 0.25); // Each takes 35-60% of width
+        shapeWidth = effectiveWidth * (0.4 + Math.random() * 0.2); // Slightly larger, less variance
       } else if (shapeType === 'hexagon') {
-        shapeWidth = effectiveWidth / (formCount * 0.8); // Approximation for denser packing
+        shapeWidth = effectiveWidth / (formCount * 0.8); 
       } else {
         shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapeWidth = Math.max(effectiveWidth * 0.2, shapeWidth); // Min width
+      shapeWidth = Math.max(effectiveWidth * 0.25, shapeWidth); // Min width increased a bit
       
+      // Attempt to make shapes touch if no margins and they are compatible
+      let spacing = (useMargins ? effectiveWidth * 0.02 : 0); // Smaller spacing if margins
+      if (!useMargins && i > 0 && lastShapeType && areShapesCompatibleForTouching(lastShapeType, shapeType)) {
+        spacing = -2; // Overlap slightly to ensure contact, finalizeEdgeContacts will fix
+      }
+
       tempShapesData.push({ type: shapeType, x: currentX, y: yPos, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) });
-      currentX += shapeWidth + (useMargins ? effectiveWidth * 0.05 : 0); // Add some spacing if margins active
+      currentX += shapeWidth + spacing; 
+      lastShapeType = shapeType;
     }
   } else { // Horizontal split
     let currentY = marginY;
@@ -433,19 +506,25 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
       shapeWidth = effectiveWidth * (0.6 + Math.random() * 0.4);
-      const xPos = marginX + (effectiveWidth - shapeWidth) / 2; // Center horizontally
+      const xPos = marginX + (effectiveWidth - shapeWidth) / 2; 
 
       if (formCount === 2) {
-        shapeHeight = effectiveHeight * (0.35 + Math.random() * 0.25); // Each takes 35-60% of height
+        shapeHeight = effectiveHeight * (0.4 + Math.random() * 0.2); 
       } else if (shapeType === 'hexagon') {
         shapeHeight = effectiveHeight / (formCount * 0.8);
       } else {
         shapeHeight = effectiveHeight / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
       }
-      shapeHeight = Math.max(effectiveHeight * 0.2, shapeHeight); // Min height
+      shapeHeight = Math.max(effectiveHeight * 0.25, shapeHeight); 
+
+      let spacing = (useMargins ? effectiveHeight * 0.02 : 0);
+      if (!useMargins && i > 0 && lastShapeType && areShapesCompatibleForTouching(lastShapeType, shapeType)) {
+        spacing = -2; // Overlap slightly
+      }
 
       tempShapesData.push({ type: shapeType, x: xPos, y: currentY, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) });
-      currentY += shapeHeight + (useMargins ? effectiveHeight * 0.05 : 0); // Add spacing if margins
+      currentY += shapeHeight + spacing; 
+      lastShapeType = shapeType;
     }
   }
 
@@ -478,6 +557,17 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     });
   }
   return composition;
+}
+
+// Add a helper function to check compatibility (can be defined outside or locally)
+function areShapesCompatibleForTouching(type1, type2) {
+  const compatibleMap = {
+    'rectangular': ['rectangular', 'semiCircle', 'triangle'],
+    'semiCircle': ['semiCircle', 'rectangular', 'triangle'],
+    'triangle': ['triangle', 'rectangular', 'semiCircle', 'hexagon'],
+    'hexagon': ['triangle'] // Hexagons are trickier for simple edge touching
+  };
+  return compatibleMap[type1] && compatibleMap[type1].includes(type2);
 }
 
 /**
