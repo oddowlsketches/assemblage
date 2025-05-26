@@ -18,6 +18,12 @@ type ImageRow = {
   created_at?: string;
   description?: string;
   imagetype: string;
+  collection_id?: string;
+};
+
+type Collection = {
+  id: string;
+  name: string;
 };
 
 const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
@@ -45,7 +51,7 @@ const Sidebar: React.FC = () => (
 
 const CHUNK_SIZE = 2 * 1024 * 1024; // Reduced to 2MB chunks for better reliability
 
-const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }) => {
+const UploadImagesDialog: React.FC<{ onUploaded: () => void, collections: Collection[], defaultCollectionId?: string }> = ({ onUploaded, collections, defaultCollectionId }) => {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,6 +64,7 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
   const [status, setStatus] = useState<{ message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const uploadQueueRef = useRef<boolean>(true);
+  const [selectedCollection, setSelectedCollection] = useState(defaultCollectionId || (collections[0]?.id || ''));
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -103,7 +110,8 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
           base64,
           chunkIndex: Math.floor(start / CHUNK_SIZE),
           totalChunks: Math.ceil(file.size / CHUNK_SIZE),
-          fileSize: file.size
+          fileSize: file.size,
+          collectionId: selectedCollection
         }),
         signal: abortControllerRef.current.signal
       });
@@ -244,6 +252,20 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void }> = ({ onUploaded }
               <p className="text-xs text-gray-500">
                 You can select multiple images. Images will be optimized automatically.
               </p>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Choose Collection</label>
+              <select
+                className="w-full border rounded px-2 py-1 text-sm"
+                value={selectedCollection}
+                onChange={e => setSelectedCollection(e.target.value)}
+                disabled={loading}
+              >
+                {collections.map(col => (
+                  <option key={col.id} value={col.id}>{col.name}</option>
+                ))}
+              </select>
             </div>
             
             {loading && progress.total > 0 && (
@@ -402,6 +424,11 @@ const ImagesPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [selectedImage, setSelectedImage] = useState<ImageRow | null>(null);
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [selectedCollection, setSelectedCollection] = useState<string>('');
+  const [creatingCollection, setCreatingCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+  const [savingCollection, setSavingCollection] = useState(false);
 
   const handleImageClick = (image: ImageRow) => {
     setSelectedImage(image);
@@ -411,13 +438,18 @@ const ImagesPage: React.FC = () => {
     setSelectedImage(null);
   };
 
-  const load = async () => {
+  const loadImages = async (collectionId?: string) => {
     setLoading(true);
-    const { data, error } = await supa
-      .from('images')
-      .select('*')
-      .order('created_at', { ascending: false }); // Default sort: newest first
-    console.log('CMS load images:', data, error);
+    let query = supa.from('images').select('*').order('created_at', { ascending: false });
+    
+    // Only filter by collection if a specific collection is selected
+    if (collectionId) {
+      query = query.eq('collection_id', collectionId);
+    }
+    
+    const { data, error } = await query;
+    console.log('CMS load images for collection:', collectionId, 'data:', data, 'error:', error);
+    
     if (error) {
       console.error('Error fetching images in CMS:', error);
     } else if (data) {
@@ -426,8 +458,26 @@ const ImagesPage: React.FC = () => {
     setLoading(false);
   };
 
+  const load = async () => {
+    await loadImages(selectedCollection);
+  };
+
   useEffect(() => {
-    load();
+    // Fetch collections first, then load images for the first collection
+    (async () => {
+      const { data, error } = await supa.from('image_collections').select('id, name').order('created_at', { ascending: true });
+      if (!error && data) {
+        setCollections(data);
+        const firstCollectionId = data[0]?.id || '';
+        setSelectedCollection(firstCollectionId);
+        
+        // Now load images for the selected collection
+        await loadImages(firstCollectionId);
+      } else {
+        // If no collections found, just load all images
+        await loadImages('');
+      }
+    })();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -453,6 +503,32 @@ const ImagesPage: React.FC = () => {
   const truncate = (str: string, n = 80) =>
     str && str.length > n ? str.slice(0, n) + '…' : str;
 
+  // Add handler to create a new collection
+  const handleCreateCollection = async () => {
+    const name = newCollectionName.trim();
+    if (!name || savingCollection) return;
+    
+    setSavingCollection(true);
+    try {
+      const { data, error } = await supa.from('image_collections').insert({ name }).select();
+      if (!error && data && data[0]) {
+        setCollections(prev => [...prev, data[0]]);
+        setSelectedCollection(data[0].id);
+        setCreatingCollection(false);
+        setNewCollectionName('');
+        console.log('Collection created successfully:', data[0]);
+      } else if (error) {
+        console.error('Error creating collection:', error);
+        alert('Error creating collection: ' + error.message);
+      }
+    } catch (err) {
+      console.error('Exception creating collection:', err);
+      alert('Failed to create collection');
+    } finally {
+      setSavingCollection(false);
+    }
+  };
+
   const Toolbar = (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
       <h1 className="text-xl font-semibold">Images</h1>
@@ -470,8 +546,31 @@ const ImagesPage: React.FC = () => {
         >
           {view === 'table' ? 'Grid View' : 'Table View'}
         </button>
+        <select
+          className="border px-2 py-1 text-sm rounded"
+          value={selectedCollection}
+          onChange={e => { 
+            const newCollectionId = e.target.value;
+            setSelectedCollection(newCollectionId);
+            loadImages(newCollectionId);
+          }}
+        >
+          {collections.map(col => (
+            <option key={col.id} value={col.id}>{col.name}</option>
+          ))}
+        </select>
+        <button
+          className="border px-2 py-1 text-sm rounded bg-white hover:bg-gray-100"
+          onClick={() => {
+            setCreatingCollection(true);
+            setNewCollectionName('');
+          }}
+          type="button"
+        >
+          + New Collection
+        </button>
         <AddImageDialog onAdded={load} />
-        <UploadImagesDialog onUploaded={load} />
+        <UploadImagesDialog onUploaded={load} collections={collections} defaultCollectionId={selectedCollection} />
       </div>
     </div>
   );
@@ -479,6 +578,50 @@ const ImagesPage: React.FC = () => {
   return (
     <div className="flex-1 p-6 overflow-y-auto">
       {Toolbar}
+
+      {creatingCollection && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white rounded shadow-lg p-6 w-full max-w-sm space-y-4">
+            <h2 className="text-lg font-medium">Create New Collection</h2>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Collection Name</label>
+              <input
+                type="text"
+                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter collection name"
+                value={newCollectionName}
+                onChange={e => setNewCollectionName(e.target.value)}
+                autoFocus
+                onKeyDown={e => { 
+                  if (e.key === 'Enter' && newCollectionName.trim() && !savingCollection) {
+                    handleCreateCollection();
+                  }
+                  if (e.key === 'Escape') {
+                    setCreatingCollection(false);
+                    setNewCollectionName('');
+                  }
+                }}
+                disabled={savingCollection}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button 
+                className="px-3 py-1 rounded text-sm border border-gray-300 hover:bg-gray-50" 
+                onClick={() => { setCreatingCollection(false); setNewCollectionName(''); }}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-3 py-1 rounded text-sm text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={!newCollectionName.trim() || savingCollection}
+                onClick={handleCreateCollection}
+              >
+                {savingCollection ? 'Creating...' : 'Create Collection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p>Loading…</p>

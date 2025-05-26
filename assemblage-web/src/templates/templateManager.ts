@@ -8,9 +8,10 @@ import pairedForms from './pairedForms';
 import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate';
 import floatingElements from './floatingElements';
 import layeredGeometric from './layeredGeometric';
-import architecturalComposition from './architecturalComposition';
+// import architecturalComposition from './architecturalComposition'; // Removed old template
+import packedShapesTemplate from './packedShapesTemplate';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'architecturalComposition';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'packedShapes';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
@@ -19,10 +20,11 @@ const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
   tiling: 0.15,
   sliced: 0.1,
   pairedForms: 0.1,
-  dynamicArchitectural: 0.1,
+  dynamicArchitectural: 0.2, // Increased weight since it's the only architectural one now
   floatingElements: 0.1,
   layeredGeometric: 0.1,
-  architecturalComposition: 0.1
+  // architecturalComposition: 0.0, // Removed old architectural template
+  packedShapes: 0.1
 };
 
 // Random parameter generators for each template
@@ -101,13 +103,10 @@ const parameterGenerators = {
     useMultiply: true
   }),
   
-  architecturalComposition: () => ({
-    style: ['facade', 'portal', 'rhythmic', 'shrine'][Math.floor(Math.random() * 4)],
-    complexity: 0.3 + Math.random() * 0.5, // 0.3-0.8
-    useColorBlocking: Math.random() > 0.6, // 40% chance
-    showOutlines: false,
+  packedShapes: () => ({
+    elementCount: 8 + Math.floor(Math.random() * 8), // 8-15 elements
     bgColor: randomVibrantColor(),
-    useMultiply: true
+    // Add any other specific random params for packedShapes if needed later
   })
 } as const;
 
@@ -154,8 +153,8 @@ function getTemplateByType(type: TemplateType) {
       return floatingElements;
     case 'layeredGeometric':
       return layeredGeometric;
-    case 'architecturalComposition':
-      return architecturalComposition;
+    case 'packedShapes':
+      return packedShapesTemplate;
     default:
       return crystalTemplate;
   }
@@ -171,7 +170,8 @@ export const templates = {
   dynamicArchitectural: dynamicArchitecturalTemplate,
   floatingElements: floatingElements,
   layeredGeometric: layeredGeometric,
-  architecturalComposition: architecturalComposition
+  // architecturalComposition: architecturalComposition, // Removed old template
+  packedShapes: packedShapesTemplate
 } as const;
 
 export const generators = parameterGenerators; 

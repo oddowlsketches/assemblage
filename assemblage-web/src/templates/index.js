@@ -6,11 +6,14 @@ import scrambledMosaic from './scrambledMosaic';
 import pairedForms from './pairedForms';
 import tilingTemplate from './tilingTemplate';
 import crystalEffect from './crystalEffectTemplate';
-import slicedEffect from './slicedTemplate';
 // import architecturalTemplate from './architecturalTemplate'; // Commenting out the old one
 import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate'; // Import the new one
 import layeredGeometric from './layeredGeometric';
 import floatingElements from './floatingElements';
+import mixedMediaTemplate from './mixedMediaTemplate';
+// import architecturalComposition from './architecturalComposition'; // REMOVED OLD TEMPLATE
+import slicedTemplate from './slicedTemplate'; // Keep this one
+import packedShapesTemplate from './packedShapesTemplate';
 // legacy placement templates removed for now
 // import legacyTemplates from './legacyTemplates.js';
 
@@ -22,7 +25,11 @@ export default [
   pairedForms,
   tilingTemplate,
   crystalEffect,
-  slicedEffect,
+  slicedTemplate, // Use this one
   layeredGeometric,
-  floatingElements
+  floatingElements,
+  mixedMediaTemplate,
+  // architecturalComposition, // REMOVED OLD TEMPLATE
+  // Remove duplicate slicedTemplate here
+  packedShapesTemplate
 ];

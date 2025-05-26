@@ -40,7 +40,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
   }
 
   try {
-    const { fileName, base64, chunkIndex, totalChunks, fileSize } = JSON.parse(event.body || '{}');
+    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId } = JSON.parse(event.body || '{}');
     if (!fileName || !base64 || typeof chunkIndex !== 'number' || !totalChunks) {
       return {
         statusCode: 400,
@@ -135,7 +135,8 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           description: "Processing...",
           tags: [],
           imagetype: "pending",
-          metadata_status: "pending_processing"
+          metadata_status: "pending_processing",
+          collection_id: collectionId || null
         });
 
       if (insertErr) {

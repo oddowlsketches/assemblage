@@ -35,6 +35,7 @@ export class CollageService {
         this.imageCache = new Map(); // Cache loaded images by ID
         this.maxCacheSize = 50; // Maximum images to keep in cache
         this.placeholderImages = []; // Placeholder for development
+        this.currentCollectionId = null; // Track current collection filter
 
         this.options = options;
         this.events = new EventEmitter();
@@ -63,17 +64,28 @@ export class CollageService {
     }
 
     // Load only image metadata (not the actual images)
-    async loadImageMetadata() {
+    async loadImageMetadata(collectionId) {
         if (!this.supabaseClient) {
             console.error('[CollageService] Supabase client not initialized.');
             return;
         }
 
+        // Store the current collection ID for future reference
+        this.currentCollectionId = collectionId || null;
+        console.log(`[CollageService] loadImageMetadata called with collectionId: ${collectionId}`);
+
         try {
-            const { data: rows, error } = await this.supabaseClient
+            let query = this.supabaseClient
                 .from('images')
-                .select('id, src, imagetype')
+                .select('id, src, imagetype, collection_id')
                 .order('created_at', { ascending: false });
+            if (collectionId) {
+                query = query.eq('collection_id', collectionId);
+                console.log(`[CollageService] Filtering by collection_id: ${collectionId}`);
+            } else {
+                console.log(`[CollageService] Loading ALL images (no collection filter)`);
+            }
+            const { data: rows, error } = await query;
 
             if (error) {
                 console.error('[CollageService] Error fetching image metadata:', error);
@@ -81,7 +93,7 @@ export class CollageService {
             }
 
             this.imageMetadata = rows || [];
-            console.log(`[CollageService] Loaded metadata for ${this.imageMetadata.length} images`);
+            console.log(`[CollageService] Loaded metadata for ${this.imageMetadata.length} images for collection: ${collectionId || 'ALL'}`);
             
             if (this.imageMetadata.length === 0 && import.meta.env.MODE === 'development') {
                 console.log('[CollageService] No metadata found, creating dummy entries for development');
@@ -307,7 +319,7 @@ export class CollageService {
         });
     }
 
-    async loadImages() {
+    async loadImages(collectionId) {
         if (!this.supabaseClient) {
             console.error('[CollageService] Supabase client not initialized. Cannot load images.');
             this.events.emit('imagesLoadError', { type: 'client_missing' });
@@ -326,10 +338,12 @@ export class CollageService {
         this.events.emit('imagesLoadingStart');
 
         try {
-            const { data: rows, error } = await this.supabaseClient
+            let query = this.supabaseClient
                 .from('images')
-                .select('id, src')
+                .select('id, src, collection_id')
                 .order('created_at', { ascending: false });
+            if (collectionId) query = query.eq('collection_id', collectionId);
+            const { data: rows, error } = await query;
 
             if (error) {
                 console.error('[CollageService] Supabase error fetching image list:', error);
@@ -415,7 +429,7 @@ export class CollageService {
         // Load metadata if not already loaded and not in development (dev uses placeholders)
         if (this.imageMetadata.length === 0 && import.meta.env.MODE !== 'development') {
             console.log('[CollageService] Loading image metadata...');
-            await this.loadImageMetadata();
+            await this.loadImageMetadata(this.currentCollectionId);
             // If still no metadata, and not in dev, we might have an issue fetching from Supabase
             // For now, we'll let it try to proceed, image loading might fail later.
             // Or, decide if we should fallback to old full loadImages() here.

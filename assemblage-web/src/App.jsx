@@ -11,6 +11,8 @@ function MainApp() {
   const serviceRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [prompt, setPrompt] = useState('');
+  const [collections, setCollections] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState('');
 
   useEffect(() => {
     const cvs = canvasRef.current;
@@ -25,18 +27,59 @@ function MainApp() {
       serviceRef.current = new CollageService(cvs, { supabaseClient: supabase });
       resize();
     }
-    // Load only metadata initially (not all images)
-    serviceRef.current.loadImageMetadata().then(() => {
-      setIsLoading(false);
-      // Generate initial collage with lazy loading
-      serviceRef.current.generateCollage();
-    }).catch(err => {
-      console.error('Failed to load image metadata:', err);
-      setIsLoading(false);
-    });
+    
+    // Load collections first
+    loadCollections();
 
     return () => window.removeEventListener('resize', resize);
   }, []);
+
+  // Load collections from Supabase
+  const loadCollections = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('image_collections')
+        .select('id, name')
+        .order('created_at', { ascending: true });
+      
+      if (!error && data) {
+        setCollections(data);
+        const firstCollectionId = data[0]?.id || '';
+        setSelectedCollection(firstCollectionId);
+        
+        // Load metadata for the first collection
+        await loadImagesForCollection(firstCollectionId);
+      } else {
+        console.error('Error loading collections:', error);
+        // Load without collection filter as fallback
+        await loadImagesForCollection('');
+      }
+    } catch (err) {
+      console.error('Error loading collections:', err);
+      // Load without collection filter as fallback
+      await loadImagesForCollection('');
+    }
+  };
+
+  // Load images for a specific collection
+  const loadImagesForCollection = async (collectionId) => {
+    if (!serviceRef.current) return;
+    
+    setIsLoading(true);
+    try {
+      console.log(`[MainApp] Loading images for collection: ${collectionId}`);
+      // Load metadata for the specified collection
+      await serviceRef.current.loadImageMetadata(collectionId);
+      console.log(`[MainApp] Loaded ${serviceRef.current.imageMetadata.length} images for collection`);
+      // Generate initial collage
+      await serviceRef.current.generateCollage();
+    } catch (err) {
+      console.error('Failed to load images for collection:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePromptChange = (e) => {
     setPrompt(e.target.value);
@@ -46,6 +89,12 @@ function MainApp() {
     if (serviceRef.current) {
       serviceRef.current.shiftPerspective(prompt);
     }
+  };
+
+  const handleCollectionChange = async (e) => {
+    const newCollectionId = e.target.value;
+    setSelectedCollection(newCollectionId);
+    await loadImagesForCollection(newCollectionId);
   };
 
   const handleCreateArchitectural = () => {
@@ -66,6 +115,19 @@ function MainApp() {
         </div>
         <div className="header-controls">
           <div className="action-buttons">
+            {collections.length > 0 && (
+              <select 
+                value={selectedCollection} 
+                onChange={handleCollectionChange}
+                className="collection-selector"
+              >
+                {collections.map(collection => (
+                  <option key={collection.id} value={collection.id}>
+                    {collection.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <button id="generateButton" onClick={handleShiftPerspective}>New</button>
             <button id="saveButton" onClick={handleSave}>Save</button>
           </div>

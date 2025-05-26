@@ -262,6 +262,31 @@ footer {
 .action-buttons {
   display: flex;
   gap: 10px;
+  align-items: center;
+}
+
+/* Collection selector */
+.collection-selector {
+  background: white;
+  border: 1px solid var(--button-border-color);
+  color: var(--text-color);
+  padding: 0.5rem 1rem;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+  min-width: 120px;
+}
+
+.collection-selector:hover {
+  background-color: var(--button-hover-bg);
+  color: white;
+}
+
+.collection-selector:focus {
+  outline: none;
+  background-color: var(--button-hover-bg);
+  color: white;
 }
 
 /* Legacy App Styles */

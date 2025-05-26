@@ -14799,7 +14799,7 @@ var handler = async (event) => {
     };
   }
   try {
-    const { fileName, base64, chunkIndex, totalChunks, fileSize } = JSON.parse(event.body || "{}");
+    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId } = JSON.parse(event.body || "{}");
     if (!fileName || !base64 || typeof chunkIndex !== "number" || !totalChunks) {
       return {
         statusCode: 400,
@@ -14866,7 +14866,8 @@ var handler = async (event) => {
         description: "Processing...",
         tags: [],
         imagetype: "pending",
-        metadata_status: "pending_processing"
+        metadata_status: "pending_processing",
+        collection_id: collectionId || null
       });
       if (insertErr) {
         throw new Error(`Database insert failed: ${insertErr.message}`);
