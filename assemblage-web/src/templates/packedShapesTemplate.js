@@ -183,7 +183,7 @@ function renderPackedShapes(canvas, images, params = {}) {
   ctx.fillStyle = initialBgColor;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  const elementCount = params.elementCount || 25; // Back to 25 elements for better coverage
+  const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 16)); // Random 15-30 elements
   const elements = createPackedElements(canvasWidth, canvasHeight, elementCount);
 
   const complementaryColor = getComplementaryColor(initialBgColor);
@@ -214,7 +214,8 @@ function renderPackedShapes(canvas, images, params = {}) {
   }
   
   elements.forEach((element, index) => {
-    const imageToDraw = images[index % images.length]; // Cycle through images
+    // Use unique images when possible, cycle through available images
+    const imageToDraw = images[index % images.length]; // This ensures unique images up to images.length
     const colorBlockColor = useVariedColors 
       ? accentColorPalette[index % accentColorPalette.length]
       : singleColor;
@@ -297,7 +298,7 @@ const packedShapesTemplate = {
   render: renderPackedShapes,
   generate: renderPackedShapes, // Alias for compatibility
   params: {
-    elementCount: { type: 'number', min: 20, max: 40, default: 25, step: 1 },
+    elementCount: { type: 'number', min: 5, max: 35, default: 20, step: 1 },
     bgColor: { type: 'color' },
     // Potentially add other params like imageRatio if we want some to be pure color blocks later
   }

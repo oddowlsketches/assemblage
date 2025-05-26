@@ -10,21 +10,23 @@ import floatingElements from './floatingElements';
 import layeredGeometric from './layeredGeometric';
 // import architecturalComposition from './architecturalComposition'; // Removed old template
 import packedShapesTemplate from './packedShapesTemplate';
+import photoStrip from './photoStrip';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'packedShapes';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'packedShapes' | 'photoStrip';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
-  crystal: 0.1,
-  scrambledMosaic: 0.15,
-  tiling: 0.15,
-  sliced: 0.1,
-  pairedForms: 0.1,
-  dynamicArchitectural: 0.2, // Increased weight since it's the only architectural one now
-  floatingElements: 0.1,
-  layeredGeometric: 0.1,
+  crystal: 0.09,
+  scrambledMosaic: 0.12,
+  tiling: 0.12,
+  sliced: 0.08,
+  pairedForms: 0.15, // Increased for testing
+  dynamicArchitectural: 0.16,
+  floatingElements: 0.08,
+  layeredGeometric: 0.08,
   // architecturalComposition: 0.0, // Removed old architectural template
-  packedShapes: 0.1
+  packedShapes: 0.08,
+  photoStrip: 0.04 // Increased for testing
 };
 
 // Random parameter generators for each template
@@ -74,11 +76,11 @@ const parameterGenerators = {
   }),
 
   dynamicArchitectural: () => {
-    const selectedStyle = Math.random() < 0.9 ? 'nestedArches' : 'archSeries'; // Skewed for testing
-    console.log('[TemplateManager] dynamicArchitectural generating style:', selectedStyle); // Log for testing
+    const selectedStyle = Math.random() < 0.5 ? 'nestedArches' : 'archSeries'; // 50/50 split
+    console.log('[TemplateManager] dynamicArchitectural generating style:', selectedStyle); // Log for debugging
     return {
       style: selectedStyle,
-      imageMode: Math.random() > 0.5 ? 'single' : 'unique',
+      imageMode: 'unique', // Always use unique images for better visual quality
       useComplementaryShapes: Math.random() > 0.4, 
       useMultiply: true,
       bgColor: randomVibrantColor()
@@ -107,6 +109,10 @@ const parameterGenerators = {
     elementCount: 8 + Math.floor(Math.random() * 8), // 8-15 elements
     bgColor: randomVibrantColor(),
     // Add any other specific random params for packedShapes if needed later
+  }),
+  
+  photoStrip: () => ({
+    bgColor: randomVibrantColor()
   })
 } as const;
 
@@ -155,6 +161,8 @@ function getTemplateByType(type: TemplateType) {
       return layeredGeometric;
     case 'packedShapes':
       return packedShapesTemplate;
+    case 'photoStrip':
+      return photoStrip;
     default:
       return crystalTemplate;
   }
@@ -171,7 +179,8 @@ export const templates = {
   floatingElements: floatingElements,
   layeredGeometric: layeredGeometric,
   // architecturalComposition: architecturalComposition, // Removed old template
-  packedShapes: packedShapesTemplate
+  packedShapes: packedShapesTemplate,
+  photoStrip: photoStrip
 } as const;
 
 export const generators = parameterGenerators; 

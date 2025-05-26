@@ -4,6 +4,7 @@
 // DO NOT add named exports to this file! Only use the default export (array). Named exports will cause circular dependency errors with template modules.
 import scrambledMosaic from './scrambledMosaic';
 import pairedForms from './pairedForms';
+import photoStrip from './photoStrip';
 import tilingTemplate from './tilingTemplate';
 import crystalEffect from './crystalEffectTemplate';
 // import architecturalTemplate from './architecturalTemplate'; // Commenting out the old one
@@ -23,6 +24,8 @@ export default [
   dynamicArchitecturalTemplate, // Add the new one, perhaps make its key/name clear if not already
   scrambledMosaic,
   pairedForms,
+  photoStrip,
+  photoStrip, // Increase frequency by adding twice  
   tilingTemplate,
   crystalEffect,
   slicedTemplate, // Use this one

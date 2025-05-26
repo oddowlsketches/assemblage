@@ -22,13 +22,22 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // --- Randomization for "New" button behavior ---
-  let currentStyle = params.style || dynamicArchitecturalTemplate.params.style.default;
+  let currentStyle = params.style;
   
-  // If the style somehow comes in as 'random' (e.g. from old saved params, or if UI still sends it)
-  // we now pick only from the valid, refined styles.
-  if (currentStyle === 'random') {
-    const availableStyles = dynamicArchitecturalTemplate.params.style.options; // These are now only ['archSeries', 'nestedArches']
-    currentStyle = availableStyles[Math.floor(Math.random() * availableStyles.length)];
+  // If no style is provided or it's 'random', pick randomly between the two
+  if (!currentStyle || currentStyle === 'random') {
+    const availableStyles = ['archSeries', 'nestedArches'];
+    const randomIndex = Math.floor(Math.random() * availableStyles.length);
+    currentStyle = availableStyles[randomIndex];
+    console.log('[DATemplate] No style provided, randomly selected:', currentStyle, 'from index:', randomIndex, 'out of', availableStyles.length);
+  } else {
+    console.log('[DATemplate] Using provided style:', currentStyle);
+  }
+
+  // Force unique imageMode for archSeries and nestedArches to fix distortion issues
+  let forcedImageMode = params.imageMode;
+  if (currentStyle === 'archSeries' || currentStyle === 'nestedArches') {
+    forcedImageMode = 'unique'; // Always use unique images for these styles
   }
 
   const randomizedUseColorBlockEcho = params.useColorBlockEcho !== undefined ? params.useColorBlockEcho : Math.random() < 0.7; // 70% chance for echo now
@@ -46,11 +55,15 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
     randomizedElementOpacity
   });
 
+  console.log('[DATemplate] Final currentStyle being passed to ArchitecturalEffect:', currentStyle);
+  console.log('[DATemplate] About to call ArchitecturalEffect with promptText:', currentStyle);
+
   // Pass all params to ArchitecturalEffect, it can pick what it needs
   const effectParams = {
     ...params, // Original params take precedence if they exist
     promptText: currentStyle, // Use the (potentially randomized) style
     bgColor: bgColor, // Ensure bgColor is passed
+    imageMode: forcedImageMode, // Use the forced imageMode for problematic styles
     
     // Apply randomized values if not specified in incoming params
     useColorBlockEcho: randomizedUseColorBlockEcho,
@@ -76,8 +89,8 @@ const dynamicArchitecturalTemplate = {
   name: 'Dynamic Architectural',
   generate: renderDynamicArchitectural,
   params: {
-    style: { type: 'select', options: ['archSeries', 'nestedArches'], default: Math.random() > 0.5 ? 'nestedArches' : 'archSeries' },
-    imageMode: { type: 'select', options: ['unique', 'single'], default: 'unique' },
+    style: { type: 'select', options: ['archSeries', 'nestedArches'], default: 'archSeries' },
+    imageMode: { type: 'select', options: ['unique', 'single'], default: 'unique' }, // Default to unique now
     useMultiply: { type: 'boolean', default: true },
     useComplementaryShapes: { type: 'boolean', default: false }, // Existing complementary shapes, different from echo
     bgColor: { type: 'color' }, // No default, so it will be undefined unless set by user/theme

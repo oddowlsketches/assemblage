@@ -27,43 +27,56 @@ function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity
         const s1Bounds = { x: shape1.x, y: shape1.y, width: shape1.width, height: shape1.height, right: shape1.x + shape1.width, bottom: shape1.y + shape1.height, cx: shape1.x + shape1.width/2, cy: shape1.y + shape1.height/2 };
         const s2Bounds = { x: shape2.x, y: shape2.y, width: shape2.width, height: shape2.height, right: shape2.x + shape2.width, bottom: shape2.y + shape2.height, cx: shape2.x + shape2.width/2, cy: shape2.y + shape2.height }; 
 
-        const adjacencyTolerance = Math.min(s1Bounds.width, s1Bounds.height, s2Bounds.width, s2Bounds.height) * 0.3; // Was 0.25
-        const overlapForTouch = 5; // Was 3
+        const adjacencyTolerance = Math.min(s1Bounds.width, s1Bounds.height, s2Bounds.width, s2Bounds.height) * 0.4; // Increased from 0.3
+        const overlapForTouch = 8; // Increased from 5 for better contact
 
         // Check for potential horizontal adjacency (centers are somewhat aligned vertically, and x-positions are close)
         const yCenterDiff = Math.abs(s1Bounds.cy - s2Bounds.cy);
         const xDiff = Math.min(Math.abs(s1Bounds.right - s2Bounds.x), Math.abs(s2Bounds.right - s1Bounds.x));
-        const horizontallyAdjacent = xDiff < adjacencyTolerance && yCenterDiff < (s1Bounds.height + s2Bounds.height) * 0.3;
+        const horizontallyAdjacent = xDiff < adjacencyTolerance && yCenterDiff < (s1Bounds.height + s2Bounds.height) * 0.4; // Increased from 0.3
 
         // Check for potential vertical adjacency (centers are somewhat aligned horizontally, and y-positions are close)
         const xCenterDiff = Math.abs(s1Bounds.cx - s2Bounds.cx);
         const yDiff = Math.min(Math.abs(s1Bounds.bottom - s2Bounds.y), Math.abs(s2Bounds.bottom - s1Bounds.y));
-        const verticallyAdjacent = yDiff < adjacencyTolerance && xCenterDiff < (s1Bounds.width + s2Bounds.width) * 0.3;
+        const verticallyAdjacent = yDiff < adjacencyTolerance && xCenterDiff < (s1Bounds.width + s2Bounds.width) * 0.4; // Increased from 0.3
 
         if (!horizontallyAdjacent && !verticallyAdjacent) continue;
 
         // --- SemiCircle + SemiCircle --- 
         if (shape1.type === 'semiCircle' && shape2.type === 'semiCircle') {
           if (horizontallyAdjacent) {
-            shape1.y = s2Bounds.cy - shape1.height / 2; // Align vertical centers
-            shape2.y = s1Bounds.cy - shape2.height / 2;
+            // Align vertical centers perfectly
+            const avgCenterY = (s1Bounds.cy + s2Bounds.cy) / 2;
+            shape1.y = avgCenterY - shape1.height / 2;
+            shape2.y = avgCenterY - shape2.height / 2;
+            
             if (s1Bounds.cx < s2Bounds.cx) { // s1 left of s2
-              shape1._drawParams.orientation = 'right'; shape2._drawParams.orientation = 'left';
-              shape2.x = shape1.x + shape1.width - overlapForTouch;
+              shape1._drawParams.orientation = 'right'; 
+              shape2._drawParams.orientation = 'left';
+              // Position them to touch exactly - no gap
+              shape2.x = shape1.x + shape1.width - 1; // Slight overlap to ensure contact
             } else { // s2 left of s1
-              shape2._drawParams.orientation = 'right'; shape1._drawParams.orientation = 'left';
-              shape1.x = shape2.x + shape2.width - overlapForTouch;
+              shape2._drawParams.orientation = 'right'; 
+              shape1._drawParams.orientation = 'left';
+              // Position them to touch exactly - no gap
+              shape1.x = shape2.x + shape2.width - 1; // Slight overlap to ensure contact
             }
           } else if (verticallyAdjacent) {
-            shape1.x = s2Bounds.cx - shape1.width / 2; // Align horizontal centers
-            shape2.x = s1Bounds.cx - shape2.width / 2;
-            // Always use top/bottom orientation for vertical adjacency
+            // Align horizontal centers perfectly
+            const avgCenterX = (s1Bounds.cx + s2Bounds.cx) / 2;
+            shape1.x = avgCenterX - shape1.width / 2;
+            shape2.x = avgCenterX - shape2.width / 2;
+            
             if (s1Bounds.cy < s2Bounds.cy) { // s1 above s2
-              shape1._drawParams.orientation = 'bottom'; shape2._drawParams.orientation = 'top';
-              shape2.y = shape1.y + shape1.height - overlapForTouch;
+              shape1._drawParams.orientation = 'down'; 
+              shape2._drawParams.orientation = 'up';
+              // Position them to touch exactly - no gap
+              shape2.y = shape1.y + shape1.height - 1; // Slight overlap to ensure contact
             } else { // s2 above s1
-              shape2._drawParams.orientation = 'bottom'; shape1._drawParams.orientation = 'top';
-              shape1.y = shape2.y + shape2.height - overlapForTouch;
+              shape2._drawParams.orientation = 'down'; 
+              shape1._drawParams.orientation = 'up';
+              // Position them to touch exactly - no gap
+              shape1.y = shape2.y + shape2.height - 1; // Slight overlap to ensure contact
             }
           }
         } 
@@ -340,8 +353,8 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   
   function pickType(index, count) {
     if (formType === 'mixed') {
-      // Special case: if we have exactly 2 forms, 40% chance of two rectangles
-      if (count === 2 && index === 0 && Math.random() < 0.4) {
+      // Special case: if we have exactly 2 forms, 50% chance of two rectangles
+      if (count === 2 && index === 0 && Math.random() < 0.5) {
         // Store this decision for the second shape
         tempShapesData._forceRectangularPair = true;
         return 'rectangular';
@@ -353,9 +366,9 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
       }
       
       const types = [
-        { type: 'rectangular', weight: 6 }, // Increased weight for rectangles
-        { type: 'semiCircle', weight: 5 },
-        { type: 'triangle', weight: 4 }
+        { type: 'rectangular', weight: 4 }, // Reduced weight for rectangles
+        { type: 'semiCircle', weight: 8 }, // Increased weight for semicircles
+        { type: 'triangle', weight: 3 }
       ];
       
       const weightedTypes = types.reduce((acc, item) => acc.concat(Array(item.weight).fill(item.type)), []);
@@ -415,19 +428,42 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
-      const yPos = marginY + (effectiveHeight - shapeHeight) / 2;
-
-      if (formCount === 2) {
-        shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04); // Aim for roughly half each, less variation
+      
+      // For rectangles, allow more varied aspect ratios
+      if (shapeType === 'rectangular' && formCount === 2 && tempShapesData._forceRectangularPair) {
+        // Create more varied rectangular shapes - not always square-like
+        const aspectRatioChoice = Math.random();
+        if (aspectRatioChoice < 0.4) {
+          // Tall rectangles
+          shapeHeight = effectiveHeight * (0.8 + Math.random() * 0.15);
+          shapeWidth = effectiveWidth * (0.35 + Math.random() * 0.1);
+        } else if (aspectRatioChoice < 0.8) {
+          // Wide rectangles
+          shapeHeight = effectiveHeight * (0.4 + Math.random() * 0.2);
+          shapeWidth = effectiveWidth * (0.45 + Math.random() * 0.05);
+        } else {
+          // Square-ish (original behavior)
+          shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23);
+          shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04);
+        }
       } else {
-        shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
+        // Original logic for other shapes
+        shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
+        if (formCount === 2) {
+          shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04); // Aim for roughly half each, less variation
+        } else {
+          shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
+        }
+        shapeWidth = Math.max(effectiveWidth * 0.35, Math.min(shapeWidth, effectiveWidth * 0.75));
       }
-      shapeWidth = Math.max(effectiveWidth * 0.35, Math.min(shapeWidth, effectiveWidth * 0.75)); 
+      
+      // Ensure minimum and maximum bounds
+      shapeWidth = Math.max(effectiveWidth * 0.25, Math.min(shapeWidth, effectiveWidth * 0.75));
+      const yPos = marginY + (effectiveHeight - shapeHeight) / 2; 
       
       let actualX = currentX;
       if (!useMargins && i > 0 && lastShapeBounds) { // If no margins and not the first shape
-         actualX = lastShapeBounds.right; // Force overlap slightly for finalizeEdgeContacts
+         actualX = lastShapeBounds.right - (effectiveWidth * 0.015); // Force slight overlap for better edge contact
       }
 
       const newShape = { type: shapeType, x: actualX, y: yPos, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) };
@@ -453,7 +489,7 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
 
       let actualY = currentY;
       if (!useMargins && i > 0 && lastShapeBounds) {
-        actualY = lastShapeBounds.bottom; // Force overlap
+        actualY = lastShapeBounds.bottom - (effectiveHeight * 0.015); // Force slight overlap for better edge contact
       }
       
       const newShape = { type: shapeType, x: xPos, y: actualY, width: shapeWidth, height: shapeHeight, imageIndex: Math.floor(Math.random() * 1000) };
@@ -498,6 +534,17 @@ function areShapesCompatibleForTouching(type1, type2) {
     'triangle': ['triangle', 'rectangular']     // Triangle can only touch another Triangle or a Rectangle
   };
   return compatibleMap[type1] && compatibleMap[type1].includes(type2);
+}
+
+// Debug function to check triangle touching
+function checkTriangleTouching(composition) {
+  if (window.debugPairedForms) {
+    composition.forEach((shape, i) => {
+      if (shape.type === 'triangle') {
+        console.log(`[DEBUG] Triangle ${i}: x=${shape.x}, y=${shape.y}, w=${shape.width}, h=${shape.height}, orientation=${shape._drawParams?.orientation}`);
+      }
+    });
+  }
 }
 
 /**
@@ -658,8 +705,9 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   switch (orientation) {
     case 'left': angle = Math.PI / 2; break;
     case 'right': angle = -Math.PI / 2; break;
-    case 'top': angle = Math.PI; break;
-    // 'bottom' or undefined (default for semicircle mask) is angle = 0
+    case 'up': angle = Math.PI; break; // Flat edge up
+    case 'down': angle = 0; break; // Flat edge down (default)
+    // Default (no orientation or 'down') is angle = 0
   }
   if (angle !== 0) {
     ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
