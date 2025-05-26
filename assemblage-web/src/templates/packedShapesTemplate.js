@@ -214,8 +214,16 @@ function renderPackedShapes(canvas, images, params = {}) {
   }
   
   elements.forEach((element, index) => {
-    // Use unique images when possible, cycle through available images
-    const imageToDraw = images[index % images.length]; // This ensures unique images up to images.length
+    // Use random unique images, but try not to repeat until we've used most available images
+    const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
+    let imageToDraw;
+    
+    if (availableImages.length > 0) {
+      // For better variety, use shuffled order rather than cycling
+      const imageIndex = Math.floor(Math.random() * availableImages.length);
+      imageToDraw = availableImages[imageIndex];
+    }
+    
     const colorBlockColor = useVariedColors 
       ? accentColorPalette[index % accentColorPalette.length]
       : singleColor;

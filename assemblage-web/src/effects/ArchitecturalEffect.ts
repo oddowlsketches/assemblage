@@ -82,8 +82,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
     
     if (layoutType < 0.4) {
       // Single large arch centered at bottom with smaller overlapping arches
-      const mainArchWidth = w * (0.6 + Math.random() * 0.2); // 60-80% width
-      const mainArchHeight = Math.max(h * 0.8, h * (0.8 + Math.random() * 0.15)); // Ensure at least 80% height
+      const mainArchWidth = w * (0.7 + Math.random() * 0.25); // 70-95% width (increased from 60-80%)
+      const mainArchHeight = Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)); // Ensure at least 85% height (increased from 80%)
       const mainArchX = (w - mainArchWidth) / 2;
       const mainArchY = h - mainArchHeight;
       
@@ -97,7 +97,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         layer: 1,
         imageType: 'texture', // Use texture for background arch
         useColorBlockEcho: true,
-        echoType: 'complementary'
+        echoType: 'complementary',
+        useSolidColor: false // Main arch always has image (since it might be the only one)
       });
       
       // Add 1-2 smaller overlapping arches in front
@@ -118,14 +119,15 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           layer: 2,
           imageType: Math.random() < 0.5 ? 'narrative' : 'conceptual', // Use narrative/conceptual for foreground
           useColorBlockEcho: true,
-          echoType: 'background'
+          echoType: 'background',
+          useSolidColor: false // Overlay arches are topmost layer, so never solid color
         });
       }
     } else if (layoutType < 0.7) {
       // Two large arches side by side with staggered heights
-      const baseArchWidth = w * (0.35 + Math.random() * 0.1); // 35-45% each
-      const leftArchHeight = Math.max(h * 0.8, h * (0.85 + Math.random() * 0.1)); // Ensure at least 80% height
-      const rightArchHeight = h * (0.75 + Math.random() * 0.15);
+      const baseArchWidth = w * (0.4 + Math.random() * 0.15); // 40-55% each (increased from 35-45%)
+      const leftArchHeight = Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)); // Ensure at least 85% height
+      const rightArchHeight = Math.max(h * 0.75, h * (0.75 + Math.random() * 0.15)); // At least 75% height
       
       // Stagger the positioning
       const leftX = w * (0.1 + Math.random() * 0.1);
@@ -141,7 +143,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         layer: 1,
         imageType: 'texture',
         useColorBlockEcho: true,
-        echoType: 'complementary'
+        echoType: 'complementary',
+        useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
       });
       
       placements.push({
@@ -154,7 +157,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         layer: 1,
         imageType: 'texture',
         useColorBlockEcho: true,
-        echoType: 'complementary'
+        echoType: 'complementary',
+        useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
       });
       
       // Add small overlapping element
@@ -172,14 +176,15 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         layer: 2,
         imageType: 'narrative',
         useColorBlockEcho: true,
-        echoType: 'background'
+        echoType: 'background',
+        useSolidColor: false // Topmost layer, never solid color
       });
     } else {
       // Three overlapping arches with varied sizes anchored to bottom
       const archSizes = [
-        { width: w * (0.45 + Math.random() * 0.1), height: Math.max(h * 0.8, h * (0.8 + Math.random() * 0.15)) }, // Ensure first arch is at least 80% height
-        { width: w * (0.35 + Math.random() * 0.1), height: h * (0.7 + Math.random() * 0.15) },
-        { width: w * (0.25 + Math.random() * 0.1), height: h * (0.6 + Math.random() * 0.15) }
+        { width: w * (0.5 + Math.random() * 0.15), height: Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)) }, // Ensure first arch is at least 85% height (increased)
+        { width: w * (0.4 + Math.random() * 0.1), height: Math.max(h * 0.7, h * (0.7 + Math.random() * 0.15)) }, // At least 70% height
+        { width: w * (0.3 + Math.random() * 0.1), height: h * (0.6 + Math.random() * 0.15) }
       ];
       
       // Position them with overlap
@@ -188,6 +193,10 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
       archSizes.forEach((size, i) => {
         const archX = currentX + (i > 0 ? -size.width * 0.2 : 0); // Overlap previous arch
         const archY = h - size.height;
+        
+        // Determine if this should be solid color (never for the topmost layer)
+        const isTopmostLayer = (3 - i) === Math.max(...archSizes.map((_, idx) => 3 - idx));
+        const useSolidColor = !isTopmostLayer && Math.random() < 0.3; // 30% chance, but never topmost
         
         placements.push({
           maskName: 'architectural/archClassical', // Only use archClassical
@@ -199,7 +208,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           layer: 3 - i, // Largest arch in back
           imageType: i === 0 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
           useColorBlockEcho: true,
-          echoType: i === 0 ? 'complementary' : 'background'
+          echoType: i === 0 ? 'complementary' : 'background',
+          useSolidColor: useSolidColor
         });
         
         currentX += size.width * 0.6; // Move for next arch
@@ -1142,7 +1152,17 @@ export class ArchitecturalEffect extends EffectBase {
 
         console.log(`[ArchEffect drawPlan Loop] Mask ${maskName}: imageMode='${this.imageMode}', Image: ${imageToDraw ? imageToDraw.src.substring(imageToDraw.src.lastIndexOf('/')+1) : 'N/A'}, Complete: ${imageToDraw?.complete}, Broken: ${(imageToDraw as any)?.isBroken}`);
 
-        if (imageToDraw && imageToDraw.complete && !(imageToDraw as any)?.isBroken) {
+        // Check if this should be solid color only (for arch series)
+        const useSolidColor = this.params.promptText === 'archSeries' && (placement as any).useSolidColor;
+        
+        if (useSolidColor) {
+          // Draw solid color only - use the echo color as the solid color
+          this.ctx.fillStyle = echoColorToUse || this.getComplementaryColor(mainBgColorForEcho);
+          this.ctx.globalAlpha = 1.0;
+          this.ctx.globalCompositeOperation = 'source-over';
+          this.ctx.fillRect(0, 0, 100, 100);
+          console.log(`[ArchitecturalEffect] Drew solid color for ${maskName}: ${this.ctx.fillStyle}`);
+        } else if (imageToDraw && imageToDraw.complete && !(imageToDraw as any)?.isBroken) {
           this.ctx.globalAlpha = finalImageOpacity;
           this.ctx.globalCompositeOperation = imageBlendMode;
 
@@ -1164,7 +1184,7 @@ export class ArchitecturalEffect extends EffectBase {
           this.ctx.drawImage(imageToDraw, sX, sY, sWidth, sHeight, 0, 0, targetClipWidth, targetClipHeight);
           console.log(`[ArchitecturalEffect] Drawn image for ${maskName}. Opacity: ${this.ctx.globalAlpha}, Blend: ${this.ctx.globalCompositeOperation}`);
         } else {
-            console.warn(`[ArchitecturalEffect] Image for mask ${maskName} not drawn.`);
+            console.warn(`[ArchitecturalEffect] Image for mask ${maskName} not drawn${useSolidColor ? ' (using solid color instead)' : ''}.`);
         }
 
       } catch (error) {
