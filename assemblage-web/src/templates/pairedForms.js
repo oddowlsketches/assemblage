@@ -2,27 +2,28 @@ import { maskRegistry } from '../masks/maskRegistry.ts';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
+import { shouldApplyAutoColorEcho } from '../utils/imageOverlapUtils.js';
 
 /**
- * Apply final alignment adjustments to ensure better edge contacts
- * @param {Array} composition - Array of shape objects
- * @param {number} canvasWidth - Canvas width
- * @param {number} canvasHeight - Canvas height
- * @param {number} complexity - Complexity factor 0-1
- */
+* Apply final alignment adjustments to ensure better edge contacts
+* @param {Array} composition - Array of shape objects
+* @param {number} canvasWidth - Canvas width
+* @param {number} canvasHeight - Canvas height
+* @param {number} complexity - Complexity factor 0-1
+*/
 function finalizeEdgeContacts(composition, canvasWidth, canvasHeight, complexity) {
-  if (!composition || composition.length < 2) return;
-  
-  const MAX_PASSES = 3; // Number of passes for refinement
+if (!composition || composition.length < 2) return;
 
-  for (let pass = 0; pass < MAX_PASSES; pass++) {
-    for (let i = 0; i < composition.length; i++) {
-      for (let j = i + 1; j < composition.length; j++) {
-        const shape1 = composition[i];
-        const shape2 = composition[j];
+const MAX_PASSES = 3; // Number of passes for refinement
 
-        if (!shape1._drawParams) shape1._drawParams = {};
-        if (!shape2._drawParams) shape2._drawParams = {};
+for (let pass = 0; pass < MAX_PASSES; pass++) {
+for (let i = 0; i < composition.length; i++) {
+for (let j = i + 1; j < composition.length; j++) {
+const shape1 = composition[i];
+const shape2 = composition[j];
+
+if (!shape1._drawParams) shape1._drawParams = {};
+if (!shape2._drawParams) shape2._drawParams = {};
 
         const s1Bounds = { x: shape1.x, y: shape1.y, width: shape1.width, height: shape1.height, right: shape1.x + shape1.width, bottom: shape1.y + shape1.height, cx: shape1.x + shape1.width/2, cy: shape1.y + shape1.height/2 };
         const s2Bounds = { x: shape2.x, y: shape2.y, width: shape2.width, height: shape2.height, right: shape2.x + shape2.width, bottom: shape2.y + shape2.height, cx: shape2.x + shape2.width/2, cy: shape2.y + shape2.height }; 
@@ -551,6 +552,21 @@ function checkTriangleTouching(composition) {
  * Draw a composition on the canvas
  */
 function drawComposition(ctx, composition, images, useMultiply, formType = 'rectangular', params = {}) {
+  // Pre-calculate overlaps for each shape
+  composition.forEach((shape, i) => {
+    let maxOverlap = 0;
+    composition.forEach((otherShape, j) => {
+      if (i === j) return;
+      const overlap = Math.max(0, Math.min(shape.x + shape.width, otherShape.x + otherShape.width) - Math.max(shape.x, otherShape.x)) *
+                     Math.max(0, Math.min(shape.y + shape.height, otherShape.y + otherShape.height) - Math.max(shape.y, otherShape.y));
+      const shapeArea = shape.width * shape.height;
+      if (shapeArea > 0) {
+        maxOverlap = Math.max(maxOverlap, overlap / shapeArea);
+      }
+    });
+    shape._maxOverlap = maxOverlap;
+  });
+  
   // Run the debug check if enabled
   if (window.debugPairedForms) {
     checkTriangleTouching(composition);
@@ -623,7 +639,13 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
 
   ctx.clip(maskPath);
 
-  // Conditional Color Block Echo based on image_role
+  // Calculate overlap with other shapes to determine if auto echo is needed
+  let maxOverlap = shape._maxOverlap || 0;
+  
+  // Determine if automatic color echo should be applied
+  const needsAutoEcho = img && shouldApplyAutoColorEcho(img, maxOverlap, 0.1); // 10% threshold
+  
+  // Conditional Color Block Echo based on image_role and auto echo logic
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
 
@@ -632,9 +654,18 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
   } else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') {
     applyEcho = true;
   } else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
+    // Apply echo if:
+    // 1. Explicitly set on shape, OR
+    // 2. Auto echo needed for overlapping color images, OR 
+    // 3. Original logic for texture images
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : 
+               (needsAutoEcho || (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45)));
   }
   // if echoPreference is 'never', applyEcho remains false
+  
+  if (needsAutoEcho) {
+    console.log(`[PairedForms] Auto color echo applied - overlap: ${Math.round(maxOverlap * 100)}%, is_black_and_white: ${img?.is_black_and_white}`);
+  }
 
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto'); // Use palette-aware color selection
 
@@ -720,13 +751,22 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   // Store the mask rotation angle
   const maskAngle = angle;
 
+  // Calculate auto echo needs based on pre-calculated overlap
+  const maxOverlap = shape._maxOverlap || 0;
+  const needsAutoEcho = img && shouldApplyAutoColorEcho(img, maxOverlap, 0.1);
+
   // Conditional Color Block Echo logic
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
   else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : 
+               (needsAutoEcho || (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45)));
+  }
+  
+  if (needsAutoEcho) {
+    console.log(`[PairedForms SemiCircle] Auto color echo applied - overlap: ${Math.round(maxOverlap * 100)}%, is_black_and_white: ${img?.is_black_and_white}`);
   }
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 
@@ -814,13 +854,22 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
 
   ctx.clip(maskPath);
 
+  // Calculate auto echo needs based on pre-calculated overlap
+  const maxOverlap = shape._maxOverlap || 0;
+  const needsAutoEcho = img && shouldApplyAutoColorEcho(img, maxOverlap, 0.1);
+
   // Conditional Color Block Echo logic
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
   else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : 
+               (needsAutoEcho || (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45)));
+  }
+  
+  if (needsAutoEcho) {
+    console.log(`[PairedForms Triangle] Auto color echo applied - overlap: ${Math.round(maxOverlap * 100)}%, is_black_and_white: ${img?.is_black_and_white}`);
   }
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 

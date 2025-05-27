@@ -23,11 +23,15 @@ export const subtleColors = [
   '#FFF8DC', // Cornsilk
   '#F8F8FF', // Ghost White
   '#FFFACD', // Lemon Chiffon
-  '#E0E0E0', // Light Gray
+  '#F0F0F0', // Light Gray (was E0E0E0)
   '#F0E68C', // Khaki
   '#DDA0DD', // Plum
   '#98FB98', // Pale Green
   '#FFE4E1', // Misty Rose
+  '#E0FFFF', // Light Cyan
+  '#FFEFD5', // Papaya Whip
+  '#FFF0F5', // Lavender Blush
+  '#F0FFF0', // Honeydew
 ];
 
 export const pastelColors = [
@@ -226,6 +230,8 @@ export function getColorPalette(images, paletteType = 'auto') {
   // Auto mode: analyze images to determine palette
   if (paletteType === 'auto') {
     const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
+    // For B&W images: use vibrant backgrounds since they create good contrast
+    // For color images: use subtle/light backgrounds that work well with multiply blend
     const selectedPalette = isBlackAndWhite ? vibrantColors : subtleColors;
     console.log(`[Color Palette] Auto mode - Images are ${isBlackAndWhite ? 'B&W' : 'colorful'}, using ${isBlackAndWhite ? 'vibrant' : 'subtle'} palette`);
     return selectedPalette;

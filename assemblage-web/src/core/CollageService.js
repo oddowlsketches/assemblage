@@ -682,84 +682,56 @@ export class CollageService {
     }
     
     updateUIColors(bgColor) {
-        // Helper function to convert hex to RGB
-        const hexToRgb = (hex) => {
-            // Remove # if present
-            hex = hex.replace('#', '');
-            // Parse the hex values
-            const r = parseInt(hex.substring(0, 2), 16);
-            const g = parseInt(hex.substring(2, 4), 16);
-            const b = parseInt(hex.substring(4, 6), 16);
-            return { r, g, b };
-        };
-        
-        const rgbToHsl = (r, g, b) => {
-            r /= 255;
-            g /= 255;
-            b /= 255;
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            let h, s, l = (max + min) / 2;
+        // Import the same complementary color function used by templates
+        import('../utils/colorUtils.js').then(({ getComplementaryColor }) => {
+            // Use the exact same complementary color logic as templates
+            const complementaryColor = getComplementaryColor(bgColor);
             
-            if (max === min) {
-                h = s = 0;
+            console.log(`[CollageService] UI Colors - BG: ${bgColor}, Complementary: ${complementaryColor}`);
+            
+            // Convert bgColor to CSS format if it was hex
+            const cssBgColor = bgColor.startsWith('#') ? bgColor : bgColor;
+            
+            document.documentElement.style.setProperty('--background-color', cssBgColor);
+            document.documentElement.style.setProperty('--text-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-border-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
+        }).catch(err => {
+            console.warn('[CollageService] Could not load colorUtils, using fallback');
+            // Fallback color logic
+            const hexToRgb = (hex) => {
+                hex = hex.replace('#', '');
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                return { r, g, b };
+            };
+            
+            const rgbToHex = (r, g, b) => {
+                return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+            };
+            
+            let r, g, b;
+            if (bgColor.startsWith('#')) {
+                const rgb = hexToRgb(bgColor);
+                r = rgb.r; g = rgb.g; b = rgb.b;
             } else {
-                const d = max - min;
-                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-                switch (max) {
-                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-                    case g: h = (b - r) / d + 2; break;
-                    case b: h = (r - g) / d + 4; break;
-                }
-                h /= 6;
+                const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+                if (!rgbMatch) return;
+                r = parseInt(rgbMatch[1]); g = parseInt(rgbMatch[2]); b = parseInt(rgbMatch[3]);
             }
             
-            return [h * 360, s * 100, l * 100];
-        };
-        
-        let r, g, b;
-        
-        // Check if it's a hex color
-        if (bgColor.startsWith('#')) {
-            const rgb = hexToRgb(bgColor);
-            r = rgb.r;
-            g = rgb.g;
-            b = rgb.b;
-        } else {
-            // Try to parse as rgb format
-            const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-            if (!rgbMatch) {
-                console.warn('[CollageService] Invalid color format for updateUIColors:', bgColor);
-                return;
-            }
-            r = parseInt(rgbMatch[1]);
-            g = parseInt(rgbMatch[2]);
-            b = parseInt(rgbMatch[3]);
-        }
-        
-        const [h, s, l] = rgbToHsl(r, g, b);
-        
-        const complementaryH = (h + 180) % 360;
-        
-        // Adjust lightness for better contrast
-        let textL;
-        if (l > 50) {
-            // Light background - use dark text
-            textL = Math.max(l - 60, 10);
-        } else {
-            // Dark background - use light text
-            textL = Math.min(l + 60, 90);
-        }
-        
-        const complementaryColor = `hsl(${complementaryH}, ${Math.min(s + 20, 100)}%, ${textL}%)`;
-        
-        // Convert bgColor to CSS format if it was hex
-        const cssBgColor = bgColor.startsWith('#') ? bgColor : bgColor;
-        
-        document.documentElement.style.setProperty('--background-color', cssBgColor);
-        document.documentElement.style.setProperty('--text-color', complementaryColor);
-        document.documentElement.style.setProperty('--button-border-color', complementaryColor);
-        document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
+            // Simple complementary color (invert RGB)
+            const compR = 255 - r;
+            const compG = 255 - g;
+            const compB = 255 - b;
+            const complementaryColor = rgbToHex(compR, compG, compB);
+            
+            document.documentElement.style.setProperty('--background-color', bgColor);
+            document.documentElement.style.setProperty('--text-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-border-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
+        });
     }
 
     async generateCollageFromPlan(plan) {

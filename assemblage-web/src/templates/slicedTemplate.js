@@ -24,8 +24,15 @@ export async function renderSliced(canvas, images, params = {}) {
   gen.generateBackgroundColor = () => bgCol;
 
   // Prepare parameter bag expected by legacy code
+  const sliceBehaviors = ['single-image', 'alternating'];
+  const randomizedSliceBehavior = (params.sliceBehavior !== null && params.sliceBehavior !== undefined)
+    ? params.sliceBehavior
+    : sliceBehaviors[Math.floor(Math.random() * sliceBehaviors.length)];
+    
+  console.log(`[SlicedTemplate] Randomized sliceBehavior to: ${randomizedSliceBehavior}`);
+  
   const legacyParams = {
-    sliceBehavior: params.sliceBehavior || 'single-image',  // 'single-image' | 'alternating'
+    sliceBehavior: randomizedSliceBehavior,
     maxSlices: Number(params.maxSlices) || 40,
     sliceWidthVariation: Number(params.sliceWidthVariation) || 0.1,
   };
@@ -52,7 +59,7 @@ const slicedTemplate = {
     sliceBehavior: { 
       type: 'select', 
       options: ['single-image', 'alternating'], 
-      default: 'single-image' 
+      default: null // null means randomize
     },
     maxSlices: { 
       type: 'number', 
