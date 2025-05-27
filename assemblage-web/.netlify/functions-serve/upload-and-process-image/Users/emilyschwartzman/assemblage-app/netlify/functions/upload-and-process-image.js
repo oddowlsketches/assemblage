@@ -14868,7 +14868,7 @@ var handler = async (event) => {
         description: "Processing...",
         tags: [],
         image_role,
-        metadata_status: "pending_processing",
+        metadata_status: "pending_llm",
         collection_id: collectionId || null
       });
       if (insertErr) {
