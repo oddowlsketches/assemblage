@@ -26,6 +26,8 @@ function rgbToHex(r, g, b) {
 
 /**
  * Calculates the complementary color for a given hex color.
+ * Ensures the result is never too dark for readability when images are multiplied on it.
+ * Enhanced to provide better contrast and prevent overly dark complementary colors.
  * @param {string} hexColor - The base color in hex format (e.g., "#RRGGBB" or "#RGB").
  * @returns {string} The complementary color in hex format, or a default if input is invalid.
  */
@@ -33,13 +35,54 @@ export function getComplementaryColor(hexColor) {
   const rgb = hexToRgb(hexColor);
   if (!rgb) {
     console.warn(`[getComplementaryColor] Invalid hexColor input: ${hexColor}. Defaulting.`);
-    return '#808080'; // Default to a neutral gray if input is invalid
+    return '#666666'; // Default to readable gray if input is invalid
   }
 
-  // To find the complementary color, invert each component
-  const r = 255 - rgb.r;
-  const g = 255 - rgb.g;
-  const b = 255 - rgb.b;
+  // Enhanced complementary color calculation
+  // Instead of simple inversion, use a smarter approach for better readability
+  
+  // Calculate base luminance
+  const baseLuminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+  
+  let r, g, b;
+  
+  if (baseLuminance > 0.5) {
+    // For light backgrounds, create a darker complementary color
+    // But ensure it's not too dark for readability
+    r = Math.max(40, 255 - rgb.r); // Minimum 40 to prevent pure black
+    g = Math.max(40, 255 - rgb.g);
+    b = Math.max(40, 255 - rgb.b);
+  } else {
+    // For dark backgrounds, create a lighter complementary color
+    // Ensure it's bright enough for good contrast
+    r = Math.min(215, 255 - rgb.r); // Maximum 215 to prevent pure white on light backgrounds
+    g = Math.min(215, 255 - rgb.g);
+    b = Math.min(215, 255 - rgb.b);
+  }
+  
+  // Final luminance check - ensure result has good readability
+  const complementaryLuminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // If still too dark (< 0.4) or contrast is insufficient, use a safer approach
+  if (complementaryLuminance < 0.4 || Math.abs(baseLuminance - complementaryLuminance) < 0.3) {
+    if (baseLuminance > 0.5) {
+      // Light background - use dark but readable color
+      const targetLuminance = 0.25;
+      const scale = targetLuminance / Math.max(0.01, complementaryLuminance);
+      r = Math.min(255, Math.max(30, Math.round(r * scale)));
+      g = Math.min(255, Math.max(30, Math.round(g * scale)));
+      b = Math.min(255, Math.max(30, Math.round(b * scale)));
+    } else {
+      // Dark background - use light but not harsh color
+      const targetLuminance = 0.75;
+      const scale = targetLuminance / Math.max(0.01, complementaryLuminance);
+      r = Math.min(220, Math.max(100, Math.round(r * scale)));
+      g = Math.min(220, Math.max(100, Math.round(g * scale)));
+      b = Math.min(220, Math.max(100, Math.round(b * scale)));
+    }
+    
+    console.log(`[getComplementaryColor] Adjusted complementary color for better readability: ${rgbToHex(r, g, b)} (base luminance: ${baseLuminance.toFixed(2)})`);
+  }
 
   return rgbToHex(r, g, b);
 }

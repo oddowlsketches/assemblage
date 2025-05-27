@@ -790,9 +790,22 @@ export class ArchitecturalEffect extends EffectBase {
   }
 
   private _chooseRandomBackgroundColor(alpha: number = 1.0): string {
-    const colors = ['#FF6B6B', /* ... */ '#1ABC9C'];
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    return alpha < 1.0 ? `${color}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}` : color;
+    // Import the enhanced palette function dynamically to use smart color selection
+    // This ensures color photos get light backgrounds and B&W photos get vibrant ones
+    let baseColor: string;
+    
+    try {
+      // Use the smart palette function that analyzes images
+      const { getRandomColorFromPalette } = require('../utils/colors.js');
+      baseColor = getRandomColorFromPalette(this.images, 'auto');
+    } catch (error) {
+      console.warn('[ArchitecturalEffect] Could not load smart color palette, using fallback');
+      // Fallback to a safe light color to prevent dark backgrounds on color photos
+      const fallbackColors = ['#F8F8FF', '#F5F5DC', '#F0F8FF', '#F5FFFA', '#FFF8DC'];
+      baseColor = fallbackColors[Math.floor(Math.random() * fallbackColors.length)];
+    }
+    
+    return alpha < 1.0 ? `${baseColor}${Math.floor(alpha * 255).toString(16).padStart(2, '0')}` : baseColor;
   }
 
   private drawImageFragment(x: number, y: number, width: number, height: number): void {
@@ -820,18 +833,24 @@ export class ArchitecturalEffect extends EffectBase {
   }
 
   private getComplementaryColor(baseColor: string): string {
-    // Convert hex to RGB
-    const r = parseInt(baseColor.slice(1, 3), 16);
-    const g = parseInt(baseColor.slice(3, 5), 16);
-    const b = parseInt(baseColor.slice(5, 7), 16);
-    
-    // Get complementary color
-    const compR = 255 - r;
-    const compG = 255 - g;
-    const compB = 255 - b;
-    
-    // Convert back to hex
-    return `#${compR.toString(16).padStart(2, '0')}${compG.toString(16).padStart(2, '0')}${compB.toString(16).padStart(2, '0')}`;
+    // Use the enhanced complementary color function for better readability
+    try {
+      const { getComplementaryColor } = require('../utils/colorUtils.js');
+      return getComplementaryColor(baseColor);
+    } catch (error) {
+      console.warn('[ArchitecturalEffect] Could not load enhanced complementary color function, using fallback');
+      // Fallback implementation with basic safeguards
+      const r = parseInt(baseColor.slice(1, 3), 16);
+      const g = parseInt(baseColor.slice(3, 5), 16);
+      const b = parseInt(baseColor.slice(5, 7), 16);
+      
+      // Simple inversion with minimum brightness to ensure readability
+      const compR = Math.max(40, 255 - r);
+      const compG = Math.max(40, 255 - g);
+      const compB = Math.max(40, 255 - b);
+      
+      return `#${compR.toString(16).padStart(2, '0')}${compG.toString(16).padStart(2, '0')}${compB.toString(16).padStart(2, '0')}`;
+    }
   }
 
   private calculateOverlap(rect1: MaskPlacement, rect2: MaskPlacement): number {
