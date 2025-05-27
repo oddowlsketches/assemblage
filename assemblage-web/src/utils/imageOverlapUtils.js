@@ -2,6 +2,60 @@
 // Utilities for handling image overlap and automatic color echo
 
 /**
+ * Get appropriate echo color based on image type and background color
+ * For colorful images: use background color or lightened version (never complementary)
+ * For B&W images: can use complementary colors for contrast
+ * @param {string} bgColor - Background color in hex format
+ * @param {HTMLImageElement} image - The image to check (optional)
+ * @param {Function} getComplementaryColorFn - Function to get complementary color (pass from calling template)
+ * @param {boolean} forceBackgroundColor - Force use of background color regardless of image type
+ * @returns {string} Appropriate echo color
+ */
+export function getAppropriateEchoColor(bgColor, image = null, getComplementaryColorFn = null, forceBackgroundColor = false) {
+  // Always use background-based color for colorful images to avoid muddy multiply results
+  const isBlackAndWhite = image && image.is_black_and_white === true;
+  
+  if (forceBackgroundColor || !isBlackAndWhite) {
+    // For colorful images or when forced: use background color or slightly lightened version
+    // This prevents muddy results from dark complementary colors with multiply blend
+    console.log(`[EchoColor] Using lightened background for ${isBlackAndWhite ? 'B&W' : 'colorful'} image: ${bgColor} -> ${lightenColor(bgColor, 0.1)}`);
+    return lightenColor(bgColor, 0.1); // Lighten by 10% for subtle variation
+  } else {
+    // For B&W images: can use complementary for good contrast
+    if (getComplementaryColorFn) {
+      const complementary = getComplementaryColorFn(bgColor);
+      console.log(`[EchoColor] Using complementary for B&W image: ${bgColor} -> ${complementary}`);
+      return complementary;
+    } else {
+      // Fallback if no complementary function provided
+      console.log(`[EchoColor] No complementary function, using lightened background: ${bgColor} -> ${lightenColor(bgColor, 0.15)}`);
+      return lightenColor(bgColor, 0.15);
+    }
+  }
+}
+
+/**
+ * Lighten a hex color by a given amount
+ * @param {string} color - Hex color (e.g., '#FF0000')
+ * @param {number} amount - Amount to lighten (0-1, where 0.1 = 10% lighter)
+ * @returns {string} Lightened hex color
+ */
+function lightenColor(color, amount) {
+  if (!color || !color.startsWith('#')) return color;
+  
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  // Lighten by blending with white
+  const lightenedR = Math.round(r + (255 - r) * amount);
+  const lightenedG = Math.round(g + (255 - g) * amount);
+  const lightenedB = Math.round(b + (255 - b) * amount);
+  
+  return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+}
+
+/**
  * Determine if an image should get automatic color echo based on overlap and color content
  * @param {HTMLImageElement} image - The image to check
  * @param {number} overlapPercentage - How much this image overlaps with others (0-1)

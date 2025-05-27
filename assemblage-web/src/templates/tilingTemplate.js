@@ -11,6 +11,7 @@ import { createVoronoiTiling, drawVoronoiCell } from './tilingPatterns/voronoiTi
 import { createRhombilleTiling, drawRhombilleTile } from './tilingPatterns/rhombilleTiling';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
+import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
 /**
  * Main render function for the tiling template
@@ -69,7 +70,9 @@ function renderTiling(canvas, images, params) {
   let calculatedEchoColor = null;
   if (params.useColorBlockEcho) {
     console.log(`[TilingTemplate] Initial attempt to set echoColor. bgColor: ${bgColor}`);
-    calculatedEchoColor = getComplementaryColor(bgColor); 
+    // Use the first image to determine if we should use appropriate echo color
+    const sampleImage = imageSources.length > 0 ? imageSources[0] : null;
+    calculatedEchoColor = getAppropriateEchoColor(bgColor, sampleImage, getComplementaryColor);
     console.log(`[TilingTemplate] Initial calculatedEchoColor set to: ${calculatedEchoColor}`);
   }
 
@@ -116,6 +119,13 @@ function renderTiling(canvas, images, params) {
   if (imageSources.length === 0) {
       console.warn('[TilingTemplate - renderTiling] No valid images to draw.');
       return { canvas, bgColor }; 
+  }
+
+  // Now that we have valid imageSources, recalculate echo color if needed
+  if (params.useColorBlockEcho && calculatedEchoColor) {
+    const sampleImage = imageSources[0];
+    calculatedEchoColor = getAppropriateEchoColor(bgColor, sampleImage, getComplementaryColor);
+    console.log(`[TilingTemplate] Updated calculatedEchoColor based on actual image: ${calculatedEchoColor}`);
   }
 
   // Determine if we should use a single image for all tiles (25% chance)
@@ -248,21 +258,22 @@ export function generateTiling(canvas, images, params) {
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, width, height);
 
-  let actualEchoColorForGrid = null;
-  if (params.useColorBlockEcho) { 
-      const initialCalcEchoColor = getComplementaryColor(bgColor);
-      console.log(`[generateTiling] Initial echo check: useColorBlockEcho=${params.useColorBlockEcho}, policy=${params.echoPolicy}, bgColor=${bgColor}, initial_calc_echoColor=${initialCalcEchoColor}`);
-      if (initialCalcEchoColor && typeof initialCalcEchoColor === 'string' && initialCalcEchoColor.startsWith('#')) {
-          actualEchoColorForGrid = initialCalcEchoColor;
-      } else {
-          console.warn(`[generateTiling] Initial getComplementaryColor for bgColor '${bgColor}' was invalid: ${initialCalcEchoColor}`);
-      }
-  }
-  
   const imageSources = images.filter(img => img && img.complete && !(img.isBroken && import.meta.env.MODE === 'development'));
   if (imageSources.length === 0) {
       console.warn('[TilingTemplate - simple grid] No valid images to draw.');
       return { canvas, bgColor };
+  }
+
+  let actualEchoColorForGrid = null;
+  if (params.useColorBlockEcho) { 
+      const sampleImage = imageSources.length > 0 ? imageSources[0] : null;
+      const initialCalcEchoColor = getAppropriateEchoColor(bgColor, sampleImage, getComplementaryColor);
+      console.log(`[generateTiling] Initial echo check: useColorBlockEcho=${params.useColorBlockEcho}, policy=${params.echoPolicy}, bgColor=${bgColor}, initial_calc_echoColor=${initialCalcEchoColor}`);
+      if (initialCalcEchoColor && typeof initialCalcEchoColor === 'string' && initialCalcEchoColor.startsWith('#')) {
+          actualEchoColorForGrid = initialCalcEchoColor;
+      } else {
+          console.warn(`[generateTiling] Initial getAppropriateEchoColor for bgColor '${bgColor}' was invalid: ${initialCalcEchoColor}`);
+      }
   }
 
   const baseCellWidth = width / numCols;

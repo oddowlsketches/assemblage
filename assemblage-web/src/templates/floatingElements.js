@@ -2,6 +2,7 @@ import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
+import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
 /**
  * Floating Elements Template
@@ -412,8 +413,8 @@ function drawFloatingElements(ctx, elements, images, params) {
       finalOpacity = 1.0; // Image part is 100% opaque
       actualBlendMode = 'multiply'; // Image is multiplied over echo
       const echoColor = element.overlapEcho.useComplementary
-        ? getComplementaryColor(bgColor) 
-        : bgColor;
+        ? getAppropriateEchoColor(bgColor, image, getComplementaryColor) 
+        : getAppropriateEchoColor(bgColor, image, getComplementaryColor, true); // Force background color
       const echoOpacity = 0.85; // Strong fixed opacity for overlap echo block
 
       console.log(`[FloatingElements] Applying OVERLAP Echo: ${element.type}, color: ${echoColor}`);
@@ -427,7 +428,7 @@ function drawFloatingElements(ctx, elements, images, params) {
     // Standard Color Block Echo (if no overlap echo and params.useColorBlockEcho)
     // This assumes echo is BASE, image on TOP (multiply)
     else if (params.useColorBlockEcho && image && image.complete) {
-      const echoColor = getComplementaryColor(bgColor);
+      const echoColor = getAppropriateEchoColor(bgColor, image, getComplementaryColor);
       const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : 0.85;
       
       console.log(`[FloatingElements] Applying Standard Echo (Base): ${element.type}, color: ${echoColor}`);

@@ -2,7 +2,7 @@ import { maskRegistry } from '../masks/maskRegistry.ts';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
-import { shouldApplyAutoColorEcho } from '../utils/imageOverlapUtils.js';
+import { shouldApplyAutoColorEcho, getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
 /**
 * Apply final alignment adjustments to ensure better edge contacts
@@ -670,7 +670,7 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto'); // Use palette-aware color selection
 
   if (applyEcho) {
-    const echoColor = getComplementaryColor(bgColorForEcho);
+    const echoColor = getAppropriateEchoColor(bgColorForEcho, img, getComplementaryColor);
     ctx.save();
     ctx.fillStyle = echoColor;
     ctx.globalAlpha = 0.90; 
@@ -771,7 +771,7 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 
   if (applyEcho) {
-    const echoColor = getComplementaryColor(bgColorForEcho);
+    const echoColor = getAppropriateEchoColor(bgColorForEcho, img, getComplementaryColor);
     ctx.save(); // Save before changing GCO for echo
     ctx.fillStyle = echoColor;
     ctx.globalAlpha = 0.90;
@@ -874,7 +874,7 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
   const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 
   if (applyEcho) {
-    const echoColor = getComplementaryColor(bgColorForEcho);
+    const echoColor = getAppropriateEchoColor(bgColorForEcho, img, getComplementaryColor);
     ctx.save();
     ctx.fillStyle = echoColor;
     ctx.globalAlpha = 0.90;

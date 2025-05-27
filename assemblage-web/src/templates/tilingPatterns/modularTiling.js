@@ -4,6 +4,27 @@
  */
 
 /**
+ * Lighten a hex color by a given amount
+ * @param {string} color - Hex color (e.g., '#FF0000')
+ * @param {number} amount - Amount to lighten (0-1, where 0.1 = 10% lighter)
+ * @returns {string} Lightened hex color
+ */
+function lightenColor(color, amount) {
+  if (!color || !color.startsWith('#')) return color;
+  
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  // Lighten by blending with white
+  const lightenedR = Math.round(r + (255 - r) * amount);
+  const lightenedG = Math.round(g + (255 - g) * amount);
+  const lightenedB = Math.round(b + (255 - b) * amount);
+  
+  return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+}
+
+/**
  * Generate data for a modular grid tiling pattern
  * This creates a grid with varying cell sizes based on golden ratio
  * 
@@ -164,9 +185,17 @@ export function drawModularTile(ctx, tile, image, options = {}) {
   
   // Echo and Image drawing
   if (applyEcho) {
+    // For echo colors, check if image is colorful and adjust the echo color accordingly
+    let finalEchoColor = echoColor;
+    if (image && image.is_black_and_white === false) {
+      // For colorful images, lighten the echo color to prevent muddy results
+      finalEchoColor = lightenColor(echoColor, 0.3);
+      console.log(`[DrawModularTile] Lightened echo color for colorful image: ${echoColor} -> ${finalEchoColor}`);
+    }
+    
     // Color block echo is active: Draw color base first
     ctx.globalAlpha = tileOpacity * 0.9;
-    ctx.fillStyle = echoColor;
+    ctx.fillStyle = finalEchoColor;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fill(); // Fill the clipped and transformed path
   }

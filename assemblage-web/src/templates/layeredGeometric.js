@@ -2,6 +2,7 @@ import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
+import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
 /**
  * Layered Geometric Template
@@ -476,8 +477,8 @@ function drawLayers(ctx, layers, images, params) {
     if (layer.overlapEcho?.active) {
       finalOpacity = 1.0; // Force opacity to 100% for elements with active overlap echo
       const echoColor = layer.overlapEcho.useComplementary 
-        ? getComplementaryColor(mainBgColor) 
-        : mainBgColor;
+        ? getAppropriateEchoColor(mainBgColor, image, getComplementaryColor) 
+        : getAppropriateEchoColor(mainBgColor, image, getComplementaryColor, true); // Force background color
       const echoOpacity = 0.85; // Dedicated strong opacity for overlap echo
       
       console.log('[LayeredGeometric drawLayers] Applying OVERLAP Echo:', { maskType: type, echoColor, echoOpacity });
@@ -497,7 +498,7 @@ function drawLayers(ctx, layers, images, params) {
       const echoIsBase = params.useColorBlockEchoVariation; // Variation 1: echo is base, image on top
       const echoIsOverlay = !params.useColorBlockEchoVariation; // Variation 2: image is base, echo on top (less common for this effect)
 
-      const echoColor = getComplementaryColor(mainBgColor); // Or derive from image?
+      const echoColor = getAppropriateEchoColor(mainBgColor, image, getComplementaryColor);
       const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : (echoIsBase ? 0.85 : 0.75);
 
       if (echoIsBase) {
@@ -505,7 +506,7 @@ function drawLayers(ctx, layers, images, params) {
         ctx.save();
         ctx.setTransform(currentTransform);
         ctx.fillStyle = echoColor;
-        ctx.globalAlpha = echoOpacity * finalOpacity;
+        ctx.globalAlpha = echoOpacity;
         ctx.globalCompositeOperation = 'source-over';
         ctx.fill(); 
         ctx.restore();
