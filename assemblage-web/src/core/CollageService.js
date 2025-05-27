@@ -79,7 +79,7 @@ export class CollageService {
         try {
             let query = this.supabaseClient
                 .from('images')
-                .select('id, src, imagetype, collection_id')
+                .select('id, src, image_role, collection_id')
                 .order('created_at', { ascending: false });
                 
             if (collectionId) {
@@ -104,7 +104,7 @@ export class CollageService {
                     try {
                         const fallbackQuery = this.supabaseClient
                             .from('images')
-                            .select('id, src, imagetype, collection_id')
+                            .select('id, src, image_role, collection_id')
                             .order('created_at', { ascending: false });
                         const { data: fallbackRows, error: fallbackError } = await fallbackQuery;
                         
@@ -131,7 +131,7 @@ export class CollageService {
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
-                    imagetype: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
+                    image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         } catch (e) {
@@ -143,7 +143,7 @@ export class CollageService {
                 this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
-                    imagetype: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
+                    image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual')
                 }));
             }
         }
@@ -168,7 +168,7 @@ export class CollageService {
                 const placeholder = validPlaceholders[idx % validPlaceholders.length];
                 if (placeholder) {
                     const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
-                    placeholder.imagetype = dummyMeta?.imagetype || (Math.random() < 0.3 ? 'texture' : 'conceptual');
+                    placeholder.image_role = dummyMeta?.image_role || (Math.random() < 0.3 ? 'texture' : 'conceptual');
                 }
                 return placeholder;
             });
@@ -190,7 +190,7 @@ export class CollageService {
                 img.src = getImageUrl(metadata.src);
                 img.dataset.supabaseSrc = metadata.src;
                 img.dataset.imageId = id;
-                img.imagetype = metadata.imagetype || 'unknown';
+                img.image_role = metadata.image_role || 'unknown';
                 
                 img.onload = () => {
                     this.addToCache(id, img);
