@@ -13,8 +13,13 @@ export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
   }
+  
+  let id: string | undefined;
+  
   try {
-    const { id, publicUrl } = JSON.parse(event.body || '{}');
+    const { id: imageId, publicUrl } = JSON.parse(event.body || '{}');
+    id = imageId; // Store id for error handling
+    
     if (!id || !publicUrl) {
       return { statusCode: 400, body: 'Missing id or publicUrl' };
     }
@@ -27,12 +32,15 @@ export const handler: Handler = async (event) => {
     const buffer = await imgResp.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
 
+    // Update status to processing
+    await supa.from('images').update({ metadata_status: 'processing' }).eq('id', id);
+
     // Call OpenAI vision model
     const prompt =
       'Analyze this collage image. Provide a detailed description of its composition, textures, and artistic elements. Also suggest 5 relevant tags that capture its essence and classify it as either "texture", "narrative", or "conceptual" based on its primary visual nature. Format your response as JSON {"description":string, "tags":string[], "image_role":string}';
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1',
+      model: 'gpt-4o',
       max_tokens: 300,
       messages: [
         {
@@ -85,7 +93,9 @@ export const handler: Handler = async (event) => {
     const updatePayload = {
       description: metadata.description,
       tags: metadata.tags,
-      image_role: metadata.image_role
+      image_role: metadata.image_role,
+      metadata_status: 'complete',
+      last_processed: new Date().toISOString()
     };
     console.log(`[METADATA_FN] Supabase update payload for ID ${id}:`, JSON.stringify(updatePayload));
 
@@ -109,6 +119,21 @@ export const handler: Handler = async (event) => {
     };
   } catch (e: any) {
     console.error(e);
+    
+    // Update status to error if we have the id
+    if (id) {
+      try {
+        await supa.from('images').update({ 
+          metadata_status: 'error',
+          processing_error: e.message,
+          last_processed: new Date().toISOString()
+        }).eq('id', id);
+        console.log(`[METADATA_FN] Updated error status for ID ${id}`);
+      } catch (updateError) {
+        console.error(`[METADATA_FN] Failed to update error status for ID ${id}:`, updateError);
+      }
+    }
+    
     return { statusCode: 500, body: e.message };
   }
 }; 

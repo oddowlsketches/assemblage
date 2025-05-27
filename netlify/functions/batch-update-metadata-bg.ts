@@ -151,9 +151,9 @@ async function processBatchInBackground(siteUrl: string, supaClient: any) {
       console.log(`[BATCH_UPDATE_BG] Fetching batch of images. Offset: ${offset}, Limit: ${BATCH_SIZE}`);
       const { data: images, error: fetchError } = await supa
         .from('images')
-        .select('id, public_url, file_name') // Assuming file_name exists for logging
-        .or('llm_description.is.null,llm_tags.is.null,image_type.is.null,metadata_status.eq.pending_llm') // Added pending_llm status
-        .order('created_at', { ascending: true }) // Process older images first
+        .select('id, src, title')
+        .eq('metadata_status', 'pending_llm')
+        .order('created_at', { ascending: true })
         .range(offset, offset + BATCH_SIZE - 1);
 
       if (fetchError) {
@@ -192,15 +192,13 @@ async function processBatchInBackground(siteUrl: string, supaClient: any) {
             console.warn(`[BATCH_UPDATE_BG] Image data is malformed (missing ID): ${JSON.stringify(image)}. Skipping.`);
             continue;
         }
-        if (!image.public_url) {
-            console.warn(`[BATCH_UPDATE_BG] Image ID ${image.id} (File: ${image.file_name || 'N/A'}) is missing public_url. Skipping.`);
-            // Optionally, update a status in Supabase to indicate this issue
-            // await supa.from('images').update({ metadata_status: 'error_missing_url' }).eq('id', image.id);
+        if (!image.src) {
+            console.warn(`[BATCH_UPDATE_BG] Image ID ${image.id} (File: ${image.title || 'N/A'}) is missing src. Skipping.`);
             continue;
         }
-        console.log(`[BATCH_UPDATE_BG] Requesting metadata for image ID ${image.id} (File: ${image.file_name || 'N/A'}), URL: ${image.public_url}`);
+        console.log(`[BATCH_UPDATE_BG] Requesting metadata for image ID ${image.id} (File: ${image.title || 'N/A'}), URL: ${image.src}`);
         try {
-            await invokeGenerateMetadataWithRetry(image.id, image.public_url, siteUrl);
+            await invokeGenerateMetadataWithRetry(image.id, image.src, siteUrl);
             imagesProcessedInThisRun++;
             // Optional: Short delay between individual calls if invokeGenerateMetadataWithRetry is very fast
             // await new Promise(resolve => setTimeout(resolve, 300)); 
