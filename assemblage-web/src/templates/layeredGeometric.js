@@ -1,7 +1,7 @@
 import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
-import { randomVibrantColor } from '../utils/colors.js';
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 
 /**
  * Layered Geometric Template
@@ -94,8 +94,8 @@ export function generateLayeredGeometric(canvas, images, params) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Background
-  const bgColor = params.bgColor || randomVibrantColor();
+  // Background using palette-aware selection
+  const bgColor = params.bgColor || getRandomColorFromPalette(images, 'auto');
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   

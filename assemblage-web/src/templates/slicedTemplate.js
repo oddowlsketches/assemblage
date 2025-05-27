@@ -3,7 +3,7 @@
 // parity with the production app.
 
 import { SlicedCollageGenerator } from '../legacy/js/collage/slicedCollageGenerator.js';
-import { randomVibrantColor } from '../utils/colors';
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors';
 
 /**
  * Draw sliced collage
@@ -18,8 +18,8 @@ export async function renderSliced(canvas, images, params = {}) {
   // Build generator instance
   const gen = new SlicedCollageGenerator(ctx, canvas);
 
-  // Determine background color
-  const bgCol = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  // Determine background color using palette-aware selection
+  const bgCol = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : getRandomColorFromPalette(images, 'auto');
   // Monkey-patch generator bg color chooser so legacy code uses ours
   gen.generateBackgroundColor = () => bgCol;
 

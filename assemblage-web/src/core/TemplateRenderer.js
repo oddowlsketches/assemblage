@@ -72,7 +72,14 @@ export class TemplateRenderer {
     const mergedParams = {};
     if (template.params) {
       Object.entries(template.params).forEach(([paramKey, paramDef]) => {
-        mergedParams[paramKey] = params[paramKey] !== undefined ? params[paramKey] : paramDef.default;
+        if (params[paramKey] !== undefined) {
+          // Use the provided parameter value
+          mergedParams[paramKey] = params[paramKey];
+        } else if (paramDef.default !== null) {
+          // Only use default if it's not null (null means "randomize")
+          mergedParams[paramKey] = paramDef.default;
+        }
+        // If default is null and no param provided, leave it undefined for template to handle
       });
     }
     

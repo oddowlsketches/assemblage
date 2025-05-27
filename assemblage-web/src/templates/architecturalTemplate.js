@@ -2,6 +2,7 @@
 // Template for architectural compositions using available masks
 
 import { getMaskDescriptor } from '../masks/maskRegistry';
+import { getRandomColorFromPalette } from '../utils/colors';
 
 const MASK_TYPES = ['arch', 'window', 'door', 'column', 'cornice'];
 
@@ -35,8 +36,8 @@ function renderArchitectural(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Set background color
-  ctx.fillStyle = params.bgColor || '#FFFFFF';
+  // Set background color using palette-aware selection
+  ctx.fillStyle = params.bgColor || getRandomColorFromPalette(images, 'auto');
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Get preset based on style

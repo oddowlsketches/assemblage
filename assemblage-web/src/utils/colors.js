@@ -182,10 +182,10 @@ export function areImagesMostlyBlackAndWhite(images) {
   }
   
   // Check if images have the is_black_and_white metadata field
-  const imagesWithMetadata = validImages.filter(img => img.is_black_and_white !== undefined);
+  const imagesWithMetadata = validImages.filter(img => img.is_black_and_white !== undefined && img.is_black_and_white !== null);
   
   if (imagesWithMetadata.length > 0) {
-    // Use metadata when available
+    // Use metadata when available (is_black_and_white: true means B&W, false means color)
     const blackAndWhiteCount = imagesWithMetadata.filter(img => img.is_black_and_white === true).length;
     const result = blackAndWhiteCount > (imagesWithMetadata.length / 2);
     console.log(`[Color Analysis] Using metadata - ${blackAndWhiteCount}/${imagesWithMetadata.length} images are B&W: ${result}`);

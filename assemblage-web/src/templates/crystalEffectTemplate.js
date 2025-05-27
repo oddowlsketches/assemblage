@@ -16,6 +16,11 @@ export function renderCrystal(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Debug: Log the raw params to see what's being passed
+  console.log('[CrystalTemplate] Raw params received:', params);
+  console.log('[CrystalTemplate] seedPattern value:', params.seedPattern, 'type:', typeof params.seedPattern);
+  console.log('[CrystalTemplate] template value:', params.template, 'type:', typeof params.template);
+
   // Fill background FIRST, before any transformations
   // Use palette-aware color selection based on image analysis
   const bgColorToUse = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') 
@@ -28,16 +33,16 @@ export function renderCrystal(canvas, images, params = {}) {
   // We just pass the raw context and canvas dimensions.
 
   // Enhanced randomization for crystal variations
-  let variantVal = params.variant || 'standard';
-  if (variantVal.toLowerCase() === 'standard') { // If default or explicitly standard, randomize
+  let variantVal = params.variant;
+  if (variantVal === null || variantVal === undefined) { // If null/undefined, randomize
     variantVal = Math.random() < 0.5 ? 'Standard' : 'Isolated';
     console.log(`[CrystalTemplate] Randomized variant to: ${variantVal}`);
   } else {
-    variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize if other value
+    variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize
   }
   
-  let imageModeVal = params.imageMode || 'unique';
-  if (imageModeVal.toLowerCase() === 'unique') { // If default or explicitly unique, randomize
+  let imageModeVal = params.imageMode;
+  if (imageModeVal === null || imageModeVal === undefined) { // If null/undefined, randomize
     imageModeVal = Math.random() < 0.25 ? 'single' : 'unique'; // 25% chance for single image mode
     console.log(`[CrystalTemplate] Randomized imageMode to: ${imageModeVal}`);
   }
@@ -46,12 +51,22 @@ export function renderCrystal(canvas, images, params = {}) {
   const seedPatterns = ['random', 'grid', 'radial', 'spiral'];
   const crystalTemplates = ['hexagonal', 'irregular', 'angular', 'elongated'];
   
-  const randomizedSeedPattern = params.seedPattern || seedPatterns[Math.floor(Math.random() * seedPatterns.length)];
-  const randomizedTemplate = params.template || crystalTemplates[Math.floor(Math.random() * crystalTemplates.length)];
-  const randomizedComplexity = params.complexity || (3 + Math.floor(Math.random() * 5)); // 3-7
-  const randomizedDensity = params.density || (3 + Math.floor(Math.random() * 5)); // 3-7
+  // Always randomize when null/undefined, otherwise use specified value
+  const randomizedSeedPattern = (params.seedPattern !== null && params.seedPattern !== undefined) 
+    ? params.seedPattern 
+    : seedPatterns[Math.floor(Math.random() * seedPatterns.length)];
+  const randomizedTemplate = (params.template !== null && params.template !== undefined)
+    ? params.template 
+    : crystalTemplates[Math.floor(Math.random() * crystalTemplates.length)];
+  const randomizedComplexity = (params.complexity !== null && params.complexity !== undefined)
+    ? params.complexity
+    : (3 + Math.floor(Math.random() * 5)); // 3-7
+  const randomizedDensity = (params.density !== null && params.density !== undefined)
+    ? params.density
+    : (3 + Math.floor(Math.random() * 5)); // 3-7
   
   console.log(`[CrystalTemplate] Crystal settings - Variant: ${variantVal}, Template: ${randomizedTemplate}, Pattern: ${randomizedSeedPattern}, Complexity: ${randomizedComplexity}, Density: ${randomizedDensity}`);
+  console.log(`[CrystalTemplate] Randomization check - seedPattern undefined: ${params.seedPattern === undefined}, template undefined: ${params.template === undefined}`);
 
   const settings = {
     variant: variantVal,
@@ -80,12 +95,12 @@ const crystalTemplate = {
   name: 'Crystal',
   render: renderCrystal,
   params: {
-    variant: { type: 'select', options: ['standard', 'isolated'], default: 'standard' },
-    imageMode: { type: 'select', options: ['single', 'unique'], default: 'unique' },
-    complexity: { type: 'number', min: 1, max: 10, default: 5 },
-    density: { type: 'number', min: 1, max: 10, default: 5 },
-    seedPattern: { type: 'select', options: ['random', 'grid', 'radial', 'spiral'], default: 'random' },
-    template: { type: 'select', options: ['hexagonal', 'irregular', 'angular', 'elongated'], default: 'hexagonal' },
+    variant: { type: 'select', options: ['standard', 'isolated'], default: null }, // null means randomize
+    imageMode: { type: 'select', options: ['single', 'unique'], default: null }, // null means randomize
+    complexity: { type: 'number', min: 1, max: 10, default: null }, // null means randomize
+    density: { type: 'number', min: 1, max: 10, default: null }, // null means randomize
+    seedPattern: { type: 'select', options: ['random', 'grid', 'radial', 'spiral'], default: null }, // null means randomize
+    template: { type: 'select', options: ['hexagonal', 'irregular', 'angular', 'elongated'], default: null }, // null means randomize
     blendOpacity: { type: 'number', min: 0, max: 1, step: 0.1, default: 0.7 },
     useMultiply: { type: 'boolean', default: true },
     multiplyPct: { type: 'number', min: 0, max: 100, default: 100 },

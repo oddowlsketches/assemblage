@@ -1,6 +1,6 @@
 import { maskRegistry } from '../masks/maskRegistry.ts';
 import { svgToPath2D } from '../core/svgUtils.js';
-import { randomVibrantColor } from '../utils/colors.js';
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 
 /**
@@ -194,8 +194,8 @@ export function generatePairedForms(canvas, images, params) {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Fill with background color
-  const bgColorToUse = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  // Fill with background color using palette-aware selection
+  const bgColorToUse = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : getRandomColorFromPalette(images, 'auto');
   ctx.fillStyle = bgColorToUse;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
@@ -636,7 +636,7 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
   }
   // if echoPreference is 'never', applyEcho remains false
 
-  const bgColorForEcho = shape.bgColor || randomVibrantColor(); // Ensure this is defined before use
+  const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto'); // Use palette-aware color selection
 
   if (applyEcho) {
     const echoColor = getComplementaryColor(bgColorForEcho);
@@ -728,7 +728,7 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   else if (echoPreference === 'default') {
     applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
   }
-  const bgColorForEcho = shape.bgColor || randomVibrantColor();
+  const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 
   if (applyEcho) {
     const echoColor = getComplementaryColor(bgColorForEcho);
@@ -750,19 +750,18 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
     ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
   }
 
-  const imgToDraw = img;
-  if (imgToDraw && imgToDraw.complete) {
-    const imageAspect = imgToDraw.width / imgToDraw.height;
+  if (img && img.complete) {
+    const imageAspect = img.width / img.height;
     const targetAspect = 1; // Mask unit space is 1:1
-    let sx = 0, sy = 0, sWidth = imgToDraw.width, sHeight = imgToDraw.height;
+    let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
     if (imageAspect > targetAspect) {
-      sWidth = imgToDraw.height * targetAspect;
-      sx = (imgToDraw.width - sWidth) / 2;
+      sWidth = img.height * targetAspect;
+      sx = (img.width - sWidth) / 2;
     } else {
-      sHeight = imgToDraw.width / targetAspect;
-      sy = (imgToDraw.height - sHeight) / 2;
+      sHeight = img.width / targetAspect;
+      sy = (img.height - sHeight) / 2;
     }
-    ctx.drawImage(imgToDraw, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
   } else {
       console.warn('[PairedForms drawSemiCircle] Image not available or not complete');
   }
@@ -823,7 +822,7 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
   else if (echoPreference === 'default') {
     applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
   }
-  const bgColorForEcho = shape.bgColor || randomVibrantColor();
+  const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
 
   if (applyEcho) {
     const echoColor = getComplementaryColor(bgColorForEcho);

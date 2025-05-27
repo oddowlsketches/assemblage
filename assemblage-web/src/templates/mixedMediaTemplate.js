@@ -5,7 +5,7 @@
 import { getMaskDescriptor } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
 import { drawImageWithAspectRatio } from '../utils/imageDrawing';
-import { vibrantColors } from '../utils/colors';
+import { vibrantColors, getRandomColorFromPalette } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
 
 const MAX_TOTAL_IMAGES = 7; // Maximum images to use in a collage
@@ -26,7 +26,7 @@ function renderMixedMedia(canvas, images, params = {}) {
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  let initialBgColor = params.bgColor || vibrantColors[Math.floor(Math.random() * vibrantColors.length)];
+  let initialBgColor = params.bgColor || getRandomColorFromPalette(images, 'auto');
   let finalBgColorForReport = initialBgColor; // For UI reporting, always the initial color
 
   // Base fill for the entire canvas

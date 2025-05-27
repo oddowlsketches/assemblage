@@ -132,7 +132,7 @@ export class CollageService {
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
                     image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
-                    is_black_and_white: Math.random() < 0.7 // 70% chance of B&W in dev mode
+                    is_black_and_white: true // Always B&W in dev mode for consistent testing
                 }));
             }
         } catch (e) {
@@ -145,7 +145,7 @@ export class CollageService {
                     id: `dummy-${i}`,
                     src: `dummy-${i}.jpg`,
                     image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
-                    is_black_and_white: Math.random() < 0.7 // 70% chance of B&W in dev mode
+                    is_black_and_white: true // Always B&W in dev mode for consistent testing
                 }));
             }
         }
@@ -171,7 +171,7 @@ export class CollageService {
                 if (placeholder) {
                     const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
                     placeholder.image_role = dummyMeta?.image_role || (Math.random() < 0.3 ? 'texture' : 'conceptual');
-                    placeholder.is_black_and_white = dummyMeta?.is_black_and_white ?? (Math.random() < 0.7); // Use metadata or default to 70% B&W
+                    placeholder.is_black_and_white = dummyMeta?.is_black_and_white ?? true; // Default to B&W for consistency with production
                 }
                 return placeholder;
             });
@@ -485,6 +485,14 @@ export class CollageService {
                 return;
             }
             this.images = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
+            
+            // Add metadata to placeholder images for development
+            this.images.forEach((img, idx) => {
+                const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
+                img.image_role = dummyMeta?.image_role || (Math.random() < 0.3 ? 'texture' : 'conceptual');
+                img.is_black_and_white = dummyMeta?.is_black_and_white ?? true; // Use metadata or default to B&W
+            });
+            
             if (this.images.length === 0) { // Double check after filter
                 console.error('[CollageService] Filtering placeholders resulted in an empty image list. Cannot generate.');
                 this.isRendering = false;

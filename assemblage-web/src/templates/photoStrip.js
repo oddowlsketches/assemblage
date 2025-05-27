@@ -1,6 +1,6 @@
 // photoStrip.js - A template that creates a horizontal strip of 3 images
 
-import { randomVibrantColor, vibrantColors } from '../utils/colors.js';
+import { randomVibrantColor, vibrantColors, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 
 /**
@@ -17,8 +17,8 @@ export function generatePhotoStrip(canvas, images, params = {}) {
   // Clear canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Fill with background color
-  const bgColor = params.bgColor || randomVibrantColor();
+  // Fill with background color using palette-aware selection
+  const bgColor = params.bgColor || getRandomColorFromPalette(images, 'auto');
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   

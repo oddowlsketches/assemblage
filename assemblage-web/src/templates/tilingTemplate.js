@@ -10,7 +10,7 @@ import { createModularTiling, drawModularTile } from './tilingPatterns/modularTi
 import { createVoronoiTiling, drawVoronoiCell } from './tilingPatterns/voronoiTiling';
 import { createRhombilleTiling, drawRhombilleTile } from './tilingPatterns/rhombilleTiling';
 import { getComplementaryColor } from '../utils/colorUtils.js';
-import { randomVibrantColor } from '../utils/colors.js';
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 
 /**
  * Main render function for the tiling template
@@ -59,7 +59,7 @@ function renderTiling(canvas, images, params) {
   const tileSpacing = params.tileSpacing || 0;
   const fillStyle = params.fillStyle || 'fullBleed';
   const debug = params.debug === true;
-  const bgColor = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  const bgColor = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : getRandomColorFromPalette(images, 'auto');
   const tileOpacity = params.tileOpacity !== undefined ? params.tileOpacity : 1;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height); 
@@ -242,7 +242,7 @@ export function generateTiling(canvas, images, params) {
     tileBlendMode = 'source-over'
   } = params;
 
-  const bgColor = (rawBgColorParam && rawBgColorParam.toLowerCase() !== '#ffffff') ? rawBgColorParam : randomVibrantColor();
+  const bgColor = (rawBgColorParam && rawBgColorParam.toLowerCase() !== '#ffffff') ? rawBgColorParam : getRandomColorFromPalette(images, 'auto');
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = bgColor;

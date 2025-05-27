@@ -1,7 +1,7 @@
 import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
-import { randomVibrantColor } from '../utils/colors.js';
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 
 /**
  * Floating Elements Template
@@ -81,7 +81,7 @@ export function generateFloatingElements(canvas, images, params) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  const bgColorToUse = params.bgColor || randomVibrantColor();
+  const bgColorToUse = params.bgColor || getRandomColorFromPalette(images, 'auto');
   ctx.fillStyle = bgColorToUse;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
@@ -352,7 +352,7 @@ function createScatteredComposition(width, height, elementCount) {
  * Draw floating elements
  */
 function drawFloatingElements(ctx, elements, images, params) {
-  const bgColor = params.bgColor || randomVibrantColor(); // Use bgColor from params for echo logic too
+  const bgColor = params.bgColor || getRandomColorFromPalette(images, 'auto'); // Use palette-aware color selection
   
   elements.forEach((elementItem, index) => {
     const element = elementItem; // Implicitly ExtendedElement

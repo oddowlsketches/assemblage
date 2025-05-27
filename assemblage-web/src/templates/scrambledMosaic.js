@@ -1,6 +1,6 @@
 // scrambledMosaic.js
 // Template for creating mosaic-like compositions with scrambled tiles
-import { randomVibrantColor } from '../utils/colors.js'; // Import randomVibrantColor
+import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js'; // Import palette-aware color selection
 
 /**
  * Generate a scrambled mosaic composition
@@ -40,7 +40,7 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
     swapPct = 0;
   }
 
-  bgColor = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : randomVibrantColor();
+  bgColor = (params.bgColor && params.bgColor.toLowerCase() !== '#ffffff') ? params.bgColor : getRandomColorFromPalette(images, 'auto');
   useMultiply = useMultiply !== false; // Default to true if not specified
 
   // Clear and fill background
