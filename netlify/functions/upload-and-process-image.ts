@@ -40,7 +40,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
   }
 
   try {
-    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId, image_type: rawRoleFromBody } = JSON.parse(event.body || '{}');
+    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId, image_role: rawRoleFromBody } = JSON.parse(event.body || '{}');
     if (!fileName || !base64 || typeof chunkIndex !== 'number' || !totalChunks) {
       return {
         statusCode: 400,
@@ -126,9 +126,9 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       const { data: urlData } = supa.storage.from('images').getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
-      // Sanitize image_type so it always satisfies the DB check constraint
-      const validTypes = ['texture', 'narrative', 'conceptual'];
-      let image_type = rawRoleFromBody ? (validTypes.includes(rawRoleFromBody) ? rawRoleFromBody : 'narrative') : 'pending';
+      // Sanitize image_role so it always satisfies the DB check constraint
+      const validRoles = ['texture', 'narrative', 'conceptual'];
+      let image_role = rawRoleFromBody ? (validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : 'narrative') : 'pending';
 
       // Create initial database entry
       const { error: insertErr } = await supa.from('images')
@@ -138,7 +138,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           title: fileName,
           description: "Processing...",
           tags: [],
-          image_type,
+          image_role,
           metadata_status: "pending_processing",
           collection_id: collectionId || null
         });
