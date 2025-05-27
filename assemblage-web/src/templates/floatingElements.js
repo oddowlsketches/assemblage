@@ -253,7 +253,7 @@ function createAscendingComposition(width, height, elementCount) {
       type: getRandomMask(),
       x: x, y: y, width: size, height: size, 
       rotation: (Math.random() - 0.5) * (isMajor ? 4 : 8), // Very minimal rotation
-      opacity: Math.max(0.7, 0.9 - row * 0.1), // Fade slightly with row, higher base
+      opacity: Math.max(0.85, 0.95 - row * 0.05), // Fade slightly with row, much higher base
       layer: numElements - i, 
       blendMode: Math.random() < 0.65 ? 'multiply' : 'source-over'
     });
@@ -428,11 +428,11 @@ function drawFloatingElements(ctx, elements, images, params) {
     // This assumes echo is BASE, image on TOP (multiply)
     else if (params.useColorBlockEcho && image && image.complete) {
       const echoColor = getComplementaryColor(bgColor);
-      const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : 0.75;
+      const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : 0.85;
       
       console.log(`[FloatingElements] Applying Standard Echo (Base): ${element.type}, color: ${echoColor}`);
       ctx.fillStyle = echoColor;
-      ctx.globalAlpha = echoOpacity * finalOpacity; // Modulate by original element opacity
+      ctx.globalAlpha = echoOpacity; // Use echo opacity directly, don't multiply
       ctx.globalCompositeOperation = 'source-over';
       if (path) ctx.fill(path); // New way: explicitly fill the path object
       else ctx.fillRect(0, 0, 100, 100); // Fallback if path is somehow undefined here
@@ -544,7 +544,7 @@ const floatingElements = {
     bgColor: { type: 'color' },
     useMultiply: { type: 'boolean', default: true },
     useColorBlockEcho: { type: 'boolean', default: true },
-    echoOpacity: { type: 'number', min: 0, max: 1, default: 0.75 }
+    echoOpacity: { type: 'number', min: 0, max: 1, default: 0.85 }
   }
 };
 

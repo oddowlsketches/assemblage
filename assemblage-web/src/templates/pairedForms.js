@@ -673,7 +673,7 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
     const echoColor = getComplementaryColor(bgColorForEcho);
     ctx.save();
     ctx.fillStyle = echoColor;
-    ctx.globalAlpha = 0.75; 
+    ctx.globalAlpha = 0.90; 
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillRect(0, 0, maskUnitSize, maskUnitSize); 
     ctx.restore();
@@ -774,7 +774,7 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
     const echoColor = getComplementaryColor(bgColorForEcho);
     ctx.save(); // Save before changing GCO for echo
     ctx.fillStyle = echoColor;
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 0.90;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillRect(0, 0, maskUnitSize, maskUnitSize); // Fill the 0-100 unit space
     ctx.restore(); // Restore GCO and alpha for image drawing
@@ -877,7 +877,7 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
     const echoColor = getComplementaryColor(bgColorForEcho);
     ctx.save();
     ctx.fillStyle = echoColor;
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 0.90;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillRect(0, 0, maskUnitSize, maskUnitSize);
     ctx.restore();

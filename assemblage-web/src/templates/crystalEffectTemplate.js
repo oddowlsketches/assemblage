@@ -75,7 +75,7 @@ export function renderCrystal(canvas, images, params = {}) {
     density: randomizedDensity,
     seedPattern: randomizedSeedPattern,
     template: randomizedTemplate,
-    blendOpacity: Number(params.blendOpacity) || 0.7,
+    blendOpacity: Number(params.blendOpacity) || 0.9,
     useMultiply: params.useMultiply !== false, // Default to true if not specified
     multiplyPct: Number(params.multiplyPct) || 100,
     // Pass canvas dimensions directly to the effect if it needs them for centering/scaling
@@ -101,7 +101,7 @@ const crystalTemplate = {
     density: { type: 'number', min: 1, max: 10, default: null }, // null means randomize
     seedPattern: { type: 'select', options: ['random', 'grid', 'radial', 'spiral'], default: null }, // null means randomize
     template: { type: 'select', options: ['hexagonal', 'irregular', 'angular', 'elongated'], default: null }, // null means randomize
-    blendOpacity: { type: 'number', min: 0, max: 1, step: 0.1, default: 0.7 },
+    blendOpacity: { type: 'number', min: 0, max: 1, step: 0.1, default: 0.9 },
     useMultiply: { type: 'boolean', default: true },
     multiplyPct: { type: 'number', min: 0, max: 100, default: 100 },
     bgColor: { type: 'color', default: '#FFFFFF' } // UI default, code will handle fallback

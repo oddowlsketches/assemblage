@@ -21,7 +21,7 @@ export class CrystalEffect extends EffectBase {
   static defaultOptions = {
     complexity: 1,
     maxFacets: 12,
-    blendOpacity: 0.7,
+    blendOpacity: 0.9,
     variant: 'standard'
   };
 
@@ -252,7 +252,7 @@ export class CrystalEffect extends EffectBase {
           vertices,
           x: center.x,
           y: center.y,
-          opacity: this.settings.variant === 'Standard' ? 0.9 : (this.settings.blendOpacity || 0.75),
+          opacity: this.settings.variant === 'Standard' ? 0.95 : (this.settings.blendOpacity || 0.9),
           rotation: (Math.random() * 20 - 10),
           size: Math.max(bounds.width, bounds.height) / 4
         });

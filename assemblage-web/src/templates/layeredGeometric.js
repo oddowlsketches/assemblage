@@ -179,7 +179,7 @@ function createDynamicComposition(width, height, layerCount) {
       height: size, 
       rotation: rotation,
       // Opacity: ensure front layers can be more opaque
-      opacity: 0.5 + (i / (layerCount -1 || 1)) * 0.5, // Scales 0.5 to 1.0 for front
+      opacity: 0.75 + (i / (layerCount -1 || 1)) * 0.25, // Scales 0.75 to 1.0 for front
       blendMode: 'multiply', // Default to multiply, drawLayers will adjust if needed
       layer: i,
       anchor: anchor
@@ -256,7 +256,7 @@ function createCascadeComposition(width, height, layerCount) {
       width: size,
       height: size,
       rotation: progress * 90 + (Math.random() - 0.5) * 20,
-      opacity: 0.6 + progress * 0.4, // Scales 0.6 to 1.0 for front
+      opacity: 0.8 + progress * 0.2, // Scales 0.8 to 1.0 for front
       blendMode: 'multiply', // Default to multiply
       layer: i
     });
@@ -290,7 +290,7 @@ function createRadialComposition(width, height, layerCount) {
       width: size,
       height: size,
       rotation: angle * 180 / Math.PI + (Math.random() -0.5) * 30,
-      opacity: 0.5 + Math.random() * 0.4, // Keep some variation
+      opacity: 0.75 + Math.random() * 0.25, // Keep some variation
       blendMode: 'multiply', // Default to multiply
       layer: i
     });
@@ -304,7 +304,7 @@ function createRadialComposition(width, height, layerCount) {
     width: centralSize,
     height: centralSize,
     rotation: (Math.random() - 0.5) * 20,
-    opacity: 0.7 + Math.random() * 0.3, // Central can be quite opaque
+    opacity: 0.85 + Math.random() * 0.15, // Central can be quite opaque
     blendMode: 'multiply', // Default to multiply
     layer: layerCount -1 // Ensure it's among the top layers conceptually
   });
@@ -346,7 +346,7 @@ function createFibonacciComposition(width, height, layerCount) {
       width: size,
       height: size,
       rotation: (Math.random() - 0.5) * 45 + i * 15,
-      opacity: 0.6 + Math.random() * 0.4, // Good range of opacities
+      opacity: 0.8 + Math.random() * 0.2, // Good range of opacities
       blendMode: 'multiply', // Default to multiply
       layer: i
     });
@@ -388,7 +388,7 @@ function ensureCoverageAndOpacity(layers, canvasWidth, canvasHeight, layerCount)
         width: bleedSize,
         height: bleedSize * (0.7 + Math.random() * 0.6), // Allow non-square
         rotation: (Math.random() - 0.5) * 15,
-        opacity: 0.3 + Math.random() * 0.3, // Subtler background elements
+        opacity: 0.6 + Math.random() * 0.3, // Subtler background elements
         blendMode: Math.random() < 0.5 ? 'multiply' : 'overlay',
         layer: -1 - k // Ensure they are at the very back
       });
@@ -498,7 +498,7 @@ function drawLayers(ctx, layers, images, params) {
       const echoIsOverlay = !params.useColorBlockEchoVariation; // Variation 2: image is base, echo on top (less common for this effect)
 
       const echoColor = getComplementaryColor(mainBgColor); // Or derive from image?
-      const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : (echoIsBase ? 0.75 : 0.5);
+      const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : (echoIsBase ? 0.85 : 0.75);
 
       if (echoIsBase) {
         console.log('[LayeredGeometric drawLayers] Applying Standard Echo (Base):', { maskType: type, echoColor, echoOpacity });
