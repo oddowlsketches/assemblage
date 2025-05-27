@@ -73,22 +73,53 @@ export class CollageService {
         // Store the current collection ID for future reference
         this.currentCollectionId = collectionId || null;
         console.log(`[CollageService] loadImageMetadata called with collectionId: ${collectionId}`);
+        console.log(`[CollageService] Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
+        console.log(`[CollageService] Supabase Key exists: ${!!import.meta.env.VITE_SUPABASE_ANON_KEY}`);
 
         try {
             let query = this.supabaseClient
                 .from('images')
                 .select('id, src, imagetype, collection_id')
                 .order('created_at', { ascending: false });
+                
             if (collectionId) {
-                query = query.eq('collection_id', collectionId);
                 console.log(`[CollageService] Filtering by collection_id: ${collectionId}`);
+                console.log(`[CollageService] Collection ID type: ${typeof collectionId}`);
+                query = query.eq('collection_id', collectionId);
             } else {
                 console.log(`[CollageService] Loading ALL images (no collection filter)`);
             }
+            
+            console.log(`[CollageService] About to execute query...`);
             const { data: rows, error } = await query;
+            console.log(`[CollageService] Query completed. Error:`, error, 'Data length:', rows?.length);
 
             if (error) {
                 console.error('[CollageService] Error fetching image metadata:', error);
+                console.error('[CollageService] Error details:', JSON.stringify(error, null, 2));
+                
+                // Try fallback query without collection filter if the filtered query failed
+                if (collectionId) {
+                    console.log('[CollageService] Trying fallback query without collection filter...');
+                    try {
+                        const fallbackQuery = this.supabaseClient
+                            .from('images')
+                            .select('id, src, imagetype, collection_id')
+                            .order('created_at', { ascending: false });
+                        const { data: fallbackRows, error: fallbackError } = await fallbackQuery;
+                        
+                        if (fallbackError) {
+                            console.error('[CollageService] Fallback query also failed:', fallbackError);
+                            return;
+                        }
+                        
+                        console.log(`[CollageService] Fallback query succeeded, got ${fallbackRows?.length || 0} total images`);
+                        this.imageMetadata = fallbackRows || [];
+                        return; // Exit early since fallback worked
+                    } catch (fallbackE) {
+                        console.error('[CollageService] Fallback query threw error:', fallbackE);
+                    }
+                }
                 return;
             }
 
@@ -105,6 +136,7 @@ export class CollageService {
             }
         } catch (e) {
             console.error('[CollageService] Error loading image metadata:', e);
+            console.error('[CollageService] Error stack:', e.stack);
             
             if (import.meta.env.MODE === 'development') {
                 console.log('[CollageService] Creating dummy metadata for development');
