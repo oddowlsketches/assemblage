@@ -128,7 +128,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
 
       // Sanitize image_role so it always satisfies the DB check constraint
       const validRoles = ['texture', 'narrative', 'conceptual'];
-      let image_role = rawRoleFromBody ? (validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : 'narrative') : 'pending';
+      let image_role = rawRoleFromBody ? (validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : 'narrative') : 'narrative';
 
       // Create initial database entry
       const { error: insertErr } = await supa.from('images')

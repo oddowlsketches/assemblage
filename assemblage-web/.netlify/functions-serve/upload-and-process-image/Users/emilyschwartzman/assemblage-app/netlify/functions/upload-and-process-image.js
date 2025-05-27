@@ -14860,7 +14860,7 @@ var handler = async (event) => {
       const { data: urlData } = supa.storage.from("images").getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
       const validRoles = ["texture", "narrative", "conceptual"];
-      let image_role = rawRoleFromBody ? validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : "narrative" : "pending";
+      let image_role = rawRoleFromBody ? validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : "narrative" : "narrative";
       const { error: insertErr } = await supa.from("images").upsert({
         id,
         src: publicUrl,
