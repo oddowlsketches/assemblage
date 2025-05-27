@@ -7,7 +7,20 @@ create table if not exists public.images (
   src text not null,
   title text not null,
   tags text[] not null default '{}',
-  created_at timestamp with time zone not null default now()
+  created_at timestamp with time zone not null default now(),
+  
+  -- Rich metadata fields for better collage generation
+  description text,
+  is_black_and_white boolean default false,
+  is_photograph boolean default true,
+  white_edge_score float default 0, -- [0-1] fraction of white pixels at borders
+  image_role text default 'narrative' check (image_role in ('texture','narrative','conceptual')),
+  palette_suitability text default 'vibrant' check (palette_suitability in ('vibrant','neutral','earthtone','muted','pastel')),
+  
+  -- Processing metadata
+  metadata_status text default 'pending_llm' check (metadata_status in ('pending_llm','processing','complete','error')),
+  processing_error text,
+  last_processed timestamp with time zone
 );
 
 -- Masks -----------------------------------------------------

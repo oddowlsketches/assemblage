@@ -40,7 +40,7 @@ function sliceHorizontalWide(params: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='0' y='${y}' width='100' height='20' fill='white'/></g></svg>`;
 }
 function sliceHorizontalNarrow(params: MaskParams = {}) {
-  const y = 60 + (params.offset ?? 0);
+  const y = 46 + (params.offset ?? 0);
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='0' y='${y}' width='100' height='8' fill='white'/></g></svg>`;
 }
 function slice3xHorizontal(params: MaskParams = {}) {
@@ -56,7 +56,7 @@ function sliceVerticalWide(params: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='${x}' y='0' width='20' height='100' fill='white'/></g></svg>`;
 }
 function sliceVerticalNarrow(params: MaskParams = {}) {
-  const x = 70 + (params.offset ?? 0);
+  const x = 46 + (params.offset ?? 0);
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${params.rotation ?? 0},50,50)'><rect x='${x}' y='0' width='8' height='100' fill='white'/></g></svg>`;
 }
 function slice4xMixed(params: MaskParams = {}) {
@@ -73,9 +73,9 @@ function sliceAngled(params: MaskParams = {}) {
 }
 
 // --- ARCHITECTURAL FAMILY ---
-function archClassical({ width = 60, height = 40, legHeight = 30 }: MaskParams = {}) {
+function archClassical({ width = 90, height = 50, legHeight = 50 }: MaskParams = {}) {
   // Architectural arch: variable width, height, and vertical legs
-  // width: total width of arch opening, height: height of arch curve, legHeight: height of vertical sides
+  // Now uses more of the 100x100 space for better visibility
   // Center arch horizontally in 100x100 viewBox
   const left = 50 - width / 2;
   const right = 50 + width / 2;
@@ -94,14 +94,14 @@ function archClassical({ width = 60, height = 40, legHeight = 30 }: MaskParams =
 }
 
 function archFlat({}: MaskParams = {}) {
-  // Segmental (flatter) arch: base from (20,100) to (80,100), radius 30 (horizontal), 15 (vertical)
+  // Segmental (flatter) arch: edge-to-edge width, larger radius for better visibility
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <path d='M20,100 A30,15 0 0,1 80,100 L80,100 L20,100 Z' fill='white'/>
+    <path d='M0,100 A50,30 0 0,1 100,100 L100,100 L0,100 Z' fill='white'/>
   </svg>`;
 }
 
-function triptychArch({ archWidth = 18, archHeight = 24, spacing = 5 }: MaskParams = {}) {
-  // Three arches side by side, variable width, height, and spacing
+function triptychArch({ archWidth = 28, archHeight = 40, spacing = 8 }: MaskParams = {}) {
+  // Three arches side by side, larger for better visibility
   // Center group in 100x100 viewBox
   const totalWidth = archWidth * 3 + spacing * 2;
   const leftStart = 50 - totalWidth / 2;
@@ -117,44 +117,49 @@ function triptychArch({ archWidth = 18, archHeight = 24, spacing = 5 }: MaskPara
 }
 
 function windowRect({}: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='25' y='20' width='50' height='60' fill='white'/></svg>`;
+  // Larger window rectangle for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='80' fill='white'/></svg>`;
 }
 
 function windowGrid({}: MaskParams = {}) {
-  // 2x3 grid
+  // 3x3 grid with larger windows for better visibility
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <rect x='15' y='15' width='20' height='20' fill='white'/>
-    <rect x='40' y='15' width='20' height='20' fill='white'/>
-    <rect x='65' y='15' width='20' height='20' fill='white'/>
-    <rect x='15' y='40' width='20' height='20' fill='white'/>
-    <rect x='40' y='40' width='20' height='20' fill='white'/>
-    <rect x='65' y='40' width='20' height='20' fill='white'/>
+    <rect x='5' y='5' width='25' height='25' fill='white'/>
+    <rect x='37.5' y='5' width='25' height='25' fill='white'/>
+    <rect x='70' y='5' width='25' height='25' fill='white'/>
+    <rect x='5' y='37.5' width='25' height='25' fill='white'/>
+    <rect x='37.5' y='37.5' width='25' height='25' fill='white'/>
+    <rect x='70' y='37.5' width='25' height='25' fill='white'/>
+    <rect x='5' y='70' width='25' height='25' fill='white'/>
+    <rect x='37.5' y='70' width='25' height='25' fill='white'/>
+    <rect x='70' y='70' width='25' height='25' fill='white'/>
   </svg>`;
 }
 
 function columnPair({}: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='20' y='10' width='15' height='80' fill='white'/><rect x='65' y='10' width='15' height='80' fill='white'/></svg>`;
+  // Two columns using more of the available width
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='15' y='0' width='20' height='100' fill='white'/><rect x='65' y='0' width='20' height='100' fill='white'/></svg>`;
 }
 
 function columnSingle({}: MaskParams = {}) {
-  // Single column
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='42' y='10' width='16' height='80' fill='white'/></svg>`;
+  // Single column, larger width for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='35' y='0' width='30' height='100' fill='white'/></svg>`;
 }
 
 function columnTriplet({}: MaskParams = {}) {
-  // Three columns
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='15' height='80' fill='white'/><rect x='42' y='10' width='16' height='80' fill='white'/><rect x='75' y='10' width='15' height='80' fill='white'/></svg>`;
+  // Three columns using full height and more width
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='0' width='20' height='100' fill='white'/><rect x='40' y='0' width='20' height='100' fill='white'/><rect x='75' y='0' width='20' height='100' fill='white'/></svg>`;
 }
 
 function facadeGrid({}: MaskParams = {}) {
-  // Composite: 2 columns + 4 windows in a grid
+  // Composite: 2 columns + 4 windows in a grid - larger for better visibility
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
-    <rect x='20' y='10' width='10' height='80' fill='white'/>
-    <rect x='70' y='10' width='10' height='80' fill='white'/>
-    <rect x='35' y='20' width='12' height='18' fill='white'/>
-    <rect x='53' y='20' width='12' height='18' fill='white'/>
-    <rect x='35' y='50' width='12' height='18' fill='white'/>
-    <rect x='53' y='50' width='12' height='18' fill='white'/>
+    <rect x='10' y='0' width='15' height='100' fill='white'/>
+    <rect x='75' y='0' width='15' height='100' fill='white'/>
+    <rect x='30' y='15' width='18' height='25' fill='white'/>
+    <rect x='52' y='15' width='18' height='25' fill='white'/>
+    <rect x='30' y='60' width='18' height='25' fill='white'/>
+    <rect x='52' y='60' width='18' height='25' fill='white'/>
   </svg>`;
 }
 
@@ -168,39 +173,41 @@ function houseGable() {
 
 // --- ABSTRACT FAMILY ---
 function blobIrregular({ rotation = 0 }: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><path d='M30,60 Q10,40 30,30 Q50,10 70,30 Q90,50 70,70 Q50,90 30,60 Z' fill='white'/></g></svg>`;
+  // Larger irregular blob for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><path d='M15,70 Q5,35 25,20 Q50,0 75,25 Q95,50 80,75 Q50,95 15,70 Z' fill='white'/></g></svg>`;
 }
 
 function blobCrescent({}: MaskParams = {}) {
-  // Two overlapping circles
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='30' fill='white'/><circle cx='65' cy='50' r='25' fill='gray'/></svg>`;
+  // Two overlapping circles - larger for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='white'/><circle cx='70' cy='50' r='35' fill='gray'/></svg>`;
 }
 
 function polygonSoft({ rotation = 0 }: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='20,60 40,20 80,30 70,80 30,90' fill='white'/></g></svg>`;
+  // Larger soft polygon for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='10,70 25,10 85,20 90,85 20,95' fill='white'/></g></svg>`;
 }
 
-function cloudLike({ count = 3, minR = 12, maxR = 22, seed = 1 }: MaskParams = {}) {
-  // More random cloud: 3-5 overlapping blobs, random positions and radii
+function cloudLike({ count = 3, minR = 18, maxR = 35, seed = 1 }: MaskParams = {}) {
+  // More random cloud: 3-5 overlapping blobs, larger for better visibility
   function seededRandom(s: number) {
     let x = Math.sin(s) * 10000;
     return x - Math.floor(x);
   }
   const blobs: string[] = [];
-  const cx = 50, cy = 60;
+  const cx = 50, cy = 50;
   const n = count + Math.floor((seededRandom(seed) * 3)); // 3-5 blobs
   for (let i = 0; i < n; i++) {
     const angle = (i / n) * Math.PI * 2 + (seededRandom(seed + i) - 0.5) * 0.5;
     const r = minR + seededRandom(seed * (i + 1)) * (maxR - minR);
-    const x = cx + Math.cos(angle) * 18 + (seededRandom(seed * (i + 2)) - 0.5) * 8;
-    const y = cy + Math.sin(angle) * 10 + (seededRandom(seed * (i + 3)) - 0.5) * 8;
-    blobs.push(`<ellipse cx='${x}' cy='${y}' rx='${r}' ry='${r * (0.7 + seededRandom(seed * (i + 4)) * 0.6)}' fill='white'/>`);
+    const x = cx + Math.cos(angle) * 25 + (seededRandom(seed * (i + 2)) - 0.5) * 15;
+    const y = cy + Math.sin(angle) * 15 + (seededRandom(seed * (i + 3)) - 0.5) * 12;
+    blobs.push(`<ellipse cx='${x}' cy='${y}' rx='${r}' ry='${r * (0.6 + seededRandom(seed * (i + 4)) * 0.8)}' fill='white'/>`);
   }
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>${blobs.join('')}</svg>`;
 }
 
-function archBlob({ width = 60, height = 30, baseHeight = 15, archiness = 0.5 }: MaskParams = {}) {
-  // Organic arch/bridge: variable width, height, and base height
+function archBlob({ width = 80, height = 40, baseHeight = 20, archiness = 0.5 }: MaskParams = {}) {
+  // Organic arch/bridge: larger for better visibility
   // archiness: 0 (flat) to 1 (pointy)
   // Center arch horizontally in 100x100 viewBox
   const left = 50 - width / 2;
@@ -208,7 +215,7 @@ function archBlob({ width = 60, height = 30, baseHeight = 15, archiness = 0.5 }:
   const top = 100 - baseHeight - height;
   const baseY = 100 - baseHeight;
   const mid = 50;
-  const archPeak = top - archiness * 10;
+  const archPeak = top - archiness * 15;
   // Use a smooth curve for the arch span, and a wavy base
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
     <path d='
@@ -216,7 +223,7 @@ function archBlob({ width = 60, height = 30, baseHeight = 15, archiness = 0.5 }:
       L${left},${top + height}
       Q${mid},${archPeak} ${right},${top + height}
       L${right},${baseY}
-      Q${mid},${baseY + 8} ${left},${baseY}
+      Q${mid},${baseY + 12} ${left},${baseY}
       Z
     ' fill='white'/>
   </svg>`;
@@ -242,8 +249,8 @@ function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}):
 }
 
 // --- ALTAR FAMILY ---
-function nicheArch({ width = 28, height = 44, legHeight = 30 }: MaskParams = {}) {
-  // Tall niche: vertical sides, rounded top
+function nicheArch({ width = 50, height = 60, legHeight = 40 }: MaskParams = {}) {
+  // Tall niche: vertical sides, rounded top - larger for better visibility
   const left = 50 - width / 2;
   const right = 50 + width / 2;
   const top = 100 - legHeight - height;
@@ -259,8 +266,8 @@ function nicheArch({ width = 28, height = 44, legHeight = 30 }: MaskParams = {})
   </svg>`;
 }
 
-function nicheCluster({ width = 12, height = 20, legHeight = 12, spacing = 6 }: MaskParams = {}) {
-  // Three tall niches side by side
+function nicheCluster({ width = 20, height = 35, legHeight = 25, spacing = 10 }: MaskParams = {}) {
+  // Three tall niches side by side - larger for better visibility
   const totalWidth = width * 3 + spacing * 2;
   const leftStart = 50 - totalWidth / 2;
   let svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>`;
@@ -276,11 +283,12 @@ function nicheCluster({ width = 12, height = 20, legHeight = 12, spacing = 6 }: 
 }
 
 function circleInset({}: MaskParams = {}) {
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='60' r='20' fill='white'/></svg>`;
+  // Larger circle for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='35' fill='white'/></svg>`;
 }
 
-function nicheStack({ width = 36, height = 28, legHeight = 18, smallWidth = 10, smallHeight = 10, smallLeg = 6, spacing = 2 }: MaskParams = {}) {
-  // Large arch + row of three small niches, all with vertical sides and rounded tops
+function nicheStack({ width = 60, height = 40, legHeight = 30, smallWidth = 18, smallHeight = 18, smallLeg = 12, spacing = 4 }: MaskParams = {}) {
+  // Large arch + row of three small niches, larger for better visibility
   const left = 50 - width / 2;
   const right = 50 + width / 2;
   const top = 100 - legHeight - height;
@@ -302,8 +310,8 @@ function nicheStack({ width = 36, height = 28, legHeight = 18, smallWidth = 10, 
   return svg;
 }
 
-function circleAboveArch({ width = 28, height = 44, legHeight = 30, circleY = 30, circleR = 10 }: MaskParams = {}) {
-  // Circle above a tall niche arch
+function circleAboveArch({ width = 50, height = 60, legHeight = 40, circleY = 25, circleR = 20 }: MaskParams = {}) {
+  // Circle above a tall niche arch - larger for better visibility
   const left = 50 - width / 2;
   const right = 50 + width / 2;
   const top = 100 - legHeight - height;
@@ -320,8 +328,8 @@ function circleAboveArch({ width = 28, height = 44, legHeight = 30, circleY = 30
   </svg>`;
 }
 
-function nicheOffset({ offset = 10, width = 28, height = 44, legHeight = 30, smallWidth = 14, smallHeight = 20, smallLeg = 16 }: MaskParams = {}) {
-  // Main arch and two small offset arches, all with vertical sides and rounded tops
+function nicheOffset({ offset = 15, width = 50, height = 60, legHeight = 40, smallWidth = 20, smallHeight = 30, smallLeg = 25 }: MaskParams = {}) {
+  // Main arch and two small offset arches, larger for better visibility
   const left = 50 - width / 2;
   const right = 50 + width / 2;
   const top = 100 - legHeight - height;
@@ -355,33 +363,36 @@ function gableAltar() {
 
 // --- NARRATIVE FAMILY ---
 function panelRectWide({ align = 'center' }: MaskParams = {}) {
-  const y = align === 'top' ? 10 : align === 'bottom' ? 60 : 35;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='${y}' width='80' height='30' fill='white'/></svg>`;
+  // Larger wide panel for better visibility
+  const y = align === 'top' ? 5 : align === 'bottom' ? 65 : 35;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='${y}' width='90' height='30' fill='white'/></svg>`;
 }
 
 function panelRectTall({ align = 'left' }: MaskParams = {}) {
-  const x = align === 'right' ? 70 : align === 'center' ? 40 : 10;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='10' width='20' height='80' fill='white'/></svg>`;
+  // Larger tall panel for better visibility
+  const x = align === 'right' ? 65 : align === 'center' ? 35 : 5;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='5' width='30' height='90' fill='white'/></svg>`;
 }
 
 function panelSquare({ align = 'center' }: MaskParams = {}) {
-  const x = align === 'right' ? 60 : align === 'left' ? 10 : 20;
-  const y = align === 'bottom' ? 60 : align === 'top' ? 10 : 20;
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='${y}' width='60' height='60' fill='white'/></svg>`;
+  // Larger square panel for better visibility
+  const x = align === 'right' ? 30 : align === 'left' ? 5 : 15;
+  const y = align === 'bottom' ? 30 : align === 'top' ? 5 : 15;
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${x}' y='${y}' width='70' height='70' fill='white'/></svg>`;
 }
 
 function panelOverlap({ angle = 10 }: MaskParams = {}) {
-  // Two overlapping panels
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='30' width='60' height='40' fill='white'/><g transform='rotate(${angle},60,70)'><rect x='30' y='50' width='60' height='40' fill='white'/></g></svg>`;
+  // Two overlapping panels - larger for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='20' width='70' height='50' fill='white'/><g transform='rotate(${angle},65,75)'><rect x='25' y='40' width='70' height='50' fill='white'/></g></svg>`;
 }
 
 function panelLShape({}: MaskParams = {}) {
-  // L-shaped panel (two rectangles)
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='60' height='20' fill='white'/><rect x='10' y='30' width='20' height='60' fill='white'/></svg>`;
+  // L-shaped panel - larger for better visibility
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='5' y='5' width='70' height='25' fill='white'/><rect x='5' y='30' width='25' height='65' fill='white'/></svg>`;
 }
 
-function panelGutter({ margin = 10 }: MaskParams = {}) {
-  // Panel inset by margin
+function panelGutter({ margin = 5 }: MaskParams = {}) {
+  // Panel inset by margin - smaller default margin for better visibility
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='${margin}' y='${margin}' width='${100 - 2 * margin}' height='${100 - 2 * margin}' fill='white'/></svg>`;
 }
 
@@ -390,8 +401,8 @@ function panelGutter({ margin = 10 }: MaskParams = {}) {
 function circleMask() {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='white'/></svg>`;
 }
-// Edge-to-edge oval (fills box)
-function ovalMask({ cx = 50, cy = 50, rx = 32, ry = 20 }: MaskParams = {}) {
+// Edge-to-edge oval (fills more of the box)
+function ovalMask({ cx = 50, cy = 50, rx = 45, ry = 35 }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><ellipse cx='${cx}' cy='${cy}' rx='${rx}' ry='${ry}' fill='white'/></svg>`;
 }
 // Edge-to-edge diamond
@@ -448,9 +459,9 @@ function triangleMask({ orientation = 'up' }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><polygon points='${points}' fill='white'/></svg>`;
 }
 
-// Edge-to-edge beam (horizontal, fills box)
-function beamMask({ widthTop = 80, widthBottom = 40, height = 80, orientation = 'horizontal' }: MaskParams = {}) {
-  // Beam shape with tight viewBox and orientation support
+// Edge-to-edge beam (horizontal, fills box better)
+function beamMask({ widthTop = 90, widthBottom = 60, height = 90, orientation = 'horizontal' }: MaskParams = {}) {
+  // Beam shape with tight viewBox and orientation support - larger for better visibility
   // orientation: 'horizontal', 'vertical', 'horizontal-flipped', 'vertical-flipped'
   
   // Calculate the tight viewBox dimensions
@@ -499,7 +510,7 @@ function beamMask({ widthTop = 80, widthBottom = 40, height = 80, orientation = 
   </svg>`;
 }
 
-// Edge-to-edge donut (outer circle fills box, inner circle centered)
+// Edge-to-edge donut (outer circle fills box, inner circle larger for better visibility)
 function donutMask() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -507,11 +518,11 @@ function donutMask() {
         fill="white"
         fill-rule="evenodd"
         d="
-          M50,10
-          A40,40 0 1,1 49.99,10
+          M50,5
+          A45,45 0 1,1 49.99,5
           Z
-          M50,20
-          A30,30 0 1,0 50.01,20
+          M50,25
+          A25,25 0 1,0 50.01,25
           Z
         "
       />
@@ -519,7 +530,7 @@ function donutMask() {
   `;
 }
 
-// Edge-to-edge arc (outer arc touches left/right/top, inner arc is inset)
+// Edge-to-edge arc (larger for better visibility)
 function arcMask() {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -527,15 +538,15 @@ function arcMask() {
         fill="white"
         fill-rule="evenodd"
         d="
-          M10,60
-          L10,50
-          A40,40 0 0,1 90,50
-          L90,60
+          M5,70
+          L5,40
+          A47.5,47.5 0 0,1 95,40
+          L95,70
           Z
-          M80,60
-          L80,50
-          A30,30 0 0,0 20,50
-          L20,60
+          M85,70
+          L85,40
+          A35,35 0 0,0 15,40
+          L15,70
           Z
         "
       />

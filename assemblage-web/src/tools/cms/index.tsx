@@ -1,3 +1,5 @@
+import MasksPage from './MasksPage';
+
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -19,6 +21,16 @@ type ImageRow = {
   description?: string;
   imagetype: string;
   collection_id?: string;
+  
+  // Rich metadata fields
+  is_black_and_white?: boolean;
+  is_photograph?: boolean;
+  white_edge_score?: number;
+  image_role?: 'texture' | 'narrative' | 'conceptual';
+  palette_suitability?: 'vibrant' | 'neutral' | 'earthtone' | 'muted' | 'pastel';
+  metadata_status?: 'pending_llm' | 'processing' | 'complete' | 'error';
+  processing_error?: string;
+  last_processed?: string;
 };
 
 type Collection = {
@@ -39,11 +51,25 @@ const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
   </div>
 );
 
-const Sidebar: React.FC = () => (
+const Sidebar: React.FC<{ currentPage: string; onPageChange: (page: string) => void }> = ({ currentPage, onPageChange }) => (
   <aside className="w-48 bg-gray-100 h-screen p-4 border-r border-gray-200 hidden md:block">
     <nav className="space-y-2 text-sm">
-      <a className="block font-medium text-blue-600" href="#">Images</a>
-      <span className="block text-gray-400 cursor-not-allowed">Masks (soon)</span>
+      <button 
+        className={`block w-full text-left font-medium ${
+          currentPage === 'images' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+        }`}
+        onClick={() => onPageChange('images')}
+      >
+        Images
+      </button>
+      <button 
+        className={`block w-full text-left font-medium ${
+          currentPage === 'masks' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+        }`}
+        onClick={() => onPageChange('masks')}
+      >
+        Masks
+      </button>
       <span className="block text-gray-400 cursor-not-allowed">Templates (soon)</span>
     </nav>
   </aside>
@@ -418,6 +444,334 @@ const AddImageDialog: React.FC<{ onAdded: () => void }> = ({ onAdded }) => {
   );
 };
 
+const ImageDetailsModal: React.FC<{ 
+  image: ImageRow; 
+  onClose: () => void; 
+  onUpdate: () => void; 
+}> = ({ image, onClose, onUpdate }) => {
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    title: image.title,
+    description: image.description || '',
+    image_role: image.image_role || 'narrative',
+    palette_suitability: image.palette_suitability || 'vibrant',
+    is_black_and_white: image.is_black_and_white || false,
+    is_photograph: image.is_photograph !== false, // Default to true
+    tags: image.tags.join(', ')
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const tagsArray = formData.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
+
+      const { error } = await supa
+        .from('images')
+        .update({
+          title: formData.title,
+          description: formData.description,
+          image_role: formData.image_role,
+          palette_suitability: formData.palette_suitability,
+          is_black_and_white: formData.is_black_and_white,
+          is_photograph: formData.is_photograph,
+          tags: tagsArray
+        })
+        .eq('id', image.id);
+
+      if (error) {
+        alert('Error saving: ' + error.message);
+      } else {
+        setEditMode(false);
+        onUpdate();
+      }
+    } catch (err) {
+      alert('Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const triggerReprocessing = async () => {
+    if (!confirm('Reprocess this image with AI? This will update the description, tags, and metadata.')) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supa
+        .from('images')
+        .update({ 
+          metadata_status: 'pending_llm',
+          processing_error: null
+        })
+        .eq('id', image.id);
+
+      if (error) {
+        alert('Error queuing reprocessing: ' + error.message);
+      } else {
+        alert('Image queued for reprocessing. Run the metadata update script to process.');
+        onUpdate();
+      }
+    } catch (err) {
+      alert('Failed to queue reprocessing');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const StatusBadge = ({ status }: { status?: string }) => {
+    const colors = {
+      'pending_llm': 'bg-yellow-100 text-yellow-800',
+      'processing': 'bg-blue-100 text-blue-800',
+      'complete': 'bg-green-100 text-green-800',
+      'error': 'bg-red-100 text-red-800'
+    };
+    
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+        colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800'
+      }`}>
+        {status || 'unknown'}
+      </span>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto relative">
+        <button 
+          onClick={onClose} 
+          className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 bg-white rounded-full p-2 shadow-md z-10"
+          aria-label="Close modal"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
+          {/* Image Preview */}
+          <div className="space-y-4">
+            <img 
+              src={image.src} 
+              alt={image.title} 
+              className="w-full h-auto object-contain max-h-[50vh] rounded-lg border" 
+            />
+            
+            {/* Quick Stats */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Status:</span>
+                  <StatusBadge status={image.metadata_status} />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">B&W:</span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    image.is_black_and_white ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {image.is_black_and_white ? 'Yes' : 'No'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Type:</span>
+                  <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                    {image.is_photograph ? 'Photo' : 'Illustration'}
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Role:</span>
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    image.image_role === 'texture' ? 'bg-orange-100 text-orange-800' :
+                    image.image_role === 'conceptual' ? 'bg-indigo-100 text-indigo-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {image.image_role || 'narrative'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Palette:</span>
+                  <span className="px-2 py-1 rounded text-xs bg-pink-100 text-pink-800">
+                    {image.palette_suitability || 'vibrant'}
+                  </span>
+                </div>
+                {image.white_edge_score !== undefined && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">White Edge:</span>
+                    <span className="text-xs text-gray-600">
+                      {Math.round(image.white_edge_score * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Details Panel */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between pr-12">
+              <h2 className="text-xl font-semibold">Image Details</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={triggerReprocessing}
+                  disabled={saving}
+                  className="px-3 py-1 text-sm border border-blue-300 text-blue-600 rounded hover:bg-blue-50 disabled:opacity-50"
+                >
+                  {saving ? 'Processing...' : 'Reprocess'}
+                </button>
+                <button
+                  onClick={() => editMode ? setEditMode(false) : setEditMode(true)}
+                  className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  {editMode ? 'Cancel' : 'Edit'}
+                </button>
+              </div>
+            </div>
+            
+            {editMode ? (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={4}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Image Role</label>
+                    <select
+                      value={formData.image_role}
+                      onChange={e => setFormData(prev => ({ ...prev, image_role: e.target.value as any }))}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                    >
+                      <option value="narrative">Narrative</option>
+                      <option value="texture">Texture</option>
+                      <option value="conceptual">Conceptual</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Palette</label>
+                    <select
+                      value={formData.palette_suitability}
+                      onChange={e => setFormData(prev => ({ ...prev, palette_suitability: e.target.value as any }))}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                    >
+                      <option value="vibrant">Vibrant</option>
+                      <option value="neutral">Neutral</option>
+                      <option value="earthtone">Earthtone</option>
+                      <option value="muted">Muted</option>
+                      <option value="pastel">Pastel</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_bw"
+                      checked={formData.is_black_and_white}
+                      onChange={e => setFormData(prev => ({ ...prev, is_black_and_white: e.target.checked }))}
+                    />
+                    <label htmlFor="is_bw" className="text-sm font-medium">Black & White</label>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_photo"
+                      checked={formData.is_photograph}
+                      onChange={e => setFormData(prev => ({ ...prev, is_photograph: e.target.checked }))}
+                    />
+                    <label htmlFor="is_photo" className="text-sm font-medium">Photograph</label>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Tags (comma-separated)</label>
+                  <input
+                    type="text"
+                    value={formData.tags}
+                    onChange={e => setFormData(prev => ({ ...prev, tags: e.target.value }))}
+                    className="w-full border rounded px-3 py-2 text-sm"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setEditMode(false)}
+                    className="px-4 py-2 text-sm border border-gray-300 rounded hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium text-gray-900">{image.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1">ID: {image.id}</p>
+                </div>
+                
+                {image.description && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
+                    <p className="text-sm text-gray-600">{image.description}</p>
+                  </div>
+                )}
+                
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Tags</h4>
+                  <TagChips tags={image.tags} />
+                </div>
+                
+                {image.processing_error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded">
+                    <h4 className="text-sm font-medium text-red-800 mb-1">Processing Error</h4>
+                    <p className="text-sm text-red-600">{image.processing_error}</p>
+                  </div>
+                )}
+                
+                {image.last_processed && (
+                  <div className="text-xs text-gray-500">
+                    Last processed: {new Date(image.last_processed).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ImagesPage: React.FC = () => {
   const [rows, setRows] = useState<ImageRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -724,44 +1078,29 @@ const ImagesPage: React.FC = () => {
       )}
 
       {selectedImage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm md:max-w-2xl max-h-[90vh] overflow-y-auto relative">
-            <button 
-              onClick={handleCloseModal} 
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 bg-white rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-blue-500 z-10"
-              aria-label="Close modal"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
-            <img 
-              src={selectedImage.src} 
-              alt={selectedImage.title} 
-              className="w-full h-auto object-contain max-h-[60vh] rounded-t-lg" 
-            />
-            <div className="p-4 space-y-2">
-              <h2 className="text-lg font-semibold">{selectedImage.title}</h2>
-              {selectedImage.description && (
-                <p className="text-sm text-gray-600">{selectedImage.description}</p>
-              )}
-              <TagChips tags={selectedImage.tags} />
-              <p className="text-xs text-gray-400">ID: {selectedImage.id}</p>
-              <p className="text-xs text-gray-400">Type: {selectedImage.imagetype}</p>
-            </div>
-          </div>
-        </div>
+        <ImageDetailsModal 
+          image={selectedImage} 
+          onClose={handleCloseModal}
+          onUpdate={load}
+        />
       )}
     </div>
   );
 };
 
-const CmsApp: React.FC = () => (
-  <div className="flex h-screen bg-gray-50">
-    <Sidebar />
-    <main className="flex-1 overflow-y-auto">
-      <ImagesPage />
-    </main>
-  </div>
-);
+const CmsApp: React.FC = () => {
+  const [currentPage, setCurrentPage] = useState<'images' | 'masks'>('images');
+  
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
+      <main className="flex-1 overflow-y-auto">
+        {currentPage === 'images' && <ImagesPage />}
+        {currentPage === 'masks' && <MasksPage />}
+      </main>
+    </div>
+  );
+};
 
 // ───────────────────────────────────────────────────────────
 // Export the component as a named function for Fast Refresh compatibility
