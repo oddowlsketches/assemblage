@@ -853,6 +853,22 @@ export class ArchitecturalEffect extends EffectBase {
     }
   }
 
+  private lightenColor(color: string, amount: number): string {
+    // Helper function to lighten a color by a given amount (0-1)
+    if (!color || !color.startsWith('#')) return color;
+    
+    const r = parseInt(color.slice(1, 3), 16);
+    const g = parseInt(color.slice(3, 5), 16);
+    const b = parseInt(color.slice(5, 7), 16);
+    
+    // Lighten by blending with white
+    const lightenedR = Math.round(r + (255 - r) * amount);
+    const lightenedG = Math.round(g + (255 - g) * amount);
+    const lightenedB = Math.round(b + (255 - b) * amount);
+    
+    return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+  }
+
   private calculateOverlap(rect1: MaskPlacement, rect2: MaskPlacement): number {
     const x_overlap = Math.max(0, Math.min(rect1.x + rect1.width, rect2.x + rect2.width) - Math.max(rect1.x, rect2.x));
     const y_overlap = Math.max(0, Math.min(rect1.y + rect1.height, rect2.y + rect2.height) - Math.max(rect1.y, rect2.y));
@@ -872,7 +888,13 @@ export class ArchitecturalEffect extends EffectBase {
 
     this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
     
-    const bgColor = this.params.bgColor || this._chooseRandomBackgroundColor();
+    // FIXED: Use the bgColor parameter if provided, otherwise use smart palette selection
+    let bgColor = this.params.bgColor;
+    if (!bgColor) {
+      bgColor = this._chooseRandomBackgroundColor();
+    }
+    console.log('[ArchEffect] Using background color:', bgColor, 'from', this.params.bgColor ? 'params' : 'smart palette');
+    
     this.ctx.fillStyle = bgColor;
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
@@ -1110,30 +1132,37 @@ export class ArchitecturalEffect extends EffectBase {
           const echoType = (placement as any).echoType || 'complementary';
           
           if (echoType === 'complementary') {
-            echoColorToUse = this.getComplementaryColor(mainBgColorForEcho);
+            // FIXED: Use a lighter version of the complementary color for color block echo
+            const baseComplementary = this.getComplementaryColor(mainBgColorForEcho);
+            echoColorToUse = this.lightenColor(baseComplementary, 0.3); // Lighten by 30%
           } else if (echoType === 'background') {
-            echoColorToUse = mainBgColorForEcho;
+            // FIXED: Use a slightly tinted version of the background color
+            echoColorToUse = this.lightenColor(mainBgColorForEcho, 0.2); // Lighten by 20%
           }
           
           finalImageOpacity = 1.0;
           imageBlendMode = 'multiply';
-          finalEchoOpacity = 0.8;
-          console.log(`[ArchitecturalEffect] Arch Series Echo for ${maskName}: ${echoType} color`);
+          finalEchoOpacity = 0.6; // Reduced from 0.8 for better transparency
+          console.log(`[ArchitecturalEffect] Arch Series Echo for ${maskName}: ${echoType} color (lightened)`);
         } else if (extendedPlacement.overlapEcho?.active) {
           useOverlapEcho = true;
           console.log(`[ArchitecturalEffect] Overlap Echo active for ${maskName}`);
-          echoColorToUse = extendedPlacement.overlapEcho.useComplementary
+          const baseEchoColor = extendedPlacement.overlapEcho.useComplementary
             ? this.getComplementaryColor(mainBgColorForEcho)
             : mainBgColorForEcho;
+          // FIXED: Lighten overlap echo colors too
+          echoColorToUse = this.lightenColor(baseEchoColor, 0.25); // Lighten by 25%
           finalImageOpacity = 1.0;
           imageBlendMode = 'multiply';
-          finalEchoOpacity = 0.85;
+          finalEchoOpacity = 0.7; // Reduced from 0.85
         } else if (this.params.useColorBlockEcho) {
           const policy = this.params.echoPolicy || 'subset';
           if (policy === 'all' || (policy === 'subset' && (maskName.length + x + y) % 10 < 5) ) {
             drawStandardEcho = true;
             console.log(`[ArchitecturalEffect] Standard Echo for ${maskName}`);
-            echoColorToUse = this.getComplementaryColor(mainBgColorForEcho);
+            // FIXED: Use lighter complementary color for standard echo too
+            const baseComplementary = this.getComplementaryColor(mainBgColorForEcho);
+            echoColorToUse = this.lightenColor(baseComplementary, 0.3); // Lighten by 30%
             imageBlendMode = 'multiply'; 
           }
         }
