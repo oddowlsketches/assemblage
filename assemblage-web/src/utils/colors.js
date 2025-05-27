@@ -92,7 +92,7 @@ export function randomEarthToneColor() {
  * @param {number} threshold - Saturation threshold for B&W detection (default: 30)
  * @returns {boolean} True if image is mostly black and white
  */
-export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 30) {
+export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 25) {
   if (!image || !image.complete || image.naturalWidth === 0) {
     return true; // Default to B&W if image not available
   }
@@ -102,7 +102,7 @@ export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 
   const ctx = canvas.getContext('2d');
   
   // Use a small size for analysis to improve performance
-  const analyzeSize = 50;
+  const analyzeSize = 32; // Smaller for better performance
   canvas.width = analyzeSize;
   canvas.height = analyzeSize;
   
@@ -116,14 +116,21 @@ export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 
     
     let totalSaturation = 0;
     let pixelCount = 0;
+    let colorfulPixels = 0;
     
-    // Sample pixels (every 4th pixel for performance)
-    for (let i = 0; i < data.length; i += 16) { // 16 = 4 pixels * 4 channels
+    // Sample pixels (every 8th pixel for performance)
+    for (let i = 0; i < data.length; i += 32) { // 32 = 8 pixels * 4 channels
       const r = data[i];
       const g = data[i + 1];
       const b = data[i + 2];
       
-      // Calculate saturation using HSL conversion
+      // Skip very dark or very light pixels as they're often not indicative
+      const brightness = (r + g + b) / 3;
+      if (brightness < 20 || brightness > 235) {
+        continue;
+      }
+      
+      // Calculate saturation using HSV conversion (more accurate than HSL for this purpose)
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
       const diff = max - min;
@@ -135,10 +142,22 @@ export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 
       
       totalSaturation += saturation;
       pixelCount++;
+      
+      // Count pixels with significant color
+      if (saturation > threshold) {
+        colorfulPixels++;
+      }
+    }
+    
+    if (pixelCount === 0) {
+      return true; // If no valid pixels found, assume B&W
     }
     
     const averageSaturation = totalSaturation / pixelCount;
-    return averageSaturation < threshold;
+    const colorfulRatio = colorfulPixels / pixelCount;
+    
+    // Image is B&W if average saturation is low AND few pixels are colorful
+    return averageSaturation < threshold && colorfulRatio < 0.15;
     
   } catch (error) {
     console.warn('Error analyzing image color:', error);
@@ -148,6 +167,7 @@ export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 
 
 /**
  * Analyzes multiple images to determine if they are mostly black and white
+ * Uses metadata field 'is_black_and_white' if available, falls back to image analysis
  * @param {HTMLImageElement[]} images - Array of images to analyze
  * @returns {boolean} True if majority of images are black and white
  */
@@ -161,7 +181,19 @@ export function areImagesMostlyBlackAndWhite(images) {
     return true;
   }
   
-  // Analyze a sample of images (max 5 for performance)
+  // Check if images have the is_black_and_white metadata field
+  const imagesWithMetadata = validImages.filter(img => img.is_black_and_white !== undefined);
+  
+  if (imagesWithMetadata.length > 0) {
+    // Use metadata when available
+    const blackAndWhiteCount = imagesWithMetadata.filter(img => img.is_black_and_white === true).length;
+    const result = blackAndWhiteCount > (imagesWithMetadata.length / 2);
+    console.log(`[Color Analysis] Using metadata - ${blackAndWhiteCount}/${imagesWithMetadata.length} images are B&W: ${result}`);
+    return result;
+  }
+  
+  // Fallback to image analysis if no metadata available
+  console.log(`[Color Analysis] No metadata found, falling back to image analysis`);
   const samplesToAnalyze = Math.min(5, validImages.length);
   const imagesToAnalyze = validImages.slice(0, samplesToAnalyze);
   
@@ -174,7 +206,9 @@ export function areImagesMostlyBlackAndWhite(images) {
   }
   
   // Return true if majority are B&W
-  return blackAndWhiteCount > (imagesToAnalyze.length / 2);
+  const result = blackAndWhiteCount > (imagesToAnalyze.length / 2);
+  console.log(`[Color Analysis] Image analysis - ${blackAndWhiteCount}/${imagesToAnalyze.length} images are B&W: ${result}`);
+  return result;
 }
 
 /**
@@ -192,7 +226,9 @@ export function getColorPalette(images, paletteType = 'auto') {
   // Auto mode: analyze images to determine palette
   if (paletteType === 'auto') {
     const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
-    return isBlackAndWhite ? vibrantColors : subtleColors;
+    const selectedPalette = isBlackAndWhite ? vibrantColors : subtleColors;
+    console.log(`[Color Palette] Auto mode - Images are ${isBlackAndWhite ? 'B&W' : 'colorful'}, using ${isBlackAndWhite ? 'vibrant' : 'subtle'} palette`);
+    return selectedPalette;
   }
   
   return vibrantColors; // Default fallback
@@ -206,7 +242,15 @@ export function getColorPalette(images, paletteType = 'auto') {
  */
 export function getRandomColorFromPalette(images, paletteType = 'auto') {
   const palette = getColorPalette(images, paletteType);
-  return palette[Math.floor(Math.random() * palette.length)];
+  const selectedColor = palette[Math.floor(Math.random() * palette.length)];
+  
+  // Debug logging to help track palette selection
+  if (paletteType === 'auto' && images && images.length > 0) {
+    const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
+    console.log(`[Color Palette] Analyzed ${images.length} images - B&W: ${isBlackAndWhite}, Selected: ${selectedColor} from ${palette === vibrantColors ? 'vibrant' : 'subtle'} palette`);
+  }
+  
+  return selectedColor;
 }
 
 // Helper function to parse hex color and get RGB components

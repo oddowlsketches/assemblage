@@ -1,5 +1,5 @@
 import { ArchitecturalEffect } from '../effects/ArchitecturalEffect';
-import { randomVibrantColor } from '../utils/colors';
+import { getRandomColorFromPalette } from '../utils/colors';
 
 /**
  * Generate a dynamic architectural composition using the ArchitecturalEffect class.
@@ -16,8 +16,8 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Use bgColor from params, fallback to a random vibrant one if not provided
-  const bgColor = params.bgColor || randomVibrantColor();
+  // Use bgColor from params, fallback to palette-aware color selection
+  const bgColor = params.bgColor || getRandomColorFromPalette(images, 'auto');
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
