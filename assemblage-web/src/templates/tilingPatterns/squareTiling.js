@@ -134,7 +134,7 @@ export function drawSquareTile(ctx, tile, image, options = {}) {
   // Image drawing logic considering echo
   if (applyEcho && echoColor && typeof echoColor === 'string' && echoColor.startsWith('#')) {
     // Color block echo is active for this tile: Draw color base first
-    ctx.globalAlpha = tileOpacity * 0.85; 
+    ctx.globalAlpha = tileOpacity * 0.9; 
     ctx.fillStyle = echoColor;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fill(); 

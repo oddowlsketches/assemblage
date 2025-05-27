@@ -43,7 +43,7 @@ function renderTiling(canvas, images, params) {
   
   // Randomize echo parameters if not explicitly set to true or false
   if (params.useColorBlockEcho === undefined || params.useColorBlockEcho === false) {
-    params.useColorBlockEcho = Math.random() < 0.35; // 35% chance for tiling echo
+    params.useColorBlockEcho = Math.random() < 0.2; // Reduced from 35% to 20% chance for tiling echo
     console.log(`[TilingTemplate] Randomized useColorBlockEcho to: ${params.useColorBlockEcho}`);
   }
   
@@ -137,7 +137,7 @@ function renderTiling(canvas, images, params) {
     if (params.useColorBlockEcho && calculatedEchoColor) {
       finalEchoColorForTile = calculatedEchoColor; 
       const subsetRoll = Math.random();
-      if (params.echoPolicy === 'all' || (params.echoPolicy === 'subset' && subsetRoll < 0.35)) {
+      if (params.echoPolicy === 'all' || (params.echoPolicy === 'subset' && subsetRoll < 0.25)) { // Reduced from 0.35 to 0.25
         applyEchoToThisTile = true;
         console.log(`[TilingTemplate] Tile ${index}: Applying echo. Policy: ${params.echoPolicy}, Roll: ${subsetRoll.toFixed(3)}, Color: ${finalEchoColorForTile}`);
       }
@@ -219,7 +219,7 @@ export function generateTiling(canvas, images, params) {
 
   // Echo params for this simple tiler - randomize if not explicitly set
   if (params.useColorBlockEcho === undefined || params.useColorBlockEcho === false) {
-    params.useColorBlockEcho = Math.random() < 0.35;
+    params.useColorBlockEcho = Math.random() < 0.2; // Reduced from 35% to 20%
     console.log(`[generateTiling] Randomized useColorBlockEcho to: ${params.useColorBlockEcho}`);
   }
   
@@ -289,7 +289,7 @@ export function generateTiling(canvas, images, params) {
       let applyEchoToThisSpecificTile = false;
       if (params.useColorBlockEcho && actualEchoColorForGrid) { 
         const subsetRoll = Math.random();
-        if (params.echoPolicy === 'all' || (params.echoPolicy === 'subset' && subsetRoll < 0.35)) {
+        if (params.echoPolicy === 'all' || (params.echoPolicy === 'subset' && subsetRoll < 0.25)) { // Reduced from 0.35 to 0.25
             applyEchoToThisSpecificTile = true;
         }
       }

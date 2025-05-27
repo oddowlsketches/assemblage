@@ -165,7 +165,7 @@ export function drawModularTile(ctx, tile, image, options = {}) {
   // Echo and Image drawing
   if (applyEcho) {
     // Color block echo is active: Draw color base first
-    ctx.globalAlpha = tileOpacity * 0.75;
+    ctx.globalAlpha = tileOpacity * 0.9;
     ctx.fillStyle = echoColor;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fill(); // Fill the clipped and transformed path

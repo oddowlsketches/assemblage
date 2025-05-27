@@ -236,45 +236,29 @@ export function getColorPalette(images, paletteType = 'auto') {
     if (isBlackAndWhite) {
       selectedPalette = vibrantColors;
     } else {
-      // For color images, be EXTREMELY restrictive - only use the very lightest colors
-      // This prevents muddy/dark results when color photos are multiplied
-      selectedPalette = subtleColors.filter(color => {
-        // Parse color and check luminance
-        const rgb = hexToRgb(color);
-        if (!rgb) return false; // Exclude unparseable colors for safety
-        
-        const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
-        
-        // Much stricter requirements for color images:
-        // 1. High luminance (>80% brightness)
-        // 2. Low saturation to avoid clashing with image colors
-        // 3. No colors that could result in black/dark when multiplied
-        const saturation = getSaturation(rgb.r, rgb.g, rgb.b);
-        
-        return luminance > 0.8 && saturation < 0.3 && 
-               rgb.r > 200 && rgb.g > 200 && rgb.b > 200; // All RGB components high
-      });
-      
-      // If filtering was too restrictive, use a curated safe list for color images
-      if (selectedPalette.length < 4) {
-        selectedPalette = [
-          '#F8F8FF', // Ghost White
-          '#F5F5DC', // Beige 
-          '#F0F8FF', // Alice Blue
-          '#F5FFFA', // Mint Cream
-          '#FFF8DC', // Cornsilk
-          '#FFFACD', // Lemon Chiffon
-          '#F0F0F0', // Light Gray
-          '#FFE4E1', // Misty Rose
-          '#E0FFFF', // Light Cyan
-          '#FFEFD5', // Papaya Whip
-          '#FFF0F5', // Lavender Blush
-          '#F0FFF0'  // Honeydew
-        ];
-      }
+      // For color images, use a more balanced selection that provides better contrast
+      // Less restrictive than before to avoid overly light backgrounds that make images look dark
+      selectedPalette = [
+        '#F5F5DC', // Beige
+        '#E6E6FA', // Lavender
+        '#F0F8FF', // Alice Blue
+        '#F5FFFA', // Mint Cream
+        '#F0E68C', // Khaki
+        '#DDA0DD', // Plum
+        '#98FB98', // Pale Green
+        '#FFE4E1', // Misty Rose
+        '#FFEFD5', // Papaya Whip
+        '#F0FFF0', // Honeydew
+        '#D2B48C', // Tan (from earth tones - provides more contrast)
+        '#DEB887', // Burlywood (from earth tones)
+        '#F4A460', // Sandy Brown (from earth tones)
+        '#BC8F8F', // Rosy Brown (from earth tones)
+        '#8FBC8F', // Dark Sea Green (from earth tones)
+        '#F5DEB3'  // Wheat (from earth tones)
+      ];
     }
     
-    console.log(`[Color Palette] Auto mode - Images are ${isBlackAndWhite ? 'B&W' : 'colorful'}, using ${isBlackAndWhite ? 'vibrant' : 'ultra-light'} palette (${selectedPalette.length} colors)`);
+    console.log(`[Color Palette] Auto mode - Images are ${isBlackAndWhite ? 'B&W' : 'colorful'}, using ${isBlackAndWhite ? 'vibrant' : 'balanced'} palette (${selectedPalette.length} colors)`);
     return selectedPalette;
   }
   
@@ -294,7 +278,7 @@ export function getRandomColorFromPalette(images, paletteType = 'auto') {
   // Debug logging to help track palette selection
   if (paletteType === 'auto' && images && images.length > 0) {
     const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
-    console.log(`[Color Palette] Analyzed ${images.length} images - B&W: ${isBlackAndWhite}, Selected: ${selectedColor} from ${palette === vibrantColors ? 'vibrant' : 'subtle'} palette`);
+    console.log(`[Color Palette] Analyzed ${images.length} images - B&W: ${isBlackAndWhite}, Selected: ${selectedColor} from ${palette === vibrantColors ? 'vibrant' : 'balanced'} palette`);
   }
   
   return selectedColor;
