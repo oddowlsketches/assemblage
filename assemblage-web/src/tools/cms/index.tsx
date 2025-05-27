@@ -374,7 +374,9 @@ const AddImageDialog: React.FC<{ onAdded: () => void }> = ({ onAdded }) => {
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
-    const { error } = await supa.from('images').insert({ src, title, tags: tagArr });
+    // Only allow valid image_role values (AddImageDialog does not have a field, so always use 'narrative')
+    const imageRole = 'narrative';
+    const { error } = await supa.from('images').insert({ src, title, tags: tagArr, image_role: imageRole });
     setLoading(false);
     if (!error) {
       setSrc('');
