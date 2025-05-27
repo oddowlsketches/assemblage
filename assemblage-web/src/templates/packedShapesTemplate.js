@@ -6,6 +6,22 @@ import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
 import { vibrantColors, getRandomColorFromPalette, getColorPalette } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
 
+// Helper function to lighten colors for better visibility
+function lightenColor(color, amount) {
+  if (!color || !color.startsWith('#')) return color;
+  
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  // Lighten by blending with white
+  const lightenedR = Math.round(r + (255 - r) * amount);
+  const lightenedG = Math.round(g + (255 - g) * amount);
+  const lightenedB = Math.round(b + (255 - b) * amount);
+  
+  return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+}
+
 const MAX_IMAGES_TO_USE = 15; // Max images to pick from for elements
 
 // Define a list of masks that actually exist in the registry
@@ -192,9 +208,12 @@ function renderPackedShapes(canvas, images, params = {}) {
   const elements = createPackedElements(canvasWidth, canvasHeight, elementCount);
 
   const complementaryColor = getComplementaryColor(initialBgColor);
+  // FIXED: Lighten the complementary color for better visibility
+  const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
+  
   // Use colors from the selected palette instead of hardcoded vibrantColors
   const accentColorPalette = [
-    complementaryColor,
+    lightenedComplementaryColor, // Use lightened version
     ...palette.slice(0, 3) // Take first 3 colors from the selected palette
   ].filter(Boolean);
   
@@ -209,13 +228,13 @@ function renderPackedShapes(canvas, images, params = {}) {
     // Varied colors (default)
     useVariedColors = true;
   } else if (colorMode < 0.75) {
-    // All complementary color
+    // All complementary color - but use lightened version
     useVariedColors = false;
-    singleColor = complementaryColor;
+    singleColor = lightenedComplementaryColor; // Use lightened version
   } else {
-    // All background color
+    // All background color - but lighten it slightly for visibility
     useVariedColors = false;
-    singleColor = initialBgColor;
+    singleColor = lightenColor(initialBgColor, 0.15); // Lighten background color slightly
   }
   
   // Create a shuffled array of images for better distribution

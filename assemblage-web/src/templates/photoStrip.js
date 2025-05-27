@@ -3,6 +3,22 @@
 import { randomVibrantColor, vibrantColors, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 
+// Helper function to lighten colors for better visibility
+function lightenColor(color, amount) {
+  if (!color || !color.startsWith('#')) return color;
+  
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  // Lighten by blending with white
+  const lightenedR = Math.round(r + (255 - r) * amount);
+  const lightenedG = Math.round(g + (255 - g) * amount);
+  const lightenedB = Math.round(b + (255 - b) * amount);
+  
+  return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+}
+
 /**
  * Generate a photo strip with 3 images in a horizontal row
  * @param {HTMLCanvasElement} canvas - Canvas element to draw on
@@ -39,18 +55,20 @@ export function generatePhotoStrip(canvas, images, params = {}) {
   let colorPalette = [];
   if (useColorBlocks) {
     const complementaryColor = getComplementaryColor(bgColor);
+    // FIXED: Use lightened complementary colors for better visibility
+    const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
     const colorMode = Math.random();
     
     if (colorMode < 0.5) {
-      // Each image gets a different complementary color
+      // Each image gets a different complementary color - but lightened
       colorPalette = [
-        complementaryColor,
-        vibrantColors[0] || '#FF6B6B',
-        vibrantColors[1] || '#4ECDC4'
+        lightenedComplementaryColor,
+        lightenColor(vibrantColors[0] || '#FF6B6B', 0.2),
+        lightenColor(vibrantColors[1] || '#4ECDC4', 0.2)
       ];
     } else {
-      // All images get the same color
-      const singleColor = Math.random() < 0.5 ? complementaryColor : bgColor;
+      // All images get the same color - but lightened
+      const singleColor = Math.random() < 0.5 ? lightenedComplementaryColor : lightenColor(bgColor, 0.2);
       colorPalette = [singleColor, singleColor, singleColor];
     }
   }

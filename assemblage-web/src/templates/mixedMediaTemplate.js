@@ -8,6 +8,22 @@ import { drawImageWithAspectRatio } from '../utils/imageDrawing';
 import { vibrantColors, getRandomColorFromPalette } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
 
+// Helper function to lighten colors for better visibility
+function lightenColor(color, amount) {
+  if (!color || !color.startsWith('#')) return color;
+  
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+  
+  // Lighten by blending with white
+  const lightenedR = Math.round(r + (255 - r) * amount);
+  const lightenedG = Math.round(g + (255 - g) * amount);
+  const lightenedB = Math.round(b + (255 - b) * amount);
+  
+  return `#${lightenedR.toString(16).padStart(2, '0')}${lightenedG.toString(16).padStart(2, '0')}${lightenedB.toString(16).padStart(2, '0')}`;
+}
+
 const MAX_TOTAL_IMAGES = 7; // Maximum images to use in a collage
 
 /**
@@ -47,7 +63,10 @@ function renderMixedMedia(canvas, images, params = {}) {
       if (useShapedBackground) {
         // 1. Adjust Shaped Background Sizing & 2. Outer Color
         if (Math.random() < 0.5) { // 50% chance for complementary outer background
-            ctx.fillStyle = getComplementaryColor(initialBgColor);
+            // FIXED: Use lightened complementary color for shaped background
+            const shapedBgComplementary = getComplementaryColor(initialBgColor);
+            const lightenedShapedBgColor = lightenColor(shapedBgComplementary, 0.25);
+            ctx.fillStyle = lightenedShapedBgColor;
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
         } // else, initialBgColor is already there
 
@@ -159,7 +178,9 @@ function renderMixedMedia(canvas, images, params = {}) {
   
   // Color Harmony: Always use generateAccentColors based on initialBgColor
   const complementaryColor = getComplementaryColor(initialBgColor);
-  const accentColorsForForeground = generateAccentColors(initialBgColor, complementaryColor);
+  // FIXED: Use lightened version of complementary color for better visibility
+  const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
+  const accentColorsForForeground = generateAccentColors(initialBgColor, lightenedComplementaryColor);
 
   // Corrected population of actualImagesToDrawForElements
   const actualImagesToDrawForElements = [];
