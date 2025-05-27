@@ -134,7 +134,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           title: fileName,
           description: "Processing...",
           tags: [],
-          imagetype: "pending",
+          image_role: "pending",
           metadata_status: "pending_processing",
           collection_id: collectionId || null
         });

@@ -6,7 +6,7 @@ import { svgToPath2D } from '../core/svgUtils';
 // (If MaskPlacement is imported, we can extend it locally)
 type PolygonMaskPlacement = MaskPlacement & { 
   polygon?: {x: number, y: number}[],
-  imageType?: 'texture' | 'narrative' | 'conceptual',
+  image_role?: 'texture' | 'narrative' | 'conceptual',
   useColorBlockEcho?: boolean,
   echoType?: 'complementary' | 'background'
 };
@@ -95,7 +95,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         height: mainArchHeight,
         rotation: 0, // No rotation for arch series
         layer: 1,
-        imageType: 'texture', // Use texture for background arch
+        image_role: 'texture', // Use texture for background arch
         useColorBlockEcho: true,
         echoType: 'complementary',
         useSolidColor: false // Main arch always has image (since it might be the only one)
@@ -117,7 +117,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           height: overlayHeight,
           rotation: 0, // No rotation for arch series
           layer: 2,
-          imageType: Math.random() < 0.5 ? 'narrative' : 'conceptual', // Use narrative/conceptual for foreground
+          image_role: Math.random() < 0.5 ? 'narrative' : 'conceptual', // Use narrative/conceptual for foreground
           useColorBlockEcho: true,
           echoType: 'background',
           useSolidColor: false // Overlay arches are topmost layer, so never solid color
@@ -141,7 +141,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         height: leftArchHeight,
         rotation: 0, // No rotation for arch series
         layer: 1,
-        imageType: 'texture',
+        image_role: 'texture',
         useColorBlockEcho: true,
         echoType: 'complementary',
         useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
@@ -155,7 +155,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         height: rightArchHeight,
         rotation: 0, // No rotation for arch series
         layer: 1,
-        imageType: 'texture',
+        image_role: 'texture',
         useColorBlockEcho: true,
         echoType: 'complementary',
         useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
@@ -174,7 +174,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         height: smallHeight,
         rotation: 0, // No rotation for arch series
         layer: 2,
-        imageType: 'narrative',
+        image_role: 'narrative',
         useColorBlockEcho: true,
         echoType: 'background',
         useSolidColor: false // Topmost layer, never solid color
@@ -206,7 +206,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           height: size.height,
           rotation: 0, // No rotation for arch series
           layer: 3 - i, // Largest arch in back
-          imageType: i === 0 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
+          image_role: i === 0 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
           useColorBlockEcho: true,
           echoType: i === 0 ? 'complementary' : 'background',
           useSolidColor: useSolidColor
@@ -861,7 +861,7 @@ export class ArchitecturalEffect extends EffectBase {
     let hasBackgroundImage = false;
     if (this.params.promptText === 'archSeries' && Math.random() < 0.3 && this.images.length > 0) {
       // Use a texture image for background fill
-      const textureImages = this.images.filter(img => (img as any).imagetype === 'texture');
+      const textureImages = this.images.filter(img => (img as any).image_role === 'texture');
       const bgImage = textureImages.length > 0 ? 
         textureImages[Math.floor(Math.random() * textureImages.length)] :
         this.images[Math.floor(Math.random() * this.images.length)];
@@ -1130,11 +1130,11 @@ export class ArchitecturalEffect extends EffectBase {
         if (this.imageMode === 'single') {
             imageToDraw = this.singleImage;
         } else if (this.images.length > 0) {
-            // Handle imageType preference for arch series
-            if ((placement as any).imageType && this.images.length > 0) {
-              const preferredType = (placement as any).imageType;
+            // Handle image_role preference for arch series
+            if ((placement as any).image_role && this.images.length > 0) {
+              const preferred_role = (placement as any).image_role;
               const filteredImages = this.images.filter(img => 
-                (img as any).imagetype === preferredType
+                (img as any).image_role === preferred_role
               );
               
               if (filteredImages.length > 0) {

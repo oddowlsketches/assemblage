@@ -14865,7 +14865,7 @@ var handler = async (event) => {
         title: fileName,
         description: "Processing...",
         tags: [],
-        imagetype: "pending",
+        image_role: "pending",
         metadata_status: "pending_processing",
         collection_id: collectionId || null
       });

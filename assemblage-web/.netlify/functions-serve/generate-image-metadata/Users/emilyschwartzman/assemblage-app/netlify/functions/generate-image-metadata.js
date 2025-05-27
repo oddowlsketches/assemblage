@@ -29576,7 +29576,7 @@ var handler = async (event) => {
     }
     const buffer = await imgResp.arrayBuffer();
     const base64 = Buffer.from(buffer).toString("base64");
-    const prompt = 'Analyze this collage image. Provide a detailed description of its composition, textures, and artistic elements. Also suggest 5 relevant tags that capture its essence and classify it as either "texture", "narrative", or "conceptual" based on its primary visual nature. Format your response as JSON {"description":string, "tags":string[], "imageType":string}';
+    const prompt = 'Analyze this collage image. Provide a detailed description of its composition, textures, and artistic elements. Also suggest 5 relevant tags that capture its essence and classify it as either "texture", "narrative", or "conceptual" based on its primary visual nature. Format your response as JSON {"description":string, "tags":string[], "image_role":string}';
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1",
       max_tokens: 300,
@@ -29615,17 +29615,16 @@ var handler = async (event) => {
       console.warn(`[METADATA_FN] Failed to parse OpenAI response as JSON for ID ${id}. Attempting fallback. Error:`, parseError.message);
       const descMatch = cleanedJsonString.match(/description\s*:\s*"?(.*?)"?\s*(?:,|$|\n)/i);
       const tagsMatch = cleanedJsonString.match(/tags\s*:\s*\[(.*?)\]/i);
-      const imageTypeMatch = cleanedJsonString.match(/imageType\s*:\s*"(.*?)"/i);
+      const imageRoleMatch = cleanedJsonString.match(/image_role\s*:\s*"(.*?)"/i);
       metadata.description = descMatch && descMatch[1] ? descMatch[1].trim().replace(/"$/, "") : "";
       metadata.tags = tagsMatch && tagsMatch[1] ? tagsMatch[1].split(",").map((t2) => t2.trim().replace(/"/g, "")) : [];
-      metadata.imageType = imageTypeMatch && imageTypeMatch[1] ? imageTypeMatch[1].trim() : "fallback_parse_failed";
+      metadata.image_role = imageRoleMatch && imageRoleMatch[1] ? imageRoleMatch[1].trim() : "fallback_parse_failed";
       console.log(`[METADATA_FN] Parsed metadata (catch/fallback block) for ID ${id}:`, JSON.stringify(metadata));
     }
     const updatePayload = {
       description: metadata.description,
       tags: metadata.tags,
-      imagetype: metadata.imageType
-      // Ensure this matches the DB column name exactly
+      image_role: metadata.image_role
     };
     console.log(`[METADATA_FN] Supabase update payload for ID ${id}:`, JSON.stringify(updatePayload));
     const { error } = await supa.from("images").update(updatePayload).eq("id", id);
@@ -29636,7 +29635,7 @@ var handler = async (event) => {
     console.log(`[METADATA_FN] Successfully updated Supabase for ID ${id}`);
     return {
       statusCode: 200,
-      body: JSON.stringify({ success: true, metadata: { ...metadata, imagetype: metadata.imageType } }),
+      body: JSON.stringify({ success: true, metadata: { ...metadata } }),
       headers: { "Content-Type": "application/json" }
     };
   } catch (e2) {

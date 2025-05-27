@@ -19,14 +19,13 @@ type ImageRow = {
   tags: string[];
   created_at?: string;
   description?: string;
-  imagetype: string;
+  image_role?: 'texture' | 'narrative' | 'conceptual' | 'pending';
   collection_id?: string;
   
   // Rich metadata fields
   is_black_and_white?: boolean;
   is_photograph?: boolean;
   white_edge_score?: number;
-  image_role?: 'texture' | 'narrative' | 'conceptual';
   palette_suitability?: 'vibrant' | 'neutral' | 'earthtone' | 'muted' | 'pastel';
   metadata_status?: 'pending_llm' | 'processing' | 'complete' | 'error';
   processing_error?: string;
@@ -1016,7 +1015,7 @@ const ImagesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-2 align-top">
-                      {row.imagetype === "pending" && (!row.tags || row.tags.length === 0) ? (
+                      {row.image_role === "pending" && (!row.tags || row.tags.length === 0) ? (
                         <span className="italic text-gray-500">Processing...</span>
                       ) : (
                         <div className="flex flex-wrap gap-1">
@@ -1032,10 +1031,10 @@ const ImagesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-2 align-top max-w-[100px] truncate">
-                      {row.imagetype === "pending" ? (
+                      {row.image_role === "pending" ? (
                         <span className="italic text-gray-500">Processing...</span>
                       ) : (
-                        row.imagetype
+                        row.image_role
                       )}
                     </td>
                     <td className="p-2 align-top text-center">
@@ -1062,7 +1061,7 @@ const ImagesPage: React.FC = () => {
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1 mt-auto">
-                  {img.imagetype === "pending" && (!img.tags || img.tags.length === 0) ? (
+                  {img.image_role === "pending" && (!img.tags || img.tags.length === 0) ? (
                     <span className="italic text-gray-500 text-[10px]">Processing tags...</span>
                   ) : (
                     img.tags.slice(0, 4).map((t) => (
@@ -1070,7 +1069,7 @@ const ImagesPage: React.FC = () => {
                     ))
                   )}
                 </div>
-                <div className="text-[10px] text-gray-500 mt-1">(Type: {img.imagetype === "pending" ? "..." : img.imagetype})</div>
+                <div className="text-[10px] text-gray-500 mt-1">(Type: {img.image_role === "pending" ? "..." : img.image_role})</div>
               </div>
             ))}
           </div>

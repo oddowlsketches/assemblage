@@ -16,7 +16,7 @@ export const handler: Handler = async (event) => {
     const { data: pendingImages, error: fetchError } = await supa
       .from('images')
       .select('id, src')
-      .eq('imagetype', 'pending');
+      .eq('image_role', 'pending');
 
     if (fetchError) {
       console.error('[BATCH_UPDATE] Failed to fetch pending images:', fetchError);

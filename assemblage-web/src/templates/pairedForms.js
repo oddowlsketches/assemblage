@@ -623,16 +623,16 @@ function drawRectangle(ctx, shape, img, useMultiply, keepImageUpright = true, pa
 
   ctx.clip(maskPath);
 
-  // Conditional Color Block Echo based on imageType
+  // Conditional Color Block Echo based on image_role
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
 
   if (echoPreference === 'always') {
     applyEcho = true;
-  } else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') {
+  } else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') {
     applyEcho = true;
   } else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
   }
   // if echoPreference is 'never', applyEcho remains false
 
@@ -724,9 +724,9 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
   }
   const bgColorForEcho = shape.bgColor || randomVibrantColor();
 
@@ -819,9 +819,9 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
   let applyEcho = false;
   const echoPreference = params.echoPreference || 'default';
   if (echoPreference === 'always') applyEcho = true;
-  else if (echoPreference === 'texture_only' && img && img.imagetype === 'texture') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
   else if (echoPreference === 'default') {
-    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.imagetype === 'texture' ? 0.85 : 0.45));
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45));
   }
   const bgColorForEcho = shape.bgColor || randomVibrantColor();
 

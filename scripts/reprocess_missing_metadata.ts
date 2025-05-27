@@ -17,11 +17,11 @@ const supa = createClient(
 
 async function reprocessMissingMetadata() {
   try {
-    // Fetch all images that are missing imagetype or have empty descriptions
+    // Fetch all images that are missing image_role or have empty descriptions
     const { data: images, error: fetchError } = await supa
       .from('images')
       .select('id, src')
-      .or('imagetype.is.null,imagetype.eq.pending,description.is.null,description.eq.,description.eq.Processing...');
+      .or('image_role.is.null,image_role.eq.pending,description.is.null,description.eq.,description.eq.Processing...');
 
     if (fetchError) {
       console.error('Failed to fetch images:', fetchError);
