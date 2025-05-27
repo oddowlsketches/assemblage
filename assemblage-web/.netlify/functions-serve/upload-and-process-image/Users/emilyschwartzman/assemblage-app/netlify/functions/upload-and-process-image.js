@@ -14799,7 +14799,7 @@ var handler = async (event) => {
     };
   }
   try {
-    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId, image_role: rawRoleFromBody } = JSON.parse(event.body || "{}");
+    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId, image_type: rawRoleFromBody } = JSON.parse(event.body || "{}");
     if (!fileName || !base64 || typeof chunkIndex !== "number" || !totalChunks) {
       return {
         statusCode: 400,
@@ -14859,15 +14859,15 @@ var handler = async (event) => {
       }
       const { data: urlData } = supa.storage.from("images").getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
-      const validRoles = ["texture", "narrative", "conceptual"];
-      let image_role = rawRoleFromBody ? validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : "narrative" : "pending";
+      const validTypes = ["texture", "narrative", "conceptual"];
+      let image_type = rawRoleFromBody ? validTypes.includes(rawRoleFromBody) ? rawRoleFromBody : "narrative" : "pending";
       const { error: insertErr } = await supa.from("images").upsert({
         id,
         src: publicUrl,
         title: fileName,
         description: "Processing...",
         tags: [],
-        image_role,
+        image_type,
         metadata_status: "pending_processing",
         collection_id: collectionId || null
       });
