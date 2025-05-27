@@ -3,7 +3,7 @@
 import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
 import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
-import { vibrantColors, randomVibrantColor } from '../utils/colors';
+import { vibrantColors, getRandomColorFromPalette, getColorPalette } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
 
 const MAX_IMAGES_TO_USE = 15; // Max images to pick from for elements
@@ -179,20 +179,25 @@ function renderPackedShapes(canvas, images, params = {}) {
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  const initialBgColor = params.bgColor || randomVibrantColor();
+  // Determine the color palette based on image analysis
+  const palette = getColorPalette(images, params.paletteType || 'auto');
+  const initialBgColor = params.bgColor || palette[Math.floor(Math.random() * palette.length)];
+  
   ctx.fillStyle = initialBgColor;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+  console.log(`[PackedShapes] Using palette: ${params.paletteType || 'auto'}, BG: ${initialBgColor}`);
 
   const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 16)); // Random 15-30 elements
   const elements = createPackedElements(canvasWidth, canvasHeight, elementCount);
 
   const complementaryColor = getComplementaryColor(initialBgColor);
-  // Fallback for accentColorPalette since generateAccentColors is not imported
-  const accentColorPalette = (
-    typeof generateAccentColors !== 'undefined' && typeof generateAccentColors === 'function' 
-    ? generateAccentColors(initialBgColor, complementaryColor) 
-    : [complementaryColor, vibrantColors[0], vibrantColors[1], vibrantColors[2] || getComplementaryColor(complementaryColor)]
-  ).filter(Boolean); // Ensure no undefined colors if vibrantColors is short
+  // Use colors from the selected palette instead of hardcoded vibrantColors
+  const accentColorPalette = [
+    complementaryColor,
+    ...palette.slice(0, 3) // Take first 3 colors from the selected palette
+  ].filter(Boolean);
+  
   if (accentColorPalette.length === 0) accentColorPalette.push('#CCCCCC'); // Absolute fallback
   
   // Color mode: 50% varied colors, 25% all complementary, 25% all background color
@@ -213,15 +218,18 @@ function renderPackedShapes(canvas, images, params = {}) {
     singleColor = initialBgColor;
   }
   
+  // Create a shuffled array of images for better distribution
+  const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
+  const shuffledImages = [...availableImages].sort(() => Math.random() - 0.5);
+  
   elements.forEach((element, index) => {
-    // Use random unique images, but try not to repeat until we've used most available images
-    const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
+    // Use different image for each element, cycling through shuffled array
     let imageToDraw;
     
-    if (availableImages.length > 0) {
-      // For better variety, use shuffled order rather than cycling
-      const imageIndex = Math.floor(Math.random() * availableImages.length);
-      imageToDraw = availableImages[imageIndex];
+    if (shuffledImages.length > 0) {
+      // Use modulo to cycle through images, ensuring each gets used before repeating
+      const imageIndex = index % shuffledImages.length;
+      imageToDraw = shuffledImages[imageIndex];
     }
     
     const colorBlockColor = useVariedColors 
@@ -265,8 +273,9 @@ function renderPackedShapes(canvas, images, params = {}) {
           ctx.clip(maskPath); // Apply clipping AFTER color block fill
           
           // Draw image in the 0-100 space (scaled context)
+          const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
-            aspectRatio: imageToDraw.naturalWidth / imageToDraw.naturalHeight,
+            aspectRatio: imageAspectRatio,
             clipPath: null, // Mask is already applied to context
             cover: true, // Ensure image covers the area
             opacity: element.opacity || 1.0
@@ -281,8 +290,9 @@ function renderPackedShapes(canvas, images, params = {}) {
         // 2. Draw the image with multiply blend mode
         if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
+          const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {
-            aspectRatio: imageToDraw.naturalWidth / imageToDraw.naturalHeight,
+            aspectRatio: imageAspectRatio,
             clipPath: null,
             cover: true,
             opacity: element.opacity || 1.0
@@ -308,7 +318,12 @@ const packedShapesTemplate = {
   params: {
     elementCount: { type: 'number', min: 5, max: 35, default: 20, step: 1 },
     bgColor: { type: 'color' },
-    // Potentially add other params like imageRatio if we want some to be pure color blocks later
+    paletteType: { 
+      type: 'select', 
+      options: ['auto', 'vibrant', 'subtle', 'pastel', 'earthTone'], 
+      default: 'auto',
+      description: 'Color palette - auto detects B&W vs color images'
+    }
   }
 };
 
