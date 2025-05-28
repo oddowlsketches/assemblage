@@ -418,11 +418,11 @@ function drawFloatingElements(ctx, elements, images, params) {
       const echoOpacity = 0.85; // Strong fixed opacity for overlap echo block
 
       console.log(`[FloatingElements] Applying OVERLAP Echo: ${element.type}, color: ${echoColor}`);
-      // Draw echo block (fills the clipped path)
+      // FIXED: Draw echo block by filling a rectangle in the clipped area
       ctx.fillStyle = echoColor;
       ctx.globalAlpha = echoOpacity;
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fill(); // fill() uses the current clip path
+      ctx.fillRect(0, 0, 100, 100); // Fill the entire 100x100 clipped area
       // Image will be drawn next, over this echo
     } 
     // Standard Color Block Echo (if no overlap echo and params.useColorBlockEcho)
@@ -435,8 +435,8 @@ function drawFloatingElements(ctx, elements, images, params) {
       ctx.fillStyle = echoColor;
       ctx.globalAlpha = echoOpacity; // Use echo opacity directly, don't multiply
       ctx.globalCompositeOperation = 'source-over';
-      if (path) ctx.fill(path); // New way: explicitly fill the path object
-      else ctx.fillRect(0, 0, 100, 100); // Fallback if path is somehow undefined here
+      // FIXED: Fill a rectangle in the clipped area to match the mask shape exactly
+      ctx.fillRect(0, 0, 100, 100); // Fill the entire 100x100 clipped area
 
       actualBlendMode = 'multiply'; // Image will be multiplied on top
     }

@@ -57,6 +57,7 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
 
   console.log('[DATemplate] Final currentStyle being passed to ArchitecturalEffect:', currentStyle);
   console.log('[DATemplate] About to call ArchitecturalEffect with promptText:', currentStyle);
+  console.log('[DATemplate] Image mode being forced to:', forcedImageMode, 'for style:', currentStyle);
 
   // Pass all params to ArchitecturalEffect, it can pick what it needs
   const effectParams = {

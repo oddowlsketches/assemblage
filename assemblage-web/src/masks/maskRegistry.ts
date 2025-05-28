@@ -73,24 +73,40 @@ function sliceAngled(params: MaskParams = {}) {
 }
 
 // --- ARCHITECTURAL FAMILY ---
-function archClassical({ width = 90, height = 50, legHeight = 50 }: MaskParams = {}) {
-  // Architectural arch: variable width, height, and vertical legs
-  // Now uses more of the 100x100 space for better visibility
-  // Center arch horizontally in 100x100 viewBox
-  const left = 50 - width / 2;
-  const right = 50 + width / 2;
-  const top = 100 - legHeight - height;
-  const legBottom = 100;
-  // Move to left leg bottom, up to top of leg, arc to right leg top, down right leg
-  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+function archClassical({ width = 80, height = 100, legHeight = 75 }: MaskParams = {}) {
+  // CRITICAL FIX: Create a proper classical arch that fills the entire 100x100 viewBox
+  // Classical arches should have a width-to-height ratio of approximately 0.8 (4:5 ratio)
+  
+  // FIXED: Use the full viewBox dimensions and create a proper arch shape
+  // The arch should extend to the edges to prevent image scaling issues
+  
+  console.log(`[archClassical] Creating arch with proper proportions in 100x100 viewBox`);
+  
+  // Create an arch that spans the full width and height of the viewBox
+  // This ensures the mask uses the complete area available
+  const archTop = 10;        // Start arch near top of viewBox
+  const archBottom = 100;    // Extend to bottom of viewBox
+  const archLeft = 5;        // Start near left edge
+  const archRight = 95;      // End near right edge
+  const archHeight = 60;     // Height of the curved portion
+  const legTop = archTop + archHeight; // Where the legs start
+  
+  // FIXED: Create a proper arch path that fills the viewBox completely
+  // The arch spans nearly the full width and height to maximize image coverage
+  const svgResult = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
     <path d='
-      M${left},${legBottom}
-      L${left},${top + height}
-      A${width / 2},${height} 0 0,1 ${right},${top + height}
-      L${right},${legBottom}
+      M${archLeft},${archBottom}
+      L${archLeft},${legTop}
+      A45,${archHeight} 0 0,1 ${archRight},${legTop}
+      L${archRight},${archBottom}
       Z
     ' fill='white'/>
   </svg>`;
+  
+  console.log(`[archClassical] Generated FULL arch: spans ${archLeft}-${archRight} horizontally, ${archTop}-${archBottom} vertically`);
+  console.log(`[archClassical] Arch covers ${((archRight - archLeft) * (archBottom - archTop)) / 10000 * 100}% of viewBox area`);
+  
+  return svgResult;
 }
 
 function archFlat({}: MaskParams = {}) {
@@ -570,7 +586,7 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
     sliceAngled: () => ({ kind: 'svg', getSvg: () => sliceAngled() }),
   },
   architectural: {
-    archClassical: () => ({ kind: 'svg', getSvg: () => archClassical() }),
+    archClassical: (params?: MaskParams) => ({ kind: 'svg', getSvg: () => archClassical(params) }),
     archFlat: () => ({ kind: 'svg', getSvg: () => archFlat() }),
     triptychArch: () => ({ kind: 'svg', getSvg: () => triptychArch() }),
     windowRect: () => ({ kind: 'svg', getSvg: () => windowRect() }),

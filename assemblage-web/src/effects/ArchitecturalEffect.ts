@@ -1,6 +1,7 @@
 import { EffectBase, EffectParams, MaskPlacement } from './EffectBase';
 import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
+import { drawImageInMask, adjustMaskProportions } from '../utils/imageScaling.js';
 
 // Update MaskPlacement type to allow polygon points and new properties
 // (If MaskPlacement is imported, we can extend it locally)
@@ -36,7 +37,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
     
     // Randomly determine if we want a larger or smaller main arch
     const mainSizeFactor = 0.7 + (Math.random() * 2 - 1) * sizeVariation;
-    const mainSize = h * mainSizeFactor;
+    const mainArchHeight = h * mainSizeFactor;
+    const mainArchWidth = mainArchHeight * 0.8; // FIXED: Use proper arch proportions
     
     // Randomly position the main arch
     const mainX = w * (0.5 + (Math.random() * 2 - 1) * positionVariation);
@@ -44,7 +46,8 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
     
     // Randomly determine if we want a larger or smaller secondary element
     const smallSizeFactor = 0.2 + (Math.random() * 2 - 1) * sizeVariation;
-    const smallSize = h * smallSizeFactor;
+    const smallArchHeight = h * smallSizeFactor;
+    const smallArchWidth = smallArchHeight * 0.8; // FIXED: Use proper arch proportions
     
     // Randomly position the secondary element
     const smallX = w * (0.8 + (Math.random() * 2 - 1) * positionVariation);
@@ -54,19 +57,19 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
     return [
       {
         maskName: validArchMasks[Math.floor(Math.random() * validArchMasks.length)],
-        x: mainX - mainSize/2,
+        x: mainX - mainArchWidth/2,
         y: mainY,
-        width: mainSize,
-        height: mainSize,
+        width: mainArchWidth,
+        height: mainArchHeight,
         rotation: 0,
         layer: 1
       },
       {
         maskName: validArchMasks[Math.floor(Math.random() * validArchMasks.length)],
-        x: smallX - smallSize/2,
-        y: smallY - smallSize/2,
-        width: smallSize,
-        height: smallSize,
+        x: smallX - smallArchWidth/2,
+        y: smallY - smallArchHeight/2,
+        width: smallArchWidth,
+        height: smallArchHeight,
         rotation: Math.random() * 360,
         layer: 2
       }
@@ -77,142 +80,161 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
   archSeries: (w, h) => {
     const placements: MaskPlacement[] = [];
     
-    // Create larger arches anchored to bottom with dynamic arrangements
+    // Create LARGE arches that fill at least 70% of canvas with dynamic arrangements
     const layoutType = Math.random();
     
     if (layoutType < 0.4) {
-      // Single large arch centered at bottom with smaller overlapping arches
-      const mainArchWidth = w * (0.7 + Math.random() * 0.25); // 70-95% width (increased from 60-80%)
-      const mainArchHeight = Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)); // Ensure at least 85% height (increased from 80%)
+      // Single large arch centered at bottom - MASSIVE SIZE
+      // FIXED: Make arches fill 90-100% of canvas height and allow horizontal bleed
+      const mainArchHeight = Math.max(h * 0.90, h * (0.90 + Math.random() * 0.10)); // 90-100% height
+      const mainArchWidth = mainArchHeight * 0.8; // Maintain proper arch ratio - can exceed canvas width
       const mainArchX = (w - mainArchWidth) / 2;
-      const mainArchY = h - mainArchHeight;
+      const mainArchY = Math.max(0, h - mainArchHeight); // Ensure top is always visible
+      
+      console.log(`[archSeries] LARGE Main arch: ${mainArchWidth.toFixed(1)}x${mainArchHeight.toFixed(1)} = ratio ${(mainArchWidth/mainArchHeight).toFixed(2)} - fills ${(mainArchHeight/h*100).toFixed(1)}% of canvas height`);
       
       placements.push({
-        maskName: 'architectural/archClassical', // Only use archClassical
+        maskName: 'architectural/archClassical',
         x: mainArchX,
         y: mainArchY,
         width: mainArchWidth,
         height: mainArchHeight,
-        rotation: 0, // No rotation for arch series
+        rotation: 0,
         layer: 1,
-        image_role: 'texture', // Use texture for background arch
+        image_role: 'texture',
         useColorBlockEcho: true,
         echoType: 'complementary',
-        useSolidColor: false // Main arch always has image (since it might be the only one)
+        useSolidColor: false
       });
       
-      // Add 1-2 smaller overlapping arches in front
+      // Add 1-2 smaller overlapping arches in front - still large
       const numOverlays = 1 + Math.floor(Math.random() * 2);
       for (let i = 0; i < numOverlays; i++) {
-        const overlayWidth = w * (0.25 + Math.random() * 0.15); // 25-40% width
-        const overlayHeight = h * (0.5 + Math.random() * 0.25); // 50-75% height
-        const overlayX = mainArchX + (mainArchWidth - overlayWidth) * (0.2 + Math.random() * 0.6);
-        const overlayY = h - overlayHeight;
+        const overlayHeight = h * (0.70 + Math.random() * 0.25); // 70-95% height (increased)
+        const overlayWidth = overlayHeight * 0.8; // No width cap - can exceed canvas
+        const overlayX = mainArchX + (mainArchWidth - overlayWidth) * (0.1 + Math.random() * 0.8);
+        const overlayY = Math.max(0, h - overlayHeight); // Ensure top is always visible
+        
+        console.log(`[archSeries] LARGE Overlay arch: ${overlayWidth.toFixed(1)}x${overlayHeight.toFixed(1)} = ratio ${(overlayWidth/overlayHeight).toFixed(2)} - fills ${(overlayHeight/h*100).toFixed(1)}% of canvas height`);
         
         placements.push({
-          maskName: 'architectural/archClassical', // Only use archClassical
+          maskName: 'architectural/archClassical',
           x: overlayX,
           y: overlayY,
           width: overlayWidth,
           height: overlayHeight,
-          rotation: 0, // No rotation for arch series
+          rotation: 0,
           layer: 2,
-          image_role: Math.random() < 0.5 ? 'narrative' : 'conceptual', // Use narrative/conceptual for foreground
+          image_role: Math.random() < 0.5 ? 'narrative' : 'conceptual',
           useColorBlockEcho: true,
           echoType: 'background',
-          useSolidColor: false // Overlay arches are topmost layer, so never solid color
+          useSolidColor: false
         });
       }
     } else if (layoutType < 0.7) {
-      // Two large arches side by side with staggered heights
-      const baseArchWidth = w * (0.4 + Math.random() * 0.15); // 40-55% each (increased from 35-45%)
-      const leftArchHeight = Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)); // Ensure at least 85% height
-      const rightArchHeight = Math.max(h * 0.75, h * (0.75 + Math.random() * 0.15)); // At least 75% height
+      // Two large arches side by side - MASSIVE SIZE
+      const leftArchHeight = Math.max(h * 0.92, h * (0.92 + Math.random() * 0.08)); // 92-100% height
+      const rightArchHeight = Math.max(h * 0.85, h * (0.85 + Math.random() * 0.15)); // 85-100% height
+      const leftArchWidth = leftArchHeight * 0.8; // No width cap - natural ratio
+      const rightArchWidth = rightArchHeight * 0.8; // No width cap - natural ratio
       
-      // Stagger the positioning
-      const leftX = w * (0.1 + Math.random() * 0.1);
-      const rightX = w * (0.5 + Math.random() * 0.1);
+      // Position with minimal spacing, allowing horizontal bleed
+      const totalWidth = leftArchWidth + rightArchWidth;
+      const spacing = Math.min(w * 0.02, 40); // Minimal spacing, max 40px
+      const leftX = (w - totalWidth - spacing) / 2;
+      const rightX = leftX + leftArchWidth + spacing;
+      
+      console.log(`[archSeries] LARGE Left arch: ${leftArchWidth.toFixed(1)}x${leftArchHeight.toFixed(1)} = ratio ${(leftArchWidth/leftArchHeight).toFixed(2)} - fills ${(leftArchHeight/h*100).toFixed(1)}% of canvas height`);
+      console.log(`[archSeries] LARGE Right arch: ${rightArchWidth.toFixed(1)}x${rightArchHeight.toFixed(1)} = ratio ${(rightArchWidth/rightArchHeight).toFixed(2)} - fills ${(rightArchHeight/h*100).toFixed(1)}% of canvas height`);
       
       placements.push({
-        maskName: 'architectural/archClassical', // Only use archClassical
+        maskName: 'architectural/archClassical',
         x: leftX,
-        y: h - leftArchHeight,
-        width: baseArchWidth,
+        y: Math.max(0, h - leftArchHeight), // Ensure top visible
+        width: leftArchWidth,
         height: leftArchHeight,
-        rotation: 0, // No rotation for arch series
+        rotation: 0,
         layer: 1,
         image_role: 'texture',
         useColorBlockEcho: true,
         echoType: 'complementary',
-        useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
+        useSolidColor: Math.random() < 0.3
       });
       
       placements.push({
-        maskName: 'architectural/archClassical', // Only use archClassical
+        maskName: 'architectural/archClassical',
         x: rightX,
-        y: h - rightArchHeight,
-        width: baseArchWidth * (0.9 + Math.random() * 0.2), // Slight size variation
+        y: Math.max(0, h - rightArchHeight), // Ensure top visible (staggered heights)
+        width: rightArchWidth,
         height: rightArchHeight,
-        rotation: 0, // No rotation for arch series
+        rotation: 0,
         layer: 1,
         image_role: 'texture',
         useColorBlockEcho: true,
         echoType: 'complementary',
-        useSolidColor: Math.random() < 0.3 // 30% chance for solid color (background arch)
+        useSolidColor: Math.random() < 0.3
       });
       
-      // Add small overlapping element
-      const smallWidth = w * (0.2 + Math.random() * 0.1);
-      const smallHeight = h * (0.3 + Math.random() * 0.2);
-      const smallX = leftX + baseArchWidth * 0.6;
+      // Add small overlapping element - still reasonably large
+      const smallHeight = h * (0.55 + Math.random() * 0.30); // 55-85% height (increased)
+      const smallWidth = smallHeight * 0.8; // Natural ratio
+      const smallX = leftX + leftArchWidth * 0.3; // Position over left arch
+      
+      console.log(`[archSeries] LARGE Small arch: ${smallWidth.toFixed(1)}x${smallHeight.toFixed(1)} = ratio ${(smallWidth/smallHeight).toFixed(2)} - fills ${(smallHeight/h*100).toFixed(1)}% of canvas height`);
       
       placements.push({
-        maskName: 'architectural/archClassical', // Only use archClassical
+        maskName: 'architectural/archClassical',
         x: smallX,
-        y: h - smallHeight,
+        y: Math.max(0, h - smallHeight), // Ensure top visible
         width: smallWidth,
         height: smallHeight,
-        rotation: 0, // No rotation for arch series
+        rotation: 0,
         layer: 2,
         image_role: 'narrative',
         useColorBlockEcho: true,
         echoType: 'background',
-        useSolidColor: false // Topmost layer, never solid color
+        useSolidColor: false
       });
     } else {
-      // Three overlapping arches with varied sizes anchored to bottom
-      const archSizes = [
-        { width: w * (0.5 + Math.random() * 0.15), height: Math.max(h * 0.85, h * (0.85 + Math.random() * 0.1)) }, // Ensure first arch is at least 85% height (increased)
-        { width: w * (0.4 + Math.random() * 0.1), height: Math.max(h * 0.7, h * (0.7 + Math.random() * 0.15)) }, // At least 70% height
-        { width: w * (0.3 + Math.random() * 0.1), height: h * (0.6 + Math.random() * 0.15) }
+      // Three overlapping arches - MASSIVE SIZE
+      const archHeights = [
+        Math.max(h * 0.95, h * (0.95 + Math.random() * 0.05)), // 95-100% height
+        Math.max(h * 0.85, h * (0.85 + Math.random() * 0.15)), // 85-100% height
+        h * (0.75 + Math.random() * 0.20) // 75-95% height
       ];
       
-      // Position them with overlap
-      let currentX = w * (0.1 + Math.random() * 0.1);
+      const archSizes = archHeights.map((height, i) => {
+        const width = height * 0.8; // Natural ratio, no width cap
+        console.log(`[archSeries] LARGE Arch ${i}: ${width.toFixed(1)}x${height.toFixed(1)} = ratio ${(width/height).toFixed(2)} - fills ${(height/h*100).toFixed(1)}% of canvas height`);
+        return { width, height };
+      });
+      
+      // Position them with overlap - center the group, allow horizontal bleed
+      const totalWidthWithOverlap = archSizes.reduce((sum, size, i) => sum + size.width * (i === 0 ? 1 : 0.5), 0);
+      let currentX = (w - totalWidthWithOverlap) / 2; // Center the group
       
       archSizes.forEach((size, i) => {
-        const archX = currentX + (i > 0 ? -size.width * 0.2 : 0); // Overlap previous arch
-        const archY = h - size.height;
+        const archX = currentX;
+        const archY = Math.max(0, h - size.height); // Ensure top visible
         
-        // Determine if this should be solid color (never for the topmost layer)
         const isTopmostLayer = (3 - i) === Math.max(...archSizes.map((_, idx) => 3 - idx));
-        const useSolidColor = !isTopmostLayer && Math.random() < 0.3; // 30% chance, but never topmost
+        const useSolidColor = !isTopmostLayer && Math.random() < 0.3;
         
         placements.push({
-          maskName: 'architectural/archClassical', // Only use archClassical
+          maskName: 'architectural/archClassical',
           x: archX,
           y: archY,
           width: size.width,
           height: size.height,
-          rotation: 0, // No rotation for arch series
-          layer: 3 - i, // Largest arch in back
+          rotation: 0,
+          layer: 3 - i,
           image_role: i === 0 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
           useColorBlockEcho: true,
           echoType: i === 0 ? 'complementary' : 'background',
           useSolidColor: useSolidColor
         });
         
-        currentX += size.width * 0.6; // Move for next arch
+        currentX += size.width * 0.5; // 50% overlap for next arch (increased overlap)
       });
     }
     
@@ -266,9 +288,9 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
         let shapeWidth, shapeHeight;
         
         if (maskName.includes('arch') || maskName.includes('gable')) {
-          // Arches and gables are taller than wide
+          // Arches and gables are taller than wide - use proper 4:5 aspect ratio
           shapeHeight = currentSize;
-          shapeWidth = shapeHeight * 0.75;
+          shapeWidth = shapeHeight * 0.8; // FIXED: Proper arch proportions (height * 0.8 = width)
         } else if (maskName.includes('diamond')) {
           // Diamonds are square-ish but slightly taller
           shapeHeight = currentSize;
@@ -317,10 +339,10 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           const maskName = shuffled[i % shuffled.length];
           let shapeWidth, shapeHeight;
           
-          // Dynamic sizing based on mask type
+          // Dynamic sizing based on mask type with proper proportions
           if (maskName.includes('arch') || maskName.includes('gable')) {
             shapeHeight = currentSize * 1.1;
-            shapeWidth = shapeHeight * 0.7;
+            shapeWidth = shapeHeight * 0.8; // FIXED: Proper arch proportions
           } else if (maskName.includes('diamond') || maskName.includes('hexagon')) {
             shapeHeight = currentSize;
             shapeWidth = currentSize * 0.9;
@@ -353,7 +375,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           
           if (maskName.includes('arch') || maskName.includes('gable')) {
             shapeHeight = currentSize;
-            shapeWidth = shapeHeight * 0.7;
+            shapeWidth = shapeHeight * 0.8; // FIXED: Proper arch proportions
           } else if (maskName.includes('triangle')) {
             shapeHeight = currentSize * 0.9;
             shapeWidth = currentSize;
@@ -390,13 +412,13 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           const maskName = shuffled[i % shuffled.length];
           let shapeWidth, shapeHeight;
           
-          // Size variations by shape type
+          // Size variations by shape type with proper proportions
           if (maskName.includes('circle')) {
             shapeHeight = currentSize;
             shapeWidth = currentSize;
           } else if (maskName.includes('arch')) {
             shapeHeight = currentSize * 1.1;
-            shapeWidth = shapeHeight * 0.65;
+            shapeWidth = shapeHeight * 0.8; // FIXED: Proper arch proportions
           } else if (maskName.includes('diamond')) {
             shapeHeight = currentSize;
             shapeWidth = currentSize * 0.8;
@@ -938,17 +960,23 @@ export class ArchitecturalEffect extends EffectBase {
 
     let plan: MaskPlacement[];
     console.log('[ArchEffect] Selecting plan for promptText:', this.params.promptText);
+    console.log('[ArchEffect] Canvas dimensions:', this.ctx.canvas.width, 'x', this.ctx.canvas.height, 'DPR:', this.params.dpr || 1);
+    
+    // FIXED: Use actual canvas pixel dimensions for all calculations
+    const canvasPixelWidth = this.ctx.canvas.width;
+    const canvasPixelHeight = this.ctx.canvas.height;
+    
     if (this.params.promptText && presets[this.params.promptText]) {
         console.log('[ArchEffect] Using preset for:', this.params.promptText);
-        plan = presets[this.params.promptText](this.ctx.canvas.width / (this.params.dpr || 1) , this.ctx.canvas.height / (this.params.dpr || 1));
+        plan = presets[this.params.promptText](canvasPixelWidth, canvasPixelHeight);
     } else if (this.params.promptText && this.architecturalPresets[this.params.promptText]) {
         console.log('[ArchEffect] Using architectural preset for:', this.params.promptText);
         const scaledPreset = this.architecturalPresets[this.params.promptText].map(p => ({
             ...p,
-            x: p.x * this.ctx.canvas.width / (this.params.dpr || 1),
-            y: p.y * this.ctx.canvas.height / (this.params.dpr || 1),
-            width: p.width * this.ctx.canvas.width / (this.params.dpr || 1),
-            height: p.height * this.ctx.canvas.height / (this.params.dpr || 1),
+            x: p.x * canvasPixelWidth,
+            y: p.y * canvasPixelHeight,
+            width: p.width * canvasPixelWidth,
+            height: p.height * canvasPixelHeight,
         }));
         plan = scaledPreset;
     }else {
@@ -1080,6 +1108,8 @@ export class ArchitecturalEffect extends EffectBase {
       this.ctx.save(); // Outer save for each placement
       try {
         let path: Path2D;
+        let maskAspectRatio = 1; // Track the original mask aspect ratio
+        
         // Get mask path
         if (polygon && polygon.length >= 3) {
           path = new Path2D();
@@ -1089,11 +1119,16 @@ export class ArchitecturalEffect extends EffectBase {
             path.lineTo((polygon[i].x - x) * 100 / maskWidth, (polygon[i].y - y) * 100 / maskHeight);
           }
           path.closePath();
+          maskAspectRatio = maskWidth / maskHeight;
         } else if (maskName.includes('/')) {
           const [family, type] = maskName.split('/');
           const maskFn = maskRegistry[family]?.[type];
           if (maskFn) {
-            let svgDesc = maskFn(); // Call the function that returns the descriptor
+            // FIXED: Let the mask registry handle its own proportions
+            // No need to override mask parameters - the registry creates proper shapes
+            let svgParams = {};
+            
+            let svgDesc = maskFn(svgParams); // Call with calculated parameters
             let svg = '';
             if (svgDesc && svgDesc.kind === 'svg' && typeof svgDesc.getSvg === 'function') {
               svg = svgDesc.getSvg(); // Call getSvg on the descriptor without arguments
@@ -1101,20 +1136,52 @@ export class ArchitecturalEffect extends EffectBase {
             const maskPathFromSvg = svgToPath2D(svg);
             path = maskPathFromSvg || new Path2D();
             if (!maskPathFromSvg) path.rect(0, 0, 100, 100);
+            
+            // The mask registry creates properly proportioned SVGs
+            maskAspectRatio = placement.width / placement.height;
+            console.log(`[ArchitecturalEffect] Using ${maskName} with placement ratio: ${maskAspectRatio.toFixed(2)} (w:${placement.width.toFixed(1)} h:${placement.height.toFixed(1)})`);
           } else {
             console.warn(`Mask not found in registry: ${maskName}, using fallback rectangle.`);
             path = new Path2D(); path.rect(0, 0, 100, 100);
+            maskAspectRatio = maskWidth / maskHeight;
           }
         } else {
            console.warn(`Mask name ${maskName} does not conform to 'family/type' format, using fallback rectangle.`);
            path = new Path2D(); path.rect(0,0,100,100);
+           maskAspectRatio = maskWidth / maskHeight;
         }
 
         // Apply transformations for the current element
-        this.ctx.translate(x + maskWidth / 2, y + maskHeight / 2); 
+        this.ctx.translate(placement.x + placement.width / 2, placement.y + placement.height / 2); 
         if (rotation) this.ctx.rotate(rotation * Math.PI / 180);
-        this.ctx.translate(-maskWidth / 2, -maskHeight / 2); 
-        this.ctx.scale(maskWidth / 100, maskHeight / 100); 
+        this.ctx.translate(-placement.width / 2, -placement.height / 2); 
+        
+        // CRITICAL FIX: Use UNIFORM scaling to prevent any distortion
+        // Calculate uniform scale that maintains proper proportions
+        const scaleX = placement.width / 100;
+        const scaleY = placement.height / 100;
+        const uniformScale = Math.min(scaleX, scaleY); // Use smaller scale to prevent stretching
+        
+        // Calculate the actual rendered size with uniform scaling
+        const renderedWidth = 100 * uniformScale;
+        const renderedHeight = 100 * uniformScale;
+        
+        // Center the uniformly scaled mask within the placement area
+        const offsetX = (placement.width - renderedWidth) / 2;
+        const offsetY = (placement.height - renderedHeight) / 2;
+        
+        // Apply the centering offset
+        this.ctx.translate(offsetX, offsetY);
+        
+        // Apply uniform scaling - this prevents any distortion
+        this.ctx.scale(uniformScale, uniformScale);
+        
+        // Use the standard mask dimensions (100x100) for image scaling
+        const effectiveWidth = 100;
+        const effectiveHeight = 100;
+        
+        console.log(`[ArchitecturalEffect] Applied UNIFORM scaling for ${maskName}: scale(${uniformScale.toFixed(2)}, ${uniformScale.toFixed(2)}) - prevents distortion`);
+        console.log(`[ArchitecturalEffect] Rendered size: ${renderedWidth.toFixed(1)}x${renderedHeight.toFixed(1)}, centered with offset: ${offsetX.toFixed(1)}, ${offsetY.toFixed(1)}`);
         
         this.ctx.clip(path); 
 
@@ -1168,10 +1235,12 @@ export class ArchitecturalEffect extends EffectBase {
         }
 
         if (useOverlapEcho || drawStandardEcho || useArchSeriesEcho) {
+          // FIXED: Draw the echo color using the mask path to match the exact shape
           this.ctx.fillStyle = echoColorToUse;
           this.ctx.globalAlpha = finalEchoOpacity;
           this.ctx.globalCompositeOperation = 'source-over';
-          this.ctx.fillRect(0, 0, 100, 100); 
+          this.ctx.fill(path); // Use the mask path to ensure perfect shape matching
+          console.log(`[ArchitecturalEffect] Drew shaped echo for ${maskName} using mask path`);
         }
 
         let imageToDraw: HTMLImageElement | undefined;
@@ -1204,33 +1273,21 @@ export class ArchitecturalEffect extends EffectBase {
         const useSolidColor = this.params.promptText === 'archSeries' && (placement as any).useSolidColor;
         
         if (useSolidColor) {
-          // Draw solid color only - use the echo color as the solid color
+          // FIXED: Draw solid color using the mask path for perfect shape matching
           this.ctx.fillStyle = echoColorToUse || this.getComplementaryColor(mainBgColorForEcho);
           this.ctx.globalAlpha = 1.0;
           this.ctx.globalCompositeOperation = 'source-over';
-          this.ctx.fillRect(0, 0, 100, 100);
-          console.log(`[ArchitecturalEffect] Drew solid color for ${maskName}: ${this.ctx.fillStyle}`);
+          this.ctx.fill(path); // Use the mask path for perfect shape matching
+          console.log(`[ArchitecturalEffect] Drew solid color for ${maskName} using mask path: ${this.ctx.fillStyle}`);
         } else if (imageToDraw && imageToDraw.complete && !(imageToDraw as any)?.isBroken) {
-          this.ctx.globalAlpha = finalImageOpacity;
-          this.ctx.globalCompositeOperation = imageBlendMode;
-
-          const imgWidth = imageToDraw.width || imageToDraw.naturalWidth;
-          const imgHeight = imageToDraw.height || imageToDraw.naturalHeight;
-          const imgRatio = imgWidth / imgHeight;
-          const targetClipWidth = 100; 
-          const targetClipHeight = 100;
-          const targetRatio = targetClipWidth / targetClipHeight;
-          let sX = 0, sY = 0, sWidth = imgWidth, sHeight = imgHeight;
-
-          if (imgRatio > targetRatio) { 
-              sWidth = imgHeight * targetRatio;
-              sX = (imgWidth - sWidth) / 2;
-          } else { 
-              sHeight = imgWidth / targetRatio;
-              sY = (imgHeight - sHeight) / 2;
-          }
-          this.ctx.drawImage(imageToDraw, sX, sY, sWidth, sHeight, 0, 0, targetClipWidth, targetClipHeight);
-          console.log(`[ArchitecturalEffect] Drawn image for ${maskName}. Opacity: ${this.ctx.globalAlpha}, Blend: ${this.ctx.globalCompositeOperation}`);
+          // FIXED: Use the standard mask dimensions for proper image scaling
+          drawImageInMask(this.ctx, imageToDraw, effectiveWidth, effectiveHeight, {
+            maskAspectRatio: maskAspectRatio,
+            opacity: finalImageOpacity,
+            blendMode: imageBlendMode
+          });
+          
+          console.log(`[ArchitecturalEffect] Drew image for ${maskName} using utility function. Mask area: ${effectiveWidth}x${effectiveHeight}, ratio: ${maskAspectRatio.toFixed(2)}, blend: ${imageBlendMode}, opacity: ${finalImageOpacity}`);
         } else {
             console.warn(`[ArchitecturalEffect] Image for mask ${maskName} not drawn${useSolidColor ? ' (using solid color instead)' : ''}.`);
         }
@@ -1244,8 +1301,9 @@ export class ArchitecturalEffect extends EffectBase {
   }
   
   public generateArchitecturalPlan(): MaskPlacement[] {
-    const canvasWidth = this.ctx.canvas.width / (this.params.dpr || 1);
-    const canvasHeight = this.ctx.canvas.height / (this.params.dpr || 1);
+    // FIXED: Use actual canvas pixel dimensions
+    const canvasWidth = this.ctx.canvas.width;
+    const canvasHeight = this.ctx.canvas.height;
 
     const numPrimary = 1 + Math.floor(Math.random() * 3);
     const placements: MaskPlacement[] = [];

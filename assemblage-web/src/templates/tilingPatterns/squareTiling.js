@@ -5,6 +5,7 @@
 
 import { svgToPath2D } from '../../core/svgUtils'; // Assuming path is correct
 import { maskRegistry } from '../../masks/maskRegistry.ts';
+import { drawImageInMask } from '../../utils/imageScaling.js';
 
 /**
  * Lighten a hex color by a given amount
@@ -185,47 +186,19 @@ export function drawSquareTile(ctx, tile, image, options = {}) {
 
 // Helper to draw the image within the tile boundaries, maintaining aspect ratio
 function drawImageInTile(ctx, image, tile, scale) {
-  const tileWidth = tile.width;
-  const tileHeight = tile.height;
-  const imageAspect = image.width / image.height;
-  const tileAspect = tileWidth / tileHeight;
+  // Save current context state
+  const savedTransform = ctx.getTransform();
   
-  // Calculate dimensions to maintain aspect ratio (cover behavior)
-  let drawWidth, drawHeight, dx, dy;
+  // Temporarily reset transform to draw image in tile coordinate space
+  ctx.setTransform(1, 0, 0, 1, tile.points[0].x, tile.points[0].y);
   
-  if (imageAspect > tileAspect) {
-    // Image is wider than tile - fit to height and crop width
-    drawHeight = tileHeight * scale;
-    drawWidth = drawHeight * imageAspect;
-    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
-    dy = tile.points[0].y;
-  } else {
-    // Image is taller than tile - fit to width and crop height
-    drawWidth = tileWidth * scale;
-    drawHeight = drawWidth / imageAspect;
-    dx = tile.points[0].x;
-    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
-  }
+  // Use the utility function for proper image scaling
+  drawImageInMask(ctx, image, tile.width, tile.height, {
+    maskAspectRatio: tile.width / tile.height,
+    opacity: 1.0, // Opacity is handled by the calling function
+    blendMode: 'source-over' // Blend mode is handled by the calling function
+  });
   
-  // Ensure minimum coverage - if scale results in gaps, increase size
-  const minWidth = tileWidth * 1.1; // 10% overflow to prevent gaps
-  const minHeight = tileHeight * 1.1;
-  
-  if (drawWidth < minWidth) {
-    const ratio = minWidth / drawWidth;
-    drawWidth = minWidth;
-    drawHeight *= ratio;
-    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
-    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
-  }
-  
-  if (drawHeight < minHeight) {
-    const ratio = minHeight / drawHeight;
-    drawHeight = minHeight;
-    drawWidth *= ratio;
-    dx = tile.points[0].x - (drawWidth - tileWidth) / 2;
-    dy = tile.points[0].y - (drawHeight - tileHeight) / 2;
-  }
-
-  ctx.drawImage(image, dx, dy, drawWidth, drawHeight);
+  // Restore previous transform
+  ctx.setTransform(savedTransform);
 }

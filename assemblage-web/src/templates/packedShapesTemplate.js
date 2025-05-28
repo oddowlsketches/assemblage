@@ -82,21 +82,89 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
     else if (rand < 0.45) sizeCategory = 'medium'; // 30% medium
     else sizeCategory = 'small';                 // 55% small
 
+    // Decide if this element should use a mask or just be unmasked first
+    const useMask = Math.random() > 0.3; // 70% chance to use a mask
+    const maskName = useMask ? getRandomMask() : null;
+    
     let width, height;
-    switch (sizeCategory) {
-      case 'large':
-        width = minDim * (0.6 + Math.random() * 0.35); // 60-95% of min dimension
-        break;
-      case 'medium':
-        width = minDim * (0.4 + Math.random() * 0.3); // 40-70%
-        break;
-      case 'small':
-      default:
-        width = minDim * (0.25 + Math.random() * 0.25); // 25-50%
-        break;
+    if (useMask && maskName) {
+      // FIXED: If using a mask, determine size based on the mask's ideal proportions
+      const [family, type] = maskName.split('/');
+      
+      // Get the ideal aspect ratio for this mask type (width/height)
+      let idealAspectRatio = 1.0; // Default to square
+      
+      if (family === 'architectural') {
+        if (type.includes('arch')) {
+          idealAspectRatio = 0.8; // 4:5 ratio for arches (width = height * 0.8)
+        } else if (type.includes('window')) {
+          idealAspectRatio = 0.8; // 4:5 ratio for windows
+        } else if (type.includes('column')) {
+          idealAspectRatio = 0.3; // Very tall for columns
+        }
+      } else if (family === 'altar') {
+        if (type.includes('arch') || type.includes('niche')) {
+          idealAspectRatio = 0.8; // 4:5 ratio for altar arches
+        }
+      } else if (family === 'basic') {
+        if (type === 'rectangleMask') {
+          idealAspectRatio = 0.7 + Math.random() * 0.6; // Vary rectangles from 0.7 to 1.3
+        } else if (type === 'ovalMask') {
+          idealAspectRatio = 0.8; // Slightly taller ovals
+        }
+        // circles, diamonds, etc. stay at 1.0
+      } else if (family === 'narrative') {
+        if (type.includes('Wide')) {
+          idealAspectRatio = 1.6; // Wide panels
+        } else if (type.includes('Tall')) {
+          idealAspectRatio = 0.6; // Tall panels
+        }
+      } else if (family === 'sliced') {
+        if (type.includes('Horizontal')) {
+          idealAspectRatio = 3.0; // Very wide slices
+        } else if (type.includes('Vertical')) {
+          idealAspectRatio = 0.33; // Very tall slices
+        }
+      }
+      
+      // Calculate size based on category and ideal aspect ratio
+      let baseSize;
+      switch (sizeCategory) {
+        case 'large':
+          baseSize = minDim * (0.6 + Math.random() * 0.35); // 60-95% of min dimension
+          break;
+        case 'medium':
+          baseSize = minDim * (0.4 + Math.random() * 0.3); // 40-70%
+          break;
+        case 'small':
+        default:
+          baseSize = minDim * (0.25 + Math.random() * 0.25); // 25-50%
+          break;
+      }
+      
+      // FIXED: Always calculate based on height as the primary dimension, then scale width
+      // This ensures arches maintain their tall, narrow proportions
+      height = baseSize;
+      width = height * idealAspectRatio;
+      
+      console.log(`[PackedShapes] Sized ${maskName}: height=${height.toFixed(1)}, width=${width.toFixed(1)}, ratio=${(width/height).toFixed(2)} (target: ${idealAspectRatio.toFixed(2)})`);
+    } else {
+      // For unmasked elements, use random aspect ratios
+      switch (sizeCategory) {
+        case 'large':
+          width = minDim * (0.6 + Math.random() * 0.35); // 60-95% of min dimension
+          break;
+        case 'medium':
+          width = minDim * (0.4 + Math.random() * 0.3); // 40-70%
+          break;
+        case 'small':
+        default:
+          width = minDim * (0.25 + Math.random() * 0.25); // 25-50%
+          break;
+      }
+      // For unmasked elements, allow random aspect ratios
+      height = width * (0.75 + Math.random() * 0.5); // height is 75% to 125% of width
     }
-    // Make shapes not always square
-    height = width * (0.75 + Math.random() * 0.5); // height is 75% to 125% of width
 
     // Position elements to better fill canvas, with overlap checking
     let x, y, attempts = 0;
@@ -136,9 +204,6 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
         y = newY;
       }
     }
-
-    // Decide if this element should use a mask or just be unmasked
-    const useMask = Math.random() > 0.3; // 70% chance to use a mask
     
     // Most elements have no rotation, only 15% get rotated
     let rotation = 0;
@@ -157,7 +222,7 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
     }
     
     elements.push({
-      maskName: useMask ? getRandomMask() : null,
+      maskName: maskName,
       x,
       y,
       width,
@@ -296,8 +361,24 @@ function renderPackedShapes(canvas, images, params = {}) {
       }
       
       if (element.maskName && maskPath) {
-        // Scale context to element dimensions for the 100x100 mask
-        ctx.scale(element.width / 100, element.height / 100);
+        // CRITICAL FIX: Use UNIFORM scaling to prevent image distortion
+        const scaleX = element.width / 100;
+        const scaleY = element.height / 100;
+        const uniformScale = Math.min(scaleX, scaleY); // Use smaller scale to prevent stretching
+        
+        // Calculate the actual rendered size with uniform scaling
+        const renderedWidth = 100 * uniformScale;
+        const renderedHeight = 100 * uniformScale;
+        
+        // Center the uniformly scaled mask within the element area
+        const offsetX = (element.width - renderedWidth) / 2;
+        const offsetY = (element.height - renderedHeight) / 2;
+        
+        // Apply the centering offset
+        ctx.translate(offsetX, offsetY);
+        
+        // Apply uniform scaling - this prevents any distortion
+        ctx.scale(uniformScale, uniformScale);
 
         // 1. Draw the color block
         ctx.fillStyle = colorBlockColor;
@@ -308,7 +389,7 @@ function renderPackedShapes(canvas, images, params = {}) {
           ctx.globalCompositeOperation = 'multiply';
           ctx.clip(maskPath); // Apply clipping AFTER color block fill
           
-          // Draw image in the 0-100 space (scaled context)
+          // Draw image in the 0-100 space (uniformly scaled context)
           const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
             aspectRatio: imageAspectRatio,
