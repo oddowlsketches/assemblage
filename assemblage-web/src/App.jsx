@@ -94,7 +94,22 @@ function MainApp() {
   const handleCollectionChange = async (e) => {
     const newCollectionId = e.target.value;
     setSelectedCollection(newCollectionId);
-    await loadImagesForCollection(newCollectionId);
+    
+    if (!serviceRef.current) return;
+    
+    setIsLoading(true);
+    try {
+      console.log(`[MainApp] Switching to collection: ${newCollectionId}`);
+      // Force reinitialize with new collection
+      await serviceRef.current.reinitialize(newCollectionId);
+      console.log(`[MainApp] Service reinitialized with ${serviceRef.current.imageMetadata.length} images`);
+      // Generate initial collage with new collection
+      await serviceRef.current.generateCollage();
+    } catch (err) {
+      console.error('Failed to switch collections:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleCreateArchitectural = () => {

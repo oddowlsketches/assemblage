@@ -36,8 +36,8 @@ export class CollageService {
 
     // Initialize images for the service
     async initialize(collectionId) {
-        if (this.isInitialized) {
-            console.log('[CollageService] Already initialized');
+        if (this.isInitialized && this.currentCollectionId === collectionId) {
+            console.log('[CollageService] Already initialized with same collection');
             return;
         }
         
@@ -52,12 +52,26 @@ export class CollageService {
             }
             
             this.isInitialized = true;
-            console.log(`[CollageService] Initialized with ${this.imageMetadata.length} images`);
+            console.log(`[CollageService] Initialized with ${this.imageMetadata.length} images for collection: ${collectionId || 'ALL'}`);
         } catch (error) {
             console.error('[CollageService] Failed to initialize:', error);
         } finally {
             this.isLoading = false;
         }
+    }
+    
+    // Force reinitialize with a new collection (clears cache)
+    async reinitialize(collectionId) {
+        console.log(`[CollageService] Reinitializing with collection: ${collectionId}`);
+        
+        // Reset state
+        this.isInitialized = false;
+        this.imageMetadata = [];
+        this.imageCache.clear();
+        this.availableImages = [];
+        
+        // Initialize with new collection
+        await this.initialize(collectionId);
     }
     
     // Load metadata from Supabase
