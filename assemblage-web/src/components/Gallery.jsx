@@ -24,6 +24,7 @@ export default function Gallery({ session, onClose }) {
     } else if (!session) {
       setLoading(false);
       setCollages([]);
+      setTotalCount(0);
       setHasLoaded(false);
     }
   }, [session?.user?.id]);
@@ -45,42 +46,54 @@ export default function Gallery({ session, onClose }) {
       const activeSortBy = customFilters.sortBy !== undefined ? customFilters.sortBy : sortBy;
       const activeSortOrder = customFilters.sortOrder !== undefined ? customFilters.sortOrder : sortOrder;
       
-      // Simplified query with retry logic
-      let query = supabase
+      // Get total count first (especially important for page 1 or when filters change)
+      if (page === 1 || resetData) {
+        let countQuery = supabase
+          .from('saved_collages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+          
+        // Apply same filters to count query
+        if (activeSearchTerm) {
+          countQuery = countQuery.ilike('title', `%${activeSearchTerm}%`);
+        }
+        
+        if (activeFilterTemplate) {
+          countQuery = countQuery.eq('template_key', activeFilterTemplate);
+        }
+        
+        const { count: totalItems, error: countError } = await countQuery;
+        
+        if (!countError) {
+          setTotalCount(totalItems || 0);
+          console.log('Total count updated to:', totalItems);
+        } else {
+          console.warn('Count query failed:', countError);
+        }
+      }
+      
+      // Now get the actual data
+      let dataQuery = supabase
         .from('saved_collages')
         .select('id, title, template_key, created_at, thumbnail_url')
         .eq('user_id', session.user.id)
         .order(activeSortBy, { ascending: activeSortOrder === 'asc' });
       
-      // Apply filters
+      // Apply filters to data query
       if (activeSearchTerm) {
-        query = query.ilike('title', `%${activeSearchTerm}%`);
+        dataQuery = dataQuery.ilike('title', `%${activeSearchTerm}%`);
       }
       
       if (activeFilterTemplate) {
-        query = query.eq('template_key', activeFilterTemplate);
+        dataQuery = dataQuery.eq('template_key', activeFilterTemplate);
       }
       
       const offset = (page - 1) * itemsPerPage;
-      query = query.range(offset, offset + itemsPerPage - 1);
+      dataQuery = dataQuery.range(offset, offset + itemsPerPage - 1);
       
-      const { data, error, count } = await query;
-      
-      // Get count separately if needed
-      if (page === 1 && !count) {
-        try {
-          const { count: totalItems } = await supabase
-            .from('saved_collages')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', session.user.id);
-          setTotalCount(totalItems || 0);
-        } catch (countError) {
-          console.warn('Count query failed, using data length:', countError);
-          setTotalCount(data?.length || 0);
-        }
-      }
+      const { data, error } = await dataQuery;
 
-      console.log('Query result:', { data, error });
+      console.log('Query result:', { data, error, page, totalItems: totalCount });
 
       if (error) {
         console.error('Supabase error loading collages:', {
@@ -90,30 +103,6 @@ export default function Gallery({ session, onClose }) {
           code: error.code
         });
         
-        // If it's a timeout, try a simpler query
-        if (error.code === '57014' || error.message.includes('timeout')) {
-          console.log('Timeout detected, trying simpler query...');
-          try {
-            const simpleQuery = await supabase
-              .from('saved_collages')
-              .select('id, title, template_key, created_at')
-              .eq('user_id', session.user.id)
-              .order('created_at', { ascending: false })
-              .limit(itemsPerPage);
-            
-            if (simpleQuery.data) {
-              setCollages(simpleQuery.data || []);
-              setTotalCount(simpleQuery.data?.length || 0);
-              console.log('Fallback query succeeded with', simpleQuery.data?.length, 'collages');
-              setHasLoaded(true);
-              setCurrentPage(page);
-              return;
-            }
-          } catch (fallbackError) {
-            console.error('Fallback query also failed:', fallbackError);
-          }
-        }
-        
         setCollages([]);
       } else {
         console.log('Successfully loaded collages:', data?.length || 0);
@@ -121,11 +110,6 @@ export default function Gallery({ session, onClose }) {
           setCollages(data || []);
         } else {
           setCollages(prev => [...prev, ...(data || [])]);
-        }
-        
-        // Update total count if we got it
-        if (page === 1 && count !== undefined) {
-          setTotalCount(count);
         }
       }
       setHasLoaded(true);

@@ -298,6 +298,61 @@ footer {
   min-width: 40px;
 }
 
+#saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Save feedback styling */
+.save-feedback {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.4);
+  font-weight: 500;
+}
+
+.gallery-link {
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-left: 0.25rem;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 0, 0, 0.4);
+  font-weight: 500;
+}
+
+.gallery-link:hover {
+  opacity: 0.8;
+  background: none;
+}
+
+/* Save spinner */
+.save-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top: 2px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.mobile-spinner {
+  width: 20px;
+  height: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Collection selector */
 .collection-selector {
   background: white;
@@ -693,6 +748,12 @@ footer {
   color: var(--text-color);
   border-color: var(--text-color);
   transform: scale(1.05);
+}
+
+.mobile-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Mobile menu button */

@@ -23,6 +23,78 @@ function MainApp() {
   const [showAuth, setShowAuth] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [saveState, setSaveState] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
+  const [isFirstSave, setIsFirstSave] = useState(false);
+  const [feedbackTextColor, setFeedbackTextColor] = useState('white');
+
+  // Utility function to calculate brightness of a color
+  const getBrightness = (color) => {
+    // Handle CSS variables by getting computed style
+    if (color.startsWith('var(')) {
+      const computedStyle = getComputedStyle(document.documentElement);
+      const variableName = color.match(/var\(([^)]+)\)/)[1];
+      color = computedStyle.getPropertyValue(variableName).trim();
+    }
+    
+    // Convert hex to RGB
+    let r, g, b;
+    if (color.startsWith('#')) {
+      const hex = color.slice(1);
+      r = parseInt(hex.substr(0, 2), 16);
+      g = parseInt(hex.substr(2, 2), 16);
+      b = parseInt(hex.substr(4, 2), 16);
+    } else if (color.startsWith('rgb')) {
+      const match = color.match(/rgb\((\d+), (\d+), (\d+)\)/);
+      if (match) {
+        r = parseInt(match[1]);
+        g = parseInt(match[2]);
+        b = parseInt(match[3]);
+      }
+    } else {
+      // Fallback for named colors - assume medium brightness
+      return 128;
+    }
+    
+    // Calculate brightness using luminance formula
+    return (r * 299 + g * 587 + b * 114) / 1000;
+  };
+
+  // Update feedback text color based on background brightness
+  const updateFeedbackTextColor = () => {
+    // Get the background color from CSS variables which change with collages
+    const rootStyle = getComputedStyle(document.documentElement);
+    const bgColor = rootStyle.getPropertyValue('--background-color').trim() || '#f5f5f5';
+    const brightness = getBrightness(bgColor);
+    
+    // If background is light (brightness > 150), use dark text
+    // Otherwise use white text
+    if (brightness > 150) {
+      setFeedbackTextColor('var(--color-mystery)'); // Dark purple from palette
+    } else {
+      setFeedbackTextColor('white');
+    }
+  };
+
+  // Watch for background color changes
+  useEffect(() => {
+    updateFeedbackTextColor();
+    
+    // Create a MutationObserver to watch for style changes
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && 
+            (mutation.attributeName === 'style' || mutation.attributeName === 'class')) {
+          updateFeedbackTextColor();
+        }
+      });
+    });
+    
+    // Observe changes to body and document element
+    observer.observe(document.body, { attributes: true, subtree: true });
+    observer.observe(document.documentElement, { attributes: true });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     let hasInitialized = false;
@@ -211,6 +283,18 @@ function MainApp() {
     
     if (!serviceRef.current) return;
     
+    // Check if this is the user's first save
+    const supabase = getSupabase();
+    const { count } = await supabase
+      .from('saved_collages')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', session.user.id);
+    
+    const isFirstSaveAttempt = count === 0;
+    setIsFirstSave(isFirstSaveAttempt);
+    
+    setSaveState('saving');
+    
     try {
       // Get the canvas data
       const dataUrl = serviceRef.current.canvas.toDataURL('image/png');
@@ -264,7 +348,6 @@ function MainApp() {
       console.log('[Save] Template info:', templateInfo);
       
       // Save to database
-      const supabase = getSupabase();
       const { data, error } = await supabase
         .from('saved_collages')
         .insert({
@@ -278,17 +361,37 @@ function MainApp() {
         
       if (error) {
         console.error('Error saving collage:', error);
-        alert('Failed to save collage');
+        setSaveState('error');
+        // Show native alert on mobile, custom message on desktop
+        if (window.innerWidth <= 768) {
+          alert('Failed to save collage');
+        }
       } else {
         console.log('[Save] Collage saved successfully with:', {
           templateKey: templateInfo.templateKey,
           paramsKeys: Object.keys(templateInfo.params || {})
         });
-        alert('Collage saved successfully!');
+        setSaveState('saved');
+        
+        // Show native success on mobile only
+        if (window.innerWidth <= 768) {
+          alert('Collage saved successfully!');
+        }
+        
+        // Auto-hide the success message after 4 seconds
+        setTimeout(() => {
+          setSaveState('idle');
+        }, 4000);
       }
     } catch (err) {
       console.error('Error saving collage:', err);
-      alert('Failed to save collage');
+      setSaveState('error');
+      if (window.innerWidth <= 768) {
+        alert('Failed to save collage');
+      }
+      setTimeout(() => {
+        setSaveState('idle');
+      }, 3000);
     }
   };
   
@@ -324,10 +427,43 @@ function MainApp() {
         </div>
         <div className="header-controls">
           <div className="action-buttons">
-            <button id="generateButton" onClick={handleShiftPerspective}>New</button>
-            <button id="saveButton" onClick={handleSave} className="save-btn">
-              {session ? <FloppyDisk size={16} weight="regular" /> : 'Sign In'}
+            {/* Save feedback message - desktop only */}
+            {saveState !== 'idle' && (
+              <div 
+                className={`save-feedback desktop-only ${saveState}`}
+                style={{ color: feedbackTextColor }}
+              >
+                {saveState === 'saving' && 'Saving...'}
+                {saveState === 'saved' && (
+                  <span>
+                    Saved! {isFirstSave && (
+                      <button 
+                        onClick={() => setShowGallery(true)}
+                        className="gallery-link"
+                        style={{ color: feedbackTextColor }}
+                      >
+                        View in My Collages
+                      </button>
+                    )}
+                  </span>
+                )}
+                {saveState === 'error' && 'Save failed'}
+              </div>
+            )}
+            
+            <button id="saveButton" onClick={handleSave} className="save-btn" disabled={saveState === 'saving'}>
+              {session ? (
+                saveState === 'saving' ? (
+                  <div className="save-spinner"></div>
+                ) : (
+                  <FloppyDisk size={16} weight="regular" />
+                )
+              ) : (
+                'Sign In'
+              )}
             </button>
+            
+            <button id="generateButton" onClick={handleShiftPerspective}>New</button>
             
             {/* Settings dropdown for admin users */}
             {isAdmin && collections.length > 1 && (
@@ -409,11 +545,19 @@ function MainApp() {
 
       {/* Mobile floating action buttons */}
       <div className="mobile-actions mobile-only">
-        <button onClick={handleSave} className="mobile-save-btn" title="Save">
-          {session ? <FloppyDisk size={20} weight="regular" /> : 'Sign In'}
-        </button>
         <button onClick={handleShiftPerspective} className="mobile-new-btn" title="New Collage">
           New
+        </button>
+        <button onClick={handleSave} className="mobile-save-btn" title="Save" disabled={saveState === 'saving'}>
+          {session ? (
+            saveState === 'saving' ? (
+              <div className="save-spinner mobile-spinner"></div>
+            ) : (
+              <FloppyDisk size={20} weight="regular" />
+            )
+          ) : (
+            'Sign In'
+          )}
         </button>
       </div>
       
