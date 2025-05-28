@@ -69,9 +69,9 @@ function MainApp() {
     setIsLoading(true);
     try {
       console.log(`[MainApp] Loading images for collection: ${collectionId}`);
-      // Load metadata for the specified collection
-      await serviceRef.current.loadImageMetadata(collectionId);
-      console.log(`[MainApp] Loaded ${serviceRef.current.imageMetadata.length} images for collection`);
+      // Initialize with the specified collection
+      await serviceRef.current.initialize(collectionId);
+      console.log(`[MainApp] Service initialized with ${serviceRef.current.imageMetadata.length} images`);
       // Generate initial collage
       await serviceRef.current.generateCollage();
     } catch (err) {

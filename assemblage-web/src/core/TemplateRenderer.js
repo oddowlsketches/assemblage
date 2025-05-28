@@ -10,7 +10,6 @@ export class TemplateRenderer {
     this.collageService = collageService;
     this.canvas = collageService.canvas;
     this.ctx = collageService.ctx;
-    this.images = collageService.images;
     
     // Initialize template handlers
     this.handlers = {};
@@ -68,12 +67,19 @@ export class TemplateRenderer {
       return;
     }
     
+    // Check if images are provided in params
+    const images = params.images || [];
+    if (images.length === 0) {
+      console.warn('[TemplateRenderer] No images provided to template – skipping render');
+      return { canvas: this.canvas, bgColor: null };
+    }
+    
     // Merge default parameters with provided parameters
-    const mergedParams = {};
+    const mergedParams = { ...params }; // Start with all provided params
     if (template.params) {
       Object.entries(template.params).forEach(([paramKey, paramDef]) => {
         if (params[paramKey] !== undefined) {
-          // Use the provided parameter value
+          // Use the provided parameter value (already in mergedParams)
           mergedParams[paramKey] = params[paramKey];
         } else if (paramDef.default !== null) {
           // Only use default if it's not null (null means "randomize")
@@ -87,20 +93,13 @@ export class TemplateRenderer {
     const handler = this.handlers[key];
     if (!handler) {
       console.error(`No handler implemented for template: ${key}`);
-      return;
-    }
-    
-    // Always use the latest images from collageService
-    const images = this.collageService.images || [];
-    if (images.length === 0) {
-      console.warn('No images loaded yet – skipping render');
-      return;
+      return { canvas: this.canvas, bgColor: null };
     }
     
     try {
       // The handler (template's generate function) now returns { canvas, bgColor }
       const result = await handler(this.canvas, images, mergedParams);
-      return result; // Pass through the object
+      return result || { canvas: this.canvas, bgColor: null }; // Ensure we always return an object
     } catch (error) {
       console.error(`Error rendering template ${key}:`, error);
       return { canvas: this.canvas, bgColor: null }; // Return default on error

@@ -1,261 +1,179 @@
-// CollageService.js
-import paper from 'paper';
-import { createClient } from '@supabase/supabase-js';
-import { IsolatedCrystalGenerator } from '../legacy/js/collage/isolatedCrystalGenerator.js';
-import { CollageGenerator } from '../legacy/js/collage/collageGenerator.js';
-import { LegacyCollageAdapter } from '../legacy/js/collage/legacyCollageAdapter.js';
-import { CrystalEffect } from '../effects/CrystalEffect.ts';
-import { ArchitecturalEffect } from '../effects/ArchitecturalEffect.ts';
-import maskImplementations from '../legacy/js/collage/maskImplementations.js';
-import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry.ts';
+// CollageService.js - Simplified Version
 import { TemplateRenderer } from './TemplateRenderer';
 import { svgToPath2D } from './svgUtils.js';
 import { EventEmitter } from '../utils/EventEmitter.ts';
-import { getRandomTemplate } from '../templates/templateManager.ts';
+import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry.ts';
 import { getSupabase, getImageUrl } from '../supabaseClient';
 
 export class CollageService {
     constructor(canvas, options = {}) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
-        this.images = [];
-        this.isLoadingImages = false;
-        this.imagesAttemptedToLoad = 0;
-        this.imagesSuccessfullyLoaded = 0;
-        this.currentEffect = null;
-        this.currentEffectName = null;
-        this.crystalVariant = 'standard';
-        this.paperProject = null;
-        this.paperView = null;
-        this.masks = maskImplementations;
-        this.supabaseClient = null;
+        this.supabaseClient = options.supabaseClient || getSupabase();
         
-        // Lazy loading configuration
-        this.imageMetadata = []; // Store metadata without loading images
-        this.imageCache = new Map(); // Cache loaded images by ID
-        this.maxCacheSize = 50; // Maximum images to keep in cache
-        this.placeholderImages = []; // Placeholder for development
-        this.currentCollectionId = null; // Track current collection filter
-
-        this.options = options;
+        // Simplified image management
+        this.imageMetadata = []; // Metadata from DB
+        this.imageCache = new Map(); // Loaded images cache
+        this.availableImages = []; // Current working set of images
+        this.currentCollectionId = null;
+        
+        // Loading states
+        this.isInitialized = false;
+        this.isLoading = false;
+        this.isRendering = false;
+        
+        // Configuration
+        this.maxCacheSize = 50;
+        this.isDevelopment = import.meta.env.MODE === 'development';
+        
+        // Events and rendering
         this.events = new EventEmitter();
-        
-        if (options.supabaseClient) {
-            this.supabaseClient = options.supabaseClient;
-            console.log('[CollageService] Using provided Supabase client instance.');
-        } else {
-            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-            if (supabaseUrl && supabaseAnonKey) {
-                this.supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
-                console.log('[CollageService] Created new Supabase client instance (fallback).');
-            } else {
-                console.error('[CollageService] Supabase URL or Anon Key is missing.');
-            }
-        }
-        
-        this.generator = new CollageGenerator(this.canvas, { verbose: false });
-        
         this.templateRenderer = new TemplateRenderer(this);
         
-        this.parameters = {
-            cleanTiling: false,
-        };
+        console.log('[CollageService] Initialized', { isDevelopment: this.isDevelopment });
+
     }
 
-    // Load only image metadata (not the actual images)
-    async loadImageMetadata(collectionId) {
-        if (!this.supabaseClient) {
-            console.error('[CollageService] Supabase client not initialized.');
+    // Initialize images for the service
+    async initialize(collectionId) {
+        if (this.isInitialized) {
+            console.log('[CollageService] Already initialized');
             return;
         }
-
-        // Store the current collection ID for future reference
+        
+        this.isLoading = true;
         this.currentCollectionId = collectionId || null;
-        console.log(`[CollageService] loadImageMetadata called with collectionId: ${collectionId}`);
-        console.log(`[CollageService] Supabase URL: ${import.meta.env.VITE_SUPABASE_URL}`);
-        console.log(`[CollageService] Supabase Key exists: ${!!import.meta.env.VITE_SUPABASE_ANON_KEY}`);
-
+        
         try {
-            let query = this.supabaseClient
-                .from('images')
-                .select('id, src, image_role, collection_id, is_black_and_white')
-                .order('created_at', { ascending: false });
-                
-            if (collectionId) {
-                console.log(`[CollageService] Filtering by collection_id: ${collectionId}`);
-                console.log(`[CollageService] Collection ID type: ${typeof collectionId}`);
-                query = query.eq('collection_id', collectionId);
+            if (this.isDevelopment) {
+                await this.setupDevelopmentImages();
             } else {
-                console.log(`[CollageService] Loading ALL images (no collection filter)`);
+                await this.loadImageMetadata(collectionId);
             }
             
-            console.log(`[CollageService] About to execute query...`);
-            const { data: rows, error } = await query;
-            console.log(`[CollageService] Query completed. Error:`, error, 'Data length:', rows?.length);
-
-            if (error) {
-                console.error('[CollageService] Error fetching image metadata:', error);
-                console.error('[CollageService] Error details:', JSON.stringify(error, null, 2));
-                
-                // Try fallback query without collection filter if the filtered query failed
-                if (collectionId) {
-                    console.log('[CollageService] Trying fallback query without collection filter...');
-                    try {
-                        const fallbackQuery = this.supabaseClient
-                            .from('images')
-                            .select('id, src, image_role, collection_id, is_black_and_white')
-                            .order('created_at', { ascending: false });
-                        const { data: fallbackRows, error: fallbackError } = await fallbackQuery;
-                        
-                        if (fallbackError) {
-                            console.error('[CollageService] Fallback query also failed:', fallbackError);
-                            return;
-                        }
-                        
-                        console.log(`[CollageService] Fallback query succeeded, got ${fallbackRows?.length || 0} total images`);
-                        this.imageMetadata = fallbackRows || [];
-                        return; // Exit early since fallback worked
-                    } catch (fallbackE) {
-                        console.error('[CollageService] Fallback query threw error:', fallbackE);
-                    }
-                }
-                return;
-            }
-
-            this.imageMetadata = rows || [];
-            console.log(`[CollageService] Loaded metadata for ${this.imageMetadata.length} images for collection: ${collectionId || 'ALL'}`);
-            
-            if (this.imageMetadata.length === 0 && import.meta.env.MODE === 'development') {
-                console.log('[CollageService] No metadata found, creating dummy entries for development');
-                this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
-                    id: `dummy-${i}`,
-                    src: `dummy-${i}.jpg`,
-                    image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
-                    is_black_and_white: true // Always B&W in dev mode for consistent testing
-                }));
-            }
-        } catch (e) {
-            console.error('[CollageService] Error loading image metadata:', e);
-            console.error('[CollageService] Error stack:', e.stack);
-            
-            if (import.meta.env.MODE === 'development') {
-                console.log('[CollageService] Creating dummy metadata for development');
-                this.imageMetadata = Array.from({ length: 50 }, (_, i) => ({
-                    id: `dummy-${i}`,
-                    src: `dummy-${i}.jpg`,
-                    image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
-                    is_black_and_white: true // Always B&W in dev mode for consistent testing
-                }));
-            }
+            this.isInitialized = true;
+            console.log(`[CollageService] Initialized with ${this.imageMetadata.length} images`);
+        } catch (error) {
+            console.error('[CollageService] Failed to initialize:', error);
+        } finally {
+            this.isLoading = false;
         }
     }
-
-    // Lazy load specific images by IDs
-    async loadImagesByIds(imageIds) {
-        if (import.meta.env.MODE === 'development') {
-            if (!this.placeholderImages || this.placeholderImages.length === 0) {
-                console.warn('[CollageService] Placeholder images array is empty in loadImagesByIds. Attempting to load.');
-                await this.loadPlaceholder();
-            }
-            
-            const validPlaceholders = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
-            
-            if (validPlaceholders.length === 0) {
-                console.warn('[CollageService] No valid placeholder images available after filtering in loadImagesByIds. Returning empty array.');
-                return [];
-            }
-            
-            return imageIds.map((id, idx) => {
-                const placeholder = validPlaceholders[idx % validPlaceholders.length];
-                if (placeholder) {
-                    const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
-                    placeholder.image_role = dummyMeta?.image_role || (Math.random() < 0.3 ? 'texture' : 'conceptual');
-                    placeholder.is_black_and_white = dummyMeta?.is_black_and_white ?? true; // Default to B&W for consistency with production
-                }
-                return placeholder;
-            });
+    
+    // Load metadata from Supabase
+    async loadImageMetadata(collectionId) {
+        if (!this.supabaseClient) {
+            throw new Error('Supabase client not available');
         }
         
+        let query = this.supabaseClient
+            .from('images')
+            .select('id, src, image_role, collection_id, is_black_and_white')
+            .order('created_at', { ascending: false });
+            
+        if (collectionId) {
+            query = query.eq('collection_id', collectionId);
+        }
+        
+        const { data: rows, error } = await query;
+        
+        if (error) {
+            console.error('[CollageService] Database error:', error);
+            throw error;
+        }
+        
+        this.imageMetadata = rows || [];
+        console.log(`[CollageService] Loaded ${this.imageMetadata.length} image records`);
+    }
+    
+    // Setup placeholder images for development
+    async setupDevelopmentImages() {
+        // Create dummy metadata
+        this.imageMetadata = Array.from({ length: 20 }, (_, i) => ({
+            id: `dummy-${i}`,
+            src: `placeholder${i + 1}.png`,
+            image_role: Math.random() < 0.3 ? 'texture' : (Math.random() < 0.5 ? 'narrative' : 'conceptual'),
+            is_black_and_white: true
+        }));
+        
+        // Load placeholder images
+        const loadPromise = Promise.all(
+            Array.from({ length: 20 }, (_, i) => {
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.src = `/images/collages/placeholder${i + 1}.png`;
+                    img.onload = () => {
+                        img.image_role = Math.random() < 0.3 ? 'texture' : 'conceptual';
+                        img.is_black_and_white = true;
+                        resolve(img);
+                    };
+                    img.onerror = () => resolve(null);
+                });
+            })
+        );
+        
+        const images = await loadPromise;
+        this.availableImages = images.filter(img => img !== null);
+        console.log(`[CollageService] Loaded ${this.availableImages.length} development images`);
+    }
+
+    // Load specific images for rendering
+    async loadImagesForRender(count = 10) {
+        if (this.isDevelopment) {
+            // Return development images
+            return this.availableImages.slice(0, Math.min(count, this.availableImages.length));
+        }
+        
+        // Get random image IDs from metadata
+        const imageIds = this.getRandomImageIds(count);
+        
+        // Check cache first
+        const cachedImages = imageIds.map(id => this.imageCache.get(id)).filter(img => img);
+        
+        if (cachedImages.length >= count) {
+            return cachedImages.slice(0, count);
+        }
+        
+        // Load missing images
         const imagesToLoad = imageIds.filter(id => !this.imageCache.has(id));
+        const loadPromises = imagesToLoad.map(id => this.loadSingleImage(id));
         
-        if (imagesToLoad.length === 0) {
-            return Array.from(imageIds).map(id => this.imageCache.get(id)).filter(img => img);
-        }
-
-        const loadPromises = imagesToLoad.map(async (id) => {
-            const metadata = this.imageMetadata.find(m => m.id === id);
-            if (!metadata || !metadata.src) return null;
-
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = getImageUrl(metadata.src);
-                img.dataset.supabaseSrc = metadata.src;
-                img.dataset.imageId = id;
-                img.image_role = metadata.image_role || 'unknown';
-                img.is_black_and_white = metadata.is_black_and_white;
-                
-                img.onload = () => {
-                    this.addToCache(id, img);
-                    resolve(img);
-                };
-                img.onerror = () => {
-                    console.warn(`[CollageService] Failed to load image ${id}`);
-                    resolve(null);
-                };
-            });
+        const newImages = await Promise.all(loadPromises);
+        const validNewImages = newImages.filter(img => img !== null);
+        
+        // Add to cache
+        validNewImages.forEach((img, idx) => {
+            const id = imagesToLoad[idx];
+            this.addToCache(id, img);
         });
-
-        await Promise.all(loadPromises);
-        return Array.from(imageIds).map(id => this.imageCache.get(id)).filter(img => img);
-    }
-
-    // Load placeholder image for development
-    async loadPlaceholder() {
-        if (this.placeholderImages && this.placeholderImages.length === 20 && this.placeholderImages.every(img => img instanceof Image)) {
-            // If already loaded and all are Image instances, check completion and broken status
-            const allCompleteAndNotBroken = this.placeholderImages.every(img => img.complete && !img.isBroken);
-            if (allCompleteAndNotBroken && this.placeholderImages.filter(img => img.complete && !img.isBroken).length > 0) {
-                 console.log('[CollageService] Placeholder images already loaded and valid.');
-                 return true;
-            }
-            // If some are broken or not complete, attempt to reload them or re-verify
-            console.log('[CollageService] Placeholder array exists, but some may be invalid. Re-checking/loading.');
-        }
         
-        this.placeholderImages = Array(20).fill(null);
-        let loadedCount = 0;
-        let errorCount = 0;
-        const promises = [];
-
-        for (let i = 0; i < 20; i++) {
-            const promise = new Promise((resolveIteration) => {
-                const img = new Image();
-                img.isBroken = false; 
-                img.src = `/images/collages/placeholder${i + 1}.png`;
-                this.placeholderImages[i] = img;
-
-                img.onload = () => {
-                    loadedCount++;
-                    resolveIteration(true);
-                };
-                img.onerror = () => {
-                    errorCount++;
-                    img.isBroken = true; // Mark as broken
-                    console.warn(`[CollageService] Failed to load placeholder${i + 1}.png`);
-                    resolveIteration(false);
-                };
-            });
-            promises.push(promise);
-        }
-
-        return Promise.all(promises).then(results => {
-            console.log(`[CollageService] All placeholder images processed. Loaded: ${loadedCount}, Errored: ${errorCount}`);
-            // Resolve true if at least one image loaded successfully
-            return loadedCount > 0;
+        // Return combined cached + new images
+        const allImages = [...cachedImages, ...validNewImages];
+        return allImages.slice(0, count);
+    }
+    
+    // Load a single image by ID
+    async loadSingleImage(id) {
+        const metadata = this.imageMetadata.find(m => m.id === id);
+        if (!metadata || !metadata.src) return null;
+        
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.src = getImageUrl(metadata.src);
+            img.dataset.imageId = id;
+            img.image_role = metadata.image_role || 'unknown';
+            img.is_black_and_white = metadata.is_black_and_white;
+            
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+                console.warn(`[CollageService] Failed to load image ${id}`);
+                resolve(null);
+            };
         });
     }
+
+
 
     // Add image to cache with LRU eviction
     addToCache(id, image) {
@@ -275,38 +193,7 @@ export class CollageService {
         return shuffled.slice(0, Math.min(count, this.imageMetadata.length)).map(m => m.id);
     }
 
-    initializePaper() {
-        if (this.canvas) {
-            paper.setup(this.canvas);
-            this.paperProject = paper.project;
-            this.paperView = paper.view;
-            
-            this.paperView.onFrame = () => {
-                // Animation frame callback if needed
-            };
-            
-            window.addEventListener('resize', () => {
-                this.paperView.viewSize = new paper.Size(
-                    this.canvas.width / this.devicePixelRatio,
-                    this.canvas.height / this.devicePixelRatio
-                );
-            });
-        }
-    }
 
-    createPaperProject(canvas) {
-        if (!canvas) return null;
-        
-        const project = new paper.Project();
-        
-        const view = new paper.View(canvas);
-        view.viewSize = new paper.Size(
-            canvas.width / this.devicePixelRatio,
-            canvas.height / this.devicePixelRatio
-        );
-        
-        return { project, view };
-    }
 
     setCanvas(canvas) {
         this.canvas = canvas;
@@ -355,310 +242,107 @@ export class CollageService {
         });
     }
 
-    async loadImages(collectionId) {
-        if (!this.supabaseClient) {
-            console.error('[CollageService] Supabase client not initialized. Cannot load images.');
-            this.events.emit('imagesLoadError', { type: 'client_missing' });
-            return;
-        }
-        if (this.isLoadingImages) {
-            console.warn('[CollageService] Image load already in progress.');
-            this.events.emit('imagesLoadingAlreadyInProgress');
-            return;
-        }
 
-        this.isLoadingImages = true;
-        this.images = [];
-        this.imagesSuccessfullyLoaded = 0;
-        let imagesErrored = 0;
-        this.events.emit('imagesLoadingStart');
-
-        try {
-            let query = this.supabaseClient
-                .from('images')
-                .select('id, src, collection_id, is_black_and_white')
-                .order('created_at', { ascending: false });
-            if (collectionId) query = query.eq('collection_id', collectionId);
-            const { data: rows, error } = await query;
-
-            if (error) {
-                console.error('[CollageService] Supabase error fetching image list:', error);
-                this.events.emit('imagesLoadError', { type: 'list_fetch', error });
-                this.isLoadingImages = false;
-                return;
-            }
-
-            if (!rows || rows.length === 0) {
-                console.warn('[CollageService] No images found in Supabase.');
-                this.isLoadingImages = false;
-                this.events.emit('imagesLoaded', this.images);
-                return;
-            }
-
-            const totalToAttempt = rows.filter(r => r.src).length;
-            this.imagesAttemptedToLoad = totalToAttempt;
-            let imagesProcessed = 0;
-
-            if (totalToAttempt === 0) {
-                this.isLoadingImages = false;
-                this.events.emit('imagesLoaded', this.images);
-                console.log('[CollageService] Image loading complete (no valid image sources to load).');
-                return;
-            }
-
-            rows.forEach(r => {
-                if (!r.src) return;
-
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.src = getImageUrl(r.src);
-                img.dataset.supabaseSrc = r.src;
-                img.dataset.imageId = r.id;
-                img.is_black_and_white = r.is_black_and_white;
-                
-                const onDone = () => {
-                    imagesProcessed++;
-                    if (imagesProcessed === totalToAttempt) {
-                        this.isLoadingImages = false;
-                        this.events.emit('imagesLoaded', this.images);
-                        console.log(`[CollageService] Image loading complete. Successfully loaded: ${this.imagesSuccessfullyLoaded}/${totalToAttempt}. Errored: ${imagesErrored}.`);
-                    }
-                };
-
-                img.onload = () => {
-                    this.images.push(img);
-                    this.imagesSuccessfullyLoaded++;
-                    if (this.generator) this.generator.images = this.images;
-                    this.events.emit('imageLoaded', { loaded: this.imagesSuccessfullyLoaded, total: totalToAttempt });
-                    onDone();
-                };
-                img.onerror = (e) => {
-                    console.warn(`[CollageService] Failed to load ${r.src}`, e);
-                    this.events.emit('imageLoadError', { src: r.src, error: e });
-                    imagesErrored++;
-                    onDone();
-                };
-            });
-        } catch (e) {
-            console.error('[CollageService] General error in loadImages function:', e);
-            this.events.emit('imagesLoadError', { type: 'general_catch', error: e });
-            this.isLoadingImages = false;
-        }
-    }
 
     setEffect(effectName) {
         this.currentEffectName = effectName;
-        this.generator.currentEffect = effectName;
-        
         console.log('[CollageService] Setting effect to:', effectName);
-    }
-
-    setCrystalVariant(variant) {
-        this.crystalVariant = variant;
     }
 
     async generateCollage(userPrompt = '') {
         if (!this.canvas) {
-            console.warn('Cannot generate collage: canvas not available');
+            console.warn('[CollageService] Cannot generate collage: canvas not available');
             return;
         }
         
-        // Load metadata if not already loaded and not in development (dev uses placeholders)
-        if (this.imageMetadata.length === 0 && import.meta.env.MODE !== 'development') {
-            console.log('[CollageService] Loading image metadata...');
-            await this.loadImageMetadata(this.currentCollectionId);
-            // If still no metadata, and not in dev, we might have an issue fetching from Supabase
-            // For now, we'll let it try to proceed, image loading might fail later.
-            // Or, decide if we should fallback to old full loadImages() here.
-            if (this.imageMetadata.length === 0) {
-                 console.warn('[CollageService] Image metadata is empty after attempting to load (and not in dev mode).');
-            }
+        // Ensure we're initialized
+        if (!this.isInitialized) {
+            console.log('[CollageService] Not initialized, initializing now...');
+            await this.initialize(this.currentCollectionId);
         }
-
-        // In development, ensure placeholders are loaded and valid
-        if (import.meta.env.MODE === 'development') {
-            const placeholdersReady = await this.loadPlaceholder(); // Ensures placeholders are attempted to load
-            if (!placeholdersReady || this.placeholderImages.filter(img => img && img.complete && !img.isBroken).length === 0) {
-                console.error('[CollageService] No valid placeholder images available. Cannot generate collage.');
-                this.isRendering = false;
-                this.events.emit('renderEnd', { success: false, error: 'No valid placeholders' });
-                return;
-            }
-            this.images = this.placeholderImages.filter(img => img && img.complete && !img.isBroken);
-            
-            // Add metadata to placeholder images for development
-            this.images.forEach((img, idx) => {
-                const dummyMeta = this.imageMetadata.find(m => m.id === `dummy-${idx % this.imageMetadata.filter(m => m.id.startsWith('dummy-')).length}`);
-                img.image_role = dummyMeta?.image_role || (Math.random() < 0.3 ? 'texture' : 'conceptual');
-                img.is_black_and_white = dummyMeta?.is_black_and_white ?? true; // Use metadata or default to B&W
-            });
-            
-            if (this.images.length === 0) { // Double check after filter
-                console.error('[CollageService] Filtering placeholders resulted in an empty image list. Cannot generate.');
-                this.isRendering = false;
-                this.events.emit('renderEnd', { success: false, error: 'No valid placeholders after filter' });
-                return;
-            }
-        }
-
-
+        
         if (this.isRendering) {
             console.warn('[CollageService] Render already in progress. Skipping.');
             return;
         }
+        
         this.isRendering = true;
         this.events.emit('renderStart');
-
-        let selectedTemplate;
-        if (this.currentEffectName) {
-            selectedTemplate = this.templateRenderer.getTemplate(this.currentEffectName);
-            if (!selectedTemplate) {
-                 console.warn(`[CollageService] No template found for effect: ${this.currentEffectName}. Falling back to random.`);
-                 selectedTemplate = this.templateRenderer.getRandomTemplate();
-            }
-        } else {
-            selectedTemplate = this.templateRenderer.getRandomTemplate();
-        }
-
-        if (!selectedTemplate || !selectedTemplate.key) {
-            console.error("[CollageService] Failed to get a valid template or template has no key.");
-            this.isRendering = false;
-            this.events.emit('renderEnd', { success: false, error: 'No valid template' });
-            return;
-        }
         
-        const templateKey = selectedTemplate.key;
-        console.log(`[CollageService] Using template: ${templateKey}`);
-
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-
-        let numImagesNeeded = 3; // Default
-        if (selectedTemplate.params && selectedTemplate.params.imageCount && selectedTemplate.params.imageCount.default) {
-            numImagesNeeded = selectedTemplate.params.imageCount.default;
-        } else if (templateKey === 'crystalEffect' || templateKey === 'dynamicArchitectural') { // Note: crystalEffect key might be 'crystal'
-            numImagesNeeded = 5 + Math.floor(Math.random() * 4); 
-        } else if (templateKey === 'tilingTemplate') {
-            numImagesNeeded = 10 + Math.floor(Math.random() * 11); 
-        }
-
-
-        // Load images via IDs if NOT in dev mode (dev mode uses placeholders assigned above)
-        if (import.meta.env.MODE !== 'development') {
-            const imageIdsToLoad = this.getRandomImageIds(numImagesNeeded);
-            const currentImages = await this.loadImagesByIds(imageIdsToLoad);
-
-            if (!currentImages || currentImages.length === 0) {
-                // If specific images failed, and we have globally loaded images (from an old full load), use them.
-                // This an old fallback, ideally loadImagesByIds should be robust or imageMetadata sufficient.
-                if(this.images && this.images.length > 0) { 
-                     console.warn('[CollageService] No specific images loaded for template, using existing general pool (if any).');
-                } else {
-                    console.error('[CollageService] No images available (neither specific IDs nor general pool). Cannot render.');
-                    this.isRendering = false;
-                    this.events.emit('renderEnd', { success: false, error: 'No images for template' });
-                    return;
-                }
-            } else {
-                 this.images = currentImages.filter(img => img && img.complete && !img.isBroken); // Ensure only valid images
-                 if (this.images.length === 0) {
-                    console.error('[CollageService] No valid images after filtering loaded-by-ID images. Cannot render.');
-                    this.isRendering = false;
-                    this.events.emit('renderEnd', { success: false, error: 'No valid images after ID load and filter' });
-                    return;
-                 }
-            }
-        }
-        
-        // Ensure the generator (if used by a template directly, less common now) has the latest images
-        if (this.generator) {
-          this.generator.images = this.images;
-        }
-
         try {
-            // Ensure this.images passed to renderTemplate are valid
-            if (!this.images || this.images.length === 0 || this.images.every(img => !img || img.isBroken || !img.complete)) {
-                console.error(`[CollageService] No valid images to send to template ${templateKey}. Aborting render.`);
-                this.events.emit('renderEnd', { success: false, error: 'No valid images for rendering', templateKey });
-                this.isRendering = false;
-                return;
+            // Select template
+            const selectedTemplate = this.currentEffectName 
+                ? this.templateRenderer.getTemplate(this.currentEffectName) || this.templateRenderer.getRandomTemplate()
+                : this.templateRenderer.getRandomTemplate();
+                
+            if (!selectedTemplate?.key) {
+                throw new Error('No valid template available');
             }
             
-            // Generate random parameters for the template if using the "New" button functionality
-            let templateParams = { userPrompt, images: this.images };
+            const templateKey = selectedTemplate.key;
+            console.log(`[CollageService] Using template: ${templateKey}`);
             
-            // Import parameter generators from templateManager
-            if (templateKey === 'dynamicArchitectural') {
-                // Use the random parameter generator from templateManager
-                const { generators } = await import('../templates/templateManager');
-                if (generators && generators.dynamicArchitectural) {
-                    const randomParams = generators.dynamicArchitectural();
-                    templateParams = { ...templateParams, ...randomParams };
-                    console.log(`[CollageService] Using random parameters for ${templateKey}:`, randomParams);
-                }
+            // Determine how many images we need
+            const numImagesNeeded = this.getImageCountForTemplate(selectedTemplate);
+            
+            // Load images for rendering
+            const images = await this.loadImagesForRender(numImagesNeeded);
+            
+            if (!images || images.length === 0) {
+                throw new Error('No images available for rendering');
             }
             
+            console.log(`[CollageService] Loaded ${images.length} images for template`);
+            
+            // Clear canvas
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            
+            // Prepare template parameters
+            const templateParams = { userPrompt, images };
+            
+            // Render the template
             const renderOutput = await this.templateRenderer.renderTemplate(templateKey, templateParams);
             
-            if (renderOutput && renderOutput.bgColor) {
-                console.log(`[CollageService] Finished rendering template: ${templateKey}. BG: ${renderOutput.bgColor}`);
-                this.updateUIColors(renderOutput.bgColor); 
-            } else {
-                console.warn(`[CollageService] Template ${templateKey} did not return a bgColor. UI colors not updated dynamically.`);
-                this.updateUIColors(this.getBackgroundColor()); 
+            // Update UI colors if background color was returned
+            if (renderOutput?.bgColor) {
+                this.updateUIColors(renderOutput.bgColor);
             }
+            
             this.events.emit('renderEnd', { success: true, templateKey });
+            console.log(`[CollageService] Successfully rendered ${templateKey}`);
+            
         } catch (error) {
-            console.error(`[CollageService] Error during template rendering (${templateKey}):`, error);
-            this.events.emit('renderEnd', { success: false, error: error.message, templateKey });
+            console.error('[CollageService] Error generating collage:', error);
+            this.events.emit('renderEnd', { success: false, error: error.message });
         } finally {
             this.isRendering = false;
         }
     }
-
-    // Estimate how many images a template needs
-    estimateImageCount(templateType, params) {
-        switch (templateType) {
+    
+    // Helper method to determine image count for a template
+    getImageCountForTemplate(template) {
+        if (template.params?.imageCount?.default) {
+            return template.params.imageCount.default;
+        }
+        
+        // Default counts based on template type
+        const templateKey = template.key;
+        switch (templateKey) {
             case 'crystal':
-                return params.crystalCount || 20;
-            case 'tiling':
-                return params.tileCount || 20;
-            case 'scrambledMosaic':
-                const gridSize = params.gridSize || 6;
-                return gridSize * gridSize;
-            case 'sliced':
-                return params.sliceBehavior === 'single-image' ? 1 : 10;
-            case 'pairedForms':
-                return params.formCount || 3;
             case 'dynamicArchitectural':
-                return params.imageMode === 'single' ? 1 : 8;
+                return 5 + Math.floor(Math.random() * 4); // 5-8 images
+            case 'tilingTemplate':
+                return 10 + Math.floor(Math.random() * 11); // 10-20 images
+            case 'scrambledMosaic':
+                return 8 + Math.floor(Math.random() * 8); // 8-15 images
             default:
-                return 20; // Default fallback
+                return 6; // Default
         }
     }
 
-    async applyCrystalEffect() {
-        if (this.images.length === 0 && !this.isLoadingImages) {
-            console.log('[CollageService] Images not loaded. Attempting to load images before applying crystal effect...');
-            await this.loadImages();
-            if (this.images.length === 0) {
-                console.warn('Cannot apply crystal effect: images still not available after load attempt.');
-                return;
-            }
-        } else if (this.isLoadingImages) {
-            console.warn('Cannot apply crystal effect: images are currently loading. Try again shortly.');
-            return;
-        }
-        try {
-            if (this.crystalVariant === 'isolated') {
-                await this.crystalGenerator.generateCrystalField(this.images);
-            } else {
-                this.crystalEffect = new CrystalEffect(this.ctx, this.images, { variant: 'standard' });
-                this.crystalEffect.draw();
-            }
-        } catch (error) {
-            console.error('Error applying crystal effect:', error);
-        }
-    }
+
+
+
 
     shiftPerspective(userPrompt = '') {
         if (!this.ctx) return;
@@ -965,17 +649,6 @@ export class CollageService {
     }
 
     async renderTemplate(key, params) {
-        if (this.images.length === 0 && !this.isLoadingImages) {
-            console.log('[CollageService] Images not loaded. Attempting to load images before rendering template...');
-            await this.loadImages();
-            if (this.images.length === 0) {
-                console.warn('Cannot draw template: images still not available after load attempt.');
-                return;
-            }
-        } else if (this.isLoadingImages) {
-            console.warn('Cannot draw template: images are currently loading. Try again shortly.');
-            return;
-        }
         return this.templateRenderer.renderTemplate(key, params);
     }
     
