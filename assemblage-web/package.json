@@ -21,6 +21,7 @@
     "express": "^5.1.0",
     "openai": "^4.98.0",
     "paper": "^0.12.18",
+    "phosphor-react": "^1.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.30.0",

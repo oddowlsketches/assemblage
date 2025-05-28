@@ -3,8 +3,15 @@ import { getSupabase } from './useSupabase';
 
 const supa = getSupabase();
 
+// Default collection ID that all users can access
+const DEFAULT_COLLECTION_ID = '215c3f9e-70ff-45e5-95e4-413565b38b0f';
+
 const fetcher = async () => {
-  const { data, error } = await supa.from('images').select('*');
+  // Only fetch images from the default collection for all users
+  const { data, error } = await supa
+    .from('images')
+    .select('*')
+    .eq('collection_id', DEFAULT_COLLECTION_ID);
   if (error) throw error;
   return data;
 };
@@ -16,4 +23,7 @@ export function useImages() {
   return { images: data || [], error, isLoading, mutate };
 }
 
-// TODO: export useTemplates, useMasks once tables exist 
+// Export the default collection ID for use in other components
+export const getDefaultCollectionId = () => DEFAULT_COLLECTION_ID;
+
+// TODO: export useTemplates, useMasks once tables exist

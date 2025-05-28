@@ -4,6 +4,7 @@ import { svgToPath2D } from './svgUtils.js';
 import { EventEmitter } from '../utils/EventEmitter.ts';
 import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry.ts';
 import { getSupabase, getImageUrl } from '../supabaseClient';
+import { getDefaultCollectionId } from '../hooks/useImages';
 
 export class CollageService {
     constructor(canvas, options = {}) {
@@ -37,26 +38,34 @@ export class CollageService {
         console.log('[CollageService] Initialized', { isDevelopment: this.isDevelopment });
 
     }
+    
+    // Helper method to normalize collection ID
+    normalizeCollectionId(collectionId) {
+        // If no collection ID provided, use the default
+        return collectionId || getDefaultCollectionId();
+    }
 
     // Initialize images for the service
     async initialize(collectionId) {
-        if (this.isInitialized && this.currentCollectionId === collectionId) {
+        const normalizedCollectionId = this.normalizeCollectionId(collectionId);
+        
+        if (this.isInitialized && this.currentCollectionId === normalizedCollectionId) {
             console.log('[CollageService] Already initialized with same collection');
             return;
         }
         
         this.isLoading = true;
-        this.currentCollectionId = collectionId || null;
+        this.currentCollectionId = normalizedCollectionId;
         
         try {
             if (this.isDevelopment) {
                 await this.setupDevelopmentImages();
             } else {
-                await this.loadImageMetadata(collectionId);
+                await this.loadImageMetadata(normalizedCollectionId);
             }
             
             this.isInitialized = true;
-            console.log(`[CollageService] Initialized with ${this.imageMetadata.length} images for collection: ${collectionId || 'ALL'}`);
+            console.log(`[CollageService] Initialized with ${this.imageMetadata.length} images for collection: ${normalizedCollectionId}`);
         } catch (error) {
             console.error('[CollageService] Failed to initialize:', error);
         } finally {
