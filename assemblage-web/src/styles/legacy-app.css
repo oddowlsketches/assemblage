@@ -611,6 +611,19 @@ footer {
   font-weight: 500;
 }
 
+/* Auth helper text for signed out users */
+.auth-section {
+  display: flex;
+  align-items: center;
+}
+
+.auth-helper-text {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--color-accent);
+  font-style: italic;
+}
+
 .checkmark {
   font-weight: bold;
   margin-left: 0.5rem;

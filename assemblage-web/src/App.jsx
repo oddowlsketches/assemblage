@@ -391,12 +391,9 @@ function MainApp() {
                 </div>
               </div>
             ) : (
-              <button 
-                onClick={() => setShowAuth(true)}
-                className="auth-trigger-btn"
-              >
-                Sign In
-              </button>
+              <div className="auth-section">
+                <span className="auth-helper-text">Sign in to save collages</span>
+              </div>
             )}
           </div>
           
@@ -488,16 +485,10 @@ function MainApp() {
         {/* Sign in for non-authenticated users */}
         {!session && (
           <div className="mobile-menu-section">
-            <button 
-              onClick={() => {
-                setShowAuth(true);
-                document.querySelector('.mobile-menu-overlay').classList.remove('show');
-                document.querySelector('.mobile-menu-panel').classList.remove('show');
-              }}
-              className="mobile-menu-item"
-            >
-              Sign In
-            </button>
+            <div className="mobile-menu-label">Account</div>
+            <div className="mobile-menu-item" style={{padding: '0.5rem 0', fontSize: '0.8rem', color: 'var(--color-accent)', fontStyle: 'italic'}}>
+              Sign in to save collages
+            </div>
           </div>
         )}
       </div>
