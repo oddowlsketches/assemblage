@@ -1,7 +1,7 @@
 // tilingTemplate.js - Main file for the tiling template
 // Integrates all tiling pattern generators and rendering functions
 
-import { maskRegistry } from '../masks/maskRegistry.ts';
+import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
 import { createSquareTiling, drawSquareTile } from './tilingPatterns/squareTiling';
 import { createTriangularTiling, drawTriangularTile } from './tilingPatterns/triangleTiling';

@@ -1,4 +1,4 @@
-import { maskRegistry } from '../masks/maskRegistry.ts';
+import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';

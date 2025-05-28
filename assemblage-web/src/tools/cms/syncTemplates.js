@@ -9,7 +9,7 @@ export async function syncTemplatesToDatabase() {
   // Dynamically import templates to avoid build issues
   let templateModules = [];
   try {
-    const templatesModule = await import('../templates/index.js');
+    const templatesModule = await import('../../templates/index.js');
     templateModules = templatesModule.default || [];
   } catch (error) {
     console.warn('Could not load template modules:', error);
