@@ -678,7 +678,12 @@ export class CollageService {
         const centerX = Math.floor(this.canvas.width / 2);
         const centerY = Math.floor(this.canvas.height / 2);
         const pixelData = this.ctx.getImageData(centerX, centerY, 1, 1).data;
-        return `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
+        // Convert to hex format for consistency with color utilities
+        const r = pixelData[0];
+        const g = pixelData[1];
+        const b = pixelData[2];
+        const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        return hex;
     }
     
     updateUIColors(bgColor) {

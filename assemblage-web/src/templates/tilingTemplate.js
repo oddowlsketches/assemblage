@@ -67,6 +67,13 @@ function renderTiling(canvas, images, params) {
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
+  // Filter valid images first
+  const imageSources = images.filter(img => img && img.complete && !(img.isBroken && import.meta.env.MODE === 'development'));
+  if (imageSources.length === 0) {
+      console.warn('[TilingTemplate - renderTiling] No valid images to draw.');
+      return { canvas, bgColor }; 
+  }
+
   let calculatedEchoColor = null;
   if (params.useColorBlockEcho) {
     console.log(`[TilingTemplate] Initial attempt to set echoColor. bgColor: ${bgColor}`);
@@ -114,12 +121,6 @@ function renderTiling(canvas, images, params) {
   });
   
   console.log(`Generated ${tiles.length} tiles for pattern type: ${patternType}`);
-
-  const imageSources = images.filter(img => img && img.complete && !(img.isBroken && import.meta.env.MODE === 'development'));
-  if (imageSources.length === 0) {
-      console.warn('[TilingTemplate - renderTiling] No valid images to draw.');
-      return { canvas, bgColor }; 
-  }
 
   // Now that we have valid imageSources, recalculate echo color if needed
   if (params.useColorBlockEcho && calculatedEchoColor) {

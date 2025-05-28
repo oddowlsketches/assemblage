@@ -103,7 +103,7 @@ export function isImageMostlyBlackAndWhite(image, sampleSize = 100, threshold = 
 
   // Create a small canvas to analyze the image
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
   // Use a small size for analysis to improve performance
   const analyzeSize = 32; // Smaller for better performance
