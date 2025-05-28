@@ -215,22 +215,51 @@ function MainApp() {
       // Get the canvas data
       const dataUrl = serviceRef.current.canvas.toDataURL('image/png');
       
-      // Create a thumbnail (smaller version)
+      // Create a higher quality thumbnail maintaining aspect ratio
       const thumbnailCanvas = document.createElement('canvas');
       const thumbnailCtx = thumbnailCanvas.getContext('2d');
-      thumbnailCanvas.width = 200;
-      thumbnailCanvas.height = 150;
-      thumbnailCtx.drawImage(serviceRef.current.canvas, 0, 0, 200, 150);
-      const thumbnailUrl = thumbnailCanvas.toDataURL('image/png');
       
-      // Get current date/time for title
-      const now = new Date();
-      const title = `Collage ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      // Calculate thumbnail dimensions maintaining aspect ratio
+      const originalCanvas = serviceRef.current.canvas;
+      const aspectRatio = originalCanvas.width / originalCanvas.height;
+      let thumbWidth = 300;
+      let thumbHeight = Math.round(thumbWidth / aspectRatio);
       
-      // Get template info from service - improved to capture more details
+      // If height is too large, constrain by height instead
+      if (thumbHeight > 225) {
+        thumbHeight = 225;
+        thumbWidth = Math.round(thumbHeight * aspectRatio);
+      }
+      
+      thumbnailCanvas.width = thumbWidth;
+      thumbnailCanvas.height = thumbHeight;
+      
+      // Use better quality scaling
+      thumbnailCtx.imageSmoothingEnabled = true;
+      thumbnailCtx.imageSmoothingQuality = 'high';
+      thumbnailCtx.drawImage(originalCanvas, 0, 0, thumbWidth, thumbHeight);
+      const thumbnailUrl = thumbnailCanvas.toDataURL('image/png', 0.85);
+      
+      // Get template info from service
       const templateInfo = serviceRef.current.getLastRenderInfo ? 
         serviceRef.current.getLastRenderInfo() : 
         { templateKey: serviceRef.current.currentEffectName || 'random', params: {} };
+      
+      // Create a better title
+      const now = new Date();
+      const templateName = templateInfo.templateKey || 'Collage';
+      const dateStr = now.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric'
+      });
+      const timeStr = now.toLocaleTimeString('en-US', { 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      // Create a more descriptive title
+      const title = `${templateName.charAt(0).toUpperCase() + templateName.slice(1)} - ${dateStr} ${timeStr}`;
       
       console.log('[Save] Template info:', templateInfo);
       
