@@ -97,9 +97,27 @@ export class TemplateRenderer {
     }
     
     try {
-      // The handler (template's generate function) now returns { canvas, bgColor }
+      // The handler (template's generate function) now returns { canvas, bgColor, processedParams }
       const result = await handler(this.canvas, images, mergedParams);
-      return result || { canvas: this.canvas, bgColor: null }; // Ensure we always return an object
+      
+      // Check if the template returned processed parameters
+      let processedParams;
+      if (result && result.processedParams) {
+        // Use the processed parameters from the template (preferred)
+        processedParams = result.processedParams;
+        console.log('[TemplateRenderer] Using template-provided processed params for', key, ':', processedParams);
+      } else {
+        // Fallback: use the merged parameters we prepared
+        processedParams = { ...mergedParams };
+        delete processedParams.images; // Remove images array as it's not useful for saving
+        console.log('[TemplateRenderer] Using fallback processed params for', key, ':', processedParams);
+      }
+      
+      const renderOutput = result || { canvas: this.canvas, bgColor: null };
+      // Ensure the processed parameters are included in the output
+      renderOutput.processedParams = processedParams;
+      
+      return renderOutput;
     } catch (error) {
       console.error(`Error rendering template ${key}:`, error);
       return { canvas: this.canvas, bgColor: null }; // Return default on error

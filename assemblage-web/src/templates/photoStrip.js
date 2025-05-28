@@ -51,13 +51,18 @@ export function generatePhotoStrip(canvas, images, params = {}) {
   // Color mode: 60% multiply only, 40% color blocks with multiply
   const useColorBlocks = Math.random() < 0.4;
   
+  // Store randomization decisions for reproducibility
+  const colorMode = Math.random();
+  const singleColorChoice = Math.random();
+  
   // Generate color palette for color blocks
   let colorPalette = [];
+  let colorStrategy = 'multiply-only';
+  
   if (useColorBlocks) {
     const complementaryColor = getComplementaryColor(bgColor);
     // FIXED: Use lightened complementary colors for better visibility
     const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
-    const colorMode = Math.random();
     
     if (colorMode < 0.5) {
       // Each image gets a different complementary color - but lightened
@@ -66,10 +71,12 @@ export function generatePhotoStrip(canvas, images, params = {}) {
         lightenColor(vibrantColors[0] || '#FF6B6B', 0.2),
         lightenColor(vibrantColors[1] || '#4ECDC4', 0.2)
       ];
+      colorStrategy = 'varied-colors';
     } else {
       // All images get the same color - but lightened
-      const singleColor = Math.random() < 0.5 ? lightenedComplementaryColor : lightenColor(bgColor, 0.2);
+      const singleColor = singleColorChoice < 0.5 ? lightenedComplementaryColor : lightenColor(bgColor, 0.2);
       colorPalette = [singleColor, singleColor, singleColor];
+      colorStrategy = 'single-color';
     }
   }
   
@@ -139,7 +146,32 @@ export function generatePhotoStrip(canvas, images, params = {}) {
     ctx.restore();
   }
   
-  return { canvas, bgColor };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    bgColor: bgColor,
+    useColorBlocks: useColorBlocks,
+    colorStrategy: colorStrategy,
+    colorPalette: colorPalette,
+    imageIndices: imageIndices,
+    stripConfiguration: {
+      imageCount: imageCount,
+      stripHeight: stripHeight,
+      stripWidth: stripWidth,
+      stripY: stripY,
+      stripX: stripX,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight
+    },
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[PhotoStripTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor,
+    processedParams 
+  };
 }
 
 // Template configuration

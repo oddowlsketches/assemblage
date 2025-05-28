@@ -298,7 +298,10 @@ export class CollageService {
             }
             
             const templateKey = selectedTemplate.key;
-            console.log(`[CollageService] Using template: ${templateKey}`);
+            console.log(`[CollageService] Using template: ${templateKey}`, {
+                selectedTemplate: selectedTemplate,
+                templateParams: selectedTemplate.params
+            });
             
             // Determine how many images we need
             const numImagesNeeded = this.getImageCountForTemplate(selectedTemplate);
@@ -318,20 +321,28 @@ export class CollageService {
             // Prepare template parameters
             const templateParams = { userPrompt, images };
             
+            console.log('[CollageService] Template parameters before render:', {
+                templateKey: templateKey,
+                templateParams: templateParams,
+                selectedTemplate: selectedTemplate
+            });
+            
             // Render the template
             const renderOutput = await this.templateRenderer.renderTemplate(templateKey, templateParams);
             
-            // Store render information for saving
+            // Store render information for saving - get processed params from render output
+            const processedParams = renderOutput?.processedParams || {};
+            
             this.lastRenderInfo = {
                 templateKey: templateKey,
                 templateName: selectedTemplate.name || templateKey,
-                params: templateParams,
+                params: processedParams,
                 timestamp: new Date().toISOString(),
                 numImages: images.length,
                 userPrompt: templateParams.userPrompt || ''
             };
             
-            console.log('[CollageService] Stored render info:', this.lastRenderInfo);
+            console.log('[CollageService] Stored render info with processed params:', this.lastRenderInfo);
             
             // Update UI colors if background color was returned
             if (renderOutput?.bgColor) {
@@ -697,5 +708,48 @@ export class CollageService {
     // Get information about the last rendered template
     getLastRenderInfo() {
         return this.lastRenderInfo;
+    }
+    
+    // Extract only the relevant template parameters for saving
+    extractTemplateParams(templateParams, selectedTemplate) {
+        console.log('[CollageService] extractTemplateParams called with:', {
+            templateParams: templateParams,
+            selectedTemplate: selectedTemplate,
+            templateParamsKeys: templateParams ? Object.keys(templateParams) : 'null',
+            selectedTemplateParams: selectedTemplate?.params
+        });
+        
+        if (!selectedTemplate?.params || !templateParams) {
+            console.warn('[CollageService] Missing template or params:', {
+                hasSelectedTemplate: !!selectedTemplate,
+                hasSelectedTemplateParams: !!selectedTemplate?.params,
+                hasTemplateParams: !!templateParams
+            });
+            return {};
+        }
+        
+        const relevantParams = {};
+        
+        // Extract only the parameters that are defined in the template's param schema
+        Object.keys(selectedTemplate.params).forEach(paramKey => {
+            console.log('[CollageService] Checking param:', paramKey, '- value:', templateParams[paramKey]);
+            if (templateParams[paramKey] !== undefined) {
+                relevantParams[paramKey] = templateParams[paramKey];
+            }
+        });
+        
+        // Also include userPrompt if it exists
+        if (templateParams.userPrompt) {
+            relevantParams.userPrompt = templateParams.userPrompt;
+        }
+        
+        console.log('[CollageService] Extracted template params:', {
+            templateKey: selectedTemplate.key,
+            allParams: Object.keys(templateParams),
+            extracted: Object.keys(relevantParams),
+            values: relevantParams
+        });
+        
+        return relevantParams;
     }
 } 

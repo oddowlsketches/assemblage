@@ -43,9 +43,12 @@ function renderTiling(canvas, images, params) {
   }
   
   // Randomize echo parameters if not explicitly set to true or false
+  const useColorBlockEcho = params.useColorBlockEcho === undefined || params.useColorBlockEcho === false 
+    ? Math.random() < 0.2 
+    : params.useColorBlockEcho;
+  
   if (params.useColorBlockEcho === undefined || params.useColorBlockEcho === false) {
-    params.useColorBlockEcho = Math.random() < 0.2; // Reduced from 35% to 20% chance for tiling echo
-    console.log(`[TilingTemplate] Randomized useColorBlockEcho to: ${params.useColorBlockEcho}`);
+    console.log(`[TilingTemplate] Randomized useColorBlockEcho to: ${useColorBlockEcho}`);
   }
   
   // Ensure echoPolicy has a default if not provided
@@ -132,8 +135,10 @@ function renderTiling(canvas, images, params) {
   // Determine if we should use a single image for all tiles (25% chance)
   const useSingleImageForAllTiles = Math.random() < 0.25;
   let singleImage = null;
+  let singleImageIndex = -1;
   if (useSingleImageForAllTiles && imageSources.length > 0) {
-    singleImage = imageSources[Math.floor(Math.random() * imageSources.length)];
+    singleImageIndex = Math.floor(Math.random() * imageSources.length);
+    singleImage = imageSources[singleImageIndex];
     console.log(`[TilingTemplate] Using single image for all tiles: ${singleImage.src}`);
   }
 
@@ -201,7 +206,7 @@ function renderTiling(canvas, images, params) {
       default:
         console.warn(`Unknown tile type: ${tile.type} in renderTiling`);
     }
-  });
+  })
   
   ctx.globalCompositeOperation = 'source-over';
   
@@ -216,7 +221,37 @@ function renderTiling(canvas, images, params) {
     ctx.strokeRect(boundX, boundY, boundWidth, boundHeight);
   }
   
-  return { canvas, bgColor };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    patternType: patternType,
+    tileCount: tiles.length, // Actual tiles generated
+    useColorBlockEcho: useColorBlockEcho,
+    echoPolicy: params.echoPolicy,
+    calculatedEchoColor: calculatedEchoColor,
+    useSingleImageForAllTiles: useSingleImageForAllTiles,
+    singleImageIndex: singleImageIndex,
+    bgColor: bgColor,
+    randomRotation: randomRotation,
+    tileSpacing: tileSpacing,
+    fillStyle: fillStyle,
+    tileOpacity: tileOpacity,
+    debug: debug,
+    tilesConfiguration: tiles.map((tile, index) => ({
+      index: index,
+      type: tile.type,
+      points: tile.points?.map(p => ({x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100})),
+      center: tile.center ? {x: Math.round(tile.center.x * 100) / 100, y: Math.round(tile.center.y * 100) / 100} : null
+    })),
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[TilingTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor,
+    processedParams 
+  };
 }
 
 /**

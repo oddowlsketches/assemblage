@@ -86,8 +86,29 @@ export function renderCrystal(canvas, images, params = {}) {
 
   const effect = new CrystalEffect(ctx, images, settings);
   effect.draw(); 
-  // No ctx.restore() needed if we didn't ctx.save() in this function for transformations
-  return { canvas, bgColor: bgColorToUse }; // Return canvas and the bgColor used
+  
+  // Return canvas, bgColor, and the processed parameters that were actually used
+  const processedParams = {
+    variant: variantVal,
+    imageMode: imageModeVal,
+    complexity: randomizedComplexity,
+    density: randomizedDensity,
+    seedPattern: randomizedSeedPattern,
+    template: randomizedTemplate,
+    blendOpacity: settings.blendOpacity,
+    useMultiply: settings.useMultiply,
+    multiplyPct: settings.multiplyPct,
+    bgColor: bgColorToUse,
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[CrystalTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor: bgColorToUse, 
+    processedParams 
+  };
 }
 
 const crystalTemplate = {

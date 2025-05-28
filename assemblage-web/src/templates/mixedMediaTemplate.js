@@ -264,7 +264,23 @@ function renderMixedMedia(canvas, images, params = {}) {
     addTextureOverlay(ctx, canvasWidth, canvasHeight);
   }
 
-  return { canvas, bgColor: finalBgColorForReport };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    compositionType: compositionType,
+    imageRatio: params.imageRatio || 0.6,
+    useTexture: params.useTexture !== false,
+    bgColor: finalBgColorForReport,
+    useBackgroundImage: shouldUseBackgroundImage,
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[MixedMediaTemplate] Returning processed params:', processedParams);
+
+  return { 
+    canvas, 
+    bgColor: finalBgColorForReport, 
+    processedParams 
+  };
 }
 
 /**

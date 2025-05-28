@@ -1,15 +1,24 @@
 // Utility to sync templates from codebase to database
 // Run this to populate the templates table with current templates
 
-import { createClient } from '@supabase/supabase-js';
-import templateModules from '../templates/index.js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { cmsSupabase as supabase } from './supabaseClient';
 
 export async function syncTemplatesToDatabase() {
   console.log('🚀 Starting template sync to database...');
+  
+  // Dynamically import templates to avoid build issues
+  let templateModules = [];
+  try {
+    const templatesModule = await import('../templates/index.js');
+    templateModules = templatesModule.default || [];
+  } catch (error) {
+    console.warn('Could not load template modules:', error);
+    return {
+      created: [],
+      updated: [],
+      errors: [{ key: 'import', error: 'Failed to load template modules' }]
+    };
+  }
   
   const results = {
     created: [],

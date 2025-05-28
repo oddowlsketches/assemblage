@@ -48,7 +48,24 @@ export async function renderSliced(canvas, images, params = {}) {
 
   // Reset composite
   ctx.globalCompositeOperation = 'source-over';
-  return { canvas, bgColor: bgCol }; // Return canvas and the bgColor used
+  
+  // Return processed parameters that were actually used
+  const processedParams = {
+    sliceBehavior: randomizedSliceBehavior,
+    maxSlices: legacyParams.maxSlices,
+    sliceWidthVariation: legacyParams.sliceWidthVariation,
+    bgColor: bgCol,
+    useMultiply: params.useMultiply !== false,
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[SlicedTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor: bgCol,
+    processedParams 
+  };
 }
 
 const slicedTemplate = {

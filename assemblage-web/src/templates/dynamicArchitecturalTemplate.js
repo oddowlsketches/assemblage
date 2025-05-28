@@ -81,7 +81,27 @@ function renderDynamicArchitectural(canvas, images, params = {}) {
   // Let's assume `draw()` clears bg, generates plan, and draws plan + complementary shapes.
   effect.draw(); // We might need to adjust ArchitecturalEffect.draw() later.
 
-  return { canvas, bgColor }; // Return canvas and bgColor used
+  // Return processed parameters that were actually used
+  const processedParams = {
+    style: currentStyle,
+    imageMode: forcedImageMode,
+    useMultiply: effectParams.useMultiply,
+    useComplementaryShapes: effectParams.useComplementaryShapes,
+    bgColor: bgColor,
+    useColorBlockEcho: randomizedUseColorBlockEcho,
+    echoPolicy: effectParams.echoPolicy,
+    echoOpacity: randomizedEchoOpacity,
+    elementOpacity: randomizedElementOpacity,
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[DynamicArchitecturalTemplate] Returning processed params:', processedParams);
+
+  return { 
+    canvas, 
+    bgColor, 
+    processedParams 
+  };
 }
 
 const dynamicArchitecturalTemplate = {

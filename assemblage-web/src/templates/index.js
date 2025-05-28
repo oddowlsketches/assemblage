@@ -2,19 +2,19 @@
 // This file exports all available template modules
 
 // DO NOT add named exports to this file! Only use the default export (array). Named exports will cause circular dependency errors with template modules.
-import scrambledMosaic from './scrambledMosaic';
-import pairedForms from './pairedForms';
-import photoStrip from './photoStrip';
-import tilingTemplate from './tilingTemplate';
-import crystalEffect from './crystalEffectTemplate';
+import scrambledMosaic from './scrambledMosaic.js';
+import pairedForms from './pairedForms.js';
+import photoStrip from './photoStrip.js';
+import tilingTemplate from './tilingTemplate.js';
+import crystalEffect from './crystalEffectTemplate.js';
 // import architecturalTemplate from './architecturalTemplate'; // Commenting out the old one
-import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate'; // Import the new one
-import layeredGeometric from './layeredGeometric';
-import floatingElements from './floatingElements';
-import mixedMediaTemplate from './mixedMediaTemplate';
+import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate.js'; // Import the new one
+import layeredGeometric from './layeredGeometric.js';
+import floatingElements from './floatingElements.js';
+import mixedMediaTemplate from './mixedMediaTemplate.js';
 // import architecturalComposition from './architecturalComposition'; // REMOVED OLD TEMPLATE
-import slicedTemplate from './slicedTemplate'; // Keep this one
-import packedShapesTemplate from './packedShapesTemplate';
+import slicedTemplate from './slicedTemplate.js'; // Keep this one
+import packedShapesTemplate from './packedShapesTemplate.js';
 // legacy placement templates removed for now
 // import legacyTemplates from './legacyTemplates.js';
 

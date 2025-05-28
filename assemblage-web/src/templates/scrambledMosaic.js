@@ -58,7 +58,8 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   const offsetX = Math.floor((canvas.width - totalWidth) / 2);
   const offsetY = Math.floor((canvas.height - totalHeight) / 2);
   
-  const selectedImage = images[Math.floor(Math.random() * images.length)];
+  const selectedImageIndex = Math.floor(Math.random() * images.length);
+  const selectedImage = images[selectedImageIndex];
   if (!selectedImage || !selectedImage.complete || (selectedImage.isBroken && import.meta.env.MODE === 'development')) {
     console.warn('[ScrambledMosaic] Selected image not available or broken.');
     return; // Don't draw if the image isn't ready
@@ -188,7 +189,42 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
     ctx.restore();
   });
   
-  return { canvas, bgColor }; // Return canvas and the bgColor used
+  // Return processed parameters that were actually used
+  const processedParams = {
+    gridSize: gridSize,
+    operation: operation,
+    revealPct: revealPct,
+    swapPct: swapPct,
+    rotatePct: rotatePct,
+    bgColor: bgColor,
+    useMultiply: useMultiply,
+    selectedImageIndex: selectedImageIndex,
+    gridConfiguration: {
+      cellSize: cellSize,
+      totalWidth: totalWidth,
+      totalHeight: totalHeight,
+      offsetX: offsetX,
+      offsetY: offsetY
+    },
+    cellOperations: cells.map((cell, index) => ({
+      index: index,
+      row: cell.row,
+      col: cell.col,
+      visible: cell.visible,
+      shouldRotate: cell.shouldRotate,
+      shouldSwap: cell.shouldSwap,
+      rotationAngle: cell.rotationAngle
+    })),
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[ScrambledMosaicTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor,
+    processedParams 
+  };
 }
 
 

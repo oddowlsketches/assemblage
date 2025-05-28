@@ -1,17 +1,12 @@
 import MasksPage from './MasksPage';
 import TemplatesPage from './TemplatesPage';
+import { cmsSupabase as supa } from './supabaseClient';
 
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import clsx from 'clsx';
 import '../../styles/legacy-app.css';
-
-// TODO: restrict to Service Role via RLS once auth is wired up
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-const supa: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 type ImageRow = {
   id: string;

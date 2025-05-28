@@ -5,6 +5,9 @@ export default function Gallery({ session, onClose }) {
   const [collages, setCollages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 12; // Show 12 collages per page
   const supabase = getSupabase();
 
   useEffect(() => {
@@ -18,39 +21,34 @@ export default function Gallery({ session, onClose }) {
     }
   }, [session?.user?.id]);
 
-  const loadCollages = async () => {
+  const loadCollages = async (page = 1) => {
     if (!session?.user?.id) {
       console.warn('No user session available for loading collages');
       setLoading(false);
       return;
     }
 
-    if (hasLoaded) {
-      console.log('Collages already loaded, skipping...');
-      return;
-    }
-
-    console.log('Starting to load collages...');
+    console.log(`Loading collages page ${page}`);
     setLoading(true);
     
     try {
-      // Test Supabase connection first
-      console.log('Testing Supabase connection...');
-      const testResult = await supabase.from('saved_collages').select('count', { count: 'exact' });
-      console.log('Connection test result:', testResult);
+      // Get total count first (only on first load)
+      if (page === 1 && !hasLoaded) {
+        const { count } = await supabase
+          .from('saved_collages')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', session.user.id);
+        setTotalCount(count || 0);
+      }
       
-      console.log('Loading collages for user:', session.user.id);
-      console.log('Session details:', {
-        userId: session.user.id,
-        email: session.user.email,
-        role: session.user.role
-      });
+      const offset = (page - 1) * itemsPerPage;
       
       const { data, error } = await supabase
         .from('saved_collages')
-        .select('*')
+        .select('id, title, template_key, created_at, thumbnail_url')
         .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + itemsPerPage - 1);
 
       console.log('Query result:', { data, error });
 
@@ -64,9 +62,14 @@ export default function Gallery({ session, onClose }) {
         setCollages([]);
       } else {
         console.log('Successfully loaded collages:', data?.length || 0);
-        setCollages(data || []);
+        if (page === 1) {
+          setCollages(data || []);
+        } else {
+          setCollages(prev => [...prev, ...(data || [])]);
+        }
       }
       setHasLoaded(true);
+      setCurrentPage(page);
     } catch (err) {
       console.error('Network error loading collages:', {
         message: err.message,
@@ -102,11 +105,29 @@ export default function Gallery({ session, onClose }) {
     }
   };
 
-  const handleDownload = (collage) => {
-    const link = document.createElement('a');
-    link.download = `${collage.title}.png`;
-    link.href = collage.image_data_url;
-    link.click();
+  const handleDownload = async (collage) => {
+    try {
+      // Fetch the full collage data including image_data_url for download
+      const { data, error } = await supabase
+        .from('saved_collages')
+        .select('image_data_url, title')
+        .eq('id', collage.id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching collage for download:', error);
+        alert('Failed to download collage');
+        return;
+      }
+      
+      const link = document.createElement('a');
+      link.download = `${data.title}.png`;
+      link.href = data.image_data_url;
+      link.click();
+    } catch (err) {
+      console.error('Error downloading collage:', err);
+      alert('Failed to download collage');
+    }
   };
 
   if (loading) {
@@ -127,7 +148,7 @@ export default function Gallery({ session, onClose }) {
     <div className="gallery-container" onClick={onClose}>
       <div className="gallery-modal" onClick={(e) => e.stopPropagation()}>
         <div className="gallery-header">
-          <h2>My Collages ({collages.length})</h2>
+          <h2>My Collages ({totalCount})</h2>
           <button onClick={onClose} className="gallery-close-btn">×</button>
         </div>
         
@@ -138,38 +159,58 @@ export default function Gallery({ session, onClose }) {
               <p>Create and save some collages to see them here!</p>
             </div>
           ) : (
-            <div className="gallery-grid">
-              {collages.map((collage) => (
-                <div key={collage.id} className="gallery-item">
-                  <div className="gallery-thumbnail">
-                    <img 
-                      src={collage.thumbnail_url || collage.image_data_url} 
-                      alt={collage.title}
-                      onClick={() => handleDownload(collage)}
-                    />
+            <>
+              <div className="gallery-grid">
+                {collages.map((collage) => (
+                  <div key={collage.id} className="gallery-item">
+                    <div className="gallery-thumbnail">
+                      <img 
+                        src={collage.thumbnail_url} 
+                        alt={collage.title}
+                        loading="lazy"
+                        onClick={() => handleDownload(collage)}
+                        onError={(e) => {
+                          e.target.style.backgroundColor = '#f0f0f0';
+                          e.target.alt = 'Thumbnail not available';
+                        }}
+                      />
+                    </div>
+                    <div className="gallery-info">
+                      <h4>{collage.title}</h4>
+                      <p>Template: {collage.template_key}</p>
+                      <p>Created: {new Date(collage.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div className="gallery-actions">
+                      <button 
+                        onClick={() => handleDownload(collage)}
+                        className="gallery-btn gallery-download-btn"
+                      >
+                        Download
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(collage.id)}
+                        className="gallery-btn gallery-delete-btn"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-                  <div className="gallery-info">
-                    <h4>{collage.title}</h4>
-                    <p>Template: {collage.template_key}</p>
-                    <p>Created: {new Date(collage.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="gallery-actions">
-                    <button 
-                      onClick={() => handleDownload(collage)}
-                      className="gallery-btn gallery-download-btn"
-                    >
-                      Download
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(collage.id)}
-                      className="gallery-btn gallery-delete-btn"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                ))}
+              </div>
+              
+              {/* Load More Button */}
+              {collages.length < totalCount && (
+                <div className="gallery-pagination">
+                  <button 
+                    onClick={() => loadCollages(currentPage + 1)}
+                    className="gallery-btn gallery-load-more-btn"
+                    disabled={loading}
+                  >
+                    {loading ? 'Loading...' : `Load More (${totalCount - collages.length} remaining)`}
+                  </button>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>

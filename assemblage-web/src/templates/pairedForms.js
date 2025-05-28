@@ -215,6 +215,9 @@ export function generatePairedForms(canvas, images, params) {
     formType
   );
   
+  // Store the initial composition state for reproducibility
+  const initialComposition = JSON.parse(JSON.stringify(composition));
+  
   // Apply composition rules for better visual quality
   composition = applyCompositionRules(composition, canvas.width, canvas.height);
   
@@ -230,7 +233,49 @@ export function generatePairedForms(canvas, images, params) {
   // Draw the composition
   drawComposition(ctx, composition, images, params.useMultiply !== false, formType, params);
   
-  return { canvas, bgColor: bgColorToUse };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    formCount: formCount,
+    formType: formType,
+    complexity: complexity,
+    alignmentType: alignmentType,
+    bgColor: bgColorToUse,
+    useMultiply: params.useMultiply !== false,
+    echoPreference: params.echoPreference || 'default',
+    canvasDimensions: {
+      width: canvas.width,
+      height: canvas.height
+    },
+    initialComposition: initialComposition.map((shape, index) => ({
+      index: index,
+      type: shape.type,
+      x: Math.round(shape.x * 100) / 100,
+      y: Math.round(shape.y * 100) / 100,
+      width: Math.round(shape.width * 100) / 100,
+      height: Math.round(shape.height * 100) / 100,
+      imageIndex: shape.imageIndex
+    })),
+    finalComposition: composition.map((shape, index) => ({
+      index: index,
+      type: shape.type,
+      x: Math.round(shape.x * 100) / 100,
+      y: Math.round(shape.y * 100) / 100,
+      width: Math.round(shape.width * 100) / 100,
+      height: Math.round(shape.height * 100) / 100,
+      imageIndex: shape.imageIndex,
+      drawParams: shape._drawParams,
+      maxOverlap: Math.round((shape._maxOverlap || 0) * 1000) / 1000
+    })),
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[PairedFormsTemplate] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor: bgColorToUse,
+    processedParams 
+  };
 }
 
 // Design principles constants

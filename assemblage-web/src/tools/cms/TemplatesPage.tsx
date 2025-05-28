@@ -1,10 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { syncTemplatesToDatabase } from './syncTemplates.js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { cmsSupabase as supabase } from './supabaseClient';
 
 type TemplateRow = {
   id: string;
@@ -287,7 +282,18 @@ const TemplatesPage: React.FC = () => {
     
     setSyncing(true);
     try {
-      const results = await syncTemplatesToDatabase();
+      // Try to dynamically import the sync function first
+      let results;
+      try {
+        const { syncTemplatesToDatabase } = await import('./syncTemplates.js');
+        results = await syncTemplatesToDatabase();
+      } catch (importError) {
+        console.warn('Could not load full sync, falling back to basic seed:', importError);
+        // Fallback to basic seed
+        const { seedBasicTemplates } = await import('./seedTemplates.js');
+        results = await seedBasicTemplates();
+      }
+      
       alert(`Sync completed!\n\nCreated: ${results.created.length}\nUpdated: ${results.updated.length}\nErrors: ${results.errors.length}`);
       await loadTemplates(); // Refresh the list
     } catch (error) {
@@ -331,13 +337,15 @@ const TemplatesPage: React.FC = () => {
           >
             Add Template
           </button>
-          <button
-            onClick={handleSyncTemplates}
-            disabled={syncing}
-            className="px-3 py-1 rounded bg-green-600 text-white text-sm hover:bg-green-700 disabled:opacity-50"
-          >
-            {syncing ? 'Syncing...' : 'Sync from Code'}
-          </button>
+          {import.meta.env.DEV && (
+            <button
+              onClick={handleSyncTemplates}
+              disabled={syncing}
+              className="px-3 py-1 rounded bg-green-600 text-white text-sm hover:bg-green-700 disabled:opacity-50"
+            >
+              {syncing ? 'Syncing...' : 'Sync from Code'}
+            </button>
+          )}
         </div>
       </div>
 

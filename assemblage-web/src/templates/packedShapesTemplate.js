@@ -207,6 +207,19 @@ function renderPackedShapes(canvas, images, params = {}) {
   const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 16)); // Random 15-30 elements
   const elements = createPackedElements(canvasWidth, canvasHeight, elementCount);
 
+  // Store the element configuration for reproducibility
+  const elementConfigs = elements.map(el => ({
+    maskName: el.maskName,
+    x: Math.round(el.x * 100) / 100, // Round to 2 decimal places to reduce size
+    y: Math.round(el.y * 100) / 100,
+    width: Math.round(el.width * 100) / 100,
+    height: Math.round(el.height * 100) / 100,
+    rotation: Math.round(el.rotation * 100) / 100,
+    opacity: Math.round(el.opacity * 100) / 100,
+    layer: el.layer,
+    sizeCategory: el.sizeCategory
+  }));
+
   const complementaryColor = getComplementaryColor(initialBgColor);
   // FIXED: Lighten the complementary color for better visibility
   const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
@@ -236,6 +249,10 @@ function renderPackedShapes(canvas, images, params = {}) {
     useVariedColors = false;
     singleColor = lightenColor(initialBgColor, 0.15); // Lighten background color slightly
   }
+  
+  // Store color mode info for reproducibility
+  const colorModeType = colorMode < 0.5 ? 'varied' : (colorMode < 0.75 ? 'complementary' : 'background');
+  const finalSingleColor = singleColor;
   
   // Create a shuffled array of images for better distribution
   const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
@@ -325,7 +342,30 @@ function renderPackedShapes(canvas, images, params = {}) {
     }
   });
 
-  return { canvas, bgColor: initialBgColor };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    userPrompt: params.userPrompt || '',
+    paletteType: params.paletteType || 'auto',
+    elementCount: elementCount,
+    bgColor: initialBgColor,
+    colorModeType: colorModeType,
+    singleColor: finalSingleColor,
+    complementaryColor: lightenedComplementaryColor,
+    palette: palette,
+    elements: elementConfigs, // Full element layout data
+    imageDistribution: shuffledImages.map((img, idx) => ({
+      index: idx,
+      src: img.src || `image_${idx}`
+    })).slice(0, elementCount) // Only include as many as we used
+  };
+  
+  console.log('[PackedShapesTemplate] Returning processed params:', processedParams);
+
+  return { 
+    canvas, 
+    bgColor: initialBgColor,
+    processedParams 
+  };
 }
 
 // Template configuration
