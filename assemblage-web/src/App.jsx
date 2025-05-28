@@ -9,7 +9,7 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { Gear, CaretDown, Check, User } from 'phosphor-react';
+import { Gear, CaretDown, Check, User, FloppyDisk } from 'phosphor-react';
 
 function MainApp() {
   const canvasRef = useRef(null);
@@ -295,6 +295,11 @@ function MainApp() {
         </div>
         <div className="header-controls">
           <div className="action-buttons">
+            <button id="generateButton" onClick={handleShiftPerspective}>New</button>
+            <button id="saveButton" onClick={handleSave} className="save-btn">
+              {session ? <FloppyDisk size={16} weight="regular" /> : 'Sign In'}
+            </button>
+            
             {/* Settings dropdown for admin users */}
             {isAdmin && collections.length > 1 && (
               <div className="settings-dropdown">
@@ -324,11 +329,6 @@ function MainApp() {
               </div>
             )}
             
-            <button id="generateButton" onClick={handleShiftPerspective}>New</button>
-            <button id="saveButton" onClick={handleSave}>
-              {session ? 'Save' : 'Sign In to Save'}
-            </button>
-            
             {/* User menu */}
             {authLoading ? (
               <div className="auth-loading">Loading...</div>
@@ -338,10 +338,10 @@ function MainApp() {
                   e.currentTarget.nextElementSibling.classList.toggle('show');
                 }}>
                   <User size={16} weight="regular" />
-                  <span className="user-email">{session.user.email}</span>
                   <CaretDown size={12} weight="regular" />
                 </button>
                 <div className="user-dropdown">
+                  <div className="user-email-header">{session.user.email}</div>
                   <button 
                     onClick={() => setShowGallery(true)}
                     className="dropdown-item"
@@ -370,8 +370,108 @@ function MainApp() {
               </button>
             )}
           </div>
+          
+          {/* Mobile menu button - visible only on mobile */}
+          <button className="mobile-menu-btn mobile-only" onClick={(e) => {
+            document.querySelector('.mobile-menu-overlay').classList.toggle('show');
+            document.querySelector('.mobile-menu-panel').classList.toggle('show');
+          }}>
+            <Gear size={16} weight="regular" />
+          </button>
         </div>
       </header>
+
+      {/* Mobile floating action buttons */}
+      <div className="mobile-actions mobile-only">
+        <button onClick={handleSave} className="mobile-save-btn" title="Save">
+          {session ? <FloppyDisk size={20} weight="regular" /> : 'Sign In'}
+        </button>
+        <button onClick={handleShiftPerspective} className="mobile-new-btn" title="New Collage">
+          New
+        </button>
+      </div>
+      
+      {/* Mobile menu overlay */}
+      <div className="mobile-menu-overlay" onClick={() => {
+        document.querySelector('.mobile-menu-overlay').classList.remove('show');
+        document.querySelector('.mobile-menu-panel').classList.remove('show');
+      }}></div>
+      
+      {/* Mobile menu panel */}
+      <div className="mobile-menu-panel">
+        <button className="mobile-menu-close" onClick={() => {
+          document.querySelector('.mobile-menu-overlay').classList.remove('show');
+          document.querySelector('.mobile-menu-panel').classList.remove('show');
+        }}>×</button>
+        
+        {/* Collections for admin users */}
+        {isAdmin && collections.length > 1 && (
+          <div className="mobile-menu-section">
+            <div className="mobile-menu-label">Collection</div>
+            {collections.map(collection => (
+              <button 
+                key={collection.id}
+                className={`mobile-menu-item ${selectedCollection === collection.id ? 'selected' : ''}`}
+                onClick={() => {
+                  setSelectedCollection(collection.id);
+                  handleCollectionChange({ target: { value: collection.id } });
+                  document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                  document.querySelector('.mobile-menu-panel').classList.remove('show');
+                }}
+              >
+                <span>{collection.name}</span>
+                {selectedCollection === collection.id && <Check size={16} weight="bold" />}
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* User menu for mobile */}
+        {session && (
+          <div className="mobile-menu-section">
+            <div className="mobile-menu-label">{session.user.email}</div>
+            <button 
+              onClick={() => {
+                setShowGallery(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-menu-item"
+            >
+              My Collages
+            </button>
+            <button 
+              onClick={async () => {
+                const supabase = getSupabase();
+                await supabase.auth.signOut();
+                setSession(null);
+                setIsAdmin(false);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-menu-item"
+            >
+              Sign Out
+            </button>
+          </div>
+        )}
+        
+        {/* Sign in for non-authenticated users */}
+        {!session && (
+          <div className="mobile-menu-section">
+            <button 
+              onClick={() => {
+                setShowAuth(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-menu-item"
+            >
+              Sign In
+            </button>
+          </div>
+        )}
+      </div>
 
       <div id="canvas-container">
         <canvas ref={canvasRef} id="collageCanvas" />
