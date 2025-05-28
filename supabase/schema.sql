@@ -20,7 +20,10 @@ create table if not exists public.images (
   -- Processing metadata
   metadata_status text default 'pending_llm' check (metadata_status in ('pending_llm','processing','complete','error')),
   processing_error text,
-  last_processed timestamp with time zone
+  last_processed timestamp with time zone,
+  
+  -- Collections
+  collection_id uuid references public.image_collections(id) on delete set null
 );
 
 -- Masks -----------------------------------------------------
@@ -52,4 +55,26 @@ create table if not exists public.collages (
   image_ids text[] not null default '{}',
   param_overrides jsonb,
   created_at timestamp with time zone not null default now()
+);
+
+-- Image Collections -----------------------------------------
+create table if not exists public.image_collections (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text,
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
+);
+
+-- Saved Collages (for authenticated users) -----------------
+create table if not exists public.saved_collages (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  title text not null,
+  image_data_url text not null,
+  thumbnail_url text,
+  template_key text,
+  template_params jsonb default '{}',
+  created_at timestamp with time zone not null default now(),
+  updated_at timestamp with time zone not null default now()
 ); 

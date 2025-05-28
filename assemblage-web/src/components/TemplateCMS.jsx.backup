@@ -1,0 +1,120 @@
+import React, { useState, useEffect } from 'react';
+import { CollageService } from '../core/CollageService';
+
+export default function TemplateCMS() {
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [serviceRef] = useState(() => {
+    // Create a temporary service just for getting template info
+    const canvas = document.createElement('canvas');
+    return new CollageService(canvas);
+  });
+
+  useEffect(() => {
+    loadTemplates();
+  }, []);
+
+  const loadTemplates = async () => {
+    try {
+      const allTemplates = serviceRef.getAllTemplates();
+      console.log('[TemplateCMS] All templates:', allTemplates);
+      setTemplates(allTemplates);
+    } catch (error) {
+      console.error('[TemplateCMS] Error loading templates:', error);
+    }
+  };
+
+  const handleTemplateSelect = (templateKey) => {
+    const template = serviceRef.getTemplate(templateKey);
+    setSelectedTemplate(template);
+  };
+
+  const formatParams = (params) => {
+    if (!params) return 'None';
+    return JSON.stringify(params, null, 2);
+  };
+
+  return (
+    <div className="template-cms">
+      <div className="template-cms-header">
+        <h1>Template Management</h1>
+        <p>Overview of all available templates and their parameters</p>
+      </div>
+
+      <div className="template-cms-content">
+        <div className="template-sidebar">
+          <h3>Templates ({templates.length})</h3>
+          <div className="template-list">
+            {templates.map((template) => (
+              <div 
+                key={template.key}
+                className={`template-item ${selectedTemplate?.key === template.key ? 'active' : ''}`}
+                onClick={() => handleTemplateSelect(template.key)}
+              >
+                <div className="template-name">{template.name || template.key}</div>
+                <div className="template-key">{template.key}</div>
+                {template.family && (
+                  <div className="template-family">Family: {template.family}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="template-details">
+          {selectedTemplate ? (
+            <>
+              <h2>{selectedTemplate.name || selectedTemplate.key}</h2>
+              <div className="template-info">
+                <div className="info-section">
+                  <h4>Basic Information</h4>
+                  <table>
+                    <tbody>
+                      <tr>
+                        <td><strong>Key:</strong></td>
+                        <td><code>{selectedTemplate.key}</code></td>
+                      </tr>
+                      <tr>
+                        <td><strong>Name:</strong></td>
+                        <td>{selectedTemplate.name || 'Unnamed'}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Family:</strong></td>
+                        <td>{selectedTemplate.family || 'Unknown'}</td>
+                      </tr>
+                      <tr>
+                        <td><strong>Description:</strong></td>
+                        <td>{selectedTemplate.description || 'No description available'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="info-section">
+                  <h4>Parameters</h4>
+                  <pre className="params-display">
+                    {formatParams(selectedTemplate.params)}
+                  </pre>
+                </div>
+
+                {selectedTemplate.defaultParams && (
+                  <div className="info-section">
+                    <h4>Default Parameters</h4>
+                    <pre className="params-display">
+                      {formatParams(selectedTemplate.defaultParams)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="no-selection">
+              <h3>Select a template to view details</h3>
+              <p>Choose a template from the list on the left to see its configuration and parameters.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

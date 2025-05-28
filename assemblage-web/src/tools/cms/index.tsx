@@ -1,4 +1,5 @@
 import MasksPage from './MasksPage';
+import TemplatesPage from './TemplatesPage';
 
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
@@ -69,7 +70,14 @@ const Sidebar: React.FC<{ currentPage: string; onPageChange: (page: string) => v
       >
         Masks
       </button>
-      <span className="block text-gray-400 cursor-not-allowed">Templates (soon)</span>
+      <button 
+        className={`block w-full text-left font-medium ${
+          currentPage === 'templates' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+        }`}
+        onClick={() => onPageChange('templates')}
+      >
+        Templates
+      </button>
     </nav>
   </aside>
 );
@@ -1090,7 +1098,7 @@ const ImagesPage: React.FC = () => {
 };
 
 const CmsApp: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'images' | 'masks'>('images');
+  const [currentPage, setCurrentPage] = useState<'images' | 'masks' | 'templates'>('images');
   
   return (
     <div className="flex h-screen bg-gray-50">
@@ -1098,6 +1106,7 @@ const CmsApp: React.FC = () => {
       <main className="flex-1 overflow-y-auto">
         {currentPage === 'images' && <ImagesPage />}
         {currentPage === 'masks' && <MasksPage />}
+        {currentPage === 'templates' && <TemplatesPage />}
       </main>
     </div>
   );

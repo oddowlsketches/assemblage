@@ -17,10 +17,19 @@ let supabaseInstance = null;
 export const getSupabase = () => {
   if (!supabaseInstance) {
     if (supabaseUrl && supabaseAnonKey) {
-      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey);
-      console.log('[getSupabase] Shared Supabase client initialized.');
+      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true
+        }
+      });
+      console.log('[getSupabase] Shared Supabase client initialized with URL:', supabaseUrl);
     } else {
-      console.error('[getSupabase] Supabase URL or Anon Key is missing in .env. Cannot initialize Supabase client.');
+      console.error('[getSupabase] Supabase URL or Anon Key is missing in .env. Cannot initialize Supabase client.', {
+        url: supabaseUrl ? 'present' : 'missing',
+        key: supabaseAnonKey ? 'present' : 'missing'
+      });
     }
   }
   return supabaseInstance;

@@ -30,6 +30,10 @@ export class CollageService {
         this.events = new EventEmitter();
         this.templateRenderer = new TemplateRenderer(this);
         
+        // Template rendering tracking
+        this.currentEffectName = null;
+        this.lastRenderInfo = null;
+        
         console.log('[CollageService] Initialized', { isDevelopment: this.isDevelopment });
 
     }
@@ -316,6 +320,18 @@ export class CollageService {
             
             // Render the template
             const renderOutput = await this.templateRenderer.renderTemplate(templateKey, templateParams);
+            
+            // Store render information for saving
+            this.lastRenderInfo = {
+                templateKey: templateKey,
+                templateName: selectedTemplate.name || templateKey,
+                params: templateParams,
+                timestamp: new Date().toISOString(),
+                numImages: images.length,
+                userPrompt: templateParams.userPrompt || ''
+            };
+            
+            console.log('[CollageService] Stored render info:', this.lastRenderInfo);
             
             // Update UI colors if background color was returned
             if (renderOutput?.bgColor) {
@@ -676,5 +692,10 @@ export class CollageService {
     
     getTemplate(key) {
         return this.templateRenderer.getTemplate(key);
+    }
+    
+    // Get information about the last rendered template
+    getLastRenderInfo() {
+        return this.lastRenderInfo;
     }
 } 

@@ -2,8 +2,12 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useRef, useState, useEffect } from 'react';
 import { CollageService } from './core/CollageService';
 import './styles/legacy-app.css';
+import './styles/auth.css';
+import './styles/gallery.css';
 import { getMaskDescriptor } from './masks/maskRegistry';
 import TemplateReview from './components/TemplateReview';
+import AuthComponent from './components/Auth';
+import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
 
 function MainApp() {
@@ -13,6 +17,10 @@ function MainApp() {
   const [prompt, setPrompt] = useState('');
   const [collections, setCollections] = useState([]);
   const [selectedCollection, setSelectedCollection] = useState('');
+  const [session, setSession] = useState(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const cvs = canvasRef.current;
@@ -28,11 +36,28 @@ function MainApp() {
       resize();
     }
     
+    // Initialize auth session
+    initializeAuth();
+    
     // Load collections first
     loadCollections();
 
     return () => window.removeEventListener('resize', resize);
   }, []);
+
+  // Initialize authentication session
+  const initializeAuth = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      console.log('[Auth] Initial session:', session?.user?.email || 'No session');
+    } catch (error) {
+      console.error('[Auth] Error getting initial session:', error);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   // Load collections from Supabase
   const loadCollections = async () => {
@@ -119,7 +144,72 @@ function MainApp() {
     }
   };
 
-  const handleSave = () => serviceRef.current?.saveCollage();
+  const handleSave = async () => {
+    if (!session) {
+      setShowAuth(true);
+      return;
+    }
+    
+    if (!serviceRef.current) return;
+    
+    try {
+      // Get the canvas data
+      const dataUrl = serviceRef.current.canvas.toDataURL('image/png');
+      
+      // Create a thumbnail (smaller version)
+      const thumbnailCanvas = document.createElement('canvas');
+      const thumbnailCtx = thumbnailCanvas.getContext('2d');
+      thumbnailCanvas.width = 200;
+      thumbnailCanvas.height = 150;
+      thumbnailCtx.drawImage(serviceRef.current.canvas, 0, 0, 200, 150);
+      const thumbnailUrl = thumbnailCanvas.toDataURL('image/png');
+      
+      // Get current date/time for title
+      const now = new Date();
+      const title = `Collage ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      
+      // Get template info from service - improved to capture more details
+      const templateInfo = serviceRef.current.getLastRenderInfo ? 
+        serviceRef.current.getLastRenderInfo() : 
+        { templateKey: serviceRef.current.currentEffectName || 'random', params: {} };
+      
+      console.log('[Save] Template info:', templateInfo);
+      
+      // Save to database
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('saved_collages')
+        .insert({
+          user_id: session.user.id,
+          title: title,
+          image_data_url: dataUrl,
+          thumbnail_url: thumbnailUrl,
+          template_key: templateInfo.templateKey || 'unknown',
+          template_params: templateInfo.params || {}
+        });
+        
+      if (error) {
+        console.error('Error saving collage:', error);
+        alert('Failed to save collage');
+      } else {
+        console.log('[Save] Collage saved successfully with:', {
+          templateKey: templateInfo.templateKey,
+          paramsKeys: Object.keys(templateInfo.params || {})
+        });
+        alert('Collage saved successfully!');
+      }
+    } catch (err) {
+      console.error('Error saving collage:', err);
+      alert('Failed to save collage');
+    }
+  };
+  
+  const handleAuthChange = (newSession) => {
+    setSession(newSession);
+    if (newSession) {
+      setShowAuth(false);
+    }
+  };
 
   return (
     <div id="wrapper">
@@ -144,7 +234,31 @@ function MainApp() {
               </select>
             )}
             <button id="generateButton" onClick={handleShiftPerspective}>New</button>
-            <button id="saveButton" onClick={handleSave}>Save</button>
+            <button id="saveButton" onClick={handleSave}>
+              {session ? 'Save' : 'Sign In to Save'}
+            </button>
+            
+            {/* Auth Component */}
+            {authLoading ? (
+              <div className="auth-loading">Loading...</div>
+            ) : session ? (
+              <>
+                <button 
+                  onClick={() => setShowGallery(true)}
+                  className="gallery-trigger-btn"
+                >
+                  My Collages
+                </button>
+                <AuthComponent onAuthChange={handleAuthChange} />
+              </>
+            ) : (
+              <button 
+                onClick={() => setShowAuth(true)}
+                className="auth-trigger-btn"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -157,6 +271,22 @@ function MainApp() {
       <footer>
         <p className="copyright">© 2025 Assemblage by Emily Schwartzman. All rights reserved.</p>
       </footer>
+      
+      {/* Auth Modal */}
+      {showAuth && (
+        <AuthComponent 
+          onAuthChange={handleAuthChange}
+          onClose={() => setShowAuth(false)}
+        />
+      )}
+      
+      {/* Gallery Modal */}
+      {showGallery && session && (
+        <Gallery 
+          session={session}
+          onClose={() => setShowGallery(false)}
+        />
+      )}
     </div>
   );
 }
