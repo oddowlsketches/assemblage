@@ -1,6 +1,7 @@
 import MasksPage from './MasksPage';
 import TemplatesPage from './TemplatesPage';
 import { cmsSupabase as supa } from './supabaseClient';
+import { ArrowClockwise } from 'phosphor-react';
 
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
@@ -17,6 +18,7 @@ type ImageRow = {
   description?: string;
   image_role?: 'texture' | 'narrative' | 'conceptual' | 'pending';
   collection_id?: string;
+  rotation?: number; // 0, 90, 180, 270 degrees
   
   // Rich metadata fields
   is_black_and_white?: boolean;
@@ -464,6 +466,39 @@ const ImageDetailsModal: React.FC<{
     tags: image.tags.join(', ')
   });
   const [saving, setSaving] = useState(false);
+  const [currentRotation, setCurrentRotation] = useState(image.rotation || 0);
+
+  const handleRotate = async () => {
+    const newRotation = (currentRotation + 90) % 360;
+    setSaving(true);
+    try {
+      console.log('Rotating image:', image.id, 'from', currentRotation, 'to', newRotation);
+      
+      const { data, error } = await supa
+        .from('images')
+        .update({ rotation: newRotation })
+        .eq('id', image.id)
+        .select();
+
+      console.log('Rotation update result:', { data, error });
+
+      if (error) {
+        console.error('Database rotation error:', error);
+        alert('Error rotating image: ' + error.message);
+      } else {
+        console.log('Rotation successful, updated data:', data);
+        setCurrentRotation(newRotation);
+        // Update the image object in the parent to reflect the new rotation
+        image.rotation = newRotation;
+        onUpdate();
+      }
+    } catch (err) {
+      console.error('Exception during rotation:', err);
+      alert('Failed to rotate image');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -482,7 +517,8 @@ const ImageDetailsModal: React.FC<{
           palette_suitability: formData.palette_suitability,
           is_black_and_white: formData.is_black_and_white,
           is_photograph: formData.is_photograph,
-          tags: tagsArray
+          tags: tagsArray,
+          rotation: currentRotation
         })
         .eq('id', image.id);
 
@@ -558,11 +594,26 @@ const ImageDetailsModal: React.FC<{
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6">
           {/* Image Preview */}
           <div className="space-y-4">
-            <img 
-              src={image.src} 
-              alt={image.title} 
-              className="w-full h-auto object-contain max-h-[50vh] rounded-lg border" 
-            />
+            <div className="relative group flex items-center justify-center min-h-[300px] bg-gray-50 rounded-lg overflow-hidden">
+              <img 
+                src={image.src} 
+                alt={image.title} 
+                className="max-w-full max-h-full object-contain rounded-lg border bg-white transition-transform duration-200"
+                style={{ 
+                  transform: `rotate(${currentRotation}deg)`,
+                  maxWidth: '100%',
+                  maxHeight: '100%'
+                }}
+              />
+              <button
+                onClick={handleRotate}
+                disabled={saving}
+                className="absolute top-4 right-4 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-all duration-200 opacity-0 group-hover:opacity-100 disabled:opacity-50 z-10"
+                title="Rotate 90°"
+              >
+                <ArrowClockwise size={16} className="text-gray-700" />
+              </button>
+            </div>
             
             {/* Quick Stats */}
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1002,11 +1053,18 @@ const ImagesPage: React.FC = () => {
                 {filteredRows.map((row) => (
                   <tr key={row.id} className="border-b last:border-0 hover:bg-gray-100 group cursor-pointer" onClick={() => handleImageClick(row)}>
                     <td className="p-2 align-top sticky left-0 bg-white">
-                      <img
-                        src={row.src}
-                        alt={row.title}
-                        className="w-16 h-16 object-cover rounded border bg-white"
-                      />
+                      <div className="w-16 h-16 flex items-center justify-center bg-gray-50 rounded border overflow-hidden">
+                        <img
+                          src={row.src}
+                          alt={row.title}
+                          className="max-w-none max-h-none w-auto h-auto transition-transform duration-200"
+                          style={{ 
+                            transform: `rotate(${row.rotation || 0}deg)`,
+                            maxWidth: row.rotation === 90 || row.rotation === 270 ? '64px' : '64px',
+                            maxHeight: row.rotation === 90 || row.rotation === 270 ? '64px' : '64px'
+                          }}
+                        />
+                      </div>
                     </td>
                     <td className="p-2 align-top max-w-[120px] truncate text-gray-500">{row.id}</td>
                     <td className="p-2 align-top max-w-[120px] truncate">{row.title}</td>
@@ -1055,7 +1113,14 @@ const ImagesPage: React.FC = () => {
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {filteredRows.map((img) => (
               <div key={img.id} className="border rounded shadow-sm p-2 flex flex-col cursor-pointer" onClick={() => handleImageClick(img)}>
-                <img src={img.src} alt={img.title} className="w-full h-32 object-cover rounded" />
+                <div className="w-full h-32 flex items-center justify-center bg-gray-50 rounded overflow-hidden">
+                  <img 
+                    src={img.src} 
+                    alt={img.title} 
+                    className="max-w-full max-h-full object-contain transition-transform duration-200" 
+                    style={{ transform: `rotate(${img.rotation || 0}deg)` }}
+                  />
+                </div>
                 <div className="mt-2 text-xs font-medium truncate" title={img.id}>{img.id}</div>
                 <div className="text-xs truncate" title={img.title}>{img.title}</div>
                 <div className="text-[10px] text-gray-600 truncate mb-1" title={img.description}>
