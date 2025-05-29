@@ -1,0 +1,10 @@
+-- Add missing columns to images table
+ALTER TABLE public.images 
+  ADD COLUMN IF NOT EXISTS external_id TEXT,
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  ADD COLUMN IF NOT EXISTS palette TEXT[] DEFAULT '{}',
+  ADD COLUMN IF NOT EXISTS dominant_color TEXT,
+  ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+
+-- Create index for user_id
+CREATE INDEX IF NOT EXISTS idx_images_user_id ON public.images (user_id);

@@ -17,14 +17,30 @@ ADD COLUMN IF NOT EXISTS remote_id text,
 ADD COLUMN IF NOT EXISTS thumb_src text;
 
 -- Update existing collection_id to reference user_collections instead
+-- First, drop NOT NULL constraint if it exists to allow NULL values
+ALTER TABLE public.images ALTER COLUMN collection_id DROP NOT NULL;
+
+-- Clear existing collection_id values to avoid foreign key conflicts
+UPDATE public.images SET collection_id = NULL WHERE collection_id IS NOT NULL;
+
+-- Drop existing constraint if it exists
 ALTER TABLE public.images 
 DROP CONSTRAINT IF EXISTS images_collection_id_fkey;
 
-ALTER TABLE public.images 
-ADD CONSTRAINT images_collection_id_fkey 
-FOREIGN KEY (collection_id) 
-REFERENCES public.user_collections(id) 
-ON DELETE SET NULL;
+-- Add new constraint safely
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'images_collection_id_fkey'
+    ) THEN
+        ALTER TABLE public.images 
+        ADD CONSTRAINT images_collection_id_fkey 
+        FOREIGN KEY (collection_id) 
+        REFERENCES public.user_collections(id) 
+        ON DELETE SET NULL;
+    END IF;
+END $$;
 
 -- 3. Create external_tokens table (Dropbox only)
 CREATE TABLE IF NOT EXISTS public.external_tokens (
@@ -46,36 +62,44 @@ ALTER TABLE public.user_collections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.external_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.images ENABLE ROW LEVEL SECURITY;
 
--- user_collections policies (owner only)
+-- user_collections policies (owner only) - Safe creation
+DROP POLICY IF EXISTS "Users can view their own collections" ON public.user_collections;
 CREATE POLICY "Users can view their own collections" 
   ON public.user_collections FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own collections" ON public.user_collections;
 CREATE POLICY "Users can insert their own collections" 
   ON public.user_collections FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own collections" ON public.user_collections;
 CREATE POLICY "Users can update their own collections" 
   ON public.user_collections FOR UPDATE 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own collections" ON public.user_collections;
 CREATE POLICY "Users can delete their own collections" 
   ON public.user_collections FOR DELETE 
   USING (auth.uid() = user_id);
 
--- external_tokens policies (owner only)
+-- external_tokens policies (owner only) - Safe creation
+DROP POLICY IF EXISTS "Users can view their own tokens" ON public.external_tokens;
 CREATE POLICY "Users can view their own tokens" 
   ON public.external_tokens FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own tokens" ON public.external_tokens;
 CREATE POLICY "Users can insert their own tokens" 
   ON public.external_tokens FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own tokens" ON public.external_tokens;
 CREATE POLICY "Users can update their own tokens" 
   ON public.external_tokens FOR UPDATE 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own tokens" ON public.external_tokens;
 CREATE POLICY "Users can delete their own tokens" 
   ON public.external_tokens FOR DELETE 
   USING (auth.uid() = user_id);
@@ -84,6 +108,10 @@ CREATE POLICY "Users can delete their own tokens"
 -- First drop existing policies if any
 DROP POLICY IF EXISTS "Public can view images" ON public.images;
 DROP POLICY IF EXISTS "Anyone can view images" ON public.images;
+DROP POLICY IF EXISTS "Users can view CMS or their own images" ON public.images;
+DROP POLICY IF EXISTS "Users can insert their own images" ON public.images;
+DROP POLICY IF EXISTS "Users can update their own images" ON public.images;
+DROP POLICY IF EXISTS "Users can delete their own images" ON public.images;
 
 CREATE POLICY "Users can view CMS or their own images" 
   ON public.images FOR SELECT 
@@ -110,7 +138,8 @@ WHERE remote_id IS NOT NULL;
 -- Note: Storage bucket creation must be done via Supabase dashboard or CLI
 -- The bucket should be named 'user-images' with public GET and signed PUT
 
--- Add updated_at trigger for external_tokens
+-- Add updated_at trigger for external_tokens - Safe creation
+DROP TRIGGER IF EXISTS handle_external_tokens_updated_at ON public.external_tokens;
 CREATE TRIGGER handle_external_tokens_updated_at
   BEFORE UPDATE ON public.external_tokens
   FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();

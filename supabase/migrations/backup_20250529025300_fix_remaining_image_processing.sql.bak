@@ -1,0 +1,91 @@
+-- Enable pgvector extension for embeddings
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Add embedding field to images table (if vector extension is available)
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN
+    ALTER TABLE public.images ADD COLUMN IF NOT EXISTS embedding vector(1536);
+  ELSE
+    -- If vector extension is not available, use a JSONB column as fallback
+    ALTER TABLE public.images ADD COLUMN IF NOT EXISTS embedding JSONB;
+  END IF;
+END $$;
+
+-- Create retry queue table (if not exists)
+CREATE TABLE IF NOT EXISTS public.images_retry_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  image_id TEXT NOT NULL REFERENCES public.images(id) ON DELETE CASCADE,
+  scheduled_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create index for retry queue processing (if not exists)
+CREATE INDEX IF NOT EXISTS idx_retry_queue_scheduled ON public.images_retry_queue (scheduled_at);
+
+-- Create embedding usage log table (if not exists)
+CREATE TABLE IF NOT EXISTS public.embedding_usage_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  tokens_in INT NOT NULL,
+  cost_usd NUMERIC(10, 6) NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Create index for usage tracking (if not exists)
+CREATE INDEX IF NOT EXISTS idx_usage_log_user_created ON public.embedding_usage_log (user_id, created_at);
+
+-- Add RLS policies (if tables exist and RLS not already enabled)
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'images_retry_queue') THEN
+    ALTER TABLE public.images_retry_queue ENABLE ROW LEVEL SECURITY;
+  END IF;
+  
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'embedding_usage_log') THEN
+    ALTER TABLE public.embedding_usage_log ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+-- Service role can manage retry queue
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'images_retry_queue' 
+    AND policyname = 'Service role can manage retry queue'
+  ) THEN
+    CREATE POLICY "Service role can manage retry queue" ON public.images_retry_queue
+      FOR ALL TO service_role
+      USING (true)
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Service role can insert usage logs
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'embedding_usage_log' 
+    AND policyname = 'Service role can insert usage logs'
+  ) THEN
+    CREATE POLICY "Service role can insert usage logs" ON public.embedding_usage_log
+      FOR INSERT TO service_role
+      WITH CHECK (true);
+  END IF;
+END $$;
+
+-- Users can view their own usage logs
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'embedding_usage_log' 
+    AND policyname = 'Users can view own usage logs'
+  ) THEN
+    CREATE POLICY "Users can view own usage logs" ON public.embedding_usage_log
+      FOR SELECT TO authenticated
+      USING (auth.uid() = user_id);
+  END IF;
+END $$;

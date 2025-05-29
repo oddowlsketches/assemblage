@@ -18,7 +18,10 @@
     "db:push": "ts-node scripts/dbSync.ts",
     "db:studio": "supabase studio",
     "seed:images": "node scripts/seedPublicImages.js",
-    "reprocess-metadata": "ts-node scripts/reprocess_missing_metadata.ts"
+    "reprocess-metadata": "ts-node scripts/reprocess_missing_metadata.ts",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",
@@ -27,7 +30,9 @@
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.6",
     "ts-node": "^10.9.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^1.0.4",
+    "@vitest/coverage-v8": "^1.0.4"
   },
   "dependencies": {
     "@netlify/functions": "^3.1.8",

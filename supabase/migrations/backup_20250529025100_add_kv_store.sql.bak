@@ -1,0 +1,20 @@
+-- Simple KV store for rate limiting
+CREATE TABLE IF NOT EXISTS public.kv_store (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL,
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Clean up expired entries periodically
+CREATE INDEX IF NOT EXISTS idx_kv_expires ON public.kv_store (expires_at) WHERE expires_at IS NOT NULL;
+
+-- RLS policies
+ALTER TABLE public.kv_store ENABLE ROW LEVEL SECURITY;
+
+-- Only service role can manage KV store
+CREATE POLICY "Service role can manage KV store" ON public.kv_store
+  FOR ALL TO service_role
+  USING (true)
+  WITH CHECK (true);
