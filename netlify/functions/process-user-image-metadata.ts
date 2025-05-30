@@ -154,8 +154,7 @@ Format your response as JSON:
       description: metadata.description,
       tags: metadata.tags,
       image_role: metadata.image_role,
-      metadata_status: 'complete',
-      last_processed: new Date().toISOString()
+      metadata_status: 'complete'
     };
     
     // Only add metadata field if it exists in the schema
@@ -201,8 +200,7 @@ Format your response as JSON:
           .from('images')
           .update({ 
             metadata_status: 'error',
-            processing_error: error.message,
-            last_processed: new Date().toISOString()
+            processing_error: error.message
           })
           .eq('id', imageId);
       }

@@ -6,11 +6,26 @@ import { getSupabase } from '../supabaseClient';
 export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
   const uiColors = useUiColors();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedMetadata, setEditedMetadata] = useState({
-    tags: image?.metadata?.tags?.join(', ') || '',
-    caption: image?.metadata?.caption || '',
-    description: image?.metadata?.description || ''
-  });
+  // Handle both cases: metadata in separate columns or in metadata JSONB column
+  const getInitialMetadata = () => {
+    if (image?.metadata && typeof image.metadata === 'object') {
+      // Metadata is in JSONB column
+      return {
+        tags: image.metadata.tags?.join(', ') || '',
+        caption: image.metadata.caption || '',
+        description: image.metadata.description || ''
+      };
+    } else {
+      // Metadata is in separate columns
+      return {
+        tags: image?.tags?.join(', ') || '',
+        caption: image?.caption || image?.title || '',
+        description: image?.description || ''
+      };
+    }
+  };
+  
+  const [editedMetadata, setEditedMetadata] = useState(getInitialMetadata());
   const [saving, setSaving] = useState(false);
 
   if (!isOpen || !image) return null;
@@ -19,21 +34,38 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
     setSaving(true);
     try {
       const supabase = getSupabase();
+      const tags = editedMetadata.tags.split(',').map(tag => tag.trim()).filter(Boolean);
+      const caption = editedMetadata.caption.trim();
+      const description = editedMetadata.description.trim();
+      
+      // Update both separate columns and metadata JSONB
       const updatedMetadata = {
-        ...image.metadata,
-        tags: editedMetadata.tags.split(',').map(tag => tag.trim()).filter(Boolean),
-        caption: editedMetadata.caption.trim(),
-        description: editedMetadata.description.trim()
+        ...(image.metadata || {}),
+        tags,
+        caption,
+        description
       };
 
       const { error } = await supabase
         .from('images')
-        .update({ metadata: updatedMetadata })
+        .update({ 
+          metadata: updatedMetadata,
+          tags,
+          description,
+          // caption might not exist as a separate column
+          ...(image.hasOwnProperty('caption') ? { caption } : {})
+        })
         .eq('id', image.id);
 
       if (error) throw error;
 
-      onUpdate({ ...image, metadata: updatedMetadata });
+      onUpdate({ 
+        ...image, 
+        metadata: updatedMetadata,
+        tags,
+        description,
+        caption 
+      });
       setIsEditing(false);
     } catch (err) {
       console.error('Error updating metadata:', err);
@@ -44,11 +76,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
   };
 
   const handleCancel = () => {
-    setEditedMetadata({
-      tags: image?.metadata?.tags?.join(', ') || '',
-      caption: image?.metadata?.caption || '',
-      description: image?.metadata?.description || ''
-    });
+    setEditedMetadata(getInitialMetadata());
     setIsEditing(false);
   };
 
@@ -235,26 +263,29 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
                 />
               ) : (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                  {image.metadata?.tags?.length > 0 ? (
-                    image.metadata.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          background: `${uiColors.fg}20`,
-                          color: uiColors.fg,
-                          fontSize: '0.8rem',
-                          borderRadius: '2px'
-                        }}
-                      >
-                        {tag}
+                  {(() => {
+                    const tags = image.metadata?.tags || image.tags || [];
+                    return tags.length > 0 ? (
+                      tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: `${uiColors.fg}20`,
+                            color: uiColors.fg,
+                            fontSize: '0.8rem',
+                            borderRadius: '2px'
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ color: uiColors.fg, opacity: 0.5, fontSize: '0.85rem' }}>
+                        No tags
                       </span>
-                    ))
-                  ) : (
-                    <span style={{ color: uiColors.fg, opacity: 0.5, fontSize: '0.85rem' }}>
-                      No tags
-                    </span>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -294,9 +325,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
                   margin: 0,
                   color: uiColors.fg,
                   fontSize: '0.85rem',
-                  opacity: image.metadata?.caption ? 1 : 0.5
+                  opacity: (image.metadata?.caption || image.caption || image.title) ? 1 : 0.5
                 }}>
-                  {image.metadata?.caption || 'No caption'}
+                  {image.metadata?.caption || image.caption || image.title || 'No caption'}
                 </p>
               )}
             </div>
@@ -337,10 +368,10 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
                   margin: 0,
                   color: uiColors.fg,
                   fontSize: '0.85rem',
-                  opacity: image.metadata?.description ? 1 : 0.5,
+                  opacity: (image.metadata?.description || image.description) ? 1 : 0.5,
                   whiteSpace: 'pre-wrap'
                 }}>
-                  {image.metadata?.description || 'No description'}
+                  {image.metadata?.description || image.description || 'No description'}
                 </p>
               )}
             </div>

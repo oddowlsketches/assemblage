@@ -163,8 +163,7 @@ Respond ONLY with valid JSON, no markdown formatting or backticks:
           description: metadata.description,
           tags: metadata.tags,
           metadata: metadata,
-          metadata_status: 'complete',
-          updated_at: new Date().toISOString()
+          metadata_status: 'complete'
         })
         .eq('id', imageId);
 

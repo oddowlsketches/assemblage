@@ -61,12 +61,19 @@ export const useImageUpload = () => {
   }, [])
 
   const compressImage = useCallback(async (file: File): Promise<File> => {
+    // Skip compression for small files
+    if (file.size < COMPRESSION_THRESHOLD) {
+      console.log(`[compressImage] File already under ${COMPRESSION_THRESHOLD / 1024 / 1024}MB, skipping compression`);
+      return file;
+    }
+    
     // Always attempt to optimize images
     const options = {
       maxSizeMB: 2,
       maxWidthOrHeight: MAX_DIMENSION,
       useWebWorker: true,
-      initialQuality: 0.85
+      initialQuality: 0.85,
+      fileType: file.type as 'image/jpeg' | 'image/png'
     }
 
     try {
@@ -236,46 +243,22 @@ export const useImageUpload = () => {
       throw new Error(dbError.message || 'Failed to save image to database')
     }
 
-    // Trigger metadata generation for the uploaded image
-    try {
-      const metadataResponse = await fetch('/.netlify/functions/process-user-image-metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageId: imageData.id })
-      });
-      
-      if (!metadataResponse.ok) {
-        const errorText = await metadataResponse.text();
-        console.error('[uploadToSupabase] Metadata generation failed:', errorText);
-        
-        // Don't fail the upload if metadata generation fails
-        // The image is already uploaded successfully
+    // Trigger metadata generation asynchronously (don't wait for it)
+    fetch('/.netlify/functions/process-user-image-metadata', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageId: imageData.id })
+    }).then(response => {
+      if (!response.ok) {
+        response.text().then(errorText => {
+          console.error('[uploadToSupabase] Metadata generation failed:', errorText);
+        });
       } else {
         console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
-        
-        // Poll for metadata completion (max 30 seconds)
-        const maxAttempts = 10;
-        const pollInterval = 3000; // 3 seconds
-        
-        for (let i = 0; i < maxAttempts; i++) {
-          await new Promise(resolve => setTimeout(resolve, pollInterval));
-          
-          const { data: updatedImage, error: pollError } = await supabase
-            .from('images')
-            .select('metadata_status, metadata, tags, description')
-            .eq('id', imageData.id)
-            .single();
-            
-          if (!pollError && updatedImage?.metadata_status === 'complete') {
-            console.log('[uploadToSupabase] Metadata generation completed:', updatedImage);
-            return { ...imageData, ...updatedImage };
-          }
-        }
       }
-    } catch (metadataError) {
+    }).catch(metadataError => {
       console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
-      // Don't fail the upload if metadata generation fails
-    }
+    });
 
     return imageData
   }, [generateThumbnail, calculateFileHash])

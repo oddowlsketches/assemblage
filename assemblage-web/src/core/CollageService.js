@@ -216,7 +216,16 @@ export class CollageService {
             // For uploads, use src directly (it's already a full URL)
             // For CMS images, use getImageUrl to construct the URL
             if (metadata.provider === 'upload') {
-                img.src = metadata.src;
+                // Ensure the URL is properly encoded (especially for filenames with spaces)
+                try {
+                    const url = new URL(metadata.src);
+                    // Encode the pathname to handle spaces and special characters
+                    url.pathname = url.pathname.split('/').map(segment => encodeURIComponent(segment)).join('/');
+                    img.src = url.toString();
+                } catch (e) {
+                    // Fallback if URL parsing fails
+                    img.src = metadata.src;
+                }
             } else {
                 img.src = getImageUrl(metadata.src);
             }
