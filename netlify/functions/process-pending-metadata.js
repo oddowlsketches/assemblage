@@ -26,7 +26,7 @@ export async function handler(event) {
       .from('images')
       .select('id')
       .or('metadata_status.eq.pending_llm,metadata_status.eq.processing,metadata_status.is.null')
-      .limit(10); // Process up to 10 at a time
+      .limit(5); // Process up to 5 at a time to avoid timeouts
 
     if (fetchError) {
       console.error('Error fetching pending images:', fetchError);
