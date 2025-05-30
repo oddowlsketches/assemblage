@@ -1,0 +1,302 @@
+import { useState, useCallback } from 'react'
+import imageCompression from 'browser-image-compression'
+import { getSupabase } from '../lib/supabaseClient'
+import { User } from '@supabase/supabase-js'
+
+interface ProcessedFile extends File {
+  // Add any custom properties if you extend the File object
+}
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_DIMENSION = 10000
+const COMPRESSION_THRESHOLD = 2 * 1024 * 1024 // 2MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
+const REJECTED_TYPES = ['image/gif', 'image/webp', 'image/heic']
+
+type CollectionId = string | 'cms';
+
+export const useImageUpload = () => {
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [error, setError] = useState<string | null>(null)
+
+  const validateFile = useCallback((file: File) => {
+    if (REJECTED_TYPES.includes(file.type)) {
+      const ext = file.type.split('/')[1].toUpperCase()
+      throw new Error(`${ext} files are not supported. Please use JPEG or PNG.`)
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      throw new Error('Invalid file type. Please use JPEG or PNG.')
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('File size exceeds 10MB limit.')
+    }
+
+    return true
+  }, [])
+
+  const validateDimensions = useCallback(async (file: File) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
+          reject(new Error(`Image dimensions exceed ${MAX_DIMENSION}px limit.`))
+        } else {
+          resolve(true)
+        }
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('Failed to load image for validation.'))
+      }
+      
+      img.src = url
+    })
+  }, [])
+
+  const compressImage = useCallback(async (file: File): Promise<File> => {
+    if (file.size <= COMPRESSION_THRESHOLD) {
+      return file
+    }
+
+    const options = {
+      maxSizeMB: 2,
+      maxWidthOrHeight: 4000,
+      useWebWorker: true,
+      initialQuality: 0.8,
+      onProgress: (percent: number) => {
+        setProgress(percent * 0.5)
+      }
+    }
+
+    try {
+      const compressedFile = await imageCompression(file, options)
+      return compressedFile
+    } catch (error) {
+      console.error('Compression failed:', error)
+      return file
+    }
+  }, [])
+
+  const calculateFileHash = useCallback(async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  }, []);
+
+  const generateThumbnail = useCallback(async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context for thumbnail'));
+          return;
+        }
+        
+        const maxSize = 400
+        let width = img.width
+        let height = img.height
+        
+        if (width > height && width > maxSize) {
+          height = (height * maxSize) / width
+          width = maxSize
+        } else if (height > maxSize) {
+          width = (width * maxSize) / height
+          height = maxSize
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob)
+          } else {
+            reject(new Error('Failed to generate thumbnail blob'))
+          }
+        }, 'image/jpeg', 0.8)
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('Failed to load image for thumbnail'))
+      }
+      
+      img.src = url
+    })
+  }, [])
+
+  const uploadToSupabase = useCallback(async (file: File, collectionId: CollectionId) => {
+    const supabase = getSupabase();
+    if (!supabase) throw new Error('Supabase client not initialized');
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User must be authenticated');
+    
+    const fileName = `${user.id}/${Date.now()}_${file.name}`
+    const thumbFileName = fileName.replace(/\.[^/.]+$/, '_thumb.jpg')
+    
+    // Calculate file hash for deduplication
+    const fileHash = await calculateFileHash(file);
+    
+    // Check if file already exists
+    const { data: existingImage, error: checkError } = await supabase
+      .from('images')
+      .select('id, src, thumb_src, user_collection_id')
+      .eq('file_hash', fileHash)
+      .eq('provider', 'upload')
+      .eq('user_id', user.id)
+      .single();
+    
+    // Log the error for debugging
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows found" which is expected
+      console.error('[uploadToSupabase] Error checking existing image:', checkError);
+      // Don't throw here, continue with upload
+    }
+      
+    if (existingImage) {
+      // File already exists, return it
+      return existingImage;
+    }
+    
+    const thumbnailBlob: Blob = await generateThumbnail(file)
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('user-images')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (uploadError) throw uploadError
+    
+    const { data: thumbData, error: thumbError } = await supabase.storage
+      .from('user-images')
+      .upload(thumbFileName, thumbnailBlob, {
+        cacheControl: '3600',
+        upsert: false
+      })
+
+    if (thumbError) {
+      await supabase.storage.from('user-images').remove([fileName])
+      throw thumbError
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('user-images')
+      .getPublicUrl(fileName)
+      
+    const { data: { publicUrl: thumbUrl } } = supabase.storage
+      .from('user-images')
+      .getPublicUrl(thumbFileName)
+
+    // For uploads, always use user_collection_id (not collection_id)
+    if (collectionId === 'cms') {
+      throw new Error('Cannot upload images to Default Library');
+    }
+
+    const { data: imageData, error: dbError } = await supabase
+      .from('images')
+      .insert({
+        id: crypto.randomUUID(),
+        src: publicUrl,
+        thumb_src: thumbUrl,
+        collection_id: null, // Must be explicitly NULL for uploads
+        user_collection_id: collectionId, // Use user_collection_id for uploads
+        user_id: user.id,
+        provider: 'upload',
+        remote_id: null, // Explicitly NULL for local uploads
+        file_hash: fileHash,
+        metadata_status: 'pending_llm',
+        description: '',
+        title: file.name
+      })
+      .select('id, src, thumb_src, user_collection_id, user_id, metadata_status, description, title, provider')
+      .single()
+
+    if (dbError) {
+      console.error('[uploadToSupabase] Database insert error:', dbError);
+      await supabase.storage.from('user-images').remove([fileName, thumbFileName])
+      throw new Error(dbError.message || 'Failed to save image to database')
+    }
+
+    return imageData
+  }, [generateThumbnail, calculateFileHash])
+
+  const uploadImage = useCallback(async (file: File, collectionId: CollectionId) => {
+    setUploading(true)
+    setError(null)
+    setProgress(0)
+
+    try {
+      validateFile(file)
+      await validateDimensions(file)
+
+      const processedFile = await compressImage(file)
+
+      setProgress(50)
+      const imageData = await uploadToSupabase(processedFile, collectionId)
+      
+      setProgress(100)
+      setUploading(false)
+      
+      return imageData
+    } catch (err: any) {
+      setError(err.message || 'Upload failed')
+      setUploading(false)
+      throw err
+    }
+  }, [validateFile, validateDimensions, compressImage, uploadToSupabase])
+
+  const uploadMultiple = useCallback(async (files: File[], collectionId: CollectionId) => {
+    const results = []
+    const errors = []
+
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const result = await uploadImage(files[i], collectionId)
+        results.push(result)
+      } catch (err: any) {
+        errors.push({ file: files[i].name, error: err.message })
+      }
+    }
+
+    return { results, errors }
+  }, [uploadImage])
+
+  const reset = useCallback(() => {
+    setUploading(false)
+    setProgress(0)
+    setError(null)
+  }, [])
+
+  return {
+    uploadImage,
+    uploadMultiple,
+    uploading,
+    progress,
+    error,
+    reset,
+    validateFile,
+    validateDimensions,
+    compressImage
+  }
+}

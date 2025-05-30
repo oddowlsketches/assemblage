@@ -58,9 +58,14 @@ export class CollageService {
         this.currentCollectionId = normalizedCollectionId;
         
         try {
-            if (this.isDevelopment) {
+            // Check if this is the default collection
+            const isDefaultCollection = normalizedCollectionId === getDefaultCollectionId() || normalizedCollectionId === 'cms';
+            
+            // In development, use placeholders for default collection
+            if (this.isDevelopment && isDefaultCollection) {
                 await this.setupDevelopmentImages();
             } else {
+                // Load real images for user collections or production
                 await this.loadImageMetadata(normalizedCollectionId);
             }
             
@@ -93,13 +98,28 @@ export class CollageService {
             throw new Error('Supabase client not available');
         }
         
+        // Check if this is a user collection ID (UUID format)
+        const isUserCollection = collectionId && collectionId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && collectionId !== getDefaultCollectionId();
+        
         let query = this.supabaseClient
             .from('images')
-            .select('id, src, image_role, collection_id, is_black_and_white')
+            .select('id, src, thumb_src, image_role, collection_id, user_collection_id, is_black_and_white, provider')
             .order('created_at', { ascending: false });
             
-        if (collectionId) {
-            query = query.eq('collection_id', collectionId);
+        if (isUserCollection) {
+            // For user collections, filter by user_collection_id (not collection_id)
+            const { data: { user } } = await this.supabaseClient.auth.getUser();
+            if (user) {
+                query = query.eq('user_collection_id', collectionId).eq('user_id', user.id);
+            } else {
+                console.warn('[CollageService] No user session for user collection');
+                this.imageMetadata = [];
+                return;
+            }
+        } else {
+            // For CMS/default collection, use the default collection ID
+            const defaultId = collectionId === 'cms' ? getDefaultCollectionId() : collectionId;
+            query = query.eq('collection_id', defaultId).eq('provider', 'cms');
         }
         
         const { data: rows, error } = await query;
@@ -110,7 +130,7 @@ export class CollageService {
         }
         
         this.imageMetadata = rows || [];
-        console.log(`[CollageService] Loaded ${this.imageMetadata.length} image records`);
+        console.log(`[CollageService] Loaded ${this.imageMetadata.length} image records for collection ${collectionId}`);
     }
     
     // Setup placeholder images for development
@@ -146,11 +166,15 @@ export class CollageService {
 
     // Load specific images for rendering
     async loadImagesForRender(count = 10) {
-        if (this.isDevelopment) {
-            // Return development images
+        // Check if this is the default collection
+        const isDefaultCollection = this.currentCollectionId === getDefaultCollectionId() || this.currentCollectionId === 'cms';
+        
+        if (this.isDevelopment && isDefaultCollection) {
+            // Return development images for default collection
             return this.availableImages.slice(0, Math.min(count, this.availableImages.length));
         }
         
+        // For user collections or production, load real images
         // Get random image IDs from metadata
         const imageIds = this.getRandomImageIds(count);
         
@@ -187,7 +211,13 @@ export class CollageService {
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = 'anonymous';
-            img.src = getImageUrl(metadata.src);
+            // For uploads, use src directly (it's already a full URL)
+            // For CMS images, use getImageUrl to construct the URL
+            if (metadata.provider === 'upload') {
+                img.src = metadata.src;
+            } else {
+                img.src = getImageUrl(metadata.src);
+            }
             img.dataset.imageId = id;
             img.image_role = metadata.image_role || 'unknown';
             img.is_black_and_white = metadata.is_black_and_white;

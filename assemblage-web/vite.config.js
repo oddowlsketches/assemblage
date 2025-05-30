@@ -6,6 +6,9 @@ import { resolve } from 'path'
 export default defineConfig({
   envDir: resolve(__dirname, '..'),
   plugins: [react()],
+  optimizeDeps: {
+    include: ['phosphor-react'],
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
@@ -33,5 +36,11 @@ export default defineConfig({
         rewrite: (path) => path
       }
     }
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: './src/test-setup.js',
+    css: true,
   }
 }) 

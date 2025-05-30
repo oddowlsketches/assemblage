@@ -1,14 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
-
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-let supabase: any;
+// Use the shared global instance from lib/supabaseClient
+import { getSupabase as getGlobalSupabase } from '../lib/supabaseClient';
 
 export function getSupabase() {
-  if (!supabase) {
-    supabase = createClient(
-      import.meta.env.VITE_SUPABASE_URL,
-      import.meta.env.VITE_SUPABASE_ANON_KEY
-    );
-  }
-  return supabase;
+  return getGlobalSupabase();
 } 

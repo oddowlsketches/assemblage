@@ -9,14 +9,17 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { Gear, CaretDown, Check, User, FloppyDisk } from 'phosphor-react';
+import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack } from 'phosphor-react';
+import { UploadModal } from './components/UploadModal';
+import { CollectionDrawer } from './components/CollectionDrawer';
+import { SourceSelector } from './components/SourceSelector';
 
 function MainApp() {
   const canvasRef = useRef(null);
   const serviceRef = useRef(null);
   const [isLoading, setIsLoading] = useState(true);
   const [prompt, setPrompt] = useState('');
-  const [collections, setCollections] = useState([]);
+  const [userCollectionsForSelect, setUserCollectionsForSelect] = useState([]);
   const [selectedCollection, setSelectedCollection] = useState('');
   const [isAdmin, setIsAdmin] = useState(false); // Track admin status
   const [session, setSession] = useState(null);
@@ -26,6 +29,12 @@ function MainApp() {
   const [saveState, setSaveState] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
   const [isFirstSave, setIsFirstSave] = useState(false);
   const [feedbackTextColor, setFeedbackTextColor] = useState('white');
+  
+  // New states for the source selector functionality
+  const [activeCollection, setActiveCollection] = useState('cms');
+  const [activeCollectionName, setActiveCollectionName] = useState('Default Library');
+  const [showUpload, setShowUpload] = useState(false);
+  const [showDrawer, setShowDrawer] = useState(false);
 
   // Utility function to calculate brightness of a color
   const getBrightness = (color) => {
@@ -185,7 +194,7 @@ function MainApp() {
       const supabase = getSupabase();
       
       // Default collection ID for all users
-      const DEFAULT_COLLECTION_ID = '215c3f9e-70ff-45e5-95e4-413565b38b0f';
+      const DEFAULT_COLLECTION_ID = '00000000-0000-0000-0000-000000000001';
       
       if (isUserAdmin) {
         console.log('[loadCollections] Loading as admin user');
@@ -196,25 +205,25 @@ function MainApp() {
           .order('created_at', { ascending: true });
         
         if (!error && data) {
-          setCollections(data);
+          setUserCollectionsForSelect(data);
           const firstCollectionId = data[0]?.id || DEFAULT_COLLECTION_ID;
           setSelectedCollection(firstCollectionId);
-          await loadImagesForCollection(firstCollectionId);
+          // Always load CMS collection initially
+          await loadImagesForCollection('cms');
         } else {
           console.error('Error loading collections:', error);
-          await loadImagesForCollection(DEFAULT_COLLECTION_ID);
+          await loadImagesForCollection('cms');
         }
       } else {
         console.log('[loadCollections] Loading as regular user');
         // Non-admin users only see the default collection
-        setCollections([{ id: DEFAULT_COLLECTION_ID, name: 'Default Collection' }]);
+        setUserCollectionsForSelect([{ id: DEFAULT_COLLECTION_ID, name: 'Default Collection' }]);
         setSelectedCollection(DEFAULT_COLLECTION_ID);
-        await loadImagesForCollection(DEFAULT_COLLECTION_ID);
+        await loadImagesForCollection('cms');
       }
     } catch (err) {
       console.error('Error loading collections:', err);
-      const DEFAULT_COLLECTION_ID = '215c3f9e-70ff-45e5-95e4-413565b38b0f';
-      await loadImagesForCollection(DEFAULT_COLLECTION_ID);
+      await loadImagesForCollection('cms');
     }
   };
 
@@ -226,7 +235,9 @@ function MainApp() {
     try {
       console.log(`[MainApp] Loading images for collection: ${collectionId}`);
       // Initialize with the specified collection
-      await serviceRef.current.initialize(collectionId);
+      // Use the default collection ID if 'cms' is selected
+      const actualCollectionId = collectionId === 'cms' ? '00000000-0000-0000-0000-000000000001' : collectionId;
+      await serviceRef.current.initialize(actualCollectionId);
       console.log(`[MainApp] Service initialized with ${serviceRef.current.imageMetadata.length} images`);
       // Generate initial collage
       await serviceRef.current.generateCollage();
@@ -265,6 +276,62 @@ function MainApp() {
       console.error('Failed to switch collections:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Fetch user-specific collections for the source selector dropdown
+  const fetchUserCollectionsForSelect = async () => {
+    if (!session) {
+      setUserCollectionsForSelect([]);
+      return;
+    }
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('user_collections') // Assumes user-specific collections are in 'user_collections'
+        .select('id, name')
+        .eq('user_id', session.user.id)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching user collections for select:', error);
+        setUserCollectionsForSelect([]);
+      } else {
+        setUserCollectionsForSelect(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching user collections for select:', err);
+      setUserCollectionsForSelect([]);
+    }
+  };
+
+  useEffect(() => {
+    if (session) {
+      fetchUserCollectionsForSelect();
+    } else {
+      setUserCollectionsForSelect([]);
+    }
+  }, [session]);
+
+  // Update activeCollectionName when activeCollection changes
+  useEffect(() => {
+    if (activeCollection === 'cms') {
+      setActiveCollectionName('Default Library');
+    } else {
+      const foundCollection = userCollectionsForSelect.find(col => col.id === activeCollection);
+      setActiveCollectionName(foundCollection ? foundCollection.name : 'Unknown Collection');
+    }
+  }, [activeCollection, userCollectionsForSelect]);
+
+  // Handler for source selector changes
+  const handleSourceChange = async (sourceId) => {
+    // This function is now primarily for setting the active source for collage generation
+    setActiveCollection(sourceId);
+    await loadImagesForCollection(sourceId); // Reload images for the new source
+    // Close any dropdowns if this was called from one
+    const sourceDropdown = document.querySelector('.source-selector-dropdown .dropdown-content');
+    if (sourceDropdown && sourceDropdown.classList.contains('show')) {
+      sourceDropdown.classList.remove('show');
     }
   };
 
@@ -395,7 +462,7 @@ function MainApp() {
     }
   };
   
-  const handleAuthChange = (newSession) => {
+  const handleAuthChange = async (newSession) => {
     const oldSession = session;
     setSession(newSession);
     
@@ -415,6 +482,60 @@ function MainApp() {
     
     if (newSession) {
       setShowAuth(false);
+      
+      // Check if user has any collections, if not create a default one
+      const supabase = getSupabase();
+      const { data: collections, error: fetchError } = await supabase
+        .from('user_collections')
+        .select('id')
+        .eq('user_id', newSession.user.id)
+        .limit(1);
+        
+      if (!fetchError && (!collections || collections.length === 0)) {
+        console.log('[Auth] Creating default collection for new user');
+        // Create in user_collections
+        const { data: newUserCollection, error: createUserCollectionError } = await supabase
+          .from('user_collections')
+          .insert({
+            user_id: newSession.user.id,
+            name: 'My Images' // Default name
+          })
+          .select()
+          .single();
+          
+        if (createUserCollectionError) {
+          console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
+        } else if (newUserCollection) {
+          console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
+          
+          // ALSO Create a corresponding entry in image_collections
+          // This entry makes the user_collection.id a valid foreign key for images.collection_id
+          const { error: createImageCollectionError } = await supabase
+            .from('image_collections')
+            .insert({
+              id: newUserCollection.id, // Use the SAME ID as the user_collection
+              name: newUserCollection.name, // Can use the same name
+              user_id: newSession.user.id, // Associate with the user
+              // Add any other required fields for image_collections, ensure they have defaults or are nullable
+              // For example, if 'is_public' or 'type' fields exist and are required:
+              // is_public: false, 
+              // type: 'user_generated',
+            });
+
+          if (createImageCollectionError) {
+            console.error('[Auth] Error creating corresponding image_collection entry:', createImageCollectionError);
+            // Potentially roll back the user_collection creation or mark it as needing reconciliation
+          } else {
+            console.log('[Auth] Created corresponding image_collection entry for:', newUserCollection.id);
+          }
+
+          // If we're currently on cms/default, switch to the new collection
+          if (activeCollection === 'cms') {
+            setActiveCollection(newUserCollection.id);
+            await loadImagesForCollection(newUserCollection.id);
+          }
+        }
+      }
     }
   };
 
@@ -465,40 +586,20 @@ function MainApp() {
             
             <button id="generateButton" onClick={handleShiftPerspective}>New</button>
             
-            {/* Settings dropdown for admin users */}
-            {isAdmin && collections.length > 1 && (
-              <div className="settings-dropdown">
-                <button className="settings-btn" onClick={(e) => {
-                  e.currentTarget.nextElementSibling.classList.toggle('show');
-                }}>
-                  <Gear size={16} weight="regular" />
-                  <CaretDown size={12} weight="regular" />
-                </button>
-                <div className="dropdown-content">
-                  <div className="dropdown-label">Collection</div>
-                  {collections.map(collection => (
-                    <button 
-                      key={collection.id} 
-                      className={`dropdown-item ${selectedCollection === collection.id ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedCollection(collection.id);
-                        handleCollectionChange({ target: { value: collection.id } });
-                        document.querySelector('.dropdown-content').classList.remove('show');
-                      }}
-                    >
-                      <span>{collection.name}</span>
-                      {selectedCollection === collection.id && <Check size={16} weight="bold" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* New 3-button Source Selector */}
+            <SourceSelector 
+              activeSource={activeCollection}
+              onSourceChange={handleSourceChange}
+              onManageCollections={() => setShowDrawer(true)}
+              onUploadImages={() => setShowUpload(true)}
+              onOpenGallery={() => setShowGallery(true)}
+            />
             
-            {/* User menu */}
+            {/* User menu - 'My Collages' item removed */}
             {authLoading ? (
               <div className="auth-loading">Loading...</div>
             ) : session ? (
-              <div className="user-menu">
+              <div className="user-menu" style={{ marginLeft: '0.5rem' }}>
                 <button className="user-btn" onClick={(e) => {
                   e.currentTarget.nextElementSibling.classList.toggle('show');
                 }}>
@@ -507,18 +608,16 @@ function MainApp() {
                 </button>
                 <div className="user-dropdown">
                   <div className="user-email-header">{session.user.email}</div>
-                  <button 
-                    onClick={() => setShowGallery(true)}
-                    className="dropdown-item"
-                  >
-                    My Collages
-                  </button>
+                  {/* 'My Collages' button removed from here */}
                   <button 
                     onClick={async () => {
                       const supabase = getSupabase();
                       await supabase.auth.signOut();
                       setSession(null);
                       setIsAdmin(false);
+                      // Ensure the dropdown closes after sign out
+                      const userDropdown = document.querySelector('.user-menu .user-dropdown');
+                      if (userDropdown) userDropdown.classList.remove('show');
                     }}
                     className="dropdown-item"
                   >
@@ -531,6 +630,14 @@ function MainApp() {
                 <span className="auth-helper-text">Sign in to save collages</span>
               </div>
             )}
+            
+            {/* Mobile menu button - visible only on mobile */}
+            <button className="mobile-menu-btn mobile-only" onClick={(e) => {
+              document.querySelector('.mobile-menu-overlay').classList.toggle('show');
+              document.querySelector('.mobile-menu-panel').classList.toggle('show');
+            }}>
+              <List size={16} weight="regular" />
+            </button>
           </div>
           
           {/* Mobile menu button - visible only on mobile */}
@@ -538,7 +645,7 @@ function MainApp() {
             document.querySelector('.mobile-menu-overlay').classList.toggle('show');
             document.querySelector('.mobile-menu-panel').classList.toggle('show');
           }}>
-            <Gear size={16} weight="regular" />
+            <List size={16} weight="regular" />
           </button>
         </div>
       </header>
@@ -574,27 +681,20 @@ function MainApp() {
           document.querySelector('.mobile-menu-panel').classList.remove('show');
         }}>×</button>
         
-        {/* Collections for admin users */}
-        {isAdmin && collections.length > 1 && (
-          <div className="mobile-menu-section">
-            <div className="mobile-menu-label">Collection</div>
-            {collections.map(collection => (
-              <button 
-                key={collection.id}
-                className={`mobile-menu-item ${selectedCollection === collection.id ? 'selected' : ''}`}
-                onClick={() => {
-                  setSelectedCollection(collection.id);
-                  handleCollectionChange({ target: { value: collection.id } });
-                  document.querySelector('.mobile-menu-overlay').classList.remove('show');
-                  document.querySelector('.mobile-menu-panel').classList.remove('show');
-                }}
-              >
-                <span>{collection.name}</span>
-                {selectedCollection === collection.id && <Check size={16} weight="bold" />}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Collection Management */}
+        <div className="mobile-menu-section">
+          <div className="mobile-menu-label">Image Source</div>
+          <button 
+            className="mobile-menu-item"
+            onClick={() => {
+              setShowDrawer(true);
+              document.querySelector('.mobile-menu-overlay').classList.remove('show');
+              document.querySelector('.mobile-menu-panel').classList.remove('show');
+            }}
+          >
+            Manage Collections
+          </button>
+        </div>
         
         {/* User menu for mobile */}
         {session && (
@@ -640,6 +740,39 @@ function MainApp() {
       <div id="canvas-container">
         <canvas ref={canvasRef} id="collageCanvas" />
         {isLoading && <div className="loading">Loading images...</div>}
+        {!isLoading && serviceRef.current?.imageMetadata?.length === 0 && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+            padding: '2rem',
+            background: 'var(--background-color, #f5f5f5)',
+            border: '1px solid var(--button-border-color, #333)',
+            fontFamily: 'Space Mono, monospace',
+            maxWidth: '400px',
+            color: 'var(--text-color, #333)'
+          }}>
+            <p style={{ marginBottom: '1rem' }}>No images available in this collection.</p>
+            {activeCollection !== 'cms' && (
+              <button 
+                onClick={() => setShowUpload(true)}
+                style={{
+                  background: 'var(--text-color, #333)',
+                  border: '1px solid var(--text-color, #333)',
+                  color: 'var(--background-color, white)',
+                  padding: '0.5rem 1rem',
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Upload Images
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <footer>
@@ -661,6 +794,34 @@ function MainApp() {
           onClose={() => setShowGallery(false)}
         />
       )}
+      
+      {/* Upload Modal */}
+      <UploadModal 
+        isOpen={showUpload} 
+        onClose={() => setShowUpload(false)} 
+        collectionId={activeCollection === 'cms' ? null : activeCollection}
+        onUploadComplete={(results) => {
+          // If we uploaded to a collection, refresh it
+          if (activeCollection !== 'cms' && results && results.length > 0) {
+            loadImagesForCollection(activeCollection);
+          }
+          // Close the upload modal after successful upload
+          setShowUpload(false);
+        }}
+      />
+      
+      {/* Collection Drawer */}
+      <CollectionDrawer 
+        isOpen={showDrawer} 
+        onClose={() => setShowDrawer(false)} 
+        activeCollectionId={activeCollection}
+        onCollectionSelect={(id) => {
+          setActiveCollection(id);
+          setShowDrawer(false);
+          loadImagesForCollection(id);
+        }}
+        onShowGallery={() => setShowGallery(true)}
+      />
     </div>
   );
 }

@@ -12,25 +12,32 @@ const DEV_BUCKET = import.meta.env.VITE_SUPABASE_BUCKET_DEV || 'dev-images';
 const APP_ENV = import.meta.env.MODE; // 'development', 'production', etc.
 const CURRENT_BUCKET = APP_ENV === 'development' ? DEV_BUCKET : PROD_BUCKET;
 
+// Create a single global instance shared across all imports
 let supabaseInstance = null;
 
+if (typeof window !== 'undefined' && !window.__supabaseGlobalInstance) {
+  if (supabaseUrl && supabaseAnonKey) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true
+      }
+    });
+    window.__supabaseGlobalInstance = supabaseInstance;
+    console.log('[supabaseClient.js] Created global Supabase client instance');
+  }
+} else if (typeof window !== 'undefined' && window.__supabaseGlobalInstance) {
+  supabaseInstance = window.__supabaseGlobalInstance;
+  console.log('[supabaseClient.js] Using existing global Supabase instance');
+}
+
 export const getSupabase = () => {
+  if (!supabaseInstance && typeof window !== 'undefined') {
+    supabaseInstance = window.__supabaseGlobalInstance;
+  }
   if (!supabaseInstance) {
-    if (supabaseUrl && supabaseAnonKey) {
-      supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: true
-        }
-      });
-      console.log('[getSupabase] Shared Supabase client initialized with URL:', supabaseUrl);
-    } else {
-      console.error('[getSupabase] Supabase URL or Anon Key is missing in .env. Cannot initialize Supabase client.', {
-        url: supabaseUrl ? 'present' : 'missing',
-        key: supabaseAnonKey ? 'present' : 'missing'
-      });
-    }
+    console.error('[getSupabase] Supabase client not available. Check environment variables.');
   }
   return supabaseInstance;
 };
