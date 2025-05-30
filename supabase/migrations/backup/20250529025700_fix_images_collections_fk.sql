@@ -12,11 +12,13 @@ ADD COLUMN IF NOT EXISTS file_hash text;
 DROP INDEX IF EXISTS idx_images_provider_remote_id;
 
 -- 4. Create new unique constraint on (provider, file_hash) for upload deduplication
+DROP INDEX IF EXISTS idx_images_provider_file_hash;
 CREATE UNIQUE INDEX idx_images_provider_file_hash 
 ON public.images(provider, file_hash) 
 WHERE provider = 'upload' AND file_hash IS NOT NULL;
 
 -- 5. Keep unique constraint for external providers (dropbox)
+DROP INDEX IF EXISTS idx_images_provider_remote_id_external;
 CREATE UNIQUE INDEX idx_images_provider_remote_id_external
 ON public.images(provider, remote_id) 
 WHERE provider != 'upload' AND remote_id IS NOT NULL;
@@ -32,6 +34,8 @@ REFERENCES public.image_collections(id)
 ON DELETE SET NULL;
 
 -- 7. Add CHECK constraint to ensure correct FK usage based on provider
+ALTER TABLE public.images
+DROP CONSTRAINT IF EXISTS images_collection_consistency;
 ALTER TABLE public.images
 ADD CONSTRAINT images_collection_consistency CHECK (
   CASE
@@ -49,6 +53,7 @@ DROP POLICY IF EXISTS "Users can update their own images" ON public.images;
 DROP POLICY IF EXISTS "Users can delete their own images" ON public.images;
 
 -- Allow viewing CMS images for everyone, and user's own images
+DROP POLICY IF EXISTS "View images based on provider" ON public.images;
 CREATE POLICY "View images based on provider" 
   ON public.images FOR SELECT 
   USING (
@@ -57,6 +62,7 @@ CREATE POLICY "View images based on provider"
   );
 
 -- Allow users to insert their own images
+DROP POLICY IF EXISTS "Users insert own images" ON public.images;
 CREATE POLICY "Users insert own images" 
   ON public.images FOR INSERT 
   WITH CHECK (
@@ -65,6 +71,7 @@ CREATE POLICY "Users insert own images"
   );
 
 -- Allow users to update their own images
+DROP POLICY IF EXISTS "Users update own images" ON public.images;
 CREATE POLICY "Users update own images" 
   ON public.images FOR UPDATE 
   USING (
@@ -73,6 +80,7 @@ CREATE POLICY "Users update own images"
   );
 
 -- Allow users to delete their own images
+DROP POLICY IF EXISTS "Users delete own images" ON public.images;
 CREATE POLICY "Users delete own images" 
   ON public.images FOR DELETE 
   USING (

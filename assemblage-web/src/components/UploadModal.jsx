@@ -112,6 +112,7 @@ export const UploadModal = ({
       const filesToUpload = files.map(f => f.file)
       const { results, errors } = await uploadMultiple(filesToUpload, selectedCollectionId)
       
+      console.log('[UploadModal] Upload results:', { results, errors });
       setUploadResults({ results, errors })
       
       if (results.length > 0 && onUploadComplete) {
@@ -125,7 +126,7 @@ export const UploadModal = ({
           setFiles([])
           setUploadResults(null)
           onClose()
-        }, 3000)
+        }, 4000) // Increased from 3000 to 4000ms
       } else if (errors.length > 0) {
         // Keep modal open if there were errors so user can see them
         // Remove successfully uploaded files from the list
@@ -449,22 +450,26 @@ export const UploadModal = ({
             <div style={{ marginBottom: '1rem' }}>
               {uploadResults.results.length > 0 && (
                 <div style={{
-                  padding: '1rem',
-                  background: 'white',
-                  border: '1px solid #2ECC71',
-                  color: '#27AE60',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.85rem',
-                  borderRadius: '4px'
+                  padding: '1.25rem',
+                  background: '#d4edda',
+                  border: '2px solid #2ECC71',
+                  color: '#155724',
+                  marginBottom: '1rem',
+                  fontSize: '0.9rem',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 12px rgba(46, 204, 113, 0.15)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Check size={20} weight="bold" color="#27AE60" />
-                    <div>
-                      <strong>Successfully uploaded {uploadResults.results.length} image{uploadResults.results.length !== 1 ? 's' : ''}!</strong>
-                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <Check size={24} weight="bold" color="#2ECC71" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div style={{ flex: 1 }}>
+                      <strong style={{ fontSize: '1rem', display: 'block', marginBottom: '0.25rem' }}>Successfully uploaded {uploadResults.results.length} image{uploadResults.results.length !== 1 ? 's' : ''}!</strong>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: '#155724' }}>
                         {userCollections.find(c => c.id === selectedCollectionId)?.name && (
                           <>Images added to "{userCollections.find(c => c.id === selectedCollectionId)?.name}" collection</>  
                         )}
+                      </p>
+                      <p style={{ margin: '0.5rem 0 0 0', fontSize: '0.8rem', fontStyle: 'italic', color: '#155724' }}>
+                        This window will close automatically in a few seconds...
                       </p>
                     </div>
                   </div>

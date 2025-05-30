@@ -295,6 +295,8 @@ export const useImageUpload = () => {
     const errors = []
     const totalFiles = files.length
     
+    console.log(`[uploadMultiple] Starting upload of ${totalFiles} files to collection ${collectionId}`);
+    
     setUploading(true)
     setError(null)
     setProgress(0)
@@ -305,15 +307,20 @@ export const useImageUpload = () => {
         const fileProgress = ((i + 1) / totalFiles) * 100
         setProgress(fileProgress)
         
+        console.log(`[uploadMultiple] Uploading file ${i + 1}/${totalFiles}: ${files[i].name}`);
         const result = await uploadImage(files[i], collectionId)
+        console.log(`[uploadMultiple] Successfully uploaded: ${files[i].name}`, result);
         results.push(result)
       } catch (err: any) {
+        console.error(`[uploadMultiple] Failed to upload ${files[i].name}:`, err);
         errors.push({ file: files[i].name, error: err.message })
       }
     }
     
     setProgress(100)
     setUploading(false)
+    
+    console.log(`[uploadMultiple] Upload complete. Success: ${results.length}, Errors: ${errors.length}`);
 
     return { results, errors }
   }, [uploadImage])

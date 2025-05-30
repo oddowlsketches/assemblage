@@ -294,17 +294,36 @@ function MainApp() {
     }
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase
-        .from('user_collections') // Assumes user-specific collections are in 'user_collections'
-        .select('id, name')
-        .eq('user_id', session.user.id)
-        .order('name', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching user collections for select:', error);
-        setUserCollectionsForSelect([]);
+      
+      // For admin users, fetch from image_collections
+      // For regular users, fetch from user_collections
+      if (isAdmin) {
+        const { data, error } = await supabase
+          .from('image_collections')
+          .select('id, name')
+          .order('created_at', { ascending: true });
+        
+        if (error) {
+          console.error('Error fetching admin collections:', error);
+          setUserCollectionsForSelect([]);
+        } else {
+          // Filter out the default collection for display
+          const filteredData = (data || []).filter(col => col.id !== '00000000-0000-0000-0000-000000000001');
+          setUserCollectionsForSelect(filteredData);
+        }
       } else {
-        setUserCollectionsForSelect(data || []);
+        const { data, error } = await supabase
+          .from('user_collections')
+          .select('id, name')
+          .eq('user_id', session.user.id)
+          .order('name', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching user collections for select:', error);
+          setUserCollectionsForSelect([]);
+        } else {
+          setUserCollectionsForSelect(data || []);
+        }
       }
     } catch (err) {
       console.error('Error fetching user collections for select:', err);
@@ -318,7 +337,7 @@ function MainApp() {
     } else {
       setUserCollectionsForSelect([]);
     }
-  }, [session]);
+  }, [session, isAdmin]); // Re-fetch when admin status changes
 
   // Update activeCollectionName when activeCollection changes
   useEffect(() => {
@@ -843,9 +862,10 @@ function MainApp() {
           // to ensure database has propagated the changes
           if (activeCollection !== 'cms' && results && results.length > 0) {
             console.log(`[MainApp] Upload complete, refreshing collection ${activeCollection}`);
+            // Increase delay to ensure database has fully propagated
             setTimeout(async () => {
               await loadImagesForCollection(activeCollection);
-            }, 500);
+            }, 1500); // Increased from 500ms to 1500ms
           }
         }}
       />

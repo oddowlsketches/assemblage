@@ -1,5 +1,5 @@
--- Migration: Add rich metadata fields to images table
--- Run this in Supabase SQL Editor
+-- Migration: Add rich metadata fields to images table (fixed)
+-- This version properly checks for existing constraints
 
 -- Add new columns to existing images table
 ALTER TABLE public.images 
@@ -13,18 +13,26 @@ ADD COLUMN IF NOT EXISTS metadata_status text DEFAULT 'pending_llm',
 ADD COLUMN IF NOT EXISTS processing_error text,
 ADD COLUMN IF NOT EXISTS last_processed timestamp with time zone;
 
--- Add check constraints
-ALTER TABLE public.images 
-ADD CONSTRAINT IF NOT EXISTS check_image_role 
-  CHECK (image_role IN ('texture','narrative','conceptual'));
-
-ALTER TABLE public.images 
-ADD CONSTRAINT IF NOT EXISTS check_palette_suitability 
-  CHECK (palette_suitability IN ('vibrant','neutral','earthtone','muted','pastel'));
-
-ALTER TABLE public.images 
-ADD CONSTRAINT IF NOT EXISTS check_metadata_status 
-  CHECK (metadata_status IN ('pending_llm','processing','complete','error'));
+-- Add check constraints with proper existence checks
+DO $$ 
+BEGIN
+  -- Drop and recreate constraints to ensure they're correct
+  ALTER TABLE public.images DROP CONSTRAINT IF EXISTS check_image_role;
+  ALTER TABLE public.images ADD CONSTRAINT check_image_role 
+    CHECK (image_role IN ('texture','narrative','conceptual'));
+    
+  ALTER TABLE public.images DROP CONSTRAINT IF EXISTS check_palette_suitability;
+  ALTER TABLE public.images ADD CONSTRAINT check_palette_suitability 
+    CHECK (palette_suitability IN ('vibrant','neutral','earthtone','muted','pastel'));
+    
+  ALTER TABLE public.images DROP CONSTRAINT IF EXISTS check_metadata_status;
+  ALTER TABLE public.images ADD CONSTRAINT check_metadata_status 
+    CHECK (metadata_status IN ('pending_llm','processing','complete','error'));
+EXCEPTION
+  WHEN duplicate_object THEN
+    -- Constraints already exist, that's fine
+    NULL;
+END $$;
 
 -- Add indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_images_metadata_status ON public.images(metadata_status);
