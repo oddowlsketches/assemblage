@@ -8,7 +8,7 @@ interface ProcessedFile extends File {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const MAX_DIMENSION = 4000 // Resize images larger than 4k pixels
+const MAX_DIMENSION = 8000 // Increased from 4000 to 8000 pixels
 const COMPRESSION_THRESHOLD = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
 const REJECTED_TYPES = ['image/gif', 'image/webp', 'image/heic']
@@ -45,7 +45,7 @@ export const useImageUpload = () => {
       img.onload = () => {
         URL.revokeObjectURL(url)
         if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-          reject(new Error(`Image dimensions exceed ${MAX_DIMENSION}px limit.`))
+          reject(new Error(`Image dimensions (${img.width}x${img.height}) exceed ${MAX_DIMENSION}px limit. Please resize the image or it will be compressed automatically.`))
         } else {
           resolve(true)
         }
@@ -245,7 +245,11 @@ export const useImageUpload = () => {
       });
       
       if (!metadataResponse.ok) {
-        console.error('[uploadToSupabase] Metadata generation failed:', await metadataResponse.text());
+        const errorText = await metadataResponse.text();
+        console.error('[uploadToSupabase] Metadata generation failed:', errorText);
+        
+        // Don't fail the upload if metadata generation fails
+        // The image is already uploaded successfully
       } else {
         console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
         

@@ -910,11 +910,13 @@ function MainApp() {
           // If we uploaded to a collection, refresh it after a short delay
           // to ensure database has propagated the changes
           if (activeCollection !== 'cms' && results && results.length > 0) {
-            console.log(`[MainApp] Upload complete, refreshing collection ${activeCollection}`);
+            console.log(`[MainApp] Upload complete, refreshing collection ${activeCollection} with ${results.length} new images`);
             // Increase delay to ensure database has fully propagated
             setTimeout(async () => {
-              await loadImagesForCollection(activeCollection);
-            }, 1500); // Increased from 500ms to 1500ms
+              // Force a complete reinitialize to ensure we get all images
+              await serviceRef.current.reinitialize(activeCollection);
+              console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
+            }, 2000); // Increased from 1500ms to 2000ms
           }
         }}
       />

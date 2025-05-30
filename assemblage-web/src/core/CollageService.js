@@ -88,6 +88,9 @@ export class CollageService {
         this.imageCache.clear();
         this.availableImages = [];
         
+        // Add a small delay to ensure database has propagated
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Initialize with new collection
         await this.initialize(collectionId);
     }
