@@ -459,15 +459,18 @@ export class CollageService {
             import('../utils/contrastUtils.js')
         ]).then(([colorUtils, contrastUtils]) => {
             const { getComplementaryColor } = colorUtils;
-            const { getReadableTextColor } = contrastUtils;
+            const { getContrastRatio } = contrastUtils;
             
             // Use the exact same complementary color logic as templates
             const complementaryColor = getComplementaryColor(bgColor);
             
-            // Ensure text is readable
-            const textColor = getReadableTextColor(bgColor);
+            // The getComplementaryColor function already ensures good readability
+            // So we should use it directly for UI elements
+            const textColor = complementaryColor;
             
-            console.log(`[CollageService] UI Colors - BG: ${bgColor}, Text: ${textColor}, Complementary: ${complementaryColor}`);
+            // Log the contrast ratio for debugging
+            const contrastRatio = getContrastRatio(bgColor, complementaryColor);
+            console.log(`[CollageService] UI Colors - BG: ${bgColor}, Text/Border: ${textColor}, Contrast: ${contrastRatio.toFixed(2)}`);
             
             // Convert bgColor to CSS format if it was hex
             const cssBgColor = bgColor.startsWith('#') ? bgColor : bgColor;
@@ -476,6 +479,7 @@ export class CollageService {
             document.documentElement.style.setProperty('--text-color', textColor);
             document.documentElement.style.setProperty('--button-border-color', textColor);
             document.documentElement.style.setProperty('--button-hover-bg', textColor);
+            document.documentElement.style.setProperty('--complementary-color', complementaryColor);
         }).catch(err => {
             console.warn('[CollageService] Could not load color utilities, using fallback');
             // Fallback color logic
@@ -485,6 +489,10 @@ export class CollageService {
                 const g = parseInt(hex.substring(2, 4), 16);
                 const b = parseInt(hex.substring(4, 6), 16);
                 return { r, g, b };
+            };
+            
+            const rgbToHex = (r, g, b) => {
+                return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
             };
             
             let r, g, b;
@@ -497,14 +505,29 @@ export class CollageService {
                 r = parseInt(rgbMatch[1]); g = parseInt(rgbMatch[2]); b = parseInt(rgbMatch[3]);
             }
             
-            // Simple contrast check
+            // Calculate complementary color with constraints
             const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-            const textColor = brightness > 128 ? '#000000' : '#FFFFFF';
+            let compR, compG, compB;
+            
+            if (brightness > 128) {
+                // Light background - create darker complementary
+                compR = Math.max(40, 255 - r);
+                compG = Math.max(40, 255 - g);
+                compB = Math.max(40, 255 - b);
+            } else {
+                // Dark background - create lighter complementary
+                compR = Math.min(215, 255 - r);
+                compG = Math.min(215, 255 - g);
+                compB = Math.min(215, 255 - b);
+            }
+            
+            const complementaryColor = rgbToHex(compR, compG, compB);
             
             document.documentElement.style.setProperty('--background-color', bgColor);
-            document.documentElement.style.setProperty('--text-color', textColor);
-            document.documentElement.style.setProperty('--button-border-color', textColor);
-            document.documentElement.style.setProperty('--button-hover-bg', textColor);
+            document.documentElement.style.setProperty('--text-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-border-color', complementaryColor);
+            document.documentElement.style.setProperty('--button-hover-bg', complementaryColor);
+            document.documentElement.style.setProperty('--complementary-color', complementaryColor);
         });
     }
 

@@ -1,10 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
 
-const supabase = createClient(
-  process.env.VITE_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-);
+// Check for required environment variables
+if (!process.env.VITE_SUPABASE_URL) {
+  console.error('Missing VITE_SUPABASE_URL environment variable');
+}
+
+const supabaseUrl = process.env.VITE_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
+                    process.env.VITE_SUPABASE_SERVICE_ROLE_KEY || 
+                    process.env.SUPABASE_SERVICE_KEY;
+
+if (!supabaseKey) {
+  console.error('Missing Supabase service role key. Checked: SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_SERVICE_ROLE_KEY, SUPABASE_SERVICE_KEY');
+}
+
+const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,6 +27,18 @@ export async function handler(event) {
     return {
       statusCode: 405,
       body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
+  // Check if Supabase client is initialized
+  if (!supabase) {
+    console.error('Supabase client not initialized. Missing environment variables.');
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ 
+        error: 'Service configuration error',
+        details: 'Missing required environment variables for Supabase'
+      })
     };
   }
 
