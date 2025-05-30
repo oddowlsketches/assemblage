@@ -737,16 +737,52 @@ function MainApp() {
               ))}
             </select>
           </div>
+        </div>
+        
+        {/* Image Actions Section */}
+        <div className="mobile-menu-section">
+          <div className="mobile-menu-label">Image Actions</div>
           
           <button
-          className="mobile-menu-item"
-          onClick={() => {
-          setShowDrawer(true);
-          document.querySelector('.mobile-menu-overlay').classList.remove('show');
-          document.querySelector('.mobile-menu-panel').classList.remove('show');
-          }}
+            className="mobile-menu-item"
+            onClick={() => {
+              setShowDrawer(true);
+              document.querySelector('.mobile-menu-overlay').classList.remove('show');
+              document.querySelector('.mobile-menu-panel').classList.remove('show');
+            }}
           >
-          My Collections
+            My Collections
+          </button>
+          
+          {session && (
+            <button
+              className="mobile-menu-item"
+              onClick={() => {
+                setShowUpload(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+            >
+              Upload Images
+            </button>
+          )}
+          
+          <button
+            className="mobile-menu-item"
+            onClick={() => {
+              // Check if running on Netlify (production) or local dev
+              if (window.location.hostname === 'localhost') {
+                alert('Dropbox integration requires deployment. Please use the deployed version.');
+              } else {
+                // Redirect to Dropbox OAuth
+                window.location.href = '/.netlify/functions/dropbox-auth-start';
+              }
+              document.querySelector('.mobile-menu-overlay').classList.remove('show');
+              document.querySelector('.mobile-menu-panel').classList.remove('show');
+            }}
+            style={{ opacity: 0.5 }}
+          >
+            Connect Dropbox (coming soon)
           </button>
         </div>
         
@@ -784,9 +820,22 @@ function MainApp() {
         {!session && (
           <div className="mobile-menu-section">
             <div className="mobile-menu-label">Account</div>
-            <div className="mobile-menu-item" style={{padding: '0.5rem 0', fontSize: '0.8rem', color: 'var(--color-accent)', fontStyle: 'italic'}}>
-              Sign in to save collages
-            </div>
+            <button
+              className="mobile-menu-item"
+              onClick={() => {
+                setShowAuth(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              style={{
+                background: 'var(--text-color, #333)',
+                color: 'var(--background-color, white)',
+                textAlign: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              Sign In to Upload Images
+            </button>
           </div>
         )}
       </div>
