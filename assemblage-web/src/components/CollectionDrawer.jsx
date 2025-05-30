@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { X, Plus, ImageSquare, FolderSimple } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
+import { useNavigate } from 'react-router-dom'
+import { useUiColors } from '../hooks/useUiColors'
 
 export const CollectionDrawer = ({ 
   isOpen, 
@@ -15,6 +17,8 @@ export const CollectionDrawer = ({
   const [newCollectionName, setNewCollectionName] = useState('')
   const [error, setError] = useState(null)
   const [showNewForm, setShowNewForm] = useState(false)
+  const navigate = useNavigate()
+  const uiColors = useUiColors()
 
   // Fetch user collections
   useEffect(() => {
@@ -43,7 +47,7 @@ export const CollectionDrawer = ({
 
       if (fetchError) throw fetchError
 
-      // Get image counts for each collection
+      // Get image counts and thumbnails for each collection
       const collectionsWithCounts = await Promise.all(
         (data || []).map(async (collection) => {
           // For user uploads, use user_collection_id
@@ -61,11 +65,21 @@ export const CollectionDrawer = ({
             .eq('user_id', user.id)
             .eq('provider', 'upload')
             .eq('metadata_status', 'pending')
+            
+          // Get first 4 images for thumbnail grid
+          const { data: thumbnails } = await supabase
+            .from('images')
+            .select('id, thumb_src, src')
+            .eq('user_collection_id', collection.id)
+            .eq('user_id', user.id)
+            .eq('provider', 'upload')
+            .limit(4)
 
           return {
             ...collection,
             totalImages: totalCount || 0,
-            pendingImages: pendingCount || 0
+            pendingImages: pendingCount || 0,
+            thumbnails: thumbnails || []
           }
         })
       )
@@ -149,37 +163,52 @@ export const CollectionDrawer = ({
   if (!isOpen) return null
 
   return (
-    <div className="gallery-fullscreen">
-      <header className="gallery-header">
+    <div className="gallery-fullscreen" style={{ background: uiColors.bg }}>
+      <header className="gallery-header" style={{ 
+        background: uiColors.bg,
+        borderBottom: `1px solid ${uiColors.border}`
+      }}>
         <div className="gallery-header-text">
-          <h1>Assemblage</h1>
+          <h1 style={{ color: uiColors.fg }}>Assemblage</h1>
         </div>
         <div className="gallery-header-controls">
-          <button onClick={onClose} className="gallery-close-btn">
+          <button onClick={onClose} className="gallery-close-btn" style={{ color: uiColors.fg }}>
             <X size={20} weight="regular" />
           </button>
         </div>
       </header>
       
-      <div className="gallery-content">
+      <div className="gallery-content" style={{ background: uiColors.bg }}>
         {/* Page header with action button */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '2rem'
+          marginBottom: '2rem',
+          padding: '0 2rem'
         }}>
           <h2 style={{ 
             margin: 0,
             fontSize: '1.5rem',
-            fontFamily: 'Playfair Display, serif'
+            fontFamily: 'Space Mono, monospace',
+            color: uiColors.fg
           }}>
             My Collections
           </h2>
           <button
             onClick={() => setShowNewForm(true)}
-            className="gallery-filter-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: uiColors.fg,
+              color: uiColors.bg,
+              border: `1px solid ${uiColors.fg}`,
+              cursor: 'pointer',
+              fontFamily: 'Space Mono, monospace',
+              fontSize: '0.9rem'
+            }}
           >
             <Plus size={16} weight="regular" />
             New Collection
@@ -238,57 +267,109 @@ export const CollectionDrawer = ({
                   className="gallery-item"
                   style={{ 
                     cursor: 'pointer',
-                    border: activeCollectionId === collection.id ? '2px solid var(--text-color, #333)' : '1px solid var(--button-border-color, #333)'
+                    background: uiColors.bg,
+                    border: activeCollectionId === collection.id ? `2px solid ${uiColors.fg}` : `1px solid ${uiColors.border}`,
+                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                    position: 'relative'
                   }}
                   onClick={() => {
                     onCollectionSelect(collection.id)
                     onClose()
                   }}
                 >
-                  <div className="gallery-thumbnail" style={{ background: '#f9f9f9' }}>
-                    <div style={{ 
-                      fontSize: '48px', 
-                      opacity: 0.3 
-                    }}>
-                      📁
-                    </div>
+                  <div className="gallery-thumbnail" style={{ 
+                    background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderBottom: `1px solid ${uiColors.border}`,
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    {collection.thumbnails && collection.thumbnails.length > 0 ? (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gridTemplateRows: 'repeat(2, 1fr)',
+                        width: '100%',
+                        height: '100%',
+                        gap: '1px',
+                        background: uiColors.border
+                      }}>
+                        {collection.thumbnails.slice(0, 4).map((img, index) => (
+                          <div 
+                            key={img.id}
+                            style={{
+                              background: `url(${img.thumb_src || img.src}) center/cover`,
+                              width: '100%',
+                              height: '100%'
+                            }}
+                          />
+                        ))}
+                        {collection.thumbnails.length < 4 && Array(4 - collection.thumbnails.length).fill(null).map((_, index) => (
+                          <div 
+                            key={`empty-${index}`}
+                            style={{
+                              background: uiColors.bg === '#ffffff' ? '#f0f0f0' : `${uiColors.bg}66`,
+                              width: '100%',
+                              height: '100%'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <FolderSimple size={48} weight="regular" style={{ opacity: 0.3, color: uiColors.fg }} />
+                    )}
                   </div>
-                  <div className="gallery-info">
-                    <h4>{collection.name}</h4>
-                    <p>{collection.totalImages} images</p>
+                  <div className="gallery-info" style={{ color: uiColors.fg }}>
+                    <h4 style={{ marginBottom: '0.25rem', color: uiColors.fg }}>{collection.name}</h4>
+                    <p style={{ marginBottom: '0.25rem', opacity: 0.7, fontSize: '0.9rem' }}>{collection.totalImages} images</p>
                     {collection.pendingImages > 0 && (
-                      <p style={{ color: 'var(--color-transformation, #4a3b6c)' }}>
+                      <p style={{ color: uiColors.fg, opacity: 0.6, fontSize: '0.85rem' }}>
                         {collection.pendingImages} processing
                       </p>
                     )}
                   </div>
                   {activeCollectionId === collection.id && (
                     <div style={{ 
-                      padding: '0.5rem 1rem',
-                      background: 'var(--text-color, #333)',
-                      color: 'white',
-                      textAlign: 'center',
+                      position: 'absolute',
+                      top: '0.5rem',
+                      right: '0.5rem',
+                      background: uiColors.fg,
+                      color: uiColors.bg,
+                      padding: '0.25rem 0.5rem',
                       fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.8rem'
+                      fontSize: '0.7rem',
+                      borderRadius: '2px'
                     }}>
-                      Currently Selected
+                      Active
                     </div>
                   )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      // TODO: Navigate to collection view page
-                      alert(`TODO: View images in ${collection.name}`);
+                      navigate(`/collections/${collection.id}`);
+                      onClose();
                     }}
                     style={{
                       width: '100%',
                       padding: '0.5rem',
-                      border: '1px solid var(--button-border-color, #333)',
-                      background: 'white',
+                      border: `1px solid ${uiColors.border}`,
+                      background: 'transparent',
+                      color: uiColors.fg,
                       fontFamily: 'Space Mono, monospace',
                       fontSize: '0.8rem',
                       cursor: 'pointer',
-                      marginTop: '0.5rem'
+                      marginTop: '0.5rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = uiColors.fg;
+                      e.target.style.color = uiColors.bg;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'transparent';
+                      e.target.style.color = uiColors.fg;
                     }}
                   >
                     View Images

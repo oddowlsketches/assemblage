@@ -40,7 +40,18 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
   }
 
   try {
-    const { fileName, base64, chunkIndex, totalChunks, fileSize, collectionId, image_role: rawRoleFromBody } = JSON.parse(event.body || '{}');
+    const { 
+      fileName, 
+      base64, 
+      chunkIndex, 
+      totalChunks, 
+      fileSize, 
+      collectionId, 
+      image_role: rawRoleFromBody,
+      userId,
+      isUserUpload = false
+    } = JSON.parse(event.body || '{}');
+    
     if (!fileName || !base64 || typeof chunkIndex !== 'number' || !totalChunks) {
       return {
         statusCode: 400,
@@ -126,22 +137,67 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       const { data: urlData } = supa.storage.from('images').getPublicUrl(storagePath);
       const publicUrl = urlData.publicUrl;
 
+      // Generate thumbnail
+      let thumbnailBuffer;
+      try {
+        thumbnailBuffer = await sharp(buffer)
+          .resize(400, 400, { 
+            fit: 'inside', 
+            withoutEnlargement: true 
+          })
+          .jpeg({ quality: 70 })
+          .toBuffer();
+      } catch (thumbError) {
+        console.error('[UPLOAD] Thumbnail generation failed:', thumbError);
+        // Use original as fallback
+        thumbnailBuffer = optimizedBuffer;
+      }
+
+      // Upload thumbnail
+      const thumbPath = storagePath.replace(/\.[^/.]+$/, '_thumb.jpg');
+      const { error: thumbErr } = await supa.storage
+        .from('images')
+        .upload(thumbPath, thumbnailBuffer, { upsert: true });
+
+      if (thumbErr) {
+        console.error('[UPLOAD] Thumbnail upload failed:', thumbErr);
+      }
+
+      const { data: thumbUrlData } = supa.storage.from('images').getPublicUrl(thumbPath);
+      const thumbUrl = thumbUrlData.publicUrl;
+
       // Sanitize image_role so it always satisfies the DB check constraint
       const validRoles = ['texture', 'narrative', 'conceptual'];
       let image_role = rawRoleFromBody ? (validRoles.includes(rawRoleFromBody) ? rawRoleFromBody : 'narrative') : 'narrative';
 
       // Create initial database entry
+      const imageData: any = {
+        id,
+        src: publicUrl,
+        thumb_src: thumbUrl,
+        title: fileName,
+        description: "Processing...",
+        tags: [],
+        image_role,
+        metadata_status: "pending_llm",
+        provider: isUserUpload ? 'upload' : 'cms',
+        metadata: {}
+      };
+
+      // Handle collection assignment based on upload type
+      if (isUserUpload && userId) {
+        // User upload - use user_collection_id
+        imageData.user_id = userId;
+        imageData.user_collection_id = collectionId;
+        imageData.collection_id = null; // Must be null for user uploads
+      } else {
+        // CMS upload - use collection_id
+        imageData.collection_id = collectionId || null;
+        imageData.user_collection_id = null; // Must be null for CMS uploads
+      }
+
       const { error: insertErr } = await supa.from('images')
-        .upsert({
-          id,
-          src: publicUrl,
-          title: fileName,
-          description: "Processing...",
-          tags: [],
-          image_role,
-          metadata_status: "pending_llm",
-          collection_id: collectionId || null
-        });
+        .upsert(imageData);
 
       if (insertErr) {
         throw new Error(`Database insert failed: ${insertErr.message}`);
@@ -169,6 +225,7 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
           id,
           status: 'uploaded',
           src: publicUrl,
+          thumb_src: thumbUrl,
           message: 'Upload complete, metadata processing queued'
         })
       };
@@ -197,4 +254,4 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
       })
     };
   }
-}; 
+};

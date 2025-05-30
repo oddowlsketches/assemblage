@@ -3,6 +3,8 @@ import { useDropzone } from 'react-dropzone'
 import { X, Upload, Trash } from 'phosphor-react'
 import { useImageUpload } from '../hooks/useImageUpload.ts'
 import { getSupabase } from '../supabaseClient'
+import { useUiColors } from '../hooks/useUiColors'
+import { calculateSHA1 } from '../utils/fileHash'
 
 export const UploadModal = ({ 
   isOpen, 
@@ -23,6 +25,7 @@ export const UploadModal = ({
   const [selectedCollectionId, setSelectedCollectionId] = useState(collectionId || null)
   const [userCollections, setUserCollections] = useState([])
   const [loading, setLoading] = useState(false)
+  const uiColors = useUiColors()
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     // Handle rejected files
@@ -164,8 +167,8 @@ export const UploadModal = ({
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        background: 'white',
-        border: '1px solid var(--button-border-color, #333)',
+        background: uiColors.bg,
+        border: `1px solid ${uiColors.border}`,
         width: '90%',
         maxWidth: '600px',
         maxHeight: '80vh',
@@ -181,13 +184,13 @@ export const UploadModal = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1.5rem',
-          borderBottom: '1px solid var(--button-border-color, #333)',
+          borderBottom: `1px solid ${uiColors.border}`,
           flexShrink: 0
         }}>
           <h2 style={{ 
             margin: 0,
             fontSize: '1.2rem',
-            color: 'var(--text-color, #333)'
+            color: uiColors.fg
           }}>
             Upload Images
           </h2>
@@ -200,7 +203,7 @@ export const UploadModal = ({
               padding: '0.5rem'
             }}
           >
-            <X size={20} weight="bold" color="var(--text-color, #333)" />
+            <X size={20} weight="bold" color={uiColors.fg} />
           </button>
         </div>
 
@@ -214,10 +217,10 @@ export const UploadModal = ({
           {!selectedCollectionId && (
             <div style={{ 
               padding: '1rem',
-              background: 'var(--background-color, #f5f5f5)',
+              background: uiColors.bg,
               marginBottom: '1rem',
               fontSize: '0.9rem',
-              border: '1px solid var(--button-border-color, #333)'
+              border: `1px solid ${uiColors.border}`
             }}>
               <strong>Choose where to upload your images:</strong>
             </div>
@@ -238,8 +241,8 @@ export const UploadModal = ({
               style={{
                 width: '100%',
                 padding: '0.5rem',
-                border: '1px solid var(--button-border-color, #333)',
-                background: 'white',
+                border: `1px solid ${uiColors.border}`,
+                background: uiColors.bg,
                 fontFamily: 'Space Mono, monospace',
                 fontSize: '0.9rem'
               }}
@@ -255,7 +258,7 @@ export const UploadModal = ({
               ))}
             </select>
             {userCollections.length === 0 && !loading && (
-              <p style={{fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '0.5rem'}}>
+              <p style={{fontSize: '0.8rem', color: uiColors.fg, opacity: 0.7, marginTop: '0.5rem'}}>
                 You need to create a collection first before uploading images.
               </p>
             )}
@@ -266,22 +269,21 @@ export const UploadModal = ({
             <div
               {...getRootProps()}
               style={{
-                border: `2px dashed ${isDragActive ? 'var(--text-color, #333)' : '#ccc'}`,
+                border: `2px dashed ${isDragActive ? uiColors.fg : '#ccc'}`,
                 padding: '3rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDragActive ? 'var(--background-color, #f5f5f5)' : 'white',
+                background: isDragActive ? uiColors.bg : uiColors.bg,
                 transition: 'all 0.2s ease',
                 marginBottom: '1rem'
               }}
             >
               <input {...getInputProps()} />
-              <Upload size={40} weight="regular" style={{ marginBottom: '1rem', opacity: 0.5 }} />
               {isDragActive ? (
-                <p style={{ margin: 0, color: 'var(--text-color, #333)' }}>Drop the images here...</p>
+                <p style={{ margin: 0, color: uiColors.fg }}>Drop the images here...</p>
               ) : (
                 <div>
-                  <p style={{ marginBottom: '0.5rem', color: 'var(--text-color, #333)' }}>
+                  <p style={{ marginBottom: '0.5rem', color: uiColors.fg }}>
                     Drag & drop images here, or click to select
                   </p>
                   <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.6 }}>
@@ -299,14 +301,14 @@ export const UploadModal = ({
                 padding: '1rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDragActive ? 'var(--background-color, #f5f5f5)' : 'white',
+                background: isDragActive ? uiColors.bg : uiColors.bg,
                 transition: 'all 0.2s ease',
                 marginBottom: '1rem',
                 fontSize: '0.85rem'
               }}
             >
               <input {...getInputProps()} />
-              <p style={{ margin: 0, color: 'var(--text-color, #333)' }}>
+              <p style={{ margin: 0, color: uiColors.fg }}>
                 + Add more images
               </p>
             </div>
@@ -318,7 +320,7 @@ export const UploadModal = ({
               <h3 style={{ 
                 margin: '0 0 1rem 0',
                 fontSize: '0.9rem',
-                color: 'var(--text-color, #333)'
+                color: uiColors.fg
               }}>
                 Selected Files ({files.length})
               </h3>
@@ -331,8 +333,8 @@ export const UploadModal = ({
               }}>
                 {files.map(({ id, file, preview }) => (
                   <div key={id} style={{ 
-                    border: '1px solid var(--button-border-color, #333)',
-                    background: 'white',
+                    border: `1px solid ${uiColors.border}`,
+                    background: uiColors.bg,
                     position: 'relative',
                     width: '100px',
                     flexShrink: 0
@@ -362,8 +364,8 @@ export const UploadModal = ({
                         position: 'absolute',
                         top: '4px',
                         right: '4px',
-                        background: 'var(--text-color, #333)',
-                        color: 'white',
+                        background: uiColors.fg,
+                        color: uiColors.bg,
                         border: 'none',
                         width: '20px',
                         height: '20px',
@@ -381,7 +383,7 @@ export const UploadModal = ({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      borderTop: '1px solid var(--button-border-color, #333)'
+                      borderTop: `1px solid ${uiColors.border}`
                     }}>
                       {file.name}
                     </div>
@@ -406,15 +408,15 @@ export const UploadModal = ({
               <div style={{
                 width: '100%',
                 height: '4px',
-                background: 'var(--background-color, #f5f5f5)',
+                background: uiColors.bg,
                 overflow: 'hidden',
-                border: '1px solid var(--button-border-color, #333)'
+                border: `1px solid ${uiColors.border}`
               }}>
                 <div
                   style={{
                     width: `${progress}%`,
                     height: '100%',
-                    background: 'var(--text-color, #333)',
+                    background: uiColors.fg,
                     transition: 'width 0.3s ease'
                   }}
                 />
@@ -475,16 +477,16 @@ export const UploadModal = ({
           justifyContent: 'flex-end',
           gap: '0.5rem',
           padding: '1.5rem',
-          borderTop: '1px solid var(--button-border-color, #333)',
-          background: 'white',
+          borderTop: `1px solid ${uiColors.border}`,
+          background: uiColors.bg,
           flexShrink: 0
         }}>
           <button
             onClick={handleClose}
             style={{
-              background: 'white',
-              border: '1px solid var(--button-border-color, #333)',
-              color: 'var(--text-color, #333)',
+              background: uiColors.bg,
+              border: `1px solid ${uiColors.border}`,
+              color: uiColors.fg,
               padding: '0.5rem 1rem',
               cursor: 'pointer',
               fontFamily: 'Space Mono, monospace',
@@ -492,12 +494,12 @@ export const UploadModal = ({
               transition: 'all 0.3s ease'
             }}
             onMouseEnter={e => {
-              e.target.style.background = 'var(--button-hover-bg, #333)';
-              e.target.style.color = 'white';
+              e.target.style.background = uiColors.fg;
+              e.target.style.color = uiColors.bg;
             }}
             onMouseLeave={e => {
-              e.target.style.background = 'white';
-              e.target.style.color = 'var(--text-color, #333)';
+              e.target.style.background = uiColors.bg;
+              e.target.style.color = uiColors.fg;
             }}
           >
             Cancel
@@ -506,9 +508,9 @@ export const UploadModal = ({
             onClick={handleUpload}
             disabled={!selectedCollectionId || files.length === 0 || uploading}
             style={{
-              background: 'var(--text-color, #333)',
-              border: '1px solid var(--text-color, #333)',
-              color: 'white',
+              background: uiColors.fg,
+              border: `1px solid ${uiColors.fg}`,
+              color: uiColors.bg,
               padding: '0.5rem 1rem',
               cursor: !selectedCollectionId || files.length === 0 || uploading ? 'not-allowed' : 'pointer',
               fontFamily: 'Space Mono, monospace',
@@ -518,14 +520,14 @@ export const UploadModal = ({
             }}
             onMouseEnter={e => {
               if (!e.target.disabled) {
-                e.target.style.background = 'var(--background-color, #f5f5f5)';
-                e.target.style.color = 'var(--text-color, #333)';
+                e.target.style.background = uiColors.bg;
+                e.target.style.color = uiColors.fg;
               }
             }}
             onMouseLeave={e => {
               if (!e.target.disabled) {
-                e.target.style.background = 'var(--text-color, #333)';
-                e.target.style.color = 'white';
+                e.target.style.background = uiColors.fg;
+                e.target.style.color = uiColors.bg;
               }
             }}
           >

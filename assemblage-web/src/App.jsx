@@ -9,10 +9,11 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack } from 'phosphor-react';
+import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple } from 'phosphor-react';
 import { UploadModal } from './components/UploadModal';
 import { CollectionDrawer } from './components/CollectionDrawer';
 import { SourceSelector } from './components/SourceSelector';
+import CollectionDetail from './pages/collections/CollectionDetail';
 
 function MainApp() {
   const canvasRef = useRef(null);
@@ -552,7 +553,10 @@ function MainApp() {
             {saveState !== 'idle' && (
               <div 
                 className={`save-feedback desktop-only ${saveState}`}
-                style={{ color: feedbackTextColor }}
+                style={{ 
+                  color: feedbackTextColor,
+                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' 
+                }}
               >
                 {saveState === 'saving' && 'Saving...'}
                 {saveState === 'saved' && (
@@ -561,7 +565,10 @@ function MainApp() {
                       <button 
                         onClick={() => setShowGallery(true)}
                         className="gallery-link"
-                        style={{ color: feedbackTextColor }}
+                        style={{ 
+                          color: feedbackTextColor,
+                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
+                        }}
                       >
                         View in My Collages
                       </button>
@@ -577,7 +584,7 @@ function MainApp() {
                 saveState === 'saving' ? (
                   <div className="save-spinner"></div>
                 ) : (
-                  <FloppyDisk size={16} weight="regular" />
+                  <BookmarkSimple size={16} weight="regular" />
                 )
               ) : (
                 'Sign In'
@@ -586,7 +593,7 @@ function MainApp() {
             
             <button id="generateButton" onClick={handleShiftPerspective}>New</button>
             
-            {/* New 3-button Source Selector */}
+            {/* Updated Source Selector */}
             <SourceSelector 
               activeSource={activeCollection}
               onSourceChange={handleSourceChange}
@@ -595,7 +602,9 @@ function MainApp() {
               onOpenGallery={() => setShowGallery(true)}
             />
             
-            {/* User menu - 'My Collages' item removed */}
+            {/* Prompt placeholder - removed gear icon */}
+            
+            {/* User menu - no gear icon */}
             {authLoading ? (
               <div className="auth-loading">Loading...</div>
             ) : session ? (
@@ -608,7 +617,6 @@ function MainApp() {
                 </button>
                 <div className="user-dropdown">
                   <div className="user-email-header">{session.user.email}</div>
-                  {/* 'My Collages' button removed from here */}
                   <button 
                     onClick={async () => {
                       const supabase = getSupabase();
@@ -684,15 +692,36 @@ function MainApp() {
         {/* Collection Management */}
         <div className="mobile-menu-section">
           <div className="mobile-menu-label">Image Source</div>
-          <button 
-            className="mobile-menu-item"
-            onClick={() => {
-              setShowDrawer(true);
-              document.querySelector('.mobile-menu-overlay').classList.remove('show');
-              document.querySelector('.mobile-menu-panel').classList.remove('show');
-            }}
+          
+          {/* Collection Switcher */}
+          <div className="mobile-collection-selector">
+            <select 
+              value={activeCollection} 
+              onChange={(e) => {
+                handleSourceChange(e.target.value);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-collection-dropdown"
+            >
+              <option value="cms">Default Library</option>
+              {userCollectionsForSelect.map(collection => (
+                <option key={collection.id} value={collection.id}>
+                  {collection.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <button
+          className="mobile-menu-item"
+          onClick={() => {
+          setShowDrawer(true);
+          document.querySelector('.mobile-menu-overlay').classList.remove('show');
+          document.querySelector('.mobile-menu-panel').classList.remove('show');
+          }}
           >
-            Manage Collections
+          My Collections
           </button>
         </div>
         
@@ -837,6 +866,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<MainApp />} />
         <Route path="/dev-review" element={<TemplateReview />} />
+        <Route path="/collections/:id" element={<CollectionDetail />} />
       </Routes>
     </Router>
   );

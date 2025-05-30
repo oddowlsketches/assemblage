@@ -881,3 +881,31 @@ footer {
   color: var(--color-transformation);
   font-weight: 500;
 }
+
+/* Mobile collection selector */
+.mobile-collection-selector {
+  margin: 0.75rem 0;
+}
+
+.mobile-collection-dropdown {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--button-border-color);
+  background: white;
+  color: var(--text-color);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.9rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-speed) ease;
+}
+
+.mobile-collection-dropdown:hover {
+  border-color: var(--color-transformation);
+}
+
+.mobile-collection-dropdown:focus {
+  outline: none;
+  border-color: var(--color-transformation);
+  box-shadow: 0 0 0 2px rgba(74, 59, 108, 0.2);
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSupabase } from '../supabaseClient';
 import { DownloadSimple, Trash, X, Share } from 'phosphor-react';
+import { useUiColors } from '../hooks/useUiColors';
 
 export default function Gallery({ session, onClose }) {
   const [collages, setCollages] = useState([]);
@@ -12,10 +13,12 @@ export default function Gallery({ session, onClose }) {
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
   const [filterTemplate, setFilterTemplate] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 12; // Show 12 collages per page
   const supabase = getSupabase();
   const observer = useRef();
   const loadMoreRef = useRef();
+  const uiColors = useUiColors();
 
   useEffect(() => {
     // Only load once when the component mounts with a valid session
@@ -157,19 +160,12 @@ export default function Gallery({ session, onClose }) {
     loadCollages(1, true, { filterTemplate: newValue });
   };
 
-  const handleSortChange = (newSortBy) => {
-    let newSortOrder;
-    if (newSortBy === sortBy) {
-      newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-      setSortOrder(newSortOrder);
-    } else {
-      setSortBy(newSortBy);
-      newSortOrder = 'desc';
-      setSortOrder('desc');
-    }
+  const handleSortToggle = () => {
+    const newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newSortOrder);
     setCurrentPage(1);
     setHasLoaded(false);
-    loadCollages(1, true, { sortBy: newSortBy, sortOrder: newSortOrder });
+    loadCollages(1, true, { sortBy, sortOrder: newSortOrder });
   };
 
   const clearFilters = () => {
@@ -404,69 +400,158 @@ export default function Gallery({ session, onClose }) {
   }
 
   return (
-    <div className="gallery-fullscreen">
-      <header className="gallery-header">
+    <div className="gallery-fullscreen" style={{ background: uiColors.bg }}>
+      <header className="gallery-header" style={{ 
+        background: uiColors.bg,
+        borderBottom: `1px solid ${uiColors.border}`
+      }}>
         <div className="gallery-header-text">
-          <h1>Assemblage</h1>
+          <h1 style={{ color: uiColors.fg }}>Assemblage</h1>
         </div>
         <div className="gallery-header-controls">
-          <button onClick={onClose} className="gallery-close-btn">
+          <button onClick={onClose} className="gallery-close-btn" style={{ color: uiColors.fg }}>
             <X size={20} weight="regular" />
           </button>
         </div>
       </header>
       
-      <div className="gallery-content">
-        {/* Search and Filter Controls */}
-        <div className="gallery-filters">
-          <div className="gallery-page-title">
-            <h2>My Collages ({totalCount})</h2>
-          </div>
-          <div className="gallery-search">
+      <div className="gallery-content" style={{ background: uiColors.bg }}>
+        {/* Page title */}
+        <div className="gallery-page-title" style={{ padding: '0 2rem' }}>
+          <h2 style={{ color: uiColors.fg, fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
+        </div>
+        
+        {/* Search, Filter, Sort - single line */}
+        <div style={{
+          display: 'flex',
+          gap: '1rem',
+          alignItems: 'center',
+          marginBottom: '2rem',
+          padding: '0 2rem'
+        }}>
+          <form onSubmit={(e) => { e.preventDefault(); handleFilterSubmit(); }} style={{ flex: 1 }}>
+            <label htmlFor="gallery-search" style={{ position: 'absolute', left: '-9999px' }}>Search collages</label>
             <input
               type="text"
-              placeholder="Search collages..."
+              id="gallery-search"
+              name="search"
+              placeholder="Search..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="gallery-search-input"
-              onKeyPress={(e) => e.key === 'Enter' && handleFilterSubmit()}
+              style={{
+                width: '100%',
+                padding: '0.5rem 1rem',
+                border: `1px solid ${uiColors.border}`,
+                background: uiColors.bg,
+                color: uiColors.fg,
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem'
+              }}
             />
-            <button onClick={handleFilterSubmit} className="gallery-filter-btn">
-              Search
-            </button>
-          </div>
+          </form>
           
-          <div className="gallery-sort-filter">
-            <select 
-              value={filterTemplate}
-              onChange={handleTemplateFilterChange}
-              className="gallery-select"
-            >
-              <option value="">All Templates</option>
-              {uniqueTemplates.map(template => (
-                <option key={template} value={template}>{template}</option>
-              ))}
-            </select>
-            
-            <button 
-              onClick={() => handleSortChange('created_at')}
-              className={`gallery-sort-btn ${sortBy === 'created_at' ? 'active' : ''}`}
-            >
-              Date {sortBy === 'created_at' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            
-            <button 
-              onClick={() => handleSortChange('title')}
-              className={`gallery-sort-btn ${sortBy === 'title' ? 'active' : ''}`}
-            >
-              Title {sortBy === 'title' && (sortOrder === 'asc' ? '↑' : '↓')}
-            </button>
-            
-            {(searchTerm || filterTemplate || sortBy !== 'created_at' || sortOrder !== 'desc') && (
-              <button onClick={clearFilters} className="gallery-clear-btn">
-                Clear
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            {/* Filters dropdown */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: filterTemplate ? uiColors.fg : uiColors.bg,
+                  color: filterTemplate ? uiColors.bg : uiColors.fg,
+                  border: `1px solid ${uiColors.border}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                Filters {filterTemplate && `(1)`}
+                <span style={{ fontSize: '0.7rem' }}>▼</span>
               </button>
-            )}
+              
+              {showFilters && (
+                <div style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '0.25rem',
+                  background: uiColors.bg,
+                  border: `1px solid ${uiColors.border}`,
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  minWidth: '200px',
+                  zIndex: 10
+                }}>
+                  <button
+                    onClick={() => {
+                      setFilterTemplate('');
+                      setShowFilters(false);
+                      handleTemplateFilterChange({ target: { value: '' } });
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.75rem 1rem',
+                      background: !filterTemplate ? uiColors.fg : uiColors.bg,
+                      color: !filterTemplate ? uiColors.bg : uiColors.fg,
+                      border: 'none',
+                      borderBottom: `1px solid ${uiColors.border}`,
+                      cursor: 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.85rem',
+                      textAlign: 'left'
+                    }}
+                  >
+                    All Templates
+                  </button>
+                  {uniqueTemplates.map(template => (
+                    <button
+                      key={template}
+                      onClick={() => {
+                        setFilterTemplate(template);
+                        setShowFilters(false);
+                        handleTemplateFilterChange({ target: { value: template } });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        background: filterTemplate === template ? uiColors.fg : uiColors.bg,
+                        color: filterTemplate === template ? uiColors.bg : uiColors.fg,
+                        border: 'none',
+                        borderBottom: `1px solid ${uiColors.border}`,
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.85rem',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {template}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {/* Sort button */}
+            <button
+              onClick={handleSortToggle}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.bg,
+                color: uiColors.fg,
+                border: `1px solid ${uiColors.border}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              Sort
+              <span style={{ fontSize: '0.7rem' }}>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+            </button>
           </div>
         </div>
 
@@ -488,6 +573,11 @@ export default function Gallery({ session, onClose }) {
                   key={collage.id} 
                   className="gallery-item"
                   ref={index === collages.length - 1 ? lastCollageElementRef : null}
+                  style={{
+                    background: uiColors.bg === '#ffffff' ? '#ffffff' : `${uiColors.bg}CC`,
+                    border: `1px solid ${uiColors.border}`,
+                    boxShadow: `0 2px 8px rgba(0, 0, 0, 0.1)`
+                  }}
                 >
                   <div className="gallery-thumbnail">
                     <img 
@@ -501,7 +591,7 @@ export default function Gallery({ session, onClose }) {
                       }}
                     />
                   </div>
-                  <div className="gallery-info">
+                  <div className="gallery-info" style={{ color: uiColors.fg }}>
                     {editingTitle === collage.id ? (
                       <div className="gallery-title-edit">
                         <input
@@ -530,6 +620,11 @@ export default function Gallery({ session, onClose }) {
                       onClick={() => handleDownload(collage)}
                       className="gallery-btn gallery-download-btn"
                       title="Download"
+                      style={{
+                        background: uiColors.complementaryColor,
+                        color: uiColors.bg,
+                        border: `1px solid ${uiColors.complementaryColor}`
+                      }}
                     >
                       <DownloadSimple size={16} weight="regular" />
                     </button>
@@ -537,6 +632,11 @@ export default function Gallery({ session, onClose }) {
                       onClick={() => handleShare(collage)}
                       className="gallery-btn gallery-share-btn"
                       title="Share"
+                      style={{
+                        background: uiColors.complementaryColor,
+                        color: uiColors.bg,
+                        border: `1px solid ${uiColors.complementaryColor}`
+                      }}
                     >
                       <Share size={16} weight="regular" />
                     </button>
@@ -544,6 +644,11 @@ export default function Gallery({ session, onClose }) {
                       onClick={() => handleDelete(collage.id)}
                       className="gallery-btn gallery-delete-btn"
                       title="Delete"
+                      style={{
+                        background: 'transparent',
+                        color: uiColors.fg,
+                        border: `1px solid ${uiColors.border}`
+                      }}
                     >
                       <Trash size={16} weight="regular" />
                     </button>

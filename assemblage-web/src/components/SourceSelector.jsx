@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { CaretDown, Check, Image, Gear } from 'phosphor-react'
+import { CaretDown, Check, Image, FloppyDisk, BookmarkSimple, UploadSimple, LinkSimple, FolderOpen, Bookmarks } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
+import { useUiColors } from '../hooks/useUiColors'
 
 export const SourceSelector = ({ 
   activeSource,
@@ -16,6 +17,7 @@ export const SourceSelector = ({
   const [loading, setLoading] = useState(false)
   const libraryRef = useRef(null)
   const imageActionsRef = useRef(null)
+  const uiColors = useUiColors()
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -78,22 +80,41 @@ export const SourceSelector = ({
 
   return (
     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-      {/* Button 1: Library Selector */}
+      {/* Library Selector with label and caret */}
       <div ref={libraryRef} className="settings-dropdown">
         <button 
-          className="settings-btn" 
           onClick={() => setLibraryOpen(!libraryOpen)}
-          style={{ minWidth: '12rem' }}
+          style={{ 
+            minWidth: '12rem',
+            justifyContent: 'space-between',
+            paddingLeft: '1rem',
+            paddingRight: '0.75rem',
+            background: uiColors.bg,
+            color: uiColors.fg,
+            border: `1px solid ${uiColors.border}`,
+            cursor: 'pointer',
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0.5rem 1rem 0.5rem 1rem',
+            transition: 'all 0.2s ease'
+          }}
         >
-          <span style={{ fontSize: '14px', marginRight: '4px', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '14px', whiteSpace: 'nowrap' }}>
             {getSourceLabel()}
           </span>
           <CaretDown size={12} weight="regular" />
         </button>
         
         {libraryOpen && (
-          <div className="dropdown-content show" style={{ minWidth: '12rem' }}>
-            <div className="dropdown-label">Select Library</div>
+          <div className="dropdown-content show" style={{ 
+            minWidth: '12rem',
+            background: uiColors.bg,
+            border: `1px solid ${uiColors.border}`,
+            color: uiColors.fg
+          }}>
+            <div className="dropdown-label" style={{ color: uiColors.fg }}>Select Library</div>
             
             {/* Default Library */}
             <button
@@ -112,7 +133,12 @@ export const SourceSelector = ({
               </div>
             ) : userCollections.length > 0 && (
               <>
-                <div className="dropdown-divider" />
+                <div className="dropdown-divider" style={{
+                  height: '1px',
+                  background: uiColors.border,
+                  margin: '0.25rem 0',
+                  opacity: 0.2
+                }} />
                 {userCollections.map((collection) => (
                   <button
                     key={collection.id}
@@ -130,19 +156,65 @@ export const SourceSelector = ({
         )}
       </div>
 
-      {/* Button 2: Image Actions */}
+      {/* Image Actions with icon and caret */}
       <div ref={imageActionsRef} className="settings-dropdown">
         <button 
-          className="settings-btn" 
           onClick={() => setImageActionsOpen(!imageActionsOpen)}
           title="Image actions"
-          style={{ padding: '0.5rem' }}
+          style={{ 
+            padding: '0.5rem 0.75rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.25rem',
+            background: uiColors.bg,
+            color: uiColors.fg,
+            border: `1px solid ${uiColors.border}`,
+            cursor: 'pointer',
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '0.9rem',
+            transition: 'all 0.2s ease'
+          }}
         >
           <Image size={20} weight="regular" />
+          <CaretDown size={12} weight="regular" />
         </button>
         
         {imageActionsOpen && (
-          <div className="dropdown-content show" style={{ minWidth: '12rem' }}>
+          <div className="dropdown-content show" style={{ 
+            minWidth: '12rem',
+            background: uiColors.bg,
+            border: `1px solid ${uiColors.border}`,
+            color: uiColors.fg
+          }}>
+            <button
+              onClick={() => {
+                setImageActionsOpen(false)
+                onManageCollections()
+              }}
+              className="dropdown-item"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              My Collections
+            </button>
+            
+            <button
+              onClick={() => {
+                setImageActionsOpen(false)
+                onOpenGallery()
+              }}
+              className="dropdown-item"
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Saved Collages
+            </button>
+            
+            <div className="dropdown-divider" style={{
+              height: '1px',
+              background: uiColors.border,
+              margin: '0.25rem 0',
+              opacity: 0.2
+            }} />
+            
             <button
               onClick={() => {
                 setImageActionsOpen(false)
@@ -166,36 +238,13 @@ export const SourceSelector = ({
                 }
               }}
               className="dropdown-item"
-              style={{ whiteSpace: 'nowrap' }}
+              style={{ whiteSpace: 'nowrap', opacity: 0.5 }}
             >
-              Connect Dropbox
-            </button>
-            
-            <div className="dropdown-divider" />
-            
-            <button
-              onClick={() => {
-                setImageActionsOpen(false)
-                onOpenGallery()
-              }}
-              className="dropdown-item"
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              Saved Collages
+              Connect Dropbox (coming soon)
             </button>
           </div>
         )}
       </div>
-
-      {/* Button 3: Collection Management */}
-      <button 
-        className="settings-btn" 
-        onClick={onManageCollections}
-        title="Manage collections"
-        style={{ padding: '0.5rem' }}
-      >
-        <Gear size={20} weight="regular" />
-      </button>
     </div>
   )
 }

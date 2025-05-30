@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import imageCompression from 'browser-image-compression'
-import { getSupabase } from '../lib/supabaseClient'
+import { getSupabase } from '../supabaseClient'
 import { User } from '@supabase/supabase-js'
 
 interface ProcessedFile extends File {
@@ -236,6 +236,43 @@ export const useImageUpload = () => {
       console.error('[uploadToSupabase] Database insert error:', dbError);
       await supabase.storage.from('user-images').remove([fileName, thumbFileName])
       throw new Error(dbError.message || 'Failed to save image to database')
+    }
+
+    // Trigger metadata generation for the uploaded image
+    try {
+      const metadataResponse = await fetch('/.netlify/functions/process-user-image-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageId: imageData.id })
+      });
+      
+      if (!metadataResponse.ok) {
+        console.error('[uploadToSupabase] Metadata generation failed:', await metadataResponse.text());
+      } else {
+        console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
+        
+        // Poll for metadata completion (max 30 seconds)
+        const maxAttempts = 10;
+        const pollInterval = 3000; // 3 seconds
+        
+        for (let i = 0; i < maxAttempts; i++) {
+          await new Promise(resolve => setTimeout(resolve, pollInterval));
+          
+          const { data: updatedImage, error: pollError } = await supabase
+            .from('images')
+            .select('metadata_status, metadata, tags, description')
+            .eq('id', imageData.id)
+            .single();
+            
+          if (!pollError && updatedImage?.metadata_status === 'complete') {
+            console.log('[uploadToSupabase] Metadata generation completed:', updatedImage);
+            return { ...imageData, ...updatedImage };
+          }
+        }
+      }
+    } catch (metadataError) {
+      console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
+      // Don't fail the upload if metadata generation fails
     }
 
     return imageData
