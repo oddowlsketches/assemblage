@@ -98,39 +98,25 @@ export class CollageService {
             throw new Error('Supabase client not available');
         }
         
-        // Check if this is a user collection ID (UUID format)
-        const isUserCollection = collectionId && collectionId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i) && collectionId !== getDefaultCollectionId();
+        // Normalize collection ID - handle 'cms' as default collection
+        const normalizedId = collectionId === 'cms' ? getDefaultCollectionId() : collectionId;
         
-        let query = this.supabaseClient
-            .from('images')
-            .select('id, src, thumb_src, image_role, collection_id, user_collection_id, is_black_and_white, provider')
-            .order('created_at', { ascending: false });
+        try {
+            // Use the RPC function that handles the OR logic server-side
+            const { data: rows, error } = await this.supabaseClient
+                .rpc('list_images', { collection_uuid: normalizedId });
             
-        if (isUserCollection) {
-            // For user collections, filter by user_collection_id (not collection_id)
-            const { data: { user } } = await this.supabaseClient.auth.getUser();
-            if (user) {
-                query = query.eq('user_collection_id', collectionId).eq('user_id', user.id);
-            } else {
-                console.warn('[CollageService] No user session for user collection');
-                this.imageMetadata = [];
-                return;
+            if (error) {
+                console.error('[CollageService] Database error:', error);
+                throw error;
             }
-        } else {
-            // For CMS/default collection, use the default collection ID
-            const defaultId = collectionId === 'cms' ? getDefaultCollectionId() : collectionId;
-            query = query.eq('collection_id', defaultId).eq('provider', 'cms');
+            
+            this.imageMetadata = rows || [];
+            console.log(`[CollageService] Loaded ${this.imageMetadata.length} image records for collection ${collectionId}`);
+        } catch (error) {
+            console.error('[CollageService] Failed to load images:', error);
+            this.imageMetadata = [];
         }
-        
-        const { data: rows, error } = await query;
-        
-        if (error) {
-            console.error('[CollageService] Database error:', error);
-            throw error;
-        }
-        
-        this.imageMetadata = rows || [];
-        console.log(`[CollageService] Loaded ${this.imageMetadata.length} image records for collection ${collectionId}`);
     }
     
     // Setup placeholder images for development

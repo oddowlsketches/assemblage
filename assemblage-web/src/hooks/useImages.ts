@@ -4,7 +4,7 @@ import { getSupabase } from './useSupabase';
 const supa = getSupabase();
 
 // Default collection ID that all users can access
-const DEFAULT_COLLECTION_ID = '215c3f9e-70ff-45e5-95e4-413565b38b0f';
+const DEFAULT_COLLECTION_ID = '00000000-0000-0000-0000-000000000001';
 
 const fetcher = async () => {
   // Only fetch images from the default collection for all users
