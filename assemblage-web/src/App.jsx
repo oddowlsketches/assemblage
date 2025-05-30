@@ -235,10 +235,16 @@ function MainApp() {
     setIsLoading(true);
     try {
       console.log(`[MainApp] Loading images for collection: ${collectionId}`);
-      // Initialize with the specified collection
-      // Use the default collection ID if 'cms' is selected
-      const actualCollectionId = collectionId === 'cms' ? '00000000-0000-0000-0000-000000000001' : collectionId;
-      await serviceRef.current.initialize(actualCollectionId);
+      
+      // For user collections, always reinitialize to ensure we get fresh data
+      if (collectionId !== 'cms') {
+        await serviceRef.current.reinitialize(collectionId);
+      } else {
+        // Use the default collection ID if 'cms' is selected
+        const actualCollectionId = '00000000-0000-0000-0000-000000000001';
+        await serviceRef.current.initialize(actualCollectionId);
+      }
+      
       console.log(`[MainApp] Service initialized with ${serviceRef.current.imageMetadata.length} images`);
       // Generate initial collage
       await serviceRef.current.generateCollage();
@@ -829,13 +835,18 @@ function MainApp() {
         isOpen={showUpload} 
         onClose={() => setShowUpload(false)} 
         collectionId={activeCollection === 'cms' ? null : activeCollection}
-        onUploadComplete={(results) => {
-          // If we uploaded to a collection, refresh it
-          if (activeCollection !== 'cms' && results && results.length > 0) {
-            loadImagesForCollection(activeCollection);
-          }
-          // Close the upload modal after successful upload
+        onUploadComplete={async (results) => {
+          // Close the upload modal immediately
           setShowUpload(false);
+          
+          // If we uploaded to a collection, refresh it after a short delay
+          // to ensure database has propagated the changes
+          if (activeCollection !== 'cms' && results && results.length > 0) {
+            console.log(`[MainApp] Upload complete, refreshing collection ${activeCollection}`);
+            setTimeout(async () => {
+              await loadImagesForCollection(activeCollection);
+            }, 500);
+          }
         }}
       />
       

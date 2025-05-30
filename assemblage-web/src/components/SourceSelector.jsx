@@ -109,12 +109,9 @@ export const SourceSelector = ({
         
         {libraryOpen && (
           <div className="dropdown-content show" style={{ 
-            minWidth: '12rem',
-            background: uiColors.bg,
-            border: `1px solid ${uiColors.border}`,
-            color: uiColors.fg
+            minWidth: '12rem'
           }}>
-            <div className="dropdown-label" style={{ color: uiColors.fg }}>Select Library</div>
+            <div className="dropdown-label">Select Library</div>
             
             {/* Default Library */}
             <button
@@ -181,10 +178,7 @@ export const SourceSelector = ({
         
         {imageActionsOpen && (
           <div className="dropdown-content show" style={{ 
-            minWidth: '12rem',
-            background: uiColors.bg,
-            border: `1px solid ${uiColors.border}`,
-            color: uiColors.fg
+            minWidth: '12rem'
           }}>
             <button
               onClick={() => {

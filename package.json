@@ -19,6 +19,7 @@
     "db:studio": "supabase studio",
     "seed:images": "node scripts/seedPublicImages.js",
     "reprocess-metadata": "ts-node scripts/reprocess_missing_metadata.ts",
+    "setup:cms": "node scripts/setup-cms-collections.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage"

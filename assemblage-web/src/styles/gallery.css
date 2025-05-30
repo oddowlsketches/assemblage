@@ -10,6 +10,7 @@
   display: flex;
   flex-direction: column;
   font-family: 'Space Mono', monospace;
+  overflow: hidden;
 }
 
 /* Header styling to match main app */
@@ -23,6 +24,7 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: none;
+  flex-shrink: 0;
 }
 
 .gallery-header-text h1 {

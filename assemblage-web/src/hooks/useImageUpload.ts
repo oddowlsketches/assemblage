@@ -66,10 +66,7 @@ export const useImageUpload = () => {
       maxSizeMB: 2,
       maxWidthOrHeight: MAX_DIMENSION,
       useWebWorker: true,
-      initialQuality: 0.85,
-      onProgress: (percent: number) => {
-        setProgress(percent * 0.5)
-      }
+      initialQuality: 0.85
     }
 
     try {
@@ -280,26 +277,15 @@ export const useImageUpload = () => {
   }, [generateThumbnail, calculateFileHash])
 
   const uploadImage = useCallback(async (file: File, collectionId: CollectionId) => {
-    setUploading(true)
-    setError(null)
-    setProgress(0)
-
     try {
       validateFile(file)
       await validateDimensions(file)
 
       const processedFile = await compressImage(file)
-
-      setProgress(50)
       const imageData = await uploadToSupabase(processedFile, collectionId)
-      
-      setProgress(100)
-      setUploading(false)
       
       return imageData
     } catch (err: any) {
-      setError(err.message || 'Upload failed')
-      setUploading(false)
       throw err
     }
   }, [validateFile, validateDimensions, compressImage, uploadToSupabase])
@@ -307,15 +293,27 @@ export const useImageUpload = () => {
   const uploadMultiple = useCallback(async (files: File[], collectionId: CollectionId) => {
     const results = []
     const errors = []
+    const totalFiles = files.length
+    
+    setUploading(true)
+    setError(null)
+    setProgress(0)
 
-    for (let i = 0; i < files.length; i++) {
+    for (let i = 0; i < totalFiles; i++) {
       try {
+        // Calculate overall progress based on file count
+        const fileProgress = ((i + 1) / totalFiles) * 100
+        setProgress(fileProgress)
+        
         const result = await uploadImage(files[i], collectionId)
         results.push(result)
       } catch (err: any) {
         errors.push({ file: files[i].name, error: err.message })
       }
     }
+    
+    setProgress(100)
+    setUploading(false)
 
     return { results, errors }
   }, [uploadImage])

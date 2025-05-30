@@ -327,13 +327,21 @@ export default function CollectionDetail() {
       minHeight: '100vh',
       background: uiColors.bg,
       color: uiColors.fg,
-      fontFamily: 'Space Mono, monospace'
+      fontFamily: 'Space Mono, monospace',
+      position: 'relative',
+      overflow: 'auto',
+      height: '100vh',
+      overflowY: 'scroll',
+      WebkitOverflowScrolling: 'touch'
     }}>
       {/* Header */}
       <header style={{
         padding: '1.5rem',
         borderBottom: `1px solid ${uiColors.border}`,
-        background: uiColors.bg
+        background: uiColors.bg,
+        position: 'static',
+        display: 'block',
+        width: '100%'
       }}>
         <div style={{
           display: 'flex',

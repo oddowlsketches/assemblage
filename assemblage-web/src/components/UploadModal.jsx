@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, Trash } from 'phosphor-react'
+import { X, Upload, Trash, Check } from 'phosphor-react'
 import { useImageUpload } from '../hooks/useImageUpload.ts'
 import { getSupabase } from '../supabaseClient'
 import { useUiColors } from '../hooks/useUiColors'
@@ -120,11 +120,12 @@ export const UploadModal = ({
 
       // Clear successfully uploaded files
       if (results.length > 0 && errors.length === 0) {
+        // Show success message for longer
         setTimeout(() => {
           setFiles([])
           setUploadResults(null)
           onClose()
-        }, 2000)
+        }, 3000)
       } else if (errors.length > 0) {
         // Keep modal open if there were errors so user can see them
         // Remove successfully uploaded files from the list
@@ -448,14 +449,25 @@ export const UploadModal = ({
             <div style={{ marginBottom: '1rem' }}>
               {uploadResults.results.length > 0 && (
                 <div style={{
-                  padding: '0.75rem',
+                  padding: '1rem',
                   background: 'white',
                   border: '1px solid #2ECC71',
                   color: '#27AE60',
                   marginBottom: '0.5rem',
-                  fontSize: '0.85rem'
+                  fontSize: '0.85rem',
+                  borderRadius: '4px'
                 }}>
-                  Successfully uploaded {uploadResults.results.length} image(s)
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Check size={20} weight="bold" color="#27AE60" />
+                    <div>
+                      <strong>Successfully uploaded {uploadResults.results.length} image{uploadResults.results.length !== 1 ? 's' : ''}!</strong>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem' }}>
+                        {userCollections.find(c => c.id === selectedCollectionId)?.name && (
+                          <>Images added to "{userCollections.find(c => c.id === selectedCollectionId)?.name}" collection</>  
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
               {uploadResults.errors.length > 0 && (

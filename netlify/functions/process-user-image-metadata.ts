@@ -150,21 +150,25 @@ Format your response as JSON:
     }
 
     // Update the image record with the metadata
-    const updateData = {
+    const updateData: any = {
       description: metadata.description,
       tags: metadata.tags,
       image_role: metadata.image_role,
-      metadata: {
+      metadata_status: 'complete',
+      last_processed: new Date().toISOString()
+    };
+    
+    // Only add metadata field if it exists in the schema
+    if (metadata.caption || metadata.generated_at) {
+      updateData.metadata = {
         ...image.metadata,
         caption: metadata.caption,
         description: metadata.description,
         tags: metadata.tags,
         generated_at: new Date().toISOString(),
         model: 'gpt-4o'
-      },
-      metadata_status: 'complete',
-      last_processed: new Date().toISOString()
-    };
+      };
+    }
 
     const { error: updateError } = await supa
       .from('images')
