@@ -8,7 +8,7 @@ interface ProcessedFile extends File {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const MAX_DIMENSION = 10000
+const MAX_DIMENSION = 4000 // Resize images larger than 4k pixels
 const COMPRESSION_THRESHOLD = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
 const REJECTED_TYPES = ['image/gif', 'image/webp', 'image/heic']
@@ -61,15 +61,12 @@ export const useImageUpload = () => {
   }, [])
 
   const compressImage = useCallback(async (file: File): Promise<File> => {
-    if (file.size <= COMPRESSION_THRESHOLD) {
-      return file
-    }
-
+    // Always attempt to optimize images
     const options = {
       maxSizeMB: 2,
-      maxWidthOrHeight: 4000,
+      maxWidthOrHeight: MAX_DIMENSION,
       useWebWorker: true,
-      initialQuality: 0.8,
+      initialQuality: 0.85,
       onProgress: (percent: number) => {
         setProgress(percent * 0.5)
       }
@@ -77,6 +74,7 @@ export const useImageUpload = () => {
 
     try {
       const compressedFile = await imageCompression(file, options)
+      console.log(`[compressImage] Original: ${(file.size / 1024 / 1024).toFixed(2)}MB, Compressed: ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`)
       return compressedFile
     } catch (error) {
       console.error('Compression failed:', error)
@@ -85,8 +83,9 @@ export const useImageUpload = () => {
   }, [])
 
   const calculateFileHash = useCallback(async (file: File): Promise<string> => {
+    // Use SHA-1 as specified in the requirements for better compatibility
     const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
@@ -157,24 +156,26 @@ export const useImageUpload = () => {
     // Calculate file hash for deduplication
     const fileHash = await calculateFileHash(file);
     
-    // Check if file already exists
-    const { data: existingImage, error: checkError } = await supabase
+    // Check if file already exists by hash (across all user's collections)
+    const { data: existingImages, error: checkError } = await supabase
       .from('images')
-      .select('id, src, thumb_src, user_collection_id')
+      .select('id, src, thumb_src, user_collection_id, title')
       .eq('file_hash', fileHash)
       .eq('provider', 'upload')
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
     
-    // Log the error for debugging
-    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows found" which is expected
+    if (checkError) {
       console.error('[uploadToSupabase] Error checking existing image:', checkError);
-      // Don't throw here, continue with upload
     }
       
-    if (existingImage) {
-      // File already exists, return it
-      return existingImage;
+    if (existingImages && existingImages.length > 0) {
+      // File already exists
+      const existingImage = existingImages[0];
+      console.log(`[uploadToSupabase] File already exists with hash ${fileHash}`);
+      
+      // If it's in a different collection, you might want to handle this differently
+      // For now, we'll return an error to inform the user
+      throw new Error(`This image already exists in your library as "${existingImage.title}"`)
     }
     
     const thumbnailBlob: Blob = await generateThumbnail(file)

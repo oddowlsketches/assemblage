@@ -119,12 +119,17 @@ export const UploadModal = ({
       }
 
       // Clear successfully uploaded files
-      if (results.length > 0) {
+      if (results.length > 0 && errors.length === 0) {
         setTimeout(() => {
           setFiles([])
           setUploadResults(null)
           onClose()
         }, 2000)
+      } else if (errors.length > 0) {
+        // Keep modal open if there were errors so user can see them
+        // Remove successfully uploaded files from the list
+        const uploadedFileNames = results.map(r => r.title || '')
+        setFiles(prev => prev.filter(f => !uploadedFileNames.includes(f.file.name)))
       }
     } catch (err) {
       console.error('Upload failed:', err)
@@ -461,9 +466,15 @@ export const UploadModal = ({
                   color: '#C0392B',
                   fontSize: '0.85rem'
                 }}>
-                  <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>Failed uploads:</p>
+                  <p style={{ margin: '0 0 0.5rem 0', fontWeight: 'bold' }}>
+                    {uploadResults.errors.some(err => err.error.includes('already exists')) 
+                      ? 'Some images were skipped:' 
+                      : 'Failed uploads:'}
+                  </p>
                   {uploadResults.errors.map((err, i) => (
-                    <p key={i} style={{ margin: '0.25rem 0' }}>{err.file}: {err.error}</p>
+                    <p key={i} style={{ margin: '0.25rem 0' }}>
+                      <strong>{err.file}:</strong> {err.error}
+                    </p>
                   ))}
                 </div>
               )}

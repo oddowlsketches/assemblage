@@ -23,7 +23,7 @@ export async function checkDuplicateByHash(hash, collectionId, supabase) {
     const { data, error } = await supabase
       .from('images')
       .select('id')
-      .eq('sha1_hash', hash)
+      .eq('file_hash', hash)
       .eq('user_collection_id', collectionId)
       .limit(1);
 
