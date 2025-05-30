@@ -82,10 +82,22 @@ export async function handler(event) {
       .eq('id', imageId);
 
     try {
+      // Check if OpenAI is configured
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('OpenAI API key not configured');
+        throw new Error('OpenAI API key not configured');
+      }
+      
+      console.log('Analyzing image with OpenAI:', image.id, image.src?.substring(0, 50) + '...');
+      
       // Use GPT Vision API to analyze the image
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
+          {
+            role: "system",
+            content: "You are an art curator analyzing images. Always respond with valid JSON only, no markdown formatting, no code blocks, no backticks."
+          },
           {
             role: "user",
             content: [
@@ -96,7 +108,7 @@ export async function handler(event) {
 2. 5-7 relevant tags that capture the essence, mood, and content
 3. A short caption (under 10 words)
 
-Format your response as JSON:
+Respond ONLY with valid JSON, no markdown formatting or backticks:
 {
   "description": "...",
   "tags": ["tag1", "tag2", ...],
@@ -118,7 +130,31 @@ Format your response as JSON:
       });
 
       const content = response.choices[0].message.content;
-      const metadata = JSON.parse(content);
+      
+      // Clean the response - remove any markdown formatting
+      const cleanedContent = content
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/gi, '')
+        .trim();
+      
+      let metadata;
+      try {
+        metadata = JSON.parse(cleanedContent);
+      } catch (parseError) {
+        console.error('Failed to parse OpenAI response:', cleanedContent);
+        throw new Error('Invalid JSON response from OpenAI');
+      }
+      
+      // Validate metadata structure
+      if (!metadata.description || !Array.isArray(metadata.tags) || !metadata.caption) {
+        console.error('Invalid metadata structure:', metadata);
+        throw new Error('Metadata missing required fields');
+      }
+      
+      // Ensure tags are strings and limit to 7
+      metadata.tags = metadata.tags
+        .filter(tag => typeof tag === 'string')
+        .slice(0, 7);
 
       // Update the image record with metadata
       const { error: updateError } = await supabase
