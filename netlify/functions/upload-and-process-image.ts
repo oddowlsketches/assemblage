@@ -181,7 +181,8 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
         image_role,
         metadata_status: "pending_llm",
         provider: isUserUpload ? 'upload' : 'cms',
-        metadata: {}
+        metadata: {},
+        is_black_and_white: true // Default to true for CMS images
       };
 
       // Handle collection assignment based on upload type
@@ -191,9 +192,13 @@ export const handler: Handler = async (event): Promise<HandlerResponse> => {
         imageData.user_collection_id = collectionId;
         imageData.collection_id = null; // Must be null for user uploads
       } else {
-        // CMS upload - use collection_id
-        imageData.collection_id = collectionId || null;
+        // CMS upload - use collection_id and ensure it's not empty
+        if (!collectionId) {
+          throw new Error('Collection ID is required for CMS uploads');
+        }
+        imageData.collection_id = collectionId;
         imageData.user_collection_id = null; // Must be null for CMS uploads
+        imageData.user_id = null; // CMS uploads don't have user_id
       }
 
       const { error: insertErr } = await supa.from('images')

@@ -1,7 +1,7 @@
 import MasksPage from './MasksPage';
 import TemplatesPage from './TemplatesPage';
 import { cmsSupabase as supa } from './supabaseClient';
-import { ArrowClockwise } from 'phosphor-react';
+import { ArrowClockwise, Pencil, Trash, Globe, Lock } from 'phosphor-react';
 
 /// <reference types="vite/client" />
 import React, { useEffect, useState, useRef } from 'react';
@@ -33,6 +33,8 @@ type ImageRow = {
 type Collection = {
   id: string;
   name: string;
+  description?: string;
+  is_public?: boolean;
 };
 
 const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
@@ -450,6 +452,120 @@ const AddImageDialog: React.FC<{ onAdded: () => void }> = ({ onAdded }) => {
   );
 };
 
+const CollectionEditDialog: React.FC<{
+  collection: Collection;
+  onClose: () => void;
+  onUpdate: (collection: Collection) => void;
+  onDelete: (collectionId: string) => void;
+}> = ({ collection, onClose, onUpdate, onDelete }) => {
+  const [name, setName] = useState(collection.name);
+  const [description, setDescription] = useState(collection.description || '');
+  const [isPublic, setIsPublic] = useState(collection.is_public || false);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supa
+        .from('image_collections')
+        .update({
+          name: name.trim(),
+          description: description.trim(),
+          is_public: isPublic
+        })
+        .eq('id', collection.id);
+
+      if (!error) {
+        onUpdate({
+          ...collection,
+          name: name.trim(),
+          description: description.trim(),
+          is_public: isPublic
+        });
+        onClose();
+      } else {
+        alert('Error updating collection: ' + error.message);
+      }
+    } catch (err) {
+      alert('Failed to update collection');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded shadow-lg p-6 w-full max-w-md space-y-4">
+        <h2 className="text-lg font-medium">Edit Collection</h2>
+        
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Name</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="w-full border rounded px-3 py-2 text-sm"
+            autoFocus
+          />
+        </div>
+        
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Description</label>
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={3}
+            className="w-full border rounded px-3 py-2 text-sm"
+            placeholder="Optional description..."
+          />
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="is-public"
+            checked={isPublic}
+            onChange={e => setIsPublic(e.target.checked)}
+          />
+          <label htmlFor="is-public" className="text-sm">
+            Make this collection publicly accessible
+          </label>
+        </div>
+        
+        <div className="flex justify-between">
+          <button
+            onClick={() => {
+              if (confirm('Are you sure you want to delete this collection? All images will be deleted.')) {
+                onDelete(collection.id);
+                onClose();
+              }
+            }}
+            className="px-3 py-1 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50"
+          >
+            Delete Collection
+          </button>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!name.trim() || saving}
+              className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ImageDetailsModal: React.FC<{ 
   image: ImageRow; 
   onClose: () => void; 
@@ -838,6 +954,7 @@ const ImagesPage: React.FC = () => {
   const [creatingCollection, setCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
   const [savingCollection, setSavingCollection] = useState(false);
+  const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
 
   const handleImageClick = (image: ImageRow) => {
     setSelectedImage(image);
@@ -874,7 +991,7 @@ const ImagesPage: React.FC = () => {
   useEffect(() => {
     // Fetch collections first, then load images for the first collection
     (async () => {
-      const { data, error } = await supa.from('image_collections').select('id, name').order('created_at', { ascending: true });
+      const { data, error } = await supa.from('image_collections').select('*').order('created_at', { ascending: true });
       if (!error && data) {
         setCollections(data);
         const firstCollectionId = data[0]?.id || '';
@@ -912,7 +1029,7 @@ const ImagesPage: React.FC = () => {
   const truncate = (str: string, n = 80) =>
     str && str.length > n ? str.slice(0, n) + '…' : str;
 
-  // Add handler to create a new collection
+  // Handler to create a new collection
   const handleCreateCollection = async () => {
     const name = newCollectionName.trim();
     if (!name || savingCollection) return;
@@ -925,7 +1042,7 @@ const ImagesPage: React.FC = () => {
         setSelectedCollection(data[0].id);
         setCreatingCollection(false);
         setNewCollectionName('');
-        console.log('Collection created successfully:', data[0]);
+        loadImages(data[0].id);
       } else if (error) {
         console.error('Error creating collection:', error);
         alert('Error creating collection: ' + error.message);
@@ -935,6 +1052,49 @@ const ImagesPage: React.FC = () => {
       alert('Failed to create collection');
     } finally {
       setSavingCollection(false);
+    }
+  };
+
+  // Handler to update collection
+  const handleUpdateCollection = (updatedCollection: Collection) => {
+    setCollections(prev => prev.map(col => 
+      col.id === updatedCollection.id ? updatedCollection : col
+    ));
+  };
+
+  // Handler to delete collection
+  const handleDeleteCollection = async (collectionId: string) => {
+    try {
+      // First delete all images in the collection
+      const { error: deleteImagesError } = await supa
+        .from('images')
+        .delete()
+        .eq('collection_id', collectionId);
+        
+      if (deleteImagesError) {
+        alert('Error deleting images: ' + deleteImagesError.message);
+        return;
+      }
+      
+      // Then delete the collection
+      const { error } = await supa
+        .from('image_collections')
+        .delete()
+        .eq('id', collectionId);
+        
+      if (!error) {
+        setCollections(prev => prev.filter(col => col.id !== collectionId));
+        if (selectedCollection === collectionId) {
+          const firstCollection = collections.find(col => col.id !== collectionId);
+          setSelectedCollection(firstCollection?.id || '');
+          loadImages(firstCollection?.id || '');
+        }
+      } else {
+        alert('Error deleting collection: ' + error.message);
+      }
+    } catch (err) {
+      console.error('Exception deleting collection:', err);
+      alert('Failed to delete collection');
     }
   };
 
@@ -955,19 +1115,36 @@ const ImagesPage: React.FC = () => {
         >
           {view === 'table' ? 'Grid View' : 'Table View'}
         </button>
-        <select
-          className="border px-2 py-1 text-sm rounded"
-          value={selectedCollection}
-          onChange={e => { 
-            const newCollectionId = e.target.value;
-            setSelectedCollection(newCollectionId);
-            loadImages(newCollectionId);
-          }}
-        >
-          {collections.map(col => (
-            <option key={col.id} value={col.id}>{col.name}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1">
+          <select
+            className="border px-2 py-1 text-sm rounded"
+            value={selectedCollection}
+            onChange={e => { 
+              const newCollectionId = e.target.value;
+              setSelectedCollection(newCollectionId);
+              loadImages(newCollectionId);
+            }}
+          >
+            {collections.map(col => (
+              <option key={col.id} value={col.id}>
+                {col.name}
+                {col.is_public && ' 🌐'}
+              </option>
+            ))}
+          </select>
+          {selectedCollection && (
+            <button
+              onClick={() => {
+                const collection = collections.find(c => c.id === selectedCollection);
+                if (collection) setEditingCollection(collection);
+              }}
+              className="border rounded px-2 py-1 text-sm bg-white hover:bg-gray-100"
+              title="Edit collection"
+            >
+              <Pencil size={14} weight="regular" />
+            </button>
+          )}
+        </div>
         <button
           className="border px-2 py-1 text-sm rounded bg-white hover:bg-gray-100"
           onClick={() => {
@@ -1030,6 +1207,15 @@ const ImagesPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {editingCollection && (
+        <CollectionEditDialog
+          collection={editingCollection}
+          onClose={() => setEditingCollection(null)}
+          onUpdate={handleUpdateCollection}
+          onDelete={handleDeleteCollection}
+        />
       )}
 
       {loading ? (
@@ -1101,7 +1287,15 @@ const ImagesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="p-2 align-top text-center">
-                      <button onClick={() => handleDelete(row.id)} className="text-red-600 hover:text-red-800">✕</button>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(row.id);
+                        }} 
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        ✕
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -1178,4 +1372,4 @@ export default function App() {
   return <CmsApp />;
 }
 
-createRoot(document.getElementById('root')!).render(<App />); 
+createRoot(document.getElementById('root')!).render(<App />);
