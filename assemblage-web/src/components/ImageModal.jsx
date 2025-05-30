@@ -123,12 +123,16 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
             background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`
           }}>
             <img
-              src={image.public_url}
-              alt={image.filename}
+              src={image.src || image.public_url || image.thumb_src}
+              alt={image.filename || image.title}
               style={{
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain'
+              }}
+              onError={(e) => {
+                console.error('Modal image failed to load:', image);
+                e.target.src = image.thumb_src || '/placeholder.png';
               }}
             />
           </div>

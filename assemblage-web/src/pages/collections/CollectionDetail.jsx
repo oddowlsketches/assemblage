@@ -125,10 +125,10 @@ export default function CollectionDetail() {
 
       if (error) throw error;
       
-      // Map images to ensure they have the correct URL field
+      // Map images to ensure they have the correct fields
       const mappedImages = (data || []).map(img => {
-        // Extract filename from the src URL if not provided
-        let filename = img.filename;
+        // Extract filename from title or src URL if not provided
+        let filename = img.filename || img.title;
         if (!filename && img.src) {
           const urlParts = img.src.split('/');
           filename = urlParts[urlParts.length - 1];
@@ -137,7 +137,10 @@ export default function CollectionDetail() {
         return {
           ...img,
           filename: filename || 'Untitled',
-          public_url: img.src || img.public_url || img.thumb_src || img.url
+          // Keep all URL fields as they are
+          src: img.src,
+          thumb_src: img.thumb_src,
+          public_url: img.public_url
         };
       });
       
@@ -606,12 +609,16 @@ export default function CollectionDetail() {
                 )}
                 
                 <img
-                  src={image.public_url}
-                  alt={image.filename}
+                  src={image.src || image.public_url || image.thumb_src}
+                  alt={image.filename || image.title}
                   style={{
                     width: '100%',
                     height: '200px',
                     objectFit: 'cover'
+                  }}
+                  onError={(e) => {
+                    console.error('Image failed to load:', image);
+                    e.target.src = image.thumb_src || '/placeholder.png';
                   }}
                 />
                 
