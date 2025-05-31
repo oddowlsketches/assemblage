@@ -166,6 +166,13 @@ function MainApp() {
     try {
       const supabase = getSupabase();
       
+      // Always try to load the default collection first
+      const { data: defaultCollection, error: defaultError } = await supabase
+        .from('image_collections')
+        .select('id, name, is_public')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .single();
+      
       if (isUserAdmin) {
         console.log('[loadCollections] Loading as admin user');
         // Admin users can see all collections
@@ -176,10 +183,10 @@ function MainApp() {
         
         if (!error && data) {
           setUserCollectionsForSelect(data);
-          // Find default collection or first one
-          const defaultCollection = data.find(c => c.id === '00000000-0000-0000-0000-000000000001');
-          const firstCollectionId = defaultCollection?.id || data[0]?.id;
-          setSelectedCollection(firstCollectionId);
+          // Ensure default collection is in the list
+          if (defaultCollection && !data.find(c => c.id === defaultCollection.id)) {
+            setUserCollectionsForSelect([defaultCollection, ...data]);
+          }
           // Set the actual name for the default collection
           if (defaultCollection) {
             setActiveCollectionName(defaultCollection.name);
@@ -187,11 +194,16 @@ function MainApp() {
           await loadImagesForCollection('cms');
         } else {
           console.error('Error loading collections:', error);
+          // Still set default collection if available
+          if (defaultCollection) {
+            setUserCollectionsForSelect([defaultCollection]);
+            setActiveCollectionName(defaultCollection.name);
+          }
           await loadImagesForCollection('cms');
         }
       } else {
         console.log('[loadCollections] Loading as regular user - fetching public collections');
-        // Regular users see public collections
+        // Regular users see public collections plus their own
         const { data, error } = await supabase
           .from('image_collections')
           .select('id, name, is_public')
@@ -200,20 +212,28 @@ function MainApp() {
         
         if (!error && data && data.length > 0) {
           setUserCollectionsForSelect(data);
-          const firstCollectionId = data[0].id;
-          setSelectedCollection(firstCollectionId);
-          setActiveCollectionName(data[0].name);
+          // Set the name of the default collection if it's in the list
+          const defaultInList = data.find(c => c.id === '00000000-0000-0000-0000-000000000001');
+          if (defaultInList) {
+            setActiveCollectionName(defaultInList.name);
+          }
           await loadImagesForCollection('cms');
         } else {
-          // Fallback if no public collections
+          // Fallback - at least show default collection if it exists
           console.log('[loadCollections] No public collections found');
-          setUserCollectionsForSelect([]);
-          setActiveCollectionName('Default Library');
+          if (defaultCollection && defaultCollection.is_public) {
+            setUserCollectionsForSelect([defaultCollection]);
+            setActiveCollectionName(defaultCollection.name);
+          } else {
+            setUserCollectionsForSelect([]);
+            setActiveCollectionName('Default Library');
+          }
           await loadImagesForCollection('cms');
         }
       }
     } catch (err) {
       console.error('Error loading collections:', err);
+      setActiveCollectionName('Default Library');
       await loadImagesForCollection('cms');
     }
   };
@@ -294,18 +314,39 @@ function MainApp() {
   
   // Fetch user-specific collections for the source selector dropdown
   const fetchUserCollectionsForSelect = async () => {
-    if (!session) {
-      console.log('[fetchUserCollectionsForSelect] No session');
-      setUserCollectionsForSelect([]);
-      return;
-    }
     try {
       const supabase = getSupabase();
+      
+      // Always get the default collection first
+      const { data: defaultCollection } = await supabase
+        .from('image_collections')
+        .select('id, name, is_public')
+        .eq('id', '00000000-0000-0000-0000-000000000001')
+        .single();
+      
+      if (!session) {
+        console.log('[fetchUserCollectionsForSelect] No session');
+        // No session - only show public collections
+        const { data: publicCollections } = await supabase
+          .from('image_collections')
+          .select('id, name')
+          .eq('is_public', true)
+          .order('created_at', { ascending: true });
+        
+        if (publicCollections && publicCollections.length > 0) {
+          setUserCollectionsForSelect(publicCollections);
+        } else if (defaultCollection && defaultCollection.is_public) {
+          setUserCollectionsForSelect([defaultCollection]);
+        } else {
+          setUserCollectionsForSelect([]);
+        }
+        return;
+      }
       
       console.log('[fetchUserCollectionsForSelect] Session exists, isAdmin:', isAdmin);
       
       // For admin users, fetch from both image_collections and user_collections
-      // For regular users, fetch from user_collections
+      // For regular users, fetch public collections plus their own
       if (isAdmin) {
         const [imageCollectionsResult, userCollectionsResult] = await Promise.all([
           supabase
@@ -334,19 +375,39 @@ function MainApp() {
         console.log('[fetchUserCollectionsForSelect] Admin collections (combined):', allCollections);
         setUserCollectionsForSelect(allCollections);
       } else {
-        const { data, error } = await supabase
-          .from('user_collections')
-          .select('id, name')
-          .eq('user_id', session.user.id)
-          .order('name', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching user collections for select:', error);
-          setUserCollectionsForSelect([]);
-        } else {
-          console.log('[fetchUserCollectionsForSelect] User collections:', data);
-          setUserCollectionsForSelect(data || []);
+        // Regular users: get public collections + their own user collections
+        const [publicCollectionsResult, userCollectionsResult] = await Promise.all([
+          supabase
+            .from('image_collections')
+            .select('id, name')
+            .eq('is_public', true)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('user_collections')
+            .select('id, name')
+            .eq('user_id', session.user.id)
+            .order('name', { ascending: true })
+        ]);
+        
+        const allCollections = [];
+        
+        // Add public collections
+        if (publicCollectionsResult.data) {
+          allCollections.push(...publicCollectionsResult.data);
         }
+        
+        // Add user's own collections
+        if (userCollectionsResult.data) {
+          allCollections.push(...userCollectionsResult.data);
+        }
+        
+        // Ensure we have at least the default collection if it's public
+        if (allCollections.length === 0 && defaultCollection && defaultCollection.is_public) {
+          allCollections.push(defaultCollection);
+        }
+        
+        console.log('[fetchUserCollectionsForSelect] User collections (combined):', allCollections);
+        setUserCollectionsForSelect(allCollections);
       }
     } catch (err) {
       console.error('Error fetching user collections for select:', err);

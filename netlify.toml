@@ -38,4 +38,10 @@
 # Configure function serving
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["sharp"] 
+  external_node_modules = ["sharp"]
+
+# SPA redirect rule
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 

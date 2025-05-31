@@ -88,6 +88,48 @@ export async function handler(event) {
         throw new Error('OpenAI API key not configured');
       }
       
+      // Try to get custom prompt from kv_store
+      let aiPrompt = null;
+      try {
+        const { data: promptData } = await supabase
+          .from('kv_store')
+          .select('value')
+          .eq('key', 'ai_prompt_enriched')
+          .single();
+        
+        if (promptData && promptData.value) {
+          aiPrompt = promptData.value;
+          console.log('Using custom enriched prompt from CMS');
+        }
+      } catch (promptError) {
+        console.log('No custom prompt found, using default');
+      }
+      
+      // Default enriched prompt if not found in database
+      if (!aiPrompt) {
+        aiPrompt = `Analyze this black and white collage/assemblage image.
+
+Determine if this image contains recognizable human figures or faces as primary subjects (classify as "narrative"), is primarily abstract patterns/textures ("texture"), or contains symbolic/metaphorical elements without clear human subjects ("conceptual").
+
+Provide:
+1. A concise, descriptive analysis (2-3 sentences) focusing on composition, visual elements, and artistic qualities
+2. 5-8 specific, relevant tags (avoid generic terms)
+3. Whether the image is truly black and white or has color elements
+4. Whether it appears to be a photograph or an illustration/artwork
+5. A score (0-1) for how much white/light edge space the image has
+
+Format your response as JSON:
+{
+  "description": "descriptive analysis here",
+  "tags": ["tag1", "tag2", ...],
+  "image_role": "texture|narrative|conceptual",
+  "is_black_and_white": true/false,
+  "is_photograph": true/false,
+  "white_edge_score": 0.0-1.0,
+  "palette_suitability": "vibrant|neutral|earthtone|muted|pastel"
+}`;
+      }
+      
       console.log('Analyzing image with OpenAI:', image.id, image.src?.substring(0, 50) + '...');
       
       // Use GPT Vision API to analyze the image
@@ -96,24 +138,14 @@ export async function handler(event) {
         messages: [
           {
             role: "system",
-            content: "You are an art curator analyzing images. Always respond with valid JSON only, no markdown formatting, no code blocks, no backticks."
+            content: "You are an expert analyzing collage and assemblage images. Always respond with valid JSON only, no markdown formatting, no code blocks, no backticks."
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analyze this image and provide:
-1. A brief, poetic description (2-3 sentences)
-2. 5-7 relevant tags that capture the essence, mood, and content
-3. A short caption (under 10 words)
-
-Respond ONLY with valid JSON, no markdown formatting or backticks:
-{
-  "description": "...",
-  "tags": ["tag1", "tag2", ...],
-  "caption": "..."
-}`
+                text: aiPrompt
               },
               {
                 type: "image_url",
@@ -125,7 +157,7 @@ Respond ONLY with valid JSON, no markdown formatting or backticks:
             ]
           }
         ],
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.7
       });
 
@@ -146,15 +178,20 @@ Respond ONLY with valid JSON, no markdown formatting or backticks:
       }
       
       // Validate metadata structure
-      if (!metadata.description || !Array.isArray(metadata.tags) || !metadata.caption) {
+      if (!metadata.description || !Array.isArray(metadata.tags)) {
         console.error('Invalid metadata structure:', metadata);
         throw new Error('Metadata missing required fields');
       }
       
-      // Ensure tags are strings and limit to 7
+      // Ensure tags are strings and limit to 8
       metadata.tags = metadata.tags
         .filter(tag => typeof tag === 'string')
-        .slice(0, 7);
+        .slice(0, 8);
+      
+      // Add a caption if not provided (for backward compatibility)
+      if (!metadata.caption && metadata.tags.length > 0) {
+        metadata.caption = metadata.tags.slice(0, 3).join(', ');
+      }
 
       // Update the image record with metadata
       const { error: updateError } = await supabase
