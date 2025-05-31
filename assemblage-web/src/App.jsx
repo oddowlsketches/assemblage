@@ -9,11 +9,12 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple } from 'phosphor-react';
+import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple, X } from 'phosphor-react';
 import { UploadModal } from './components/UploadModal';
 import { CollectionDrawer } from './components/CollectionDrawer';
 import { SourceSelector } from './components/SourceSelector';
 import CollectionDetail from './pages/collections/CollectionDetail';
+import { getContrastText } from './lib/colorUtils/contrastText';
 
 function MainApp() {
   const canvasRef = useRef(null);
@@ -29,7 +30,8 @@ function MainApp() {
   const [authLoading, setAuthLoading] = useState(true);
   const [saveState, setSaveState] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
   const [isFirstSave, setIsFirstSave] = useState(false);
-  const [feedbackTextColor, setFeedbackTextColor] = useState('white');
+  const [feedbackTextColor, setFeedbackTextColor] = useState('#333333');
+  const [bgColor, setBgColor] = useState('#f5f5f5');
   
   // New states for the source selector functionality
   const [activeCollection, setActiveCollection] = useState('cms');
@@ -37,52 +39,16 @@ function MainApp() {
   const [showUpload, setShowUpload] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
 
-  // Utility function to calculate brightness of a color
-  const getBrightness = (color) => {
-    // Handle CSS variables by getting computed style
-    if (color.startsWith('var(')) {
-      const computedStyle = getComputedStyle(document.documentElement);
-      const variableName = color.match(/var\(([^)]+)\)/)[1];
-      color = computedStyle.getPropertyValue(variableName).trim();
-    }
-    
-    // Convert hex to RGB
-    let r, g, b;
-    if (color.startsWith('#')) {
-      const hex = color.slice(1);
-      r = parseInt(hex.substr(0, 2), 16);
-      g = parseInt(hex.substr(2, 2), 16);
-      b = parseInt(hex.substr(4, 2), 16);
-    } else if (color.startsWith('rgb')) {
-      const match = color.match(/rgb\((\d+), (\d+), (\d+)\)/);
-      if (match) {
-        r = parseInt(match[1]);
-        g = parseInt(match[2]);
-        b = parseInt(match[3]);
-      }
-    } else {
-      // Fallback for named colors - assume medium brightness
-      return 128;
-    }
-    
-    // Calculate brightness using luminance formula
-    return (r * 299 + g * 587 + b * 114) / 1000;
-  };
-
-  // Update feedback text color based on background brightness
+  // Update feedback text color based on background using WCAG AA compliant contrast
   const updateFeedbackTextColor = () => {
     // Get the background color from CSS variables which change with collages
     const rootStyle = getComputedStyle(document.documentElement);
-    const bgColor = rootStyle.getPropertyValue('--background-color').trim() || '#f5f5f5';
-    const brightness = getBrightness(bgColor);
+    const currentBgColor = rootStyle.getPropertyValue('--background-color').trim() || '#f5f5f5';
+    setBgColor(currentBgColor);
     
-    // If background is light (brightness > 150), use dark text
-    // Otherwise use white text
-    if (brightness > 150) {
-      setFeedbackTextColor('var(--color-mystery)'); // Dark purple from palette
-    } else {
-      setFeedbackTextColor('white');
-    }
+    // Use the new WCAG AA compliant contrast utility
+    const contrastColor = getContrastText(currentBgColor);
+    setFeedbackTextColor(contrastColor);
   };
 
   // Watch for background color changes
@@ -148,6 +114,12 @@ function MainApp() {
       
       // Load collections with the determined admin status
       await loadCollections(adminStatus);
+      
+      // Check if we should open collections drawer
+      if (localStorage.getItem('openCollectionsDrawer') === 'true') {
+        setShowDrawer(true);
+        localStorage.removeItem('openCollectionsDrawer');
+      }
     };
     
     initializeApp();
@@ -273,6 +245,22 @@ function MainApp() {
     }
   };
 
+  // Ensure a collage is generated when returning to home
+  useEffect(() => {
+    // Check if canvas is empty and we're not loading
+    if (!isLoading && serviceRef.current && serviceRef.current.canvas) {
+      const ctx = serviceRef.current.canvas.getContext('2d');
+      // Check if canvas is blank
+      const imageData = ctx.getImageData(0, 0, 1, 1);
+      const isBlank = imageData.data.every(pixel => pixel === 0);
+      
+      if (isBlank && serviceRef.current.imageMetadata?.length > 0) {
+        console.log('[MainApp] Canvas is blank, regenerating collage');
+        serviceRef.current.generateCollage();
+      }
+    }
+  }, [isLoading]);
+
   const handlePromptChange = (e) => {
     setPrompt(e.target.value);
   };
@@ -307,28 +295,44 @@ function MainApp() {
   // Fetch user-specific collections for the source selector dropdown
   const fetchUserCollectionsForSelect = async () => {
     if (!session) {
+      console.log('[fetchUserCollectionsForSelect] No session');
       setUserCollectionsForSelect([]);
       return;
     }
     try {
       const supabase = getSupabase();
       
-      // For admin users, fetch from image_collections
+      console.log('[fetchUserCollectionsForSelect] Session exists, isAdmin:', isAdmin);
+      
+      // For admin users, fetch from both image_collections and user_collections
       // For regular users, fetch from user_collections
       if (isAdmin) {
-        const { data, error } = await supabase
-          .from('image_collections')
-          .select('id, name')
-          .order('created_at', { ascending: true });
+        const [imageCollectionsResult, userCollectionsResult] = await Promise.all([
+          supabase
+            .from('image_collections')
+            .select('id, name')
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('user_collections')
+            .select('id, name')
+            .eq('user_id', session.user.id)
+            .order('name', { ascending: true })
+        ]);
         
-        if (error) {
-          console.error('Error fetching admin collections:', error);
-          setUserCollectionsForSelect([]);
-        } else {
-          // Filter out the default collection for display
-          const filteredData = (data || []).filter(col => col.id !== '00000000-0000-0000-0000-000000000001');
-          setUserCollectionsForSelect(filteredData);
+        const allCollections = [];
+        
+        // Add ALL image collections (including default) for admin
+        if (imageCollectionsResult.data) {
+          allCollections.push(...imageCollectionsResult.data);
         }
+        
+        // Add user collections
+        if (userCollectionsResult.data) {
+          allCollections.push(...userCollectionsResult.data);
+        }
+        
+        console.log('[fetchUserCollectionsForSelect] Admin collections (combined):', allCollections);
+        setUserCollectionsForSelect(allCollections);
       } else {
         const { data, error } = await supabase
           .from('user_collections')
@@ -340,6 +344,7 @@ function MainApp() {
           console.error('Error fetching user collections for select:', error);
           setUserCollectionsForSelect([]);
         } else {
+          console.log('[fetchUserCollectionsForSelect] User collections:', data);
           setUserCollectionsForSelect(data || []);
         }
       }
@@ -360,14 +365,24 @@ function MainApp() {
   // Update activeCollectionName when activeCollection changes
   useEffect(() => {
     if (activeCollection === 'cms') {
-      // Find the default collection name from the loaded collections
-      const defaultCollection = userCollectionsForSelect.find(
-        c => c.id === '00000000-0000-0000-0000-000000000001'
-      );
-      setActiveCollectionName(defaultCollection?.name || 'Default Library');
+      // For CMS/default, the name should already be set from loadCollections
+      // Don't override it here unless we need to
+      if (!activeCollectionName || activeCollectionName === 'Default Library') {
+        // Try to find the default collection name from image_collections
+        const defaultCollection = userCollectionsForSelect.find(
+          c => c.id === '00000000-0000-0000-0000-000000000001'
+        );
+        if (defaultCollection) {
+          setActiveCollectionName(defaultCollection.name);
+        }
+      }
     } else {
+      // For user collections, find the collection in the list
       const foundCollection = userCollectionsForSelect.find(col => col.id === activeCollection);
-      setActiveCollectionName(foundCollection ? foundCollection.name : 'Unknown Collection');
+      if (foundCollection) {
+        setActiveCollectionName(foundCollection.name);
+      }
+      // Don't update the name if we can't find the collection - keep the existing name
     }
   }, [activeCollection, userCollectionsForSelect]);
 
@@ -398,6 +413,12 @@ function MainApp() {
     
     if (!serviceRef.current) return;
     
+    // Show saving state immediately
+    setSaveState('saving');
+    
+    // Small delay to ensure UI updates
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
     // Check if this is the user's first save
     const supabase = getSupabase();
     const { count } = await supabase
@@ -407,8 +428,6 @@ function MainApp() {
     
     const isFirstSaveAttempt = count === 0;
     setIsFirstSave(isFirstSaveAttempt);
-    
-    setSaveState('saving');
     
     try {
       // Get the canvas data
@@ -421,12 +440,12 @@ function MainApp() {
       // Calculate thumbnail dimensions maintaining aspect ratio
       const originalCanvas = serviceRef.current.canvas;
       const aspectRatio = originalCanvas.width / originalCanvas.height;
-      let thumbWidth = 300;
+      let thumbWidth = 600; // Increased from 300 for better quality
       let thumbHeight = Math.round(thumbWidth / aspectRatio);
       
       // If height is too large, constrain by height instead
-      if (thumbHeight > 225) {
-        thumbHeight = 225;
+      if (thumbHeight > 450) { // Increased from 225
+        thumbHeight = 450;
         thumbWidth = Math.round(thumbHeight * aspectRatio);
       }
       
@@ -437,7 +456,7 @@ function MainApp() {
       thumbnailCtx.imageSmoothingEnabled = true;
       thumbnailCtx.imageSmoothingQuality = 'high';
       thumbnailCtx.drawImage(originalCanvas, 0, 0, thumbWidth, thumbHeight);
-      const thumbnailUrl = thumbnailCanvas.toDataURL('image/png', 0.85);
+      const thumbnailUrl = thumbnailCanvas.toDataURL('image/png', 0.95); // Increased quality from 0.85
       
       // Get template info from service
       const templateInfo = serviceRef.current.getLastRenderInfo ? 
@@ -589,42 +608,14 @@ function MainApp() {
 
   return (
     <div id="wrapper">
-      <header>
+      <header className="space-y-2 sm:space-y-0">
         <div className="header-text">
           <h1>Assemblage</h1>
           <p className="tagline">EPHEMERAL VISIONS, ASSEMBLED MEANINGS</p>
         </div>
         <div className="header-controls">
-          <div className="action-buttons">
-            {/* Save feedback message - desktop only */}
-            {saveState !== 'idle' && (
-              <div 
-                className={`save-feedback desktop-only ${saveState}`}
-                style={{ 
-                  color: feedbackTextColor,
-                  textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)' 
-                }}
-              >
-                {saveState === 'saving' && 'Saving...'}
-                {saveState === 'saved' && (
-                  <span>
-                    Saved! {isFirstSave && (
-                      <button 
-                        onClick={() => setShowGallery(true)}
-                        className="gallery-link"
-                        style={{ 
-                          color: feedbackTextColor,
-                          textShadow: '0 1px 2px rgba(0, 0, 0, 0.2)'
-                        }}
-                      >
-                        View in My Collages
-                      </button>
-                    )}
-                  </span>
-                )}
-                {saveState === 'error' && 'Save failed'}
-              </div>
-            )}
+          <div className="action-buttons sm:flex-row flex-wrap">
+
             
             <button id="saveButton" onClick={handleSave} className="save-btn" disabled={saveState === 'saving'}>
               {session ? (
@@ -648,6 +639,7 @@ function MainApp() {
               onManageCollections={() => setShowDrawer(true)}
               onUploadImages={() => setShowUpload(true)}
               onOpenGallery={() => setShowGallery(true)}
+              userCollections={userCollectionsForSelect}
             />
             
             {/* Prompt placeholder - removed gear icon */}
@@ -686,37 +678,35 @@ function MainApp() {
                 <span className="auth-helper-text">Sign in to save collages</span>
               </div>
             )}
-            
-            {/* Mobile menu button - visible only on mobile */}
-            <button className="mobile-menu-btn mobile-only" onClick={(e) => {
-              document.querySelector('.mobile-menu-overlay').classList.toggle('show');
-              document.querySelector('.mobile-menu-panel').classList.toggle('show');
-            }}>
-              <List size={16} weight="regular" />
-            </button>
           </div>
-          
+            
           {/* Mobile menu button - visible only on mobile */}
           <button className="mobile-menu-btn mobile-only" onClick={(e) => {
             document.querySelector('.mobile-menu-overlay').classList.toggle('show');
             document.querySelector('.mobile-menu-panel').classList.toggle('show');
           }}>
-            <List size={16} weight="regular" />
+            <List size={36} weight="regular" />
           </button>
         </div>
       </header>
 
       {/* Mobile floating action buttons */}
       <div className="mobile-actions mobile-only">
-        <button onClick={handleShiftPerspective} className="mobile-new-btn" title="New Collage">
+        <button onClick={(e) => {
+          console.log('[Mobile] New button clicked');
+          handleShiftPerspective();
+        }} className="mobile-new-btn" title="New Collage">
           New
         </button>
-        <button onClick={handleSave} className="mobile-save-btn" title="Save" disabled={saveState === 'saving'}>
+        <button onClick={(e) => {
+          console.log('[Mobile] Save button clicked');
+          handleSave();
+        }} className="mobile-save-btn" title="Save" disabled={saveState === 'saving'}>
           {session ? (
             saveState === 'saving' ? (
               <div className="save-spinner mobile-spinner"></div>
             ) : (
-              <FloppyDisk size={20} weight="regular" />
+              <BookmarkSimple size={20} weight="regular" />
             )
           ) : (
             'Sign In'
@@ -752,12 +742,17 @@ function MainApp() {
               }}
               className="mobile-collection-dropdown"
             >
-              <option value="cms">{activeCollection === 'cms' ? activeCollectionName : 'Default Library'}</option>
-              {userCollectionsForSelect.map(collection => (
-                <option key={collection.id} value={collection.id}>
-                  {collection.name}
-                </option>
-              ))}
+              {userCollectionsForSelect.map(collection => {
+                const isDefaultCollection = collection.id === '00000000-0000-0000-0000-000000000001';
+                return (
+                  <option 
+                    key={collection.id} 
+                    value={isDefaultCollection ? 'cms' : collection.id}
+                  >
+                    {collection.name}
+                  </option>
+                );
+              })}
             </select>
           </div>
         </div>
@@ -789,24 +784,6 @@ function MainApp() {
               Upload Images
             </button>
           )}
-          
-          <button
-            className="mobile-menu-item"
-            onClick={() => {
-              // Check if running on Netlify (production) or local dev
-              if (window.location.hostname === 'localhost') {
-                alert('Dropbox integration requires deployment. Please use the deployed version.');
-              } else {
-                // Redirect to Dropbox OAuth
-                window.location.href = '/.netlify/functions/dropbox-auth-start';
-              }
-              document.querySelector('.mobile-menu-overlay').classList.remove('show');
-              document.querySelector('.mobile-menu-panel').classList.remove('show');
-            }}
-            style={{ opacity: 0.5 }}
-          >
-            Connect Dropbox (coming soon)
-          </button>
         </div>
         
         {/* User menu for mobile */}
@@ -866,6 +843,60 @@ function MainApp() {
       <div id="canvas-container">
         <canvas ref={canvasRef} id="collageCanvas" />
         {isLoading && <div className="loading">Loading images...</div>}
+        
+        {/* Save feedback overlay */}
+        {saveState !== 'idle' && (
+          <div className="save-overlay">
+            <div className="save-overlay-content">
+              {saveState === 'saving' && (
+                <>
+                  <div className="save-spinner-large"></div>
+                  <p>Saving your collage...</p>
+                </>
+              )}
+              {saveState === 'saved' && (
+                <>
+                  <div className="save-success-icon">
+                    <Check size={48} weight="bold" style={{ color: 'inherit' }} />
+                  </div>
+                  <p>Collage saved!</p>
+                  {isFirstSave && (
+                    <button 
+                      onClick={() => {
+                        setShowGallery(true);
+                        setSaveState('idle');
+                      }}
+                      className="save-overlay-button"
+                    >
+                      View in My Collages
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setSaveState('idle')}
+                    className="save-overlay-dismiss"
+                  >
+                    Dismiss
+                  </button>
+                </>
+              )}
+              {saveState === 'error' && (
+                <>
+                  <div className="save-error-icon">
+                    <X size={48} weight="bold" style={{ color: '#e74c3c' }} />
+                  </div>
+                  <p>Failed to save collage</p>
+                  <button 
+                    onClick={() => setSaveState('idle')}
+                    className="save-overlay-button"
+                  >
+                    Try Again
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        
         {!isLoading && serviceRef.current?.imageMetadata?.length === 0 && (
           <div style={{
             position: 'absolute',
@@ -955,6 +986,10 @@ function MainApp() {
           loadImagesForCollection(id);
         }}
         onShowGallery={() => setShowGallery(true)}
+        onUploadImages={() => {
+          setShowUpload(true);
+          setShowDrawer(false);
+        }}
       />
     </div>
   );

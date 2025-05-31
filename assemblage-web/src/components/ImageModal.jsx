@@ -100,18 +100,16 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
       {/* Modal content */}
       <div style={{
         position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         background: uiColors.bg,
-        border: `1px solid ${uiColors.border}`,
-        width: '90%',
-        maxWidth: '800px',
-        maxHeight: '90vh',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1001,
-        fontFamily: 'Space Mono, monospace'
+        fontFamily: 'Space Mono, monospace',
+        overflow: 'auto'
       }}>
         {/* Header */}
         <div style={{
@@ -121,7 +119,15 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
           padding: '1rem',
           borderBottom: `1px solid ${uiColors.border}`
         }}>
-          <h3 style={{ margin: 0, color: uiColors.fg }}>{image.filename}</h3>
+          <h3 style={{ 
+            margin: 0, 
+            color: uiColors.fg,
+            fontSize: window.innerWidth <= 768 ? '1rem' : '1.2rem',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            maxWidth: '70%'
+          }}>{image.filename}</h3>
           <button
             onClick={onClose}
             style={{
@@ -135,20 +141,24 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content - single scrollable container on mobile */}
         <div style={{
           display: 'flex',
           flex: 1,
-          overflow: 'hidden'
+          minHeight: 0,
+          overflowY: window.innerWidth <= 768 ? 'auto' : 'hidden',
+          overflowX: 'hidden',
+          flexDirection: window.innerWidth <= 768 ? 'column' : 'row'
         }}>
           {/* Image preview */}
           <div style={{
-            flex: '1 1 60%',
+            flex: window.innerWidth <= 768 ? '0 0 auto' : '1 1 60%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '2rem',
-            background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`
+            padding: window.innerWidth <= 768 ? '1rem' : '2rem',
+            background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`,
+            minHeight: window.innerWidth <= 768 ? '300px' : '400px'
           }}>
             <img
               src={image.src || image.public_url || image.thumb_src}
@@ -167,10 +177,12 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
 
           {/* Metadata panel */}
           <div style={{
-            flex: '1 1 40%',
-            padding: '2rem',
-            borderLeft: `1px solid ${uiColors.border}`,
-            overflowY: 'auto'
+            flex: window.innerWidth <= 768 ? '0 0 auto' : '0 0 40%',
+            padding: window.innerWidth <= 768 ? '1rem' : '2rem',
+            borderLeft: window.innerWidth <= 768 ? 'none' : `1px solid ${uiColors.border}`,
+            borderTop: window.innerWidth <= 768 ? `1px solid ${uiColors.border}` : 'none',
+            overflowY: window.innerWidth <= 768 ? 'visible' : 'auto',
+            minWidth: 0
           }}>
             <div style={{
               display: 'flex',

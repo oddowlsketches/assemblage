@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "npx vite build",
     "preview": "vite preview",
-    "start": "vite"
+    "start": "vite",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css}'"
   },
   "dependencies": {
     "@netlify/functions": "^3.1.8",

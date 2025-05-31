@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSupabase } from '../supabaseClient';
-import { DownloadSimple, Trash, X, Share } from 'phosphor-react';
+import { DownloadSimple, Trash, X, Share, ArrowLeft, ArrowRight, Check } from 'phosphor-react';
 import { useUiColors } from '../hooks/useUiColors';
+import { getContrastText } from '../lib/colorUtils/contrastText';
 
 export default function Gallery({ session, onClose }) {
   const [collages, setCollages] = useState([]);
@@ -12,9 +13,10 @@ export default function Gallery({ session, onClose }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [filterTemplate, setFilterTemplate] = useState('');
+  const [filterTemplates, setFilterTemplates] = useState([]); // Changed to array for multi-select
   const [showFilters, setShowFilters] = useState(false);
   const itemsPerPage = 12; // Show 12 collages per page
+  const initialLoadCount = 12; // Load only 12 initially for faster performance
   const supabase = getSupabase();
   const observer = useRef();
   const loadMoreRef = useRef();
@@ -45,7 +47,7 @@ export default function Gallery({ session, onClose }) {
     try {
       // Use custom filters if provided, otherwise use current state
       const activeSearchTerm = customFilters.searchTerm !== undefined ? customFilters.searchTerm : searchTerm;
-      const activeFilterTemplate = customFilters.filterTemplate !== undefined ? customFilters.filterTemplate : filterTemplate;
+      const activeFilterTemplates = customFilters.filterTemplates !== undefined ? customFilters.filterTemplates : filterTemplates;
       const activeSortBy = customFilters.sortBy !== undefined ? customFilters.sortBy : sortBy;
       const activeSortOrder = customFilters.sortOrder !== undefined ? customFilters.sortOrder : sortOrder;
       
@@ -61,8 +63,8 @@ export default function Gallery({ session, onClose }) {
           countQuery = countQuery.ilike('title', `%${activeSearchTerm}%`);
         }
         
-        if (activeFilterTemplate) {
-          countQuery = countQuery.eq('template_key', activeFilterTemplate);
+        if (activeFilterTemplates.length > 0) {
+          countQuery = countQuery.in('template_key', activeFilterTemplates);
         }
         
         const { count: totalItems, error: countError } = await countQuery;
@@ -87,8 +89,8 @@ export default function Gallery({ session, onClose }) {
         dataQuery = dataQuery.ilike('title', `%${activeSearchTerm}%`);
       }
       
-      if (activeFilterTemplate) {
-        dataQuery = dataQuery.eq('template_key', activeFilterTemplate);
+      if (activeFilterTemplates.length > 0) {
+        dataQuery = dataQuery.in('template_key', activeFilterTemplates);
       }
       
       const offset = (page - 1) * itemsPerPage;
@@ -152,12 +154,15 @@ export default function Gallery({ session, onClose }) {
     loadCollages(1, true, { searchTerm });
   };
 
-  const handleTemplateFilterChange = (e) => {
-    const newValue = e.target.value;
-    setFilterTemplate(newValue);
+  const handleTemplateFilterToggle = (template) => {
+    const newFilterTemplates = filterTemplates.includes(template)
+      ? filterTemplates.filter(t => t !== template)
+      : [...filterTemplates, template];
+    
+    setFilterTemplates(newFilterTemplates);
     setCurrentPage(1);
     setHasLoaded(false);
-    loadCollages(1, true, { filterTemplate: newValue });
+    loadCollages(1, true, { filterTemplates: newFilterTemplates });
   };
 
   const handleSortToggle = () => {
@@ -170,12 +175,12 @@ export default function Gallery({ session, onClose }) {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterTemplate('');
+    setFilterTemplates([]);
     setSortBy('created_at');
     setSortOrder('desc');
     setCurrentPage(1);
     setHasLoaded(false);
-    loadCollages(1, true, { searchTerm: '', filterTemplate: '', sortBy: 'created_at', sortOrder: 'desc' });
+    loadCollages(1, true, { searchTerm: '', filterTemplates: [], sortBy: 'created_at', sortOrder: 'desc' });
   };
 
   // Get unique template names for filter dropdown from all collages
@@ -204,6 +209,8 @@ export default function Gallery({ session, onClose }) {
   const [uniqueTemplates, setUniqueTemplates] = useState([]);
   const [editingTitle, setEditingTitle] = useState(null);
   const [newTitle, setNewTitle] = useState('');
+  const [selectedCollage, setSelectedCollage] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
 
   const handleTitleEdit = (collage) => {
     setEditingTitle(collage.id);
@@ -403,22 +410,37 @@ export default function Gallery({ session, onClose }) {
     <div className="gallery-fullscreen" style={{ background: uiColors.bg }}>
       <header className="gallery-header" style={{ 
         background: uiColors.bg,
-        borderBottom: `1px solid ${uiColors.border}`
+        borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '1.5rem'
       }}>
-        <div className="gallery-header-text">
-          <h1 style={{ color: uiColors.fg }}>Assemblage</h1>
-        </div>
-        <div className="gallery-header-controls">
-          <button onClick={onClose} className="gallery-close-btn" style={{ color: uiColors.fg }}>
-            <X size={20} weight="regular" />
-          </button>
-        </div>
+        <h1 style={{ 
+          color: getContrastText(uiColors.bg),
+          fontSize: '2rem',
+          fontFamily: 'Playfair Display, serif',
+          fontStyle: 'italic',
+          margin: 0
+        }}>Assemblage</h1>
+        <button 
+          onClick={onClose} 
+          style={{ 
+            color: getContrastText(uiColors.bg),
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.5rem'
+          }}
+        >
+          <X size={24} weight="regular" />
+        </button>
       </header>
       
       <div className="gallery-content" style={{ background: uiColors.bg }}>
         {/* Page title */}
-        <div className="gallery-page-title" style={{ padding: '0 2rem' }}>
-          <h2 style={{ color: uiColors.fg, fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
+        <div className="gallery-page-title" style={{ padding: '2rem 2rem 0 2rem' }}>
+          <h2 style={{ color: getContrastText(uiColors.bg), fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
         </div>
         
         {/* Search, Filter, Sort - single line */}
@@ -427,7 +449,7 @@ export default function Gallery({ session, onClose }) {
           gap: '1rem',
           alignItems: 'center',
           marginBottom: '2rem',
-          padding: '0 2rem'
+          padding: '1rem 2rem'
         }}>
           <form onSubmit={(e) => { e.preventDefault(); handleFilterSubmit(); }} style={{ flex: 1 }}>
             <label htmlFor="gallery-search" style={{ position: 'absolute', left: '-9999px' }}>Search collages</label>
@@ -457,8 +479,8 @@ export default function Gallery({ session, onClose }) {
                 onClick={() => setShowFilters(!showFilters)}
                 style={{
                   padding: '0.5rem 1rem',
-                  background: filterTemplate ? uiColors.fg : uiColors.bg,
-                  color: filterTemplate ? uiColors.bg : uiColors.fg,
+                  background: filterTemplates.length > 0 ? uiColors.fg : uiColors.bg,
+                  color: filterTemplates.length > 0 ? uiColors.bg : uiColors.fg,
                   border: `1px solid ${uiColors.border}`,
                   cursor: 'pointer',
                   fontFamily: 'Space Mono, monospace',
@@ -468,7 +490,9 @@ export default function Gallery({ session, onClose }) {
                   gap: '0.5rem'
                 }}
               >
-                Filters {filterTemplate && `(1)`}
+                {filterTemplates.length === 0 && 'Filters'}
+                {filterTemplates.length === 1 && filterTemplates[0]}
+                {filterTemplates.length > 1 && `Filters (${filterTemplates.length})`}
                 <span style={{ fontSize: '0.7rem' }}>▼</span>
               </button>
               
@@ -484,40 +508,18 @@ export default function Gallery({ session, onClose }) {
                   minWidth: '200px',
                   zIndex: 10
                 }}>
-                  <button
-                    onClick={() => {
-                      setFilterTemplate('');
-                      setShowFilters(false);
-                      handleTemplateFilterChange({ target: { value: '' } });
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem 1rem',
-                      background: !filterTemplate ? uiColors.fg : uiColors.bg,
-                      color: !filterTemplate ? uiColors.bg : uiColors.fg,
-                      border: 'none',
-                      borderBottom: `1px solid ${uiColors.border}`,
-                      cursor: 'pointer',
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.85rem',
-                      textAlign: 'left'
-                    }}
-                  >
-                    All Templates
-                  </button>
-                  {uniqueTemplates.map(template => (
+                  {filterTemplates.length > 0 && (
                     <button
-                      key={template}
                       onClick={() => {
-                        setFilterTemplate(template);
+                        setFilterTemplates([]);
                         setShowFilters(false);
-                        handleTemplateFilterChange({ target: { value: template } });
+                        handleTemplateFilterToggle('');
                       }}
                       style={{
                         width: '100%',
                         padding: '0.75rem 1rem',
-                        background: filterTemplate === template ? uiColors.fg : uiColors.bg,
-                        color: filterTemplate === template ? uiColors.bg : uiColors.fg,
+                        background: uiColors.bg,
+                        color: uiColors.fg,
                         border: 'none',
                         borderBottom: `1px solid ${uiColors.border}`,
                         cursor: 'pointer',
@@ -526,7 +528,33 @@ export default function Gallery({ session, onClose }) {
                         textAlign: 'left'
                       }}
                     >
-                      {template}
+                      Clear All
+                    </button>
+                  )}
+                  {uniqueTemplates.map(template => (
+                    <button
+                      key={template}
+                      onClick={() => {
+                        handleTemplateFilterToggle(template);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem 1rem',
+                        background: filterTemplates.includes(template) ? uiColors.fg : uiColors.bg,
+                        color: filterTemplates.includes(template) ? uiColors.bg : uiColors.fg,
+                        border: 'none',
+                        borderBottom: `1px solid ${uiColors.border}`,
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.85rem',
+                        textAlign: 'left',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <span>{template}</span>
+                      {filterTemplates.includes(template) && <Check size={16} weight="bold" />}
                     </button>
                   ))}
                 </div>
@@ -561,7 +589,7 @@ export default function Gallery({ session, onClose }) {
             <p>Create and save some collages to see them here!</p>
           </div>
         ) : (
-          <>
+          <div style={{ padding: '0 2rem 2rem 2rem' }}>
             {loading && hasLoaded && (
               <div className="gallery-filter-loading">
                 Updating results...
@@ -574,8 +602,8 @@ export default function Gallery({ session, onClose }) {
                   className="gallery-item"
                   ref={index === collages.length - 1 ? lastCollageElementRef : null}
                   style={{
-                    background: uiColors.bg === '#ffffff' ? '#ffffff' : `${uiColors.bg}CC`,
-                    border: `1px solid ${uiColors.border}`,
+                    background: uiColors.bg === '#ffffff' ? '#ffffff' : `${uiColors.bg}33`,
+                    border: `1px solid ${getContrastText(uiColors.bg)}`,
                     boxShadow: `0 2px 8px rgba(0, 0, 0, 0.1)`
                   }}
                 >
@@ -584,14 +612,17 @@ export default function Gallery({ session, onClose }) {
                       src={collage.thumbnail_url} 
                       alt={collage.title}
                       loading="lazy"
-                      onClick={() => handleDownload(collage)}
+                      onClick={() => {
+                        setSelectedCollage(collage);
+                        setShowDetail(true);
+                      }}
                       onError={(e) => {
                         e.target.style.backgroundColor = '#f0f0f0';
                         e.target.alt = 'Thumbnail not available';
                       }}
                     />
                   </div>
-                  <div className="gallery-info" style={{ color: uiColors.fg }}>
+                  <div className="gallery-info" style={{ color: getContrastText(uiColors.bg) }}>
                     {editingTitle === collage.id ? (
                       <div className="gallery-title-edit">
                         <input
@@ -621,9 +652,9 @@ export default function Gallery({ session, onClose }) {
                       className="gallery-btn gallery-download-btn"
                       title="Download"
                       style={{
-                        background: uiColors.complementaryColor,
+                        background: getContrastText(uiColors.bg),
                         color: uiColors.bg,
-                        border: `1px solid ${uiColors.complementaryColor}`
+                        border: `1px solid ${getContrastText(uiColors.bg)}`
                       }}
                     >
                       <DownloadSimple size={16} weight="regular" />
@@ -633,9 +664,9 @@ export default function Gallery({ session, onClose }) {
                       className="gallery-btn gallery-share-btn"
                       title="Share"
                       style={{
-                        background: uiColors.complementaryColor,
+                        background: getContrastText(uiColors.bg),
                         color: uiColors.bg,
-                        border: `1px solid ${uiColors.complementaryColor}`
+                        border: `1px solid ${getContrastText(uiColors.bg)}`
                       }}
                     >
                       <Share size={16} weight="regular" />
@@ -646,8 +677,8 @@ export default function Gallery({ session, onClose }) {
                       title="Delete"
                       style={{
                         background: 'transparent',
-                        color: uiColors.fg,
-                        border: `1px solid ${uiColors.border}`
+                        color: getContrastText(uiColors.bg),
+                        border: `1px solid ${getContrastText(uiColors.bg)}`
                       }}
                     >
                       <Trash size={16} weight="regular" />
@@ -663,9 +694,311 @@ export default function Gallery({ session, onClose }) {
                 Loading more collages...
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
+      
+      {/* Collage Detail Modal */}
+      {showDetail && selectedCollage && (
+        <CollageDetail 
+          collage={selectedCollage}
+          onClose={() => {
+            setShowDetail(false);
+            setSelectedCollage(null);
+          }}
+          onDownload={() => handleDownload(selectedCollage)}
+          onShare={() => handleShare(selectedCollage)}
+          onDelete={(id) => {
+            handleDelete(id);
+            setShowDetail(false);
+            setSelectedCollage(null);
+          }}
+          onNavigate={(direction) => {
+            const currentIndex = collages.findIndex(c => c.id === selectedCollage.id);
+            let newIndex;
+            if (direction === 'next') {
+              newIndex = currentIndex < collages.length - 1 ? currentIndex + 1 : 0;
+            } else {
+              newIndex = currentIndex > 0 ? currentIndex - 1 : collages.length - 1;
+            }
+            setSelectedCollage(collages[newIndex]);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// Collage Detail Component
+function CollageDetail({ collage, onClose, onDownload, onShare, onDelete, onNavigate }) {
+  const [loading, setLoading] = useState(true);
+  const [fullImageUrl, setFullImageUrl] = useState(null);
+  const supabase = getSupabase();
+  const uiColors = useUiColors();
+  
+  useEffect(() => {
+    // Fetch the full resolution image
+    const fetchFullImage = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('saved_collages')
+          .select('image_data_url')
+          .eq('id', collage.id)
+          .single();
+          
+        if (error) throw error;
+        setFullImageUrl(data.image_data_url);
+      } catch (err) {
+        console.error('Error loading full image:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFullImage();
+  }, [collage.id]);
+  
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onNavigate('prev');
+      if (e.key === 'ArrowRight') onNavigate('next');
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, onNavigate]);
+  
+  return (
+    <>
+      {/* Modal backdrop */}
+      <div 
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.9)',
+          zIndex: 2000,
+          cursor: 'pointer'
+        }}
+      />
+      
+      {/* Modal content */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 2001,
+        overflow: 'auto',
+        background: uiColors.bg
+      }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '1rem',
+          borderBottom: `1px solid ${uiColors.border}`
+        }}>
+          <h3 style={{ 
+            margin: 0, 
+            color: uiColors.fg,
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '1.2rem'
+          }}>{collage.title}</h3>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.5rem',
+              color: uiColors.fg
+            }}
+          >
+            <X size={24} weight="regular" />
+          </button>
+        </div>
+        
+        {/* Image area */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`,
+          position: 'relative',
+          minHeight: 0,
+          overflow: 'auto'
+        }}>
+          {loading ? (
+            <div style={{ color: uiColors.fg }}>Loading...</div>
+          ) : (
+            <img
+              src={fullImageUrl || collage.thumbnail_url}
+              alt={collage.title}
+              style={{
+                maxWidth: 'calc(100% - 2rem)',
+                maxHeight: 'calc(100% - 2rem)',
+                width: 'auto',
+                height: 'auto',
+                objectFit: 'contain',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
+                display: 'block'
+              }}
+            />
+          )}
+          
+          {/* Navigation arrows */}
+          <button
+            onClick={() => onNavigate('prev')}
+            style={{
+              position: 'absolute',
+              left: '1rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'rgba(0, 0, 0, 0.5)',
+              border: 'none',
+              color: 'white',
+              padding: '1rem',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              transition: 'background 0.2s ease'
+            }}
+            onMouseEnter={e => e.target.style.background = 'rgba(0, 0, 0, 0.7)'}
+            onMouseLeave={e => e.target.style.background = 'rgba(0, 0, 0, 0.5)'}
+          >
+            <ArrowLeft size={24} weight="regular" />
+          </button>
+          
+          <button
+            onClick={() => onNavigate('next')}
+            style={{
+              position: 'absolute',
+              right: '1rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'rgba(0, 0, 0, 0.5)',
+              border: 'none',
+              color: 'white',
+              padding: '1rem',
+              cursor: 'pointer',
+              borderRadius: '4px',
+              transition: 'background 0.2s ease'
+            }}
+            onMouseEnter={e => e.target.style.background = 'rgba(0, 0, 0, 0.7)'}
+            onMouseLeave={e => e.target.style.background = 'rgba(0, 0, 0, 0.5)'}
+          >
+            <ArrowRight size={24} weight="regular" />
+          </button>
+        </div>
+        
+        {/* Metadata and actions - responsive layout */}
+        <div style={{
+          padding: '1.5rem',
+          borderTop: `1px solid ${uiColors.border}`,
+          display: 'flex',
+          flexDirection: window.innerWidth <= 768 ? 'column' : 'row',
+          justifyContent: window.innerWidth <= 768 ? 'flex-start' : 'space-between',
+          alignItems: window.innerWidth <= 768 ? 'stretch' : 'center',
+          gap: window.innerWidth <= 768 ? '1rem' : '0'
+        }}>
+          {/* Actions - shown first on mobile */}
+          <div style={{
+            display: 'flex',
+            gap: '0.5rem',
+            order: window.innerWidth <= 768 ? -1 : 0,
+            justifyContent: window.innerWidth <= 768 ? 'space-between' : 'flex-start',
+            width: window.innerWidth <= 768 ? '100%' : 'auto'
+          }}>
+            <button
+              onClick={onDownload}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.fg,
+                color: uiColors.bg,
+                border: `1px solid ${uiColors.fg}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flex: window.innerWidth <= 768 ? 1 : 'unset',
+                justifyContent: 'center'
+              }}
+            >
+              <DownloadSimple size={16} weight="regular" />
+              Download
+            </button>
+            
+            <button
+              onClick={onShare}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.bg,
+                color: uiColors.fg,
+                border: `1px solid ${uiColors.fg}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flex: window.innerWidth <= 768 ? 1 : 'unset',
+                justifyContent: 'center'
+              }}
+            >
+              <Share size={16} weight="regular" />
+              Share
+            </button>
+            
+            <button
+              onClick={() => {
+                if (window.confirm('Are you sure you want to delete this collage?')) {
+                  onDelete(collage.id);
+                }
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.bg,
+                color: '#dc3545',
+                border: '1px solid #dc3545',
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flex: window.innerWidth <= 768 ? 1 : 'unset',
+                justifyContent: 'center'
+              }}
+            >
+              <Trash size={16} weight="regular" />
+              Delete
+            </button>
+          </div>
+          
+          {/* Metadata */}
+          <div style={{ color: uiColors.fg }}>
+            <p style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem' }}>
+              Template: <strong>{collage.template_key}</strong>
+            </p>
+            <p style={{ margin: 0, fontSize: '0.9rem', opacity: 0.7 }}>
+              Created: {new Date(collage.created_at).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }

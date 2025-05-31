@@ -3,13 +3,15 @@ import { X, Plus, ImageSquare, FolderSimple } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import { useUiColors } from '../hooks/useUiColors'
+import { getContrastText } from '../lib/colorUtils/contrastText'
 
 export const CollectionDrawer = ({ 
   isOpen, 
   onClose, 
   activeCollectionId,
   onCollectionSelect,
-  onShowGallery 
+  onShowGallery,
+  onUploadImages 
 }) => {
   const [userCollections, setUserCollections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -166,53 +168,92 @@ export const CollectionDrawer = ({
     <div className="gallery-fullscreen" style={{ background: uiColors.bg }}>
       <header className="gallery-header" style={{ 
         background: uiColors.bg,
-        borderBottom: `1px solid ${uiColors.border}`
+        borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '1.5rem'
       }}>
-        <div className="gallery-header-text">
-          <h1 style={{ color: uiColors.fg }}>Assemblage</h1>
-        </div>
-        <div className="gallery-header-controls">
-          <button onClick={onClose} className="gallery-close-btn" style={{ color: uiColors.fg }}>
-            <X size={20} weight="regular" />
-          </button>
-        </div>
+        <h1 style={{ 
+          color: getContrastText(uiColors.bg),
+          fontSize: '2rem',
+          fontFamily: 'Playfair Display, serif',
+          fontStyle: 'italic',
+          margin: 0
+        }}>Assemblage</h1>
+        <button 
+          onClick={onClose} 
+          style={{ 
+            color: getContrastText(uiColors.bg),
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.5rem'
+          }}
+        >
+          <X size={24} weight="regular" />
+        </button>
       </header>
       
       <div className="gallery-content" style={{ background: uiColors.bg }}>
         {/* Page header with action button */}
-        <div style={{
+        <div className="collection-page-header" style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           marginBottom: '2rem',
-          padding: '0 2rem'
+          padding: '2rem 2rem 0 2rem'
         }}>
           <h2 style={{ 
             margin: 0,
             fontSize: '1.5rem',
             fontFamily: 'Space Mono, monospace',
-            color: uiColors.fg
+            color: getContrastText(uiColors.bg)
           }}>
             My Collections
           </h2>
-          <button
-            onClick={() => setShowNewForm(true)}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem',
-              padding: '0.5rem 1rem',
-              background: uiColors.fg,
-              color: uiColors.bg,
-              border: `1px solid ${uiColors.fg}`,
-              cursor: 'pointer',
-              fontFamily: 'Space Mono, monospace',
-              fontSize: '0.9rem'
-            }}
-          >
-            <Plus size={16} weight="regular" />
-            New Collection
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {onUploadImages && (
+              <button
+                onClick={onUploadImages}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  background: 'transparent',
+                  color: getContrastText(uiColors.bg),
+                  border: `1px solid ${getContrastText(uiColors.bg)}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem'
+                }}
+                className="upload-images-btn"
+              >
+                <ImageSquare size={16} weight="regular" />
+                <span className="desktop-only">Upload</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowNewForm(true)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                background: getContrastText(uiColors.bg),
+                color: uiColors.bg,
+                border: `1px solid ${getContrastText(uiColors.bg)}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem'
+              }}
+              className="new-collection-btn"
+            >
+              <Plus size={16} weight="regular" />
+              <span className="desktop-only">New</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -259,22 +300,23 @@ export const CollectionDrawer = ({
             )}
 
             {/* Collections grid */}
-            <div className="gallery-grid">
+            <div className="gallery-grid collections-grid" style={{ padding: '0 2rem 2rem 2rem' }}>
               {/* User Collections */}
               {userCollections.map((collection) => (
                 <div
                   key={collection.id}
-                  className="gallery-item"
+                  className="gallery-item collection-card"
                   style={{ 
                     cursor: 'pointer',
                     background: uiColors.bg,
-                    border: activeCollectionId === collection.id ? `2px solid ${uiColors.fg}` : `1px solid ${uiColors.border}`,
+                    border: activeCollectionId === collection.id ? `2px solid ${getContrastText(uiColors.bg)}` : `1px solid ${getContrastText(uiColors.bg)}`,
                     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-                    position: 'relative'
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                   onClick={() => {
-                    onCollectionSelect(collection.id)
-                    onClose()
+                    navigate(`/collections/${collection.id}`);
+                    onClose();
                   }}
                 >
                   <div className="gallery-thumbnail" style={{ 
@@ -345,35 +387,6 @@ export const CollectionDrawer = ({
                       Active
                     </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/collections/${collection.id}`);
-                      onClose();
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '0.5rem',
-                      border: `1px solid ${uiColors.border}`,
-                      background: 'transparent',
-                      color: uiColors.fg,
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.8rem',
-                      cursor: 'pointer',
-                      marginTop: '0.5rem',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = uiColors.fg;
-                      e.target.style.color = uiColors.bg;
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'transparent';
-                      e.target.style.color = uiColors.fg;
-                    }}
-                  >
-                    View Images
-                  </button>
                 </div>
               ))}
             </div>

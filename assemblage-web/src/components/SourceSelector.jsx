@@ -2,20 +2,20 @@ import React, { useState, useEffect, useRef } from 'react'
 import { CaretDown, Check, Image, FloppyDisk, BookmarkSimple, UploadSimple, LinkSimple, FolderOpen, Bookmarks } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
 import { useUiColors } from '../hooks/useUiColors'
+import { getContrastText } from '../lib/colorUtils/contrastText'
 
 export const SourceSelector = ({ 
   activeSource,
-  activeSourceName, // Add this prop
+  activeSourceName,
   onSourceChange,
   onManageCollections,
   onUploadImages,
   onOpenGallery,
+  userCollections, // Add this prop to receive collections from parent
   className 
 }) => {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [imageActionsOpen, setImageActionsOpen] = useState(false)
-  const [userCollections, setUserCollections] = useState([])
-  const [loading, setLoading] = useState(false)
   const libraryRef = useRef(null)
   const imageActionsRef = useRef(null)
   const uiColors = useUiColors()
@@ -35,45 +35,10 @@ export const SourceSelector = ({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Fetch user collections when library dropdown opens
-  useEffect(() => {
-    if (libraryOpen && userCollections.length === 0) {
-      fetchUserCollections()
-    }
-  }, [libraryOpen])
-
-  const fetchUserCollections = async () => {
-    try {
-      setLoading(true)
-      const supabase = getSupabase()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (user) {
-        const { data, error } = await supabase
-          .from('user_collections')
-          .select('id, name')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-
-        if (error) throw error
-        setUserCollections(data || [])
-      }
-    } catch (err) {
-      console.error('Error fetching collections:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const getSourceLabel = () => {
-    if (activeSource === 'cms' && activeSourceName) {
-      return activeSourceName
-    } else if (activeSource === 'cms') {
-      return 'Default Library'
-    }
-    
-    const collection = userCollections.find(c => c.id === activeSource)
-    return collection?.name || 'Select Collection'
+    // Always use the activeSourceName prop passed from parent
+    // The parent component manages the correct name for all sources
+    return activeSourceName || 'Select Collection'
   }
 
   const handleSourceSelect = (sourceId) => {
@@ -87,14 +52,14 @@ export const SourceSelector = ({
       <div ref={libraryRef} className="settings-dropdown">
         <button 
           onClick={() => setLibraryOpen(!libraryOpen)}
+          className="min-w-[12rem] whitespace-nowrap"
           style={{ 
-            minWidth: '12rem',
             justifyContent: 'space-between',
             paddingLeft: '1rem',
             paddingRight: '0.75rem',
-            background: uiColors.bg,
-            color: uiColors.fg,
-            border: `1px solid ${uiColors.border}`,
+            backgroundColor: uiColors.bg,
+            color: getContrastText(uiColors.bg),
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.9rem',
@@ -112,44 +77,44 @@ export const SourceSelector = ({
         
         {libraryOpen && (
           <div className="dropdown-content show" style={{ 
-            minWidth: '12rem'
+            minWidth: '12rem',
+            backgroundColor: uiColors.bg,
+            color: getContrastText(uiColors.bg)
           }}>
-            <div className="dropdown-label">Select Image Collection</div>
+            <div className="dropdown-label" style={{ color: getContrastText(uiColors.bg) }}>SELECT COLLECTION</div>
             
-            {/* Default Library */}
-            <button
-              onClick={() => handleSourceSelect('cms')}
-              className={`dropdown-item ${activeSource === 'cms' ? 'selected' : ''}`}
-              style={{ whiteSpace: 'nowrap' }}
-            >
-              <span>{activeSourceName || 'Default Library'}</span>
-              {activeSource === 'cms' && <Check size={16} weight="bold" />}
-            </button>
-
             {/* User Collections */}
-            {loading ? (
-              <div className="dropdown-item" style={{ fontSize: '12px', opacity: 0.6 }}>
-                Loading...
-              </div>
-            ) : userCollections.length > 0 && (
+            {userCollections && userCollections.length > 0 && (
               <>
-                <div className="dropdown-divider" style={{
-                  height: '1px',
-                  background: uiColors.border,
-                  margin: '0.25rem 0',
-                  opacity: 0.2
-                }} />
-                {userCollections.map((collection) => (
-                  <button
-                    key={collection.id}
-                    onClick={() => handleSourceSelect(collection.id)}
-                    className={`dropdown-item ${activeSource === collection.id ? 'selected' : ''}`}
-                    style={{ whiteSpace: 'nowrap' }}
-                  >
-                    <span>{collection.name}</span>
-                    {activeSource === collection.id && <Check size={16} weight="bold" />}
-                  </button>
-                ))}
+                {userCollections.map((collection, index) => {
+                  // For the default collection, check if activeSource is either 'cms' or the actual ID
+                  const isDefaultCollection = collection.id === '00000000-0000-0000-0000-000000000001';
+                  const isSelected = activeSource === collection.id || (isDefaultCollection && activeSource === 'cms');
+                  
+                  // Check if we need to add a divider after the default collection
+                  const needsDivider = isDefaultCollection && index < userCollections.length - 1;
+                  
+                  return (
+                    <React.Fragment key={collection.id}>
+                      <button
+                        onClick={() => handleSourceSelect(isDefaultCollection ? 'cms' : collection.id)}
+                        className={`dropdown-item ${isSelected ? 'selected' : ''}`}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        <span>{collection.name}</span>
+                        {isSelected && <Check size={16} weight="bold" />}
+                      </button>
+                      {needsDivider && (
+                        <div className="dropdown-divider" style={{
+                          height: '1px',
+                          background: uiColors.border,
+                          margin: '0.25rem 0',
+                          opacity: 0.2
+                        }} />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </>
             )}
           </div>
@@ -166,9 +131,9 @@ export const SourceSelector = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.25rem',
-            background: uiColors.bg,
-            color: uiColors.fg,
-            border: `1px solid ${uiColors.border}`,
+            backgroundColor: uiColors.bg,
+            color: getContrastText(uiColors.bg),
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.9rem',
@@ -181,7 +146,9 @@ export const SourceSelector = ({
         
         {imageActionsOpen && (
           <div className="dropdown-content show" style={{ 
-            minWidth: '12rem'
+            minWidth: '12rem',
+            backgroundColor: uiColors.bg,
+            color: getContrastText(uiColors.bg)
           }}>
             <button
               onClick={() => {
@@ -221,23 +188,6 @@ export const SourceSelector = ({
               style={{ whiteSpace: 'nowrap' }}
             >
               Upload Images
-            </button>
-            
-            <button
-              onClick={() => {
-                setImageActionsOpen(false)
-                // Check if running on Netlify (production) or local dev
-                if (window.location.hostname === 'localhost') {
-                  alert('Dropbox integration requires deployment. Please use the deployed version.')
-                } else {
-                  // Redirect to Dropbox OAuth
-                  window.location.href = '/.netlify/functions/dropbox-auth-start'
-                }
-              }}
-              className="dropdown-item"
-              style={{ whiteSpace: 'nowrap', opacity: 0.5 }}
-            >
-              Connect Dropbox (coming soon)
             </button>
           </div>
         )}

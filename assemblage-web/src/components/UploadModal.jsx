@@ -5,6 +5,7 @@ import { useImageUpload } from '../hooks/useImageUpload.ts'
 import { getSupabase } from '../supabaseClient'
 import { useUiColors } from '../hooks/useUiColors'
 import { calculateSHA1 } from '../utils/fileHash'
+import { getContrastText } from '../lib/colorUtils/contrastText'
 
 export const UploadModal = ({ 
   isOpen, 
@@ -169,35 +170,49 @@ export const UploadModal = ({
       />
       
       {/* Modal content */}
-      <div style={{
+      <div className="upload-modal-content" style={{
         position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
         background: uiColors.bg,
-        border: `1px solid ${uiColors.border}`,
-        width: '90%',
-        maxWidth: '600px',
-        maxHeight: '80vh',
+        border: `1px solid ${getContrastText(uiColors.bg)}`,
+        color: getContrastText(uiColors.bg),
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
         fontFamily: 'Space Mono, monospace',
-          overflow: 'hidden'
-        }}>
+        overflow: 'hidden',
+        // Full screen on mobile, centered modal on desktop
+        ...(window.innerWidth <= 640 ? {
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+          maxWidth: 'none',
+          maxHeight: 'none',
+          transform: 'none'
+        } : {
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '90%',
+          maxWidth: '600px',
+          maxHeight: '80vh'
+        })
+      }}>
         {/* Header */}
         <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1.5rem',
-          borderBottom: `1px solid ${uiColors.border}`,
+          borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
           flexShrink: 0
         }}>
           <h2 style={{ 
             margin: 0,
             fontSize: '1.2rem',
-            color: uiColors.fg
+            color: getContrastText(uiColors.bg)
           }}>
             Upload Images
           </h2>
@@ -210,7 +225,7 @@ export const UploadModal = ({
               padding: '0.5rem'
             }}
           >
-            <X size={20} weight="bold" color={uiColors.fg} />
+            <X size={20} weight="bold" color={getContrastText(uiColors.bg)} />
           </button>
         </div>
 
@@ -333,11 +348,11 @@ export const UploadModal = ({
               </h3>
               
               <div style={{ 
-                display: 'flex',
-                flexWrap: 'wrap',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
                 gap: '0.5rem',
                 marginBottom: '1rem'
-              }}>
+              }} className="file-grid">
                 {files.map(({ id, file, preview }) => (
                   <div key={id} style={{ 
                     border: `1px solid ${uiColors.border}`,
@@ -505,7 +520,7 @@ export const UploadModal = ({
           justifyContent: 'flex-end',
           gap: '0.5rem',
           padding: '1.5rem',
-          borderTop: `1px solid ${uiColors.border}`,
+          borderTop: `1px solid ${getContrastText(uiColors.bg)}`,
           background: uiColors.bg,
           flexShrink: 0
         }}>
@@ -513,8 +528,8 @@ export const UploadModal = ({
             onClick={handleClose}
             style={{
               background: uiColors.bg,
-              border: `1px solid ${uiColors.border}`,
-              color: uiColors.fg,
+              border: `1px solid ${getContrastText(uiColors.bg)}`,
+              color: getContrastText(uiColors.bg),
               padding: '0.5rem 1rem',
               cursor: 'pointer',
               fontFamily: 'Space Mono, monospace',
@@ -522,12 +537,12 @@ export const UploadModal = ({
               transition: 'all 0.3s ease'
             }}
             onMouseEnter={e => {
-              e.target.style.background = uiColors.fg;
+              e.target.style.background = getContrastText(uiColors.bg);
               e.target.style.color = uiColors.bg;
             }}
             onMouseLeave={e => {
               e.target.style.background = uiColors.bg;
-              e.target.style.color = uiColors.fg;
+              e.target.style.color = getContrastText(uiColors.bg);
             }}
           >
             Cancel
@@ -536,8 +551,8 @@ export const UploadModal = ({
             onClick={handleUpload}
             disabled={!selectedCollectionId || files.length === 0 || uploading}
             style={{
-              background: uiColors.fg,
-              border: `1px solid ${uiColors.fg}`,
+              background: getContrastText(uiColors.bg),
+              border: `1px solid ${getContrastText(uiColors.bg)}`,
               color: uiColors.bg,
               padding: '0.5rem 1rem',
               cursor: !selectedCollectionId || files.length === 0 || uploading ? 'not-allowed' : 'pointer',
@@ -549,12 +564,12 @@ export const UploadModal = ({
             onMouseEnter={e => {
               if (!e.target.disabled) {
                 e.target.style.background = uiColors.bg;
-                e.target.style.color = uiColors.fg;
+                e.target.style.color = getContrastText(uiColors.bg);
               }
             }}
             onMouseLeave={e => {
               if (!e.target.disabled) {
-                e.target.style.background = uiColors.fg;
+                e.target.style.background = getContrastText(uiColors.bg);
                 e.target.style.color = uiColors.bg;
               }
             }}

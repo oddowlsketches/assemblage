@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../../supabaseClient';
-import { ArrowLeft, MagnifyingGlass, SortAscending, SortDescending, Trash, Plus, X, DotsThreeVertical, Check } from 'phosphor-react';
+import { ArrowLeft, MagnifyingGlass, SortAscending, SortDescending, Trash, Plus, X, DotsThreeVertical, Check, SquaresFour, Rows } from 'phosphor-react';
 import { useImageMultiSelect } from '../../hooks/useImageMultiSelect';
 import { useUiColors } from '../../hooks/useUiColors';
 import { ImageModal } from '../../components/ImageModal';
+import { getContrastText } from '../../lib/colorUtils/contrastText';
 
 export default function CollectionDetail() {
   const { id } = useParams();
@@ -18,7 +19,7 @@ export default function CollectionDetail() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [view, setView] = useState('grid'); // grid or list
+  const [view, setView] = useState('list'); // grid or list for images display
   const [isEditing, setIsEditing] = useState(false);
   const [collectionName, setCollectionName] = useState('');
   const [collectionDescription, setCollectionDescription] = useState('');
@@ -27,6 +28,7 @@ export default function CollectionDetail() {
   const [targetCollections, setTargetCollections] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   
   const {
     selectedIds,
@@ -113,13 +115,23 @@ export default function CollectionDetail() {
         .eq('user_id', user.id)
         .eq('provider', 'upload');
 
-      // Apply search filter
+      // Apply search filter - search across all available metadata
       if (searchTerm) {
-        query = query.or(`filename.ilike.%${searchTerm}%,metadata->tags.cs.{${searchTerm}}`);
+        const searchLower = searchTerm.toLowerCase();
+        query = query.or(
+          `display_name.ilike.%${searchTerm}%,` +
+          `metadata->display_name.ilike.%${searchTerm}%,` +
+          `metadata->tags.cs.{${searchTerm}},` +
+          `metadata->description.ilike.%${searchTerm}%,` +
+          `metadata->artist.ilike.%${searchTerm}%,` +
+          `metadata->subject.ilike.%${searchTerm}%,` +
+          `metadata->title.ilike.%${searchTerm}%`
+        );
       }
 
-      // Apply sorting
-      query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+      // Apply sorting - use display_name instead of filename
+      const sortField = sortBy === 'filename' ? 'display_name' : sortBy;
+      query = query.order(sortField, { ascending: sortOrder === 'asc' });
 
       const { data, error } = await query;
 
@@ -151,9 +163,9 @@ export default function CollectionDetail() {
     }
   };
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    loadImages();
+    await loadImages();
   };
 
   const handleSort = (field) => {
@@ -303,20 +315,20 @@ export default function CollectionDetail() {
         fontFamily: 'Space Mono, monospace',
         background: uiColors.bg
       }}>
-        <p style={{ color: uiColors.fg }}>{error || 'Collection not found'}</p>
+        <p style={{ color: getContrastText(uiColors.bg) }}>{error || 'Collection not found'}</p>
         <button
           onClick={() => navigate('/')}
           style={{
             marginTop: '1rem',
             padding: '0.5rem 1rem',
-            background: uiColors.fg,
+            background: getContrastText(uiColors.bg),
             color: uiColors.bg,
-            border: `1px solid ${uiColors.border}`,
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace'
           }}
         >
-          Return to App
+          Go Back
         </button>
       </div>
     );
@@ -326,7 +338,7 @@ export default function CollectionDetail() {
     <div style={{
       minHeight: '100vh',
       background: uiColors.bg,
-      color: uiColors.fg,
+      color: getContrastText(uiColors.bg),
       fontFamily: 'Space Mono, monospace',
       position: 'relative',
       overflow: 'auto',
@@ -334,31 +346,65 @@ export default function CollectionDetail() {
       overflowY: 'scroll',
       WebkitOverflowScrolling: 'touch'
     }}>
-      {/* Header */}
+      {/* Header - matches gallery/drawer style */}
       <header style={{
         padding: '1.5rem',
-        borderBottom: `1px solid ${uiColors.border}`,
+        borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
         background: uiColors.bg,
-        position: 'static',
-        display: 'block',
-        width: '100%'
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
       }}>
+        <h1 style={{ 
+          color: getContrastText(uiColors.bg),
+          fontSize: '2rem',
+          fontFamily: 'Playfair Display, serif',
+          fontStyle: 'italic',
+          margin: 0
+        }}>Assemblage</h1>
+        <button 
+          onClick={() => navigate('/')} 
+          style={{ 
+            color: getContrastText(uiColors.bg),
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '0.5rem'
+          }}
+        >
+          <X size={24} weight="regular" />
+        </button>
+      </header>
+
+      {/* Content */}
+      <div style={{ padding: '1.5rem' }}>
+        {/* Page title and controls */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '1rem'
+          marginBottom: '1.5rem'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                // Navigate back to main app and open collections drawer
+                navigate('/');
+                // Use a flag in localStorage to signal opening the drawer
+                localStorage.setItem('openCollectionsDrawer', 'true');
+              }}
               style={{
                 background: 'transparent',
                 border: 'none',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                color: uiColors.fg
+                color: getContrastText(uiColors.bg),
+                padding: '0.5rem',
+                marginLeft: '-0.5rem'
               }}
             >
               <ArrowLeft size={20} weight="regular" />
@@ -451,15 +497,19 @@ export default function CollectionDetail() {
                 <button
                   onClick={handleBulkDelete}
                   style={{
-                    padding: '0.5rem 1rem',
+                    padding: '0.5rem',
                     background: '#dc3545',
                     color: 'white',
                     border: '1px solid #dc3545',
                     cursor: 'pointer',
-                    fontFamily: 'Space Mono, monospace'
+                    fontFamily: 'Space Mono, monospace',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
                   }}
                 >
-                  Delete ({selectedIds.size})
+                  <Trash size={16} weight="regular" />
+                  <span>({selectedIds.size})</span>
                 </button>
               </>
             )}
@@ -499,53 +549,111 @@ export default function CollectionDetail() {
         </div>
 
         {/* Search, Filter, Sort - single line */}
-        <div style={{
-          display: 'flex',
-          gap: '1rem',
-          alignItems: 'center'
-        }}>
-          <form onSubmit={handleSearch} style={{ flex: 1, display: 'flex', gap: '0.5rem' }}>
-            <label htmlFor="collection-search" style={{ position: 'absolute', left: '-9999px' }}>Search images</label>
-            <input
-              type="text"
-              id="collection-search"
-              name="search"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+        {!bulkActionMode && (
+          <div style={{
+            display: 'flex',
+            gap: '1rem',
+            alignItems: 'center',
+            marginBottom: '1.5rem'
+          }}>
+            <form onSubmit={handleSearch} style={{ 
+              flex: 1, 
+              display: window.innerWidth > 768 || showMobileSearch ? 'flex' : 'none', 
+              gap: '0.5rem' 
+            }}>
+              <label htmlFor="collection-search" style={{ position: 'absolute', left: '-9999px' }}>Search images</label>
+              <input
+                type="text"
+                id="collection-search"
+                name="search"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  flex: 1,
+                  padding: '0.5rem',
+                  border: `1px solid ${getContrastText(uiColors.bg)}`,
+                  background: uiColors.bg,
+                  color: getContrastText(uiColors.bg),
+                  fontFamily: 'Space Mono, monospace'
+                }}
+                autoFocus={showMobileSearch}
+              />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setSearchTerm('');
+                    await loadImages();
+                  }}
+                  style={{
+                    padding: '0.5rem',
+                    background: uiColors.bg,
+                    color: getContrastText(uiColors.bg),
+                    border: `1px solid ${getContrastText(uiColors.bg)}`,
+                    cursor: 'pointer',
+                    fontFamily: 'Space Mono, monospace',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                  title="Clear search"
+                >
+                  <X size={16} weight="regular" />
+                </button>
+              )}
+            </form>
+            
+            <button
+              onClick={() => setShowMobileSearch(!showMobileSearch)}
               style={{
-                flex: 1,
                 padding: '0.5rem',
-                border: `1px solid ${uiColors.border}`,
                 background: uiColors.bg,
-                color: uiColors.fg,
-                fontFamily: 'Space Mono, monospace'
+                color: getContrastText(uiColors.bg),
+                border: `1px solid ${getContrastText(uiColors.bg)}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                display: window.innerWidth <= 768 ? 'flex' : 'none'
               }}
-            />
-          </form>
-          
-          <button
-            onClick={() => handleSort(sortBy === 'created_at' ? 'filename' : 'created_at')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: uiColors.bg,
-              color: uiColors.fg,
-              border: `1px solid ${uiColors.border}`,
-              cursor: 'pointer',
-              fontFamily: 'Space Mono, monospace',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            Sort
-            {sortOrder === 'asc' ? <SortAscending size={16} /> : <SortDescending size={16} />}
-          </button>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div style={{ padding: '1.5rem' }}>
+            >
+              <MagnifyingGlass size={20} weight="regular" />
+            </button>
+            
+            <button
+              onClick={() => handleSort(sortBy === 'created_at' ? 'display_name' : 'created_at')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.bg,
+                color: getContrastText(uiColors.bg),
+                border: `1px solid ${getContrastText(uiColors.bg)}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+            >
+              Sort
+              {sortOrder === 'asc' ? <SortAscending size={16} /> : <SortDescending size={16} />}
+            </button>
+            
+            {/* View toggle for mobile */}
+            <button
+              onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
+              style={{
+                padding: '0.5rem',
+                background: uiColors.bg,
+                color: getContrastText(uiColors.bg),
+                border: `1px solid ${getContrastText(uiColors.bg)}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                display: window.innerWidth <= 768 ? 'flex' : 'none'
+              }}
+              title={`Switch to ${view === 'grid' ? 'list' : 'grid'} view`}
+            >
+              {view === 'grid' ? <Rows size={20} weight="regular" /> : <SquaresFour size={20} weight="regular" />}
+            </button>
+          </div>
+        )}
         {bulkActionMode && (
           <div style={{
             marginBottom: '1rem',
@@ -582,8 +690,10 @@ export default function CollectionDetail() {
         ) : (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-            gap: '1rem'
+            gridTemplateColumns: view === 'grid' && window.innerWidth <= 768 
+              ? 'repeat(3, 1fr)' 
+              : 'repeat(auto-fill, minmax(200px, 1fr))',
+            gap: view === 'grid' && window.innerWidth <= 768 ? '0.5rem' : '1rem'
           }}>
             {images.map((image, index) => (
               <div
@@ -621,7 +731,7 @@ export default function CollectionDetail() {
                   alt={image.filename || image.title}
                   style={{
                     width: '100%',
-                    height: '200px',
+                    height: view === 'grid' && window.innerWidth <= 768 ? '100px' : '200px',
                     objectFit: 'cover'
                   }}
                   onError={(e) => {
@@ -630,45 +740,47 @@ export default function CollectionDetail() {
                   }}
                 />
                 
-                <div style={{
-                  padding: '0.5rem',
-                  fontSize: '0.8rem',
-                  borderTop: `1px solid ${uiColors.border}`,
-                  background: uiColors.bg
-                }}>
-                  <p style={{
-                    margin: 0,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    color: uiColors.fg
+                {(view === 'list' || window.innerWidth > 768) && (
+                  <div style={{
+                    padding: '0.5rem',
+                    fontSize: '0.8rem',
+                    borderTop: `1px solid ${uiColors.border}`,
+                    background: uiColors.bg
                   }}>
-                    {image.filename}
-                  </p>
-                  {image.metadata?.tags && image.metadata.tags.length > 0 && (
-                    <div style={{
-                      marginTop: '0.25rem',
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '0.25rem'
+                    <p style={{
+                      margin: 0,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: uiColors.fg
                     }}>
-                      {image.metadata.tags.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          style={{
-                            fontSize: '0.7rem',
-                            padding: '0.1rem 0.3rem',
-                            background: `${uiColors.fg}20`,
-                            color: uiColors.fg,
-                            borderRadius: '2px'
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                      {image.filename}
+                    </p>
+                    {image.metadata?.tags && image.metadata.tags.length > 0 && (
+                      <div style={{
+                        marginTop: '0.25rem',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '0.25rem'
+                      }}>
+                        {image.metadata.tags.slice(0, 3).map((tag, index) => (
+                          <span
+                            key={index}
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '0.1rem 0.3rem',
+                              background: `${uiColors.fg}20`,
+                              color: uiColors.fg,
+                              borderRadius: '2px'
+                            }}
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
                 
                 {!bulkActionMode && (
                   <button
