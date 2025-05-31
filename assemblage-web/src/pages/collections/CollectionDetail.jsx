@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSupabase } from '../../supabaseClient';
-import { ArrowLeft, MagnifyingGlass, SortAscending, SortDescending, Trash, Plus, X, DotsThreeVertical, Check, SquaresFour, Rows } from 'phosphor-react';
+import { ArrowLeft, MagnifyingGlass, SortAscending, SortDescending, Trash, Plus, X, DotsThreeVertical, Check, SquaresFour, Rows, UploadSimple } from 'phosphor-react';
 import { useImageMultiSelect } from '../../hooks/useImageMultiSelect';
 import { useUiColors } from '../../hooks/useUiColors';
 import { ImageModal } from '../../components/ImageModal';
+import { UploadModal } from '../../components/UploadModal';
 import { getContrastText } from '../../lib/colorUtils/contrastText';
 
 export default function CollectionDetail() {
@@ -29,6 +30,7 @@ export default function CollectionDetail() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [showImageModal, setShowImageModal] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   
   const {
     selectedIds,
@@ -511,6 +513,26 @@ export default function CollectionDetail() {
           </div>
           
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {/* Upload button */}
+            <button
+              onClick={() => setShowUploadModal(true)}
+              style={{
+                padding: '0.5rem 1rem',
+                background: uiColors.bg,
+                color: uiColors.fg,
+                border: `1px solid ${uiColors.border}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+              }}
+              title="Upload images"
+            >
+              <UploadSimple size={20} weight="regular" />
+              <span className="desktop-only">Upload</span>
+            </button>
+            
             {bulkActionMode && selectedIds.size > 0 && (
               <>
                 <select
@@ -726,6 +748,24 @@ export default function CollectionDetail() {
             opacity: 0.7
           }}>
             <p>No images in this collection yet.</p>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              style={{
+                marginTop: '1rem',
+                padding: '0.5rem 1rem',
+                background: uiColors.fg,
+                color: uiColors.bg,
+                border: `1px solid ${uiColors.fg}`,
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              <UploadSimple size={16} weight="regular" />
+              Upload Images
+            </button>
           </div>
         ) : (
           <div style={{
@@ -912,6 +952,20 @@ export default function CollectionDetail() {
         onUpdate={handleImageUpdate}
         onNavigate={(newImage) => {
           setSelectedImage(newImage);
+        }}
+      />
+      
+      {/* Upload Modal */}
+      <UploadModal 
+        isOpen={showUploadModal} 
+        onClose={() => setShowUploadModal(false)} 
+        collectionId={id}
+        onUploadComplete={async (results) => {
+          setShowUploadModal(false);
+          if (results && results.length > 0) {
+            // Reload images after upload
+            await loadImages();
+          }
         }}
       />
     </div>
