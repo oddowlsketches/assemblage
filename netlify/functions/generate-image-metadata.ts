@@ -35,9 +35,28 @@ export const handler: Handler = async (event) => {
     // Update status to processing
     await supa.from('images').update({ metadata_status: 'processing' }).eq('id', id);
 
-    // Call OpenAI vision model
-    const prompt =
-      'Analyze this collage image. Provide a detailed description of its composition, textures, and artistic elements. Also suggest 5 relevant tags that capture its essence and classify it as either "texture", "narrative", or "conceptual" based on its primary visual nature. Format your response as JSON {"description":string, "tags":string[], "image_role":string}';
+    // Get the AI prompt from kv_store
+    let prompt = 'Analyze this collage image. Provide a detailed description of its composition, textures, and artistic elements. Also suggest 5 relevant tags that capture its essence and classify it as either "texture", "narrative", or "conceptual" based on its primary visual nature. Format your response as JSON {"description":string, "tags":string[], "image_role":string}';
+    
+    try {
+      // Try to load enriched prompt first, then basic
+      const { data: kvData } = await supa
+        .from('kv_store')
+        .select('value')
+        .in('key', ['ai_prompt_enriched', 'ai_prompt_basic'])
+        .order('key', { ascending: false }) // enriched comes before basic
+        .limit(1);
+      
+      if (kvData && kvData.length > 0 && kvData[0].value) {
+        prompt = kvData[0].value;
+        console.log(`[METADATA_FN] Using custom prompt from kv_store`);
+      } else {
+        console.log(`[METADATA_FN] Using default prompt`);
+      }
+    } catch (kvError) {
+      console.error('[METADATA_FN] Error loading prompt from kv_store:', kvError);
+      // Continue with default prompt
+    }
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -73,7 +92,15 @@ export const handler: Handler = async (event) => {
 
     console.log(`[METADATA_FN] Cleaned JSON string for ID ${id}:`, cleanedJsonString);
 
-    let metadata: { description?: string; tags?: string[]; image_role?: string } = {};
+    let metadata: { 
+      description?: string; 
+      tags?: string[]; 
+      image_role?: string;
+      is_black_and_white?: boolean;
+      is_photograph?: boolean;
+      white_edge_score?: number;
+      palette_suitability?: string;
+    } = {};
     try {
       metadata = JSON.parse(cleanedJsonString); // Try parsing the cleaned string
       console.log(`[METADATA_FN] Parsed metadata (try block) for ID ${id}:`, JSON.stringify(metadata));
@@ -90,13 +117,27 @@ export const handler: Handler = async (event) => {
       console.log(`[METADATA_FN] Parsed metadata (catch/fallback block) for ID ${id}:`, JSON.stringify(metadata));
     }
 
-    const updatePayload = {
+    const updatePayload: any = {
       description: metadata.description,
       tags: metadata.tags,
       image_role: metadata.image_role,
       metadata_status: 'complete',
       last_processed: new Date().toISOString()
     };
+    
+    // Add enriched fields if they exist
+    if (metadata.is_black_and_white !== undefined) {
+      updatePayload.is_black_and_white = metadata.is_black_and_white;
+    }
+    if (metadata.is_photograph !== undefined) {
+      updatePayload.is_photograph = metadata.is_photograph;
+    }
+    if (metadata.white_edge_score !== undefined) {
+      updatePayload.white_edge_score = metadata.white_edge_score;
+    }
+    if (metadata.palette_suitability) {
+      updatePayload.palette_suitability = metadata.palette_suitability;
+    }
     console.log(`[METADATA_FN] Supabase update payload for ID ${id}:`, JSON.stringify(updatePayload));
 
     // Update DB row

@@ -1,5 +1,6 @@
 import MasksPage from './MasksPage';
 import TemplatesPage from './TemplatesPage';
+import AISettingsPage from './AISettingsPage';
 import { cmsSupabase as supa } from './supabaseClient';
 import { ArrowClockwise, Pencil, Trash, Globe, Lock } from 'phosphor-react';
 
@@ -76,6 +77,14 @@ const Sidebar: React.FC<{ currentPage: string; onPageChange: (page: string) => v
         onClick={() => onPageChange('templates')}
       >
         Templates
+      </button>
+      <button 
+        className={`block w-full text-left font-medium ${
+          currentPage === 'ai-settings' ? 'text-blue-600' : 'text-gray-700 hover:text-blue-600'
+        }`}
+        onClick={() => onPageChange('ai-settings')}
+      >
+        AI Settings
       </button>
     </nav>
   </aside>
@@ -976,6 +985,13 @@ const ImagesPage: React.FC = () => {
   const [newCollectionName, setNewCollectionName] = useState('');
   const [savingCollection, setSavingCollection] = useState(false);
   const [editingCollection, setEditingCollection] = useState<Collection | null>(null);
+  
+  // Multi-select states
+  const [selectedImages, setSelectedImages] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
+  const [targetCollection, setTargetCollection] = useState<string>('');
 
   const handleImageClick = (image: ImageRow) => {
     setSelectedImage(image);
@@ -983,6 +999,102 @@ const ImagesPage: React.FC = () => {
 
   const handleCloseModal = () => {
     setSelectedImage(null);
+  };
+
+  // Multi-select handlers
+  const toggleImageSelection = (imageId: string, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation();
+    }
+    const newSelection = new Set(selectedImages);
+    if (newSelection.has(imageId)) {
+      newSelection.delete(imageId);
+    } else {
+      newSelection.add(imageId);
+    }
+    setSelectedImages(newSelection);
+    setShowBulkActions(newSelection.size > 0);
+  };
+
+  const selectAll = () => {
+    const allImageIds = new Set(filteredRows.map(row => row.id));
+    setSelectedImages(allImageIds);
+    setShowBulkActions(true);
+  };
+
+  const deselectAll = () => {
+    setSelectedImages(new Set());
+    setShowBulkActions(false);
+  };
+
+  const isAllSelected = () => {
+    return filteredRows.length > 0 && filteredRows.every(row => selectedImages.has(row.id));
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedImages.size} selected images? This cannot be undone.`)) {
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      // Delete images one by one (could be optimized with a batch delete)
+      for (const imageId of selectedImages) {
+        const { error } = await supa.from('images').delete().eq('id', imageId);
+        if (error) {
+          console.error('Error deleting image:', imageId, error);
+        }
+      }
+      
+      // Update local state
+      setRows(prev => prev.filter(row => !selectedImages.has(row.id)));
+      deselectAll();
+      alert(`Successfully deleted ${selectedImages.size} images`);
+    } catch (err) {
+      console.error('Error during bulk delete:', err);
+      alert('Error deleting some images');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkMove = async () => {
+    if (!targetCollection) {
+      alert('Please select a target collection');
+      return;
+    }
+
+    setBulkActionLoading(true);
+    try {
+      // Move images one by one (could be optimized with a batch update)
+      for (const imageId of selectedImages) {
+        const { error } = await supa
+          .from('images')
+          .update({ collection_id: targetCollection })
+          .eq('id', imageId);
+        if (error) {
+          console.error('Error moving image:', imageId, error);
+        }
+      }
+      
+      // If we're viewing a specific collection, remove moved images from view
+      if (selectedCollection && selectedCollection !== targetCollection) {
+        setRows(prev => prev.filter(row => !selectedImages.has(row.id)));
+      }
+      
+      deselectAll();
+      setShowMoveDialog(false);
+      setTargetCollection('');
+      alert(`Successfully moved ${selectedImages.size} images`);
+      
+      // Reload images to reflect changes
+      await loadImages(selectedCollection);
+    } catch (err) {
+      console.error('Error during bulk move:', err);
+      alert('Error moving some images');
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   const loadImages = async (collectionId?: string) => {
@@ -1009,6 +1121,35 @@ const ImagesPage: React.FC = () => {
     await loadImages(selectedCollection);
   };
 
+  // Filter rows based on search query
+  const filteredRows = rows.filter((r) => {
+    const q = search.toLowerCase();
+    return (
+      r.id.toLowerCase().includes(q) ||
+      r.title.toLowerCase().includes(q) ||
+      r.description?.toLowerCase().includes(q) ||
+      r.tags.some((tag) => tag.toLowerCase().includes(q))
+    );
+  });
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + A to select all
+      if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !e.shiftKey) {
+        e.preventDefault();
+        selectAll();
+      }
+      // Escape to deselect all
+      if (e.key === 'Escape' && selectedImages.size > 0) {
+        deselectAll();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImages, filteredRows]);
+
   useEffect(() => {
     // Fetch collections first, then load images for the first collection
     (async () => {
@@ -1034,17 +1175,6 @@ const ImagesPage: React.FC = () => {
       setRows((prev) => prev.filter((r) => r.id !== id));
     }
   };
-
-  // Filter rows based on search query
-  const filteredRows = rows.filter((r) => {
-    const q = search.toLowerCase();
-    return (
-      r.id.toLowerCase().includes(q) ||
-      r.title.toLowerCase().includes(q) ||
-      r.description?.toLowerCase().includes(q) ||
-      r.tags.some((tag) => tag.toLowerCase().includes(q))
-    );
-  });
 
   // Helper to truncate long descriptions
   const truncate = (str: string, n = 80) =>
@@ -1118,6 +1248,77 @@ const ImagesPage: React.FC = () => {
       alert('Failed to delete collection');
     }
   };
+
+  const BulkActionBar = showBulkActions && (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 flex items-center justify-between z-40">
+      <div className="flex items-center gap-4">
+        <span className="font-medium">{selectedImages.size} images selected</span>
+        <button
+          onClick={deselectAll}
+          className="text-sm text-gray-600 hover:text-gray-800"
+        >
+          Clear selection
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowMoveDialog(true)}
+          disabled={bulkActionLoading}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+        >
+          Move to Collection
+        </button>
+        <button
+          onClick={handleBulkDelete}
+          disabled={bulkActionLoading}
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+        >
+          Delete Selected
+        </button>
+      </div>
+    </div>
+  );
+
+  const MoveDialog = showMoveDialog && (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded shadow-lg p-6 w-full max-w-md space-y-4">
+        <h2 className="text-lg font-medium">Move {selectedImages.size} images to:</h2>
+        <select
+          className="w-full border rounded px-3 py-2"
+          value={targetCollection}
+          onChange={e => setTargetCollection(e.target.value)}
+        >
+          <option value="">Select a collection...</option>
+          {collections
+            .filter(col => col.id !== selectedCollection)
+            .map(col => (
+              <option key={col.id} value={col.id}>
+                {col.name}
+                {col.is_public && ' 🌐'}
+              </option>
+            ))}
+        </select>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => {
+              setShowMoveDialog(false);
+              setTargetCollection('');
+            }}
+            className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBulkMove}
+            disabled={!targetCollection || bulkActionLoading}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {bulkActionLoading ? 'Moving...' : 'Move Images'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   const Toolbar = (
     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
@@ -1247,6 +1448,14 @@ const ImagesPage: React.FC = () => {
             <table className="min-w-full text-sm border-collapse table-auto rounded shadow">
               <thead>
                 <tr className="text-left bg-gray-50">
+                  <th className="p-2 border-b font-semibold w-10">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected()}
+                      onChange={e => e.target.checked ? selectAll() : deselectAll()}
+                      className="cursor-pointer"
+                    />
+                  </th>
                   <th className="p-2 border-b font-semibold sticky left-0 bg-gray-50">Thumb</th>
                   <th className="p-2 border-b font-semibold">ID</th>
                   <th className="p-2 border-b font-semibold">Title</th>
@@ -1258,7 +1467,22 @@ const ImagesPage: React.FC = () => {
               </thead>
               <tbody>
                 {filteredRows.map((row) => (
-                  <tr key={row.id} className="border-b last:border-0 hover:bg-gray-100 group cursor-pointer" onClick={() => handleImageClick(row)}>
+                  <tr 
+                    key={row.id} 
+                    className={clsx(
+                      "border-b last:border-0 group cursor-pointer",
+                      selectedImages.has(row.id) ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-100"
+                    )} 
+                    onClick={() => handleImageClick(row)}
+                  >
+                    <td className="p-2 align-top" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedImages.has(row.id)}
+                        onChange={() => toggleImageSelection(row.id)}
+                        className="cursor-pointer"
+                      />
+                    </td>
                     <td className="p-2 align-top sticky left-0 bg-white">
                       <div className="w-16 h-16 flex items-center justify-center bg-gray-50 rounded border overflow-hidden">
                         <img
@@ -1327,7 +1551,22 @@ const ImagesPage: React.FC = () => {
           /* Grid view */
           <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-4">
             {filteredRows.map((img) => (
-              <div key={img.id} className="border rounded shadow-sm p-2 flex flex-col cursor-pointer" onClick={() => handleImageClick(img)}>
+              <div 
+                key={img.id} 
+                className={clsx(
+                  "border rounded shadow-sm p-2 flex flex-col cursor-pointer relative",
+                  selectedImages.has(img.id) ? "ring-2 ring-blue-500 bg-blue-50" : ""
+                )} 
+                onClick={() => handleImageClick(img)}
+              >
+                <div className="absolute top-3 left-3 z-10" onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedImages.has(img.id)}
+                    onChange={() => toggleImageSelection(img.id)}
+                    className="cursor-pointer bg-white border-2 border-gray-300 rounded"
+                  />
+                </div>
                 <div className="w-full h-32 flex items-center justify-center bg-gray-50 rounded overflow-hidden">
                   <img 
                     src={img.src} 
@@ -1368,12 +1607,15 @@ const ImagesPage: React.FC = () => {
           onUpdate={load}
         />
       )}
+      
+      {BulkActionBar}
+      {MoveDialog}
     </div>
   );
 };
 
 const CmsApp: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<'images' | 'masks' | 'templates'>('images');
+  const [currentPage, setCurrentPage] = useState<'images' | 'masks' | 'templates' | 'ai-settings'>('images');
   
   return (
     <div className="flex h-screen bg-gray-50">
@@ -1382,6 +1624,7 @@ const CmsApp: React.FC = () => {
         {currentPage === 'images' && <ImagesPage />}
         {currentPage === 'masks' && <MasksPage />}
         {currentPage === 'templates' && <TemplatesPage />}
+        {currentPage === 'ai-settings' && <AISettingsPage />}
       </main>
     </div>
   );

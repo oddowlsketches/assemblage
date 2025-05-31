@@ -5,6 +5,7 @@ import { useUiColors } from '../hooks/useUiColors'
 
 export const SourceSelector = ({ 
   activeSource,
+  activeSourceName, // Add this prop
   onSourceChange,
   onManageCollections,
   onUploadImages,
@@ -65,12 +66,14 @@ export const SourceSelector = ({
   }
 
   const getSourceLabel = () => {
-    if (activeSource === 'cms') {
+    if (activeSource === 'cms' && activeSourceName) {
+      return activeSourceName
+    } else if (activeSource === 'cms') {
       return 'Default Library'
     }
     
     const collection = userCollections.find(c => c.id === activeSource)
-    return collection?.name || 'Select Library'
+    return collection?.name || 'Select Collection'
   }
 
   const handleSourceSelect = (sourceId) => {
@@ -111,7 +114,7 @@ export const SourceSelector = ({
           <div className="dropdown-content show" style={{ 
             minWidth: '12rem'
           }}>
-            <div className="dropdown-label">Select Library</div>
+            <div className="dropdown-label">Select Image Collection</div>
             
             {/* Default Library */}
             <button
@@ -119,7 +122,7 @@ export const SourceSelector = ({
               className={`dropdown-item ${activeSource === 'cms' ? 'selected' : ''}`}
               style={{ whiteSpace: 'nowrap' }}
             >
-              <span>Default Library</span>
+              <span>{activeSourceName || 'Default Library'}</span>
               {activeSource === 'cms' && <Check size={16} weight="bold" />}
             </button>
 

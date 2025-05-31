@@ -194,33 +194,51 @@ function MainApp() {
     try {
       const supabase = getSupabase();
       
-      // Default collection ID for all users
-      const DEFAULT_COLLECTION_ID = '00000000-0000-0000-0000-000000000001';
-      
       if (isUserAdmin) {
         console.log('[loadCollections] Loading as admin user');
         // Admin users can see all collections
         const { data, error } = await supabase
           .from('image_collections')
-          .select('id, name')
+          .select('id, name, is_public')
           .order('created_at', { ascending: true });
         
         if (!error && data) {
           setUserCollectionsForSelect(data);
-          const firstCollectionId = data[0]?.id || DEFAULT_COLLECTION_ID;
+          // Find default collection or first one
+          const defaultCollection = data.find(c => c.id === '00000000-0000-0000-0000-000000000001');
+          const firstCollectionId = defaultCollection?.id || data[0]?.id;
           setSelectedCollection(firstCollectionId);
-          // Always load CMS collection initially
+          // Set the actual name for the default collection
+          if (defaultCollection) {
+            setActiveCollectionName(defaultCollection.name);
+          }
           await loadImagesForCollection('cms');
         } else {
           console.error('Error loading collections:', error);
           await loadImagesForCollection('cms');
         }
       } else {
-        console.log('[loadCollections] Loading as regular user');
-        // Non-admin users only see the default collection
-        setUserCollectionsForSelect([{ id: DEFAULT_COLLECTION_ID, name: 'Default Collection' }]);
-        setSelectedCollection(DEFAULT_COLLECTION_ID);
-        await loadImagesForCollection('cms');
+        console.log('[loadCollections] Loading as regular user - fetching public collections');
+        // Regular users see public collections
+        const { data, error } = await supabase
+          .from('image_collections')
+          .select('id, name, is_public')
+          .eq('is_public', true)
+          .order('created_at', { ascending: true });
+        
+        if (!error && data && data.length > 0) {
+          setUserCollectionsForSelect(data);
+          const firstCollectionId = data[0].id;
+          setSelectedCollection(firstCollectionId);
+          setActiveCollectionName(data[0].name);
+          await loadImagesForCollection('cms');
+        } else {
+          // Fallback if no public collections
+          console.log('[loadCollections] No public collections found');
+          setUserCollectionsForSelect([]);
+          setActiveCollectionName('Default Library');
+          await loadImagesForCollection('cms');
+        }
       }
     } catch (err) {
       console.error('Error loading collections:', err);
@@ -342,7 +360,11 @@ function MainApp() {
   // Update activeCollectionName when activeCollection changes
   useEffect(() => {
     if (activeCollection === 'cms') {
-      setActiveCollectionName('Default Library');
+      // Find the default collection name from the loaded collections
+      const defaultCollection = userCollectionsForSelect.find(
+        c => c.id === '00000000-0000-0000-0000-000000000001'
+      );
+      setActiveCollectionName(defaultCollection?.name || 'Default Library');
     } else {
       const foundCollection = userCollectionsForSelect.find(col => col.id === activeCollection);
       setActiveCollectionName(foundCollection ? foundCollection.name : 'Unknown Collection');
@@ -621,6 +643,7 @@ function MainApp() {
             {/* Updated Source Selector */}
             <SourceSelector 
               activeSource={activeCollection}
+              activeSourceName={activeCollectionName}
               onSourceChange={handleSourceChange}
               onManageCollections={() => setShowDrawer(true)}
               onUploadImages={() => setShowUpload(true)}
@@ -729,7 +752,7 @@ function MainApp() {
               }}
               className="mobile-collection-dropdown"
             >
-              <option value="cms">Default Library</option>
+              <option value="cms">{activeCollection === 'cms' ? activeCollectionName : 'Default Library'}</option>
               {userCollectionsForSelect.map(collection => (
                 <option key={collection.id} value={collection.id}>
                   {collection.name}
