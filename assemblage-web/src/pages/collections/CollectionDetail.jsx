@@ -54,6 +54,49 @@ export default function CollectionDetail() {
     loadCollectionData();
   }, [id]);
   
+  // Check for pending metadata periodically
+  useEffect(() => {
+    const checkPendingMetadata = async () => {
+      const pendingImages = images.filter(img => 
+        img.metadata_status === 'pending' || 
+        img.metadata_status === 'pending_llm'
+      );
+      
+      if (pendingImages.length > 0) {
+        // Check if any have been processed
+        const { data: updatedImages } = await supabase
+          .from('images')
+          .select('id, metadata_status, tags, description, metadata')
+          .in('id', pendingImages.map(img => img.id));
+        
+        if (updatedImages) {
+          const processedImages = updatedImages.filter(img => 
+            img.metadata_status === 'complete'
+          );
+          
+          if (processedImages.length > 0) {
+            // Update the images with new metadata
+            setImages(prev => prev.map(img => {
+              const updated = processedImages.find(u => u.id === img.id);
+              return updated ? { ...img, ...updated } : img;
+            }));
+          }
+        }
+      }
+    };
+    
+    // Check every 5 seconds if there are pending images
+    const hasPending = images.some(img => 
+      img.metadata_status === 'pending' || 
+      img.metadata_status === 'pending_llm'
+    );
+    
+    if (hasPending) {
+      const interval = setInterval(checkPendingMetadata, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [images, supabase]);
+  
   // Add keyboard event listener separately
   useEffect(() => {
     document.addEventListener('keydown', handleKeyDown);
@@ -119,18 +162,15 @@ export default function CollectionDetail() {
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase();
         query = query.or(
-          `display_name.ilike.%${searchTerm}%,` +
-          `metadata->display_name.ilike.%${searchTerm}%,` +
-          `metadata->tags.cs.{${searchTerm}},` +
-          `metadata->description.ilike.%${searchTerm}%,` +
-          `metadata->artist.ilike.%${searchTerm}%,` +
-          `metadata->subject.ilike.%${searchTerm}%,` +
-          `metadata->title.ilike.%${searchTerm}%`
+          `title.ilike.%${searchTerm}%,` +
+          `filename.ilike.%${searchTerm}%,` +
+          `description.ilike.%${searchTerm}%,` +
+          `tags.cs.{${searchTerm}}`
         );
       }
 
-      // Apply sorting - use display_name instead of filename
-      const sortField = sortBy === 'filename' ? 'display_name' : sortBy;
+      // Apply sorting
+      const sortField = sortBy === 'filename' ? 'title' : sortBy;
       query = query.order(sortField, { ascending: sortOrder === 'asc' });
 
       const { data, error } = await query;
@@ -756,14 +796,57 @@ export default function CollectionDetail() {
                     }}>
                       {image.filename}
                     </p>
-                    {image.metadata?.tags && image.metadata.tags.length > 0 && (
+                    {/* Show metadata status or tags */}
+                    {image.metadata_status === 'pending' || image.metadata_status === 'pending_llm' || image.metadata_status === 'processing' ? (
+                      <div style={{
+                        marginTop: '0.25rem',
+                        fontSize: '0.7rem',
+                        color: uiColors.fg,
+                        opacity: 0.6,
+                        fontStyle: 'italic'
+                      }}>
+                        Analyzing...
+                      </div>
+                    ) : image.metadata_status === 'error' ? (
+                      <div style={{
+                        marginTop: '0.25rem',
+                        fontSize: '0.7rem',
+                        color: '#dc3545',
+                        cursor: 'pointer',
+                        textDecoration: 'underline'
+                      }}
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        // Retry metadata generation
+                        try {
+                          const response = await fetch('/.netlify/functions/process-user-image-metadata', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageId: image.id })
+                          });
+                          if (response.ok) {
+                            // Update image status to processing
+                            setImages(prev => prev.map(img => 
+                              img.id === image.id 
+                                ? { ...img, metadata_status: 'processing' }
+                                : img
+                            ));
+                          }
+                        } catch (err) {
+                          console.error('Failed to retry metadata generation:', err);
+                        }
+                      }}
+                      >
+                        Analysis failed - Click to retry
+                      </div>
+                    ) : image.tags && image.tags.length > 0 ? (
                       <div style={{
                         marginTop: '0.25rem',
                         display: 'flex',
                         flexWrap: 'wrap',
                         gap: '0.25rem'
                       }}>
-                        {image.metadata.tags.slice(0, 3).map((tag, index) => (
+                        {image.tags.slice(0, 3).map((tag, index) => (
                           <span
                             key={index}
                             style={{
@@ -778,7 +861,7 @@ export default function CollectionDetail() {
                           </span>
                         ))}
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 )}
                 
@@ -820,12 +903,16 @@ export default function CollectionDetail() {
       {/* Image Modal */}
       <ImageModal
         image={selectedImage}
+        images={images}
         isOpen={showImageModal}
         onClose={() => {
           setShowImageModal(false);
           setSelectedImage(null);
         }}
         onUpdate={handleImageUpdate}
+        onNavigate={(newImage) => {
+          setSelectedImage(newImage);
+        }}
       />
     </div>
   );

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { X, Tag, FileText, Calendar } from 'phosphor-react';
+import { X, Tag, FileText, Calendar, CaretLeft, CaretRight } from 'phosphor-react';
 import { useUiColors } from '../hooks/useUiColors';
 import { getSupabase } from '../supabaseClient';
 
-export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
+export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNavigate }) => {
   const uiColors = useUiColors();
   const [isEditing, setIsEditing] = useState(false);
   // Handle both cases: metadata in separate columns or in metadata JSONB column
@@ -29,6 +29,21 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
   const [saving, setSaving] = useState(false);
 
   if (!isOpen || !image) return null;
+  
+  // Find current image index if images array is provided
+  const currentIndex = images.findIndex(img => img.id === image.id);
+  const hasPrevious = images.length > 0 && currentIndex > 0;
+  const hasNext = images.length > 0 && currentIndex < images.length - 1;
+  
+  const handleNavigate = (direction) => {
+    if (!onNavigate) return;
+    
+    if (direction === 'prev' && hasPrevious) {
+      onNavigate(images[currentIndex - 1]);
+    } else if (direction === 'next' && hasNext) {
+      onNavigate(images[currentIndex + 1]);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -119,15 +134,56 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate }) => {
           padding: '1rem',
           borderBottom: `1px solid ${uiColors.border}`
         }}>
-          <h3 style={{ 
-            margin: 0, 
-            color: uiColors.fg,
-            fontSize: window.innerWidth <= 768 ? '1rem' : '1.2rem',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '70%'
-          }}>{image.filename}</h3>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            flex: 1,
+            minWidth: 0
+          }}>
+            {/* Navigation buttons */}
+            {images.length > 0 && (
+              <>
+                <button
+                  onClick={() => handleNavigate('prev')}
+                  disabled={!hasPrevious}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: hasPrevious ? 'pointer' : 'not-allowed',
+                    padding: '0.5rem',
+                    opacity: hasPrevious ? 1 : 0.3
+                  }}
+                  title="Previous image"
+                >
+                  <CaretLeft size={20} weight="bold" color={uiColors.fg} />
+                </button>
+                <button
+                  onClick={() => handleNavigate('next')}
+                  disabled={!hasNext}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: hasNext ? 'pointer' : 'not-allowed',
+                    padding: '0.5rem',
+                    opacity: hasNext ? 1 : 0.3
+                  }}
+                  title="Next image"
+                >
+                  <CaretRight size={20} weight="bold" color={uiColors.fg} />
+                </button>
+              </>
+            )}
+            <h3 style={{ 
+              margin: 0, 
+              color: uiColors.fg,
+              fontSize: window.innerWidth <= 768 ? '1rem' : '1.2rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              flex: 1
+            }}>{image.filename}</h3>
+          </div>
           <button
             onClick={onClose}
             style={{
