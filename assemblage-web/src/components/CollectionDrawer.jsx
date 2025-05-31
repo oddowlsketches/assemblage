@@ -104,7 +104,7 @@ export const CollectionDrawer = ({
       const supabase = getSupabase()
       const { data: { user } } = await supabase.auth.getUser()
       
-      // Create in user_collections
+      // Create in user_collections only
       const { data: newUserCollection, error: createUserCollectionError } = await supabase
         .from('user_collections')
         .insert({
@@ -116,32 +116,14 @@ export const CollectionDrawer = ({
 
       if (createUserCollectionError) throw createUserCollectionError;
 
-      // ALSO Create a corresponding entry in image_collections
-      const { error: createImageCollectionError } = await supabase
-        .from('image_collections')
-        .insert({
-          id: newUserCollection.id, // Use the SAME ID as the user_collection
-          name: newUserCollection.name, // Can use the same name
-          user_id: user.id, // Associate with the user
-          // Add any other required fields for image_collections from your schema
-          // e.g., is_public: false, type: 'user_generated' (if they exist and are NOT NULL without defaults)
-        });
-
-      if (createImageCollectionError) {
-        // If this fails, we should ideally roll back the user_collection creation
-        // or at least log a serious error, as uploads to this collection will fail.
-        console.error('[CollectionDrawer] Error creating corresponding image_collection entry:', createImageCollectionError);
-        // For simplicity, we'll throw the error to prevent inconsistent state. 
-        // A more robust solution might involve a transaction or cleanup.
-        throw new Error(`Failed to create collection in both tables: ${createImageCollectionError.message}`);
-      }
-      console.log('[CollectionDrawer] Created corresponding image_collection entry for:', newUserCollection.id);
+      console.log('[CollectionDrawer] Created user collection:', newUserCollection.id);
 
       // Add to local state with counts
       const collectionForState = {
         ...newUserCollection,
         totalImages: 0,
-        pendingImages: 0
+        pendingImages: 0,
+        thumbnails: []
       }
       
       setUserCollections(prev => [collectionForState, ...prev])

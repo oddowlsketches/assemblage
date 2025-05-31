@@ -621,7 +621,7 @@ function MainApp() {
         
       if (!fetchError && (!collections || collections.length === 0)) {
         console.log('[Auth] Creating default collection for new user');
-        // Create in user_collections
+        // Create in user_collections only
         const { data: newUserCollection, error: createUserCollectionError } = await supabase
           .from('user_collections')
           .insert({
@@ -635,27 +635,6 @@ function MainApp() {
           console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
         } else if (newUserCollection) {
           console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
-          
-          // ALSO Create a corresponding entry in image_collections
-          // This entry makes the user_collection.id a valid foreign key for images.collection_id
-          const { error: createImageCollectionError } = await supabase
-            .from('image_collections')
-            .insert({
-              id: newUserCollection.id, // Use the SAME ID as the user_collection
-              name: newUserCollection.name, // Can use the same name
-              user_id: newSession.user.id, // Associate with the user
-              // Add any other required fields for image_collections, ensure they have defaults or are nullable
-              // For example, if 'is_public' or 'type' fields exist and are required:
-              // is_public: false, 
-              // type: 'user_generated',
-            });
-
-          if (createImageCollectionError) {
-            console.error('[Auth] Error creating corresponding image_collection entry:', createImageCollectionError);
-            // Potentially roll back the user_collection creation or mark it as needing reconciliation
-          } else {
-            console.log('[Auth] Created corresponding image_collection entry for:', newUserCollection.id);
-          }
 
           // If we're currently on cms/default, switch to the new collection
           if (activeCollection === 'cms') {
