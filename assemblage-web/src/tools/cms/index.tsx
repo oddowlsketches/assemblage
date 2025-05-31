@@ -98,6 +98,13 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void, collections: Collec
   const uploadQueueRef = useRef<boolean>(true);
   const [selectedCollection, setSelectedCollection] = useState(defaultCollectionId || (collections[0]?.id || ''));
 
+  // Update selected collection when collections or defaultCollectionId changes
+  useEffect(() => {
+    if (!selectedCollection && collections.length > 0) {
+      setSelectedCollection(defaultCollectionId || collections[0].id);
+    }
+  }, [collections, defaultCollectionId]);
+
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     setFiles(Array.from(e.target.files));
@@ -133,6 +140,14 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void, collections: Collec
         reader.readAsDataURL(chunk);
       });
 
+      // Ensure we have a collection ID
+      const collectionToUse = selectedCollection || collections[0]?.id;
+      if (!collectionToUse) {
+        throw new Error('No collection available. Please create a collection first.');
+      }
+
+      console.log('[UPLOAD] Using collection ID:', collectionToUse);
+
       abortControllerRef.current = new AbortController();
       const res = await fetch('/.netlify/functions/upload-and-process-image', {
         method: 'POST',
@@ -143,7 +158,7 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void, collections: Collec
           chunkIndex: Math.floor(start / CHUNK_SIZE),
           totalChunks: Math.ceil(file.size / CHUNK_SIZE),
           fileSize: file.size,
-          collectionId: selectedCollection
+          collectionId: collectionToUse
         }),
         signal: abortControllerRef.current.signal
       });
@@ -366,7 +381,7 @@ const UploadImagesDialog: React.FC<{ onUploaded: () => void, collections: Collec
   );
 };
 
-const AddImageDialog: React.FC<{ onAdded: () => void }> = ({ onAdded }) => {
+const AddImageDialog: React.FC<{ onAdded: () => void, defaultCollectionId?: string }> = ({ onAdded, defaultCollectionId }) => {
   const [open, setOpen] = useState(false);
   const [src, setSrc] = useState('');
   const [title, setTitle] = useState('');
@@ -383,7 +398,13 @@ const AddImageDialog: React.FC<{ onAdded: () => void }> = ({ onAdded }) => {
       .filter(Boolean);
     // Only allow valid image_role values (AddImageDialog does not have a field, so always use 'narrative')
     const imageRole = 'narrative';
-    const { error } = await supa.from('images').insert({ src, title, tags: tagArr, image_role: imageRole });
+    const { error } = await supa.from('images').insert({ 
+      src, 
+      title, 
+      tags: tagArr, 
+      image_role: imageRole,
+      collection_id: defaultCollectionId || '00000000-0000-0000-0000-000000000001'
+    });
     setLoading(false);
     if (!error) {
       setSrc('');
@@ -1155,7 +1176,7 @@ const ImagesPage: React.FC = () => {
         >
           + New Collection
         </button>
-        <AddImageDialog onAdded={load} />
+        <AddImageDialog onAdded={load} defaultCollectionId={selectedCollection} />
         <UploadImagesDialog onUploaded={load} collections={collections} defaultCollectionId={selectedCollection} />
       </div>
     </div>
