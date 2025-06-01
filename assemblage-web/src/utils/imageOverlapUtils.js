@@ -3,28 +3,31 @@
 
 /**
  * Get appropriate echo color based on image type and background color
- * For colorful images: use background color or lightened version (never complementary)
- * For B&W images: can use complementary colors for contrast
+ * For colorful images (is_black_and_white === false): must use bgColor or #FFFFFF
+ * For B&W images (is_black_and_white === true): can use any color including complementary
  * @param {string} bgColor - Background color in hex format
- * @param {HTMLImageElement} image - The image to check (optional)
+ * @param {HTMLImageElement|HTMLImageElement[]} imageOrImages - Single image or array of images to check (optional)
  * @param {Function} getComplementaryColorFn - Function to get complementary color (pass from calling template)
  * @param {boolean} forceBackgroundColor - Force use of background color regardless of image type
  * @returns {string} Appropriate echo color
  */
-export function getAppropriateEchoColor(bgColor, image = null, getComplementaryColorFn = null, forceBackgroundColor = false) {
-  // Always use background-based color for colorful images to avoid muddy multiply results
-  const isBlackAndWhite = image && image.is_black_and_white === true;
+export function getAppropriateEchoColor(bgColor, imageOrImages = null, getComplementaryColorFn = null, forceBackgroundColor = false) {
+  // Handle both single image and array of images
+  const images = Array.isArray(imageOrImages) ? imageOrImages : (imageOrImages ? [imageOrImages] : []);
   
-  if (forceBackgroundColor || !isBlackAndWhite) {
-    // For colorful images or when forced: use background color or slightly lightened version
-    // This prevents muddy results from dark complementary colors with multiply blend
-    console.log(`[EchoColor] Using lightened background for ${isBlackAndWhite ? 'B&W' : 'colorful'} image: ${bgColor} -> ${lightenColor(bgColor, 0.1)}`);
-    return lightenColor(bgColor, 0.1); // Lighten by 10% for subtle variation
+  // Check if any image is marked as color (not black and white)
+  const hasColorImage = images.some(img => img && img.is_black_and_white === false);
+  
+  if (forceBackgroundColor || hasColorImage) {
+    // For color images: MUST use bgColor or white
+    // Since we're already being asked for an echo color, return bgColor
+    console.log(`[EchoColor] Color image detected, using bgColor: ${bgColor}`);
+    return bgColor;
   } else {
-    // For B&W images: can use complementary for good contrast
+    // For B&W images or unknown: can use complementary for contrast
     if (getComplementaryColorFn) {
       const complementary = getComplementaryColorFn(bgColor);
-      console.log(`[EchoColor] Using complementary for B&W image: ${bgColor} -> ${complementary}`);
+      console.log(`[EchoColor] B&W image or unknown, using complementary: ${bgColor} -> ${complementary}`);
       return complementary;
     } else {
       // Fallback if no complementary function provided

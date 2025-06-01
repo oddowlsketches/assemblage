@@ -13,7 +13,8 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
 
   const ctx = canvas.getContext('2d');
   
-  const gridSize = params.gridSize || 8;
+  // Randomize gridSize between 6-12 if not explicitly provided
+  const gridSize = params.gridSize || (Math.floor(Math.random() * 7) + 6); // 6-12
   let { revealPct, swapPct, rotatePct, operation, bgColor, useMultiply } = params;
 
   // Valid operations array
@@ -65,10 +66,52 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
     return; // Don't draw if the image isn't ready
   }
 
+  // Determine variant chance (randomly leave portions untouched)
+  const variantChance = Math.random();
+  let applyVariant = false;
+  let variantType = 'none';
+  let untouchedCells = new Set();
+  
+  if (variantChance < 0.3) { // 30% chance to apply a variant
+    applyVariant = true;
+    const variantRandom = Math.random();
+    
+    if (variantRandom < 0.5) {
+      // Leave 0-3 outer rings untouched
+      variantType = 'rings';
+      const ringsToLeave = Math.floor(Math.random() * 4); // 0-3 rings
+      
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          const distFromEdge = Math.min(row, col, gridSize - 1 - row, gridSize - 1 - col);
+          if (distFromEdge < ringsToLeave) {
+            untouchedCells.add(`${row},${col}`);
+          }
+        }
+      }
+    } else {
+      // Leave half untouched (left/right or top/bottom)
+      variantType = Math.random() < 0.5 ? 'horizontal' : 'vertical';
+      
+      for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+          if (variantType === 'horizontal' && row < gridSize / 2) {
+            untouchedCells.add(`${row},${col}`);
+          } else if (variantType === 'vertical' && col < gridSize / 2) {
+            untouchedCells.add(`${row},${col}`);
+          }
+        }
+      }
+    }
+  }
+
   // Create grid of cells with operations based on the selected operation type
   const cells = [];
   for (let row = 0; row < gridSize; row++) {
     for (let col = 0; col < gridSize; col++) {
+      const cellKey = `${row},${col}`;
+      const isUntouched = untouchedCells.has(cellKey);
+      
       const cell = {
         row,
         col,
@@ -78,24 +121,27 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
         visible: true,
         shouldRotate: false,
         shouldSwap: false,
-        rotationAngle: 0
+        rotationAngle: 0,
+        isUntouched
       };
 
-      // Apply operations based on the current operation mode
-      switch (operation) {
-        case 'reveal':
-          cell.visible = Math.random() * 100 < revealPct;
-          break;
-        case 'rotate':
-          cell.shouldRotate = Math.random() * 100 < rotatePct;
-          if (cell.shouldRotate) {
-            // Random 90-degree rotation (1-3 times)
-            cell.rotationAngle = (Math.floor(Math.random() * 3) + 1) * 90;
-          }
-          break;
-        case 'swap':
-          cell.shouldSwap = Math.random() * 100 < swapPct;
-          break;
+      // Apply operations based on the current operation mode (unless cell is untouched)
+      if (!isUntouched) {
+        switch (operation) {
+          case 'reveal':
+            cell.visible = Math.random() * 100 < revealPct;
+            break;
+          case 'rotate':
+            cell.shouldRotate = Math.random() * 100 < rotatePct;
+            if (cell.shouldRotate) {
+              // Random 90-degree rotation (1-3 times)
+              cell.rotationAngle = (Math.floor(Math.random() * 3) + 1) * 90;
+            }
+            break;
+          case 'swap':
+            cell.shouldSwap = Math.random() * 100 < swapPct;
+            break;
+        }
       }
       
       cells.push(cell);
@@ -206,6 +252,9 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
       offsetX: offsetX,
       offsetY: offsetY
     },
+    variantApplied: applyVariant,
+    variantType: variantType,
+    untouchedCellCount: untouchedCells.size,
     cellOperations: cells.map((cell, index) => ({
       index: index,
       row: cell.row,
@@ -213,7 +262,8 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
       visible: cell.visible,
       shouldRotate: cell.shouldRotate,
       shouldSwap: cell.shouldSwap,
-      rotationAngle: cell.rotationAngle
+      rotationAngle: cell.rotationAngle,
+      isUntouched: cell.isUntouched
     })),
     userPrompt: params.userPrompt || ''
   };

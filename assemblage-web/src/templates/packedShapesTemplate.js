@@ -285,34 +285,65 @@ function renderPackedShapes(canvas, images, params = {}) {
     sizeCategory: el.sizeCategory
   }));
 
-  const complementaryColor = getComplementaryColor(initialBgColor);
-  // FIXED: Lighten the complementary color for better visibility
-  const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
+  // Check if images are color (not B&W)
+  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
   
-  // Use colors from the selected palette instead of hardcoded vibrantColors
-  const accentColorPalette = [
-    lightenedComplementaryColor, // Use lightened version
-    ...palette.slice(0, 3) // Take first 3 colors from the selected palette
-  ].filter(Boolean);
+  const complementaryColor = getComplementaryColor(initialBgColor);
+  
+  // FIXED: Create appropriate color palette based on image type
+  let accentColorPalette;
+  if (hasColorImages) {
+    // For color images: ONLY use bgColor or white
+    accentColorPalette = [
+      initialBgColor,
+      '#FFFFFF',
+      initialBgColor,
+      '#FFFFFF'
+    ];
+  } else {
+    // For B&W images: can use complementary and other colors
+    const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
+    accentColorPalette = [
+      lightenedComplementaryColor,
+      ...palette.slice(0, 3) // Take first 3 colors from the selected palette
+    ].filter(Boolean);
+  }
   
   if (accentColorPalette.length === 0) accentColorPalette.push('#CCCCCC'); // Absolute fallback
   
-  // Color mode: 50% varied colors, 25% all complementary, 25% all background color
+  // Color mode logic adjusted for image type
   const colorMode = Math.random();
   let useVariedColors = true;
   let singleColor = null;
   
-  if (colorMode < 0.5) {
-    // Varied colors (default)
-    useVariedColors = true;
-  } else if (colorMode < 0.75) {
-    // All complementary color - but use lightened version
-    useVariedColors = false;
-    singleColor = lightenedComplementaryColor; // Use lightened version
+  if (hasColorImages) {
+    // For color images: only use bgColor or white
+    if (colorMode < 0.5) {
+      // Alternate between bgColor and white
+      useVariedColors = true;
+    } else if (colorMode < 0.75) {
+      // All white
+      useVariedColors = false;
+      singleColor = '#FFFFFF';
+    } else {
+      // All background color
+      useVariedColors = false;
+      singleColor = initialBgColor;
+    }
   } else {
-    // All background color - but lighten it slightly for visibility
-    useVariedColors = false;
-    singleColor = lightenColor(initialBgColor, 0.15); // Lighten background color slightly
+    // For B&W images: original logic with complementary colors allowed
+    if (colorMode < 0.5) {
+      // Varied colors (default)
+      useVariedColors = true;
+    } else if (colorMode < 0.75) {
+      // All complementary color - but use lightened version
+      useVariedColors = false;
+      singleColor = lightenColor(complementaryColor, 0.3);
+    } else {
+      // All background color - but lighten it slightly for visibility
+      useVariedColors = false;
+      singleColor = lightenColor(initialBgColor, 0.15);
+    }
   }
   
   // Store color mode info for reproducibility
@@ -387,6 +418,12 @@ function renderPackedShapes(canvas, images, params = {}) {
         // 2. Draw the image with multiply blend mode, clipped by the same mask
         if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
+          
+          // For color images, use slight transparency to prevent muddiness
+          if (hasColorImages) {
+            ctx.globalAlpha = 0.85;
+          }
+          
           ctx.clip(maskPath); // Apply clipping AFTER color block fill
           
           // Draw image in the 0-100 space (uniformly scaled context)
@@ -407,6 +444,12 @@ function renderPackedShapes(canvas, images, params = {}) {
         // 2. Draw the image with multiply blend mode
         if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
+          
+          // For color images, use slight transparency to prevent muddiness
+          if (hasColorImages) {
+            ctx.globalAlpha = 0.85;
+          }
+          
           const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {
             aspectRatio: imageAspectRatio,
@@ -431,7 +474,7 @@ function renderPackedShapes(canvas, images, params = {}) {
     bgColor: initialBgColor,
     colorModeType: colorModeType,
     singleColor: finalSingleColor,
-    complementaryColor: lightenedComplementaryColor,
+    complementaryColor: hasColorImages ? null : lightenColor(complementaryColor, 0.3),
     palette: palette,
     elements: elementConfigs, // Full element layout data
     imageDistribution: shuffledImages.map((img, idx) => ({

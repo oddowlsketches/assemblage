@@ -55,28 +55,42 @@ export function generatePhotoStrip(canvas, images, params = {}) {
   const colorMode = Math.random();
   const singleColorChoice = Math.random();
   
+  // Check if images are color (not B&W)
+  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
+  
   // Generate color palette for color blocks
   let colorPalette = [];
   let colorStrategy = 'multiply-only';
   
   if (useColorBlocks) {
-    const complementaryColor = getComplementaryColor(bgColor);
-    // FIXED: Use lightened complementary colors for better visibility
-    const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
-    
-    if (colorMode < 0.5) {
-      // Each image gets a different complementary color - but lightened
-      colorPalette = [
-        lightenedComplementaryColor,
-        lightenColor(vibrantColors[0] || '#FF6B6B', 0.2),
-        lightenColor(vibrantColors[1] || '#4ECDC4', 0.2)
-      ];
-      colorStrategy = 'varied-colors';
+    if (hasColorImages) {
+      // For color images: MUST use bgColor or white only
+      if (colorMode < 0.5) {
+        // All blocks use bgColor
+        colorPalette = [bgColor, bgColor, bgColor];
+        colorStrategy = 'bg-color-only';
+      } else {
+        // All blocks use white
+        colorPalette = ['#FFFFFF', '#FFFFFF', '#FFFFFF'];
+        colorStrategy = 'white-only';
+      }
     } else {
-      // All images get the same color - but lightened
-      const singleColor = singleColorChoice < 0.5 ? lightenedComplementaryColor : lightenColor(bgColor, 0.2);
-      colorPalette = [singleColor, singleColor, singleColor];
-      colorStrategy = 'single-color';
+      // For B&W images: can use complementary colors
+      const complementaryColor = getComplementaryColor(bgColor);
+      if (colorMode < 0.5) {
+        // Each image gets a different color
+        colorPalette = [
+          complementaryColor,
+          vibrantColors[0] || '#FF6B6B',
+          vibrantColors[1] || '#4ECDC4'
+        ];
+        colorStrategy = 'varied-colors';
+      } else {
+        // All images get the same color
+        const singleColor = singleColorChoice < 0.5 ? complementaryColor : bgColor;
+        colorPalette = [singleColor, singleColor, singleColor];
+        colorStrategy = 'single-color';
+      }
     }
   }
   
@@ -117,7 +131,11 @@ export function generatePhotoStrip(canvas, images, params = {}) {
       ctx.fillRect(x, y, imageWidth, imageHeight);
     }
     
-    // Set blend mode
+    // Set blend mode and opacity
+    // For color images with color blocks, use slight transparency for better legibility
+    if (hasColorImages && useColorBlocks) {
+      ctx.globalAlpha = 0.85; // Slight transparency to prevent muddiness
+    }
     ctx.globalCompositeOperation = 'multiply';
     
     // Calculate image scaling to fill the slot while maintaining aspect ratio
