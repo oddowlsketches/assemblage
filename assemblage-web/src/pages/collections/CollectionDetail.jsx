@@ -433,7 +433,12 @@ export default function CollectionDetail() {
         <div style={{
           marginBottom: '1rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '1rem', 
+            marginBottom: window.innerWidth <= 768 ? '1rem' : '0'
+          }}>
             <button
               onClick={() => {
                 // Navigate back to main app and open collections drawer
@@ -504,121 +509,296 @@ export default function CollectionDetail() {
                 </button>
               </div>
             ) : (
-              <h1 style={{
-                fontSize: '1.5rem',
-                margin: 0,
-                cursor: 'pointer',
-                flex: 1
-              }}
-              onClick={() => setIsEditing(true)}
-              >
-                {collection.name}
-              </h1>
+              <>
+                <h1 style={{
+                  fontSize: '1.5rem',
+                  margin: 0,
+                  cursor: 'pointer',
+                  flex: 1
+                }}
+                onClick={() => setIsEditing(true)}
+                >
+                  {collection.name}
+                </h1>
+                
+                {/* Action buttons - desktop: same row, mobile: separate row */}
+                {window.innerWidth > 768 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '0.5rem', 
+                    alignItems: 'center',
+                    flexShrink: 0
+                  }}>
+                    {/* Upload button */}
+                    <button
+                      onClick={() => setShowUploadModal(true)}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: uiColors.bg,
+                        color: uiColors.fg,
+                        border: `1px solid ${uiColors.border}`,
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontSize: '0.85rem'
+                      }}
+                      title="Upload images"
+                    >
+                      <UploadSimple size={16} weight="regular" />
+                      Upload
+                    </button>
+                    
+                    {bulkActionMode && selectedIds.size > 0 && (
+                      <>
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleBulkMove(e.target.value);
+                              e.target.value = '';
+                            }
+                          }}
+                          style={{
+                            padding: '0.5rem',
+                            border: `1px solid ${uiColors.border}`,
+                            background: uiColors.bg,
+                            color: uiColors.fg,
+                            fontFamily: 'Space Mono, monospace',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          <option value="">Move to...</option>
+                          {targetCollections.map(col => (
+                            <option key={col.id} value={col.id}>{col.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={handleBulkDelete}
+                          style={{
+                            padding: '0.5rem',
+                            background: '#dc3545',
+                            color: 'white',
+                            border: '1px solid #dc3545',
+                            cursor: 'pointer',
+                            fontFamily: 'Space Mono, monospace',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.85rem'
+                          }}
+                        >
+                          <Trash size={16} weight="regular" />
+                          <span>({selectedIds.size})</span>
+                        </button>
+                      </>
+                    )}
+                    
+                    <button
+                      onClick={() => {
+                        setBulkActionMode(!bulkActionMode);
+                        deselectAll();
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: bulkActionMode ? uiColors.fg : uiColors.bg,
+                        color: bulkActionMode ? uiColors.bg : uiColors.fg,
+                        border: `1px solid ${uiColors.border}`,
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.85rem'
+                      }}
+                    >
+                      {bulkActionMode ? 'Cancel' : 'Select'}
+                    </button>
+                    
+                    <button
+                      onClick={handleDeleteCollection}
+                      style={{
+                        padding: '0.5rem',
+                        background: uiColors.bg,
+                        color: '#dc3545',
+                        border: '1px solid #dc3545',
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                      title="Delete collection"
+                    >
+                      <Trash size={16} weight="regular" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
           
-          {/* Action buttons row */}
-          <div style={{ 
-            display: 'flex', 
-            gap: '0.5rem', 
-            flexWrap: 'wrap',
-            alignItems: 'center'
-          }}>
-            {/* Upload button */}
-            <button
-              onClick={() => setShowUploadModal(true)}
-              style={{
-                padding: '0.5rem 1rem',
-                background: uiColors.bg,
-                color: uiColors.fg,
-                border: `1px solid ${uiColors.border}`,
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem'
-              }}
-              title="Upload images"
-            >
-              <UploadSimple size={16} weight="regular" />
-              <span className="desktop-only">Upload</span>
-            </button>
-            
-            {bulkActionMode && selectedIds.size > 0 && (
-              <>
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      handleBulkMove(e.target.value);
-                      e.target.value = '';
-                    }
-                  }}
-                  style={{
-                    padding: '0.5rem',
-                    border: `1px solid ${uiColors.border}`,
-                    background: uiColors.bg,
-                    color: uiColors.fg,
-                    fontFamily: 'Space Mono, monospace',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Move to...</option>
-                  {targetCollections.map(col => (
-                    <option key={col.id} value={col.id}>{col.name}</option>
-                  ))}
-                </select>
-                <button
-                  onClick={handleBulkDelete}
-                  style={{
-                    padding: '0.5rem',
-                    background: '#dc3545',
-                    color: 'white',
-                    border: '1px solid #dc3545',
-                    cursor: 'pointer',
-                    fontFamily: 'Space Mono, monospace',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}
-                >
-                  <Trash size={16} weight="regular" />
-                  <span>({selectedIds.size})</span>
-                </button>
-              </>
-            )}
-            
-            <button
-              onClick={() => {
-                setBulkActionMode(!bulkActionMode);
-                deselectAll();
-              }}
-              style={{
-                padding: '0.5rem 1rem',
-                background: bulkActionMode ? uiColors.fg : uiColors.bg,
-                color: bulkActionMode ? uiColors.bg : uiColors.fg,
-                border: `1px solid ${uiColors.border}`,
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace'
-              }}
-            >
-              {bulkActionMode ? 'Cancel' : 'Select'}
-            </button>
-            
-            <button
-              onClick={handleDeleteCollection}
-              style={{
-                padding: '0.5rem',
-                background: uiColors.bg,
-                color: '#dc3545',
-                border: '1px solid #dc3545',
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace'
-              }}
-              title="Delete collection"
-            >
-              <Trash size={16} weight="regular" />
-            </button>
-          </div>
+          {/* Action buttons row - mobile only */}
+          {window.innerWidth <= 768 && !isEditing && (
+            <div style={{ 
+              display: 'flex', 
+              gap: '0.75rem', 
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              width: '100%'
+            }}>
+              {/* Upload button */}
+              <button
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  setShowUploadModal(true);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowUploadModal(true);
+                }}
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: uiColors.bg,
+                  color: uiColors.fg,
+                  border: `1px solid ${uiColors.border}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.9rem',
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                  touchAction: 'manipulation'
+                }}
+                title="Upload images"
+              >
+                <UploadSimple size={16} weight="regular" />
+                {window.innerWidth > 480 && <span>Upload</span>}
+              </button>
+              
+              {bulkActionMode && selectedIds.size > 0 && (
+                <>
+                  <select
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleBulkMove(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    style={{
+                      padding: '0.75rem',
+                      border: `1px solid ${uiColors.border}`,
+                      background: uiColors.bg,
+                      color: uiColors.fg,
+                      fontFamily: 'Space Mono, monospace',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      minHeight: '44px'
+                    }}
+                  >
+                    <option value="">Move to...</option>
+                    {targetCollections.map(col => (
+                      <option key={col.id} value={col.id}>{col.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      handleBulkDelete();
+                    }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleBulkDelete();
+                    }}
+                    style={{
+                      padding: '0.75rem',
+                      background: '#dc3545',
+                      color: 'white',
+                      border: '1px solid #dc3545',
+                      cursor: 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                      minHeight: '44px',
+                      minWidth: '44px',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                      touchAction: 'manipulation'
+                    }}
+                  >
+                    <Trash size={16} weight="regular" />
+                    <span>({selectedIds.size})</span>
+                  </button>
+                </>
+              )}
+              
+              <button
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  setBulkActionMode(!bulkActionMode);
+                  deselectAll();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setBulkActionMode(!bulkActionMode);
+                  deselectAll();
+                }}
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: bulkActionMode ? uiColors.fg : uiColors.bg,
+                  color: bulkActionMode ? uiColors.bg : uiColors.fg,
+                  border: `1px solid ${uiColors.border}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem',
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                  touchAction: 'manipulation'
+                }}
+              >
+                {bulkActionMode ? 'Cancel' : 'Select'}
+              </button>
+              
+              <button
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  handleDeleteCollection();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeleteCollection();
+                }}
+                style={{
+                  padding: '0.75rem',
+                  background: uiColors.bg,
+                  color: '#dc3545',
+                  border: '1px solid #dc3545',
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '44px',
+                  minWidth: '44px',
+                  flexShrink: 0,
+                  WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+                  touchAction: 'manipulation'
+                }}
+                title="Delete collection"
+              >
+                <Trash size={16} weight="regular" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search, Filter, Sort - desktop only */}

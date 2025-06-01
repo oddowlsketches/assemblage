@@ -445,62 +445,78 @@ export const UploadModal = ({
             {/* New collection form */}
             {showNewCollectionForm && (
               <form onSubmit={createNewCollection} style={{ marginTop: '1rem' }}>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: window.innerWidth <= 480 ? 'column' : 'row',
+                  gap: '0.5rem' 
+                }}>
                   <input
                     type="text"
                     value={newCollectionName}
                     onChange={(e) => setNewCollectionName(e.target.value)}
                     placeholder="Collection name"
                     style={{
-                      flex: 1,
+                      flex: window.innerWidth <= 480 ? 'none' : 1,
                       padding: '0.5rem',
                       border: '1px solid #333333',
                       background: '#ffffff',
                       color: '#333333',
                       fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.9rem'
+                      fontSize: '0.9rem',
+                      width: window.innerWidth <= 480 ? '100%' : 'auto',
+                      boxSizing: 'border-box'
                     }}
                     autoFocus
                     disabled={creatingCollection}
                   />
-                  <button
-                    type="submit"
-                    disabled={creatingCollection || !newCollectionName.trim()}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: '#333333',
-                      color: '#ffffff',
-                      border: '1px solid #333333',
-                      cursor: creatingCollection || !newCollectionName.trim() ? 'not-allowed' : 'pointer',
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.9rem',
-                      opacity: creatingCollection || !newCollectionName.trim() ? 0.5 : 1
-                    }}
-                  >
-                    {creatingCollection ? 'Creating...' : 'Create'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewCollectionForm(false)
-                      setNewCollectionName('')
-                      // Select first collection if available
-                      if (userCollections.length > 0) {
-                        setSelectedCollectionId(userCollections[0].id)
-                      }
-                    }}
-                    style={{
-                      padding: '0.5rem 1rem',
-                      background: '#ffffff',
-                      color: '#333333',
-                      border: '1px solid #333333',
-                      cursor: 'pointer',
-                      fontFamily: 'Space Mono, monospace',
-                      fontSize: '0.9rem'
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  <div style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    flexShrink: 0
+                  }}>
+                    <button
+                      type="submit"
+                      disabled={creatingCollection || !newCollectionName.trim()}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: '#333333',
+                        color: '#ffffff',
+                        border: '1px solid #333333',
+                        cursor: creatingCollection || !newCollectionName.trim() ? 'not-allowed' : 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.9rem',
+                        opacity: creatingCollection || !newCollectionName.trim() ? 0.5 : 1,
+                        flex: window.innerWidth <= 480 ? 1 : 'none',
+                        minWidth: window.innerWidth <= 480 ? 'auto' : '80px'
+                      }}
+                    >
+                      {creatingCollection ? 'Creating...' : 'Create'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewCollectionForm(false)
+                        setNewCollectionName('')
+                        // Select first collection if available
+                        if (userCollections.length > 0) {
+                          setSelectedCollectionId(userCollections[0].id)
+                        }
+                      }}
+                      style={{
+                        padding: '0.5rem 1rem',
+                        background: '#ffffff',
+                        color: '#333333',
+                        border: '1px solid #333333',
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.9rem',
+                        flex: window.innerWidth <= 480 ? 1 : 'none',
+                        minWidth: window.innerWidth <= 480 ? 'auto' : '80px'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               </form>
             )}
@@ -794,6 +810,7 @@ export const UploadModal = ({
         {/* Footer - Sticky */}
         <div style={{
           display: 'flex',
+          flexDirection: window.innerWidth <= 480 ? 'column' : 'row',
           justifyContent: 'flex-end',
           gap: '0.5rem',
           padding: '1.5rem',
@@ -811,7 +828,9 @@ export const UploadModal = ({
               cursor: 'pointer',
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.9rem',
-              transition: 'all 0.3s ease'
+              transition: 'all 0.3s ease',
+              flex: window.innerWidth <= 480 ? 'none' : 'unset',
+              order: window.innerWidth <= 480 ? 1 : 0
             }}
             onMouseEnter={e => {
               e.target.style.background = '#333333';
@@ -836,7 +855,9 @@ export const UploadModal = ({
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.9rem',
               transition: 'all 0.3s ease',
-              opacity: showNewCollectionForm || !selectedCollectionId || files.length === 0 || uploading ? 0.5 : 1
+              opacity: showNewCollectionForm || !selectedCollectionId || files.length === 0 || uploading ? 0.5 : 1,
+              flex: window.innerWidth <= 480 ? 'none' : 'unset',
+              order: window.innerWidth <= 480 ? 0 : 1
             }}
             onMouseEnter={e => {
               if (!e.target.disabled) {

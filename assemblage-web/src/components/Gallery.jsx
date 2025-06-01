@@ -13,8 +13,6 @@ export default function Gallery({ session, onClose }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
-  const [filterTemplates, setFilterTemplates] = useState([]); // Changed to array for multi-select
-  const [showFilters, setShowFilters] = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const itemsPerPage = 12; // Show 12 collages per page
   const initialLoadCount = 12; // Load only 12 initially for faster performance
@@ -54,7 +52,6 @@ export default function Gallery({ session, onClose }) {
     try {
       // Use custom filters if provided, otherwise use current state
       const activeSearchTerm = customFilters.searchTerm !== undefined ? customFilters.searchTerm : searchTerm;
-      const activeFilterTemplates = customFilters.filterTemplates !== undefined ? customFilters.filterTemplates : filterTemplates;
       const activeSortBy = customFilters.sortBy !== undefined ? customFilters.sortBy : sortBy;
       const activeSortOrder = customFilters.sortOrder !== undefined ? customFilters.sortOrder : sortOrder;
       
@@ -68,10 +65,6 @@ export default function Gallery({ session, onClose }) {
         // Apply same filters to count query
         if (activeSearchTerm) {
           countQuery = countQuery.ilike('title', `%${activeSearchTerm}%`);
-        }
-        
-        if (activeFilterTemplates.length > 0) {
-          countQuery = countQuery.in('template_key', activeFilterTemplates);
         }
         
         const { count: totalItems, error: countError } = await countQuery;
@@ -94,10 +87,6 @@ export default function Gallery({ session, onClose }) {
       // Apply filters to data query
       if (activeSearchTerm) {
         dataQuery = dataQuery.ilike('title', `%${activeSearchTerm}%`);
-      }
-      
-      if (activeFilterTemplates.length > 0) {
-        dataQuery = dataQuery.in('template_key', activeFilterTemplates);
       }
       
       const offset = (page - 1) * itemsPerPage;
@@ -161,17 +150,6 @@ export default function Gallery({ session, onClose }) {
     loadCollages(1, true, { searchTerm });
   };
 
-  const handleTemplateFilterToggle = (template) => {
-    const newFilterTemplates = filterTemplates.includes(template)
-      ? filterTemplates.filter(t => t !== template)
-      : [...filterTemplates, template];
-    
-    setFilterTemplates(newFilterTemplates);
-    setCurrentPage(1);
-    setHasLoaded(false);
-    loadCollages(1, true, { filterTemplates: newFilterTemplates });
-  };
-
   const handleSortToggle = () => {
     const newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
     setSortOrder(newSortOrder);
@@ -182,38 +160,13 @@ export default function Gallery({ session, onClose }) {
 
   const clearFilters = () => {
     setSearchTerm('');
-    setFilterTemplates([]);
     setSortBy('created_at');
     setSortOrder('desc');
     setCurrentPage(1);
     setHasLoaded(false);
-    loadCollages(1, true, { searchTerm: '', filterTemplates: [], sortBy: 'created_at', sortOrder: 'desc' });
+    loadCollages(1, true, { searchTerm: '', sortBy: 'created_at', sortOrder: 'desc' });
   };
 
-  // Get unique template names for filter dropdown from all collages
-  useEffect(() => {
-    const getUniqueTemplates = async () => {
-      if (!session?.user?.id) return;
-      
-      try {
-        const { data } = await supabase
-          .from('saved_collages')
-          .select('template_key')
-          .eq('user_id', session.user.id);
-        
-        if (data) {
-          const templates = [...new Set(data.map(c => c.template_key))].filter(Boolean);
-          setUniqueTemplates(templates);
-        }
-      } catch (error) {
-        console.error('Error loading template list:', error);
-      }
-    };
-    
-    getUniqueTemplates();
-  }, [session?.user?.id]);
-
-  const [uniqueTemplates, setUniqueTemplates] = useState([]);
   const [editingTitle, setEditingTitle] = useState(null);
   const [newTitle, setNewTitle] = useState('');
   const [selectedCollage, setSelectedCollage] = useState(null);
@@ -450,7 +403,7 @@ export default function Gallery({ session, onClose }) {
           <h2 style={{ color: '#333', fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
         </div>
         
-        {/* Search, Filter, Sort - responsive */}
+        {/* Search and Sort - responsive */}
         <div style={{
           display: 'flex',
           gap: '1rem',
@@ -527,94 +480,6 @@ export default function Gallery({ session, onClose }) {
           </button>
           
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {/* Filters dropdown */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: filterTemplates.length > 0 ? uiColors.fg : uiColors.bg,
-                  color: filterTemplates.length > 0 ? uiColors.bg : uiColors.fg,
-                  border: `1px solid ${uiColors.border}`,
-                  cursor: 'pointer',
-                  fontFamily: 'Space Mono, monospace',
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}
-              >
-                {filterTemplates.length === 0 && 'Filters'}
-                {filterTemplates.length === 1 && filterTemplates[0]}
-                {filterTemplates.length > 1 && `Filters (${filterTemplates.length})`}
-                <span style={{ fontSize: '0.7rem' }}>▼</span>
-              </button>
-              
-              {showFilters && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  right: 0,
-                  marginTop: '0.25rem',
-                  background: uiColors.bg,
-                  border: `1px solid ${uiColors.border}`,
-                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                  minWidth: '200px',
-                  zIndex: 10
-                }}>
-                  {filterTemplates.length > 0 && (
-                    <button
-                      onClick={() => {
-                        setFilterTemplates([]);
-                        setShowFilters(false);
-                        handleTemplateFilterToggle('');
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem',
-                        background: uiColors.bg,
-                        color: uiColors.fg,
-                        border: 'none',
-                        borderBottom: `1px solid ${uiColors.border}`,
-                        cursor: 'pointer',
-                        fontFamily: 'Space Mono, monospace',
-                        fontSize: '0.85rem',
-                        textAlign: 'left'
-                      }}
-                    >
-                      Clear All
-                    </button>
-                  )}
-                  {uniqueTemplates.map(template => (
-                    <button
-                      key={template}
-                      onClick={() => {
-                        handleTemplateFilterToggle(template);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '0.75rem 1rem',
-                        background: filterTemplates.includes(template) ? uiColors.fg : uiColors.bg,
-                        color: filterTemplates.includes(template) ? uiColors.bg : uiColors.fg,
-                        border: 'none',
-                        borderBottom: `1px solid ${uiColors.border}`,
-                        cursor: 'pointer',
-                        fontFamily: 'Space Mono, monospace',
-                        fontSize: '0.85rem',
-                        textAlign: 'left',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <span>{template}</span>
-                      {filterTemplates.includes(template) && <Check size={16} weight="bold" />}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
             {/* Sort button */}
             <button
               onClick={handleSortToggle}
