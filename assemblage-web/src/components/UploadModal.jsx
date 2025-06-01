@@ -3,9 +3,8 @@ import { useDropzone } from 'react-dropzone'
 import { X, Upload, Trash, Check } from 'phosphor-react'
 import { useImageUpload } from '../hooks/useImageUpload.ts'
 import { getSupabase } from '../supabaseClient'
-import { useUiColors } from '../hooks/useUiColors'
 import { calculateSHA1 } from '../utils/fileHash'
-import { getContrastText } from '../lib/colorUtils/contrastText'
+import { useUploadQuota } from '../hooks/useUploadQuota'
 
 export const UploadModal = ({ 
   isOpen, 
@@ -23,10 +22,19 @@ export const UploadModal = ({
   
   const [files, setFiles] = useState([])
   const [uploadResults, setUploadResults] = useState(null)
-  const [selectedCollectionId, setSelectedCollectionId] = useState(collectionId || null)
+  const [selectedCollectionId, setSelectedCollectionId] = useState(collectionId)
   const [userCollections, setUserCollections] = useState([])
   const [loading, setLoading] = useState(false)
-  const uiColors = useUiColors()
+  const [generateMetadata, setGenerateMetadata] = useState(true)
+  const [session, setSession] = useState(null)
+  // Force white background and black text for upload modal
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#333333',
+    complementaryColor: '#333333'
+  }
+  const { checkQuota, archiveOldestImages, MAX_ACTIVE_IMAGES } = useUploadQuota()
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     // Handle rejected files
@@ -61,13 +69,22 @@ export const UploadModal = ({
   // Fetch user collections when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchUserCollections()
+      checkAuth()
       // Update selected collection if it changed from outside
       if (collectionId) {
         setSelectedCollectionId(collectionId)
       }
     }
   }, [isOpen, collectionId])
+  
+  const checkAuth = async () => {
+    const supabase = getSupabase()
+    const { data: { session } } = await supabase.auth.getSession()
+    setSession(session)
+    if (session) {
+      fetchUserCollections()
+    }
+  }
 
   const fetchUserCollections = async () => {
     try {
@@ -83,7 +100,12 @@ export const UploadModal = ({
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setUserCollections(data || [])
+        const collections = data || []
+        setUserCollections(collections)
+        // Auto-select first collection if none selected
+        if (!selectedCollectionId && collections.length > 0) {
+          setSelectedCollectionId(collections[0].id)
+        }
       }
     } catch (err) {
       console.error('Error fetching collections:', err)
@@ -110,8 +132,35 @@ export const UploadModal = ({
     if (files.length === 0) return
 
     try {
+      // Check quota before uploading
+      const quota = await checkQuota()
+      if (quota.isOverQuota) {
+        const shouldArchive = window.confirm(
+          `You have ${quota.activeCount} active images (limit ${MAX_ACTIVE_IMAGES}). \n\n` +
+          `Would you like to automatically archive your ${Math.min(files.length, quota.activeCount)} oldest images to make room?`
+        )
+        
+        if (shouldArchive) {
+          const numToArchive = Math.min(files.length, quota.activeCount)
+          await archiveOldestImages(numToArchive)
+        } else {
+          return // User cancelled
+        }
+      } else if (quota.remainingQuota < files.length) {
+        const proceed = window.confirm(
+          `You can only upload ${quota.remainingQuota} more images before reaching your limit of ${MAX_ACTIVE_IMAGES}. \n\n` +
+          `Continue with uploading the first ${quota.remainingQuota} images?`
+        )
+        
+        if (!proceed) return
+        
+        // Limit files to remaining quota
+        const limitedFiles = files.slice(0, quota.remainingQuota)
+        setFiles(limitedFiles)
+      }
+      
       const filesToUpload = files.map(f => f.file)
-      const { results, errors } = await uploadMultiple(filesToUpload, selectedCollectionId)
+      const { results, errors } = await uploadMultiple(filesToUpload, selectedCollectionId, generateMetadata)
       
       console.log('[UploadModal] Upload results:', { results, errors });
       setUploadResults({ results, errors })
@@ -172,9 +221,9 @@ export const UploadModal = ({
       {/* Modal content */}
       <div className="upload-modal-content" style={{
         position: 'fixed',
-        background: uiColors.bg,
-        border: `1px solid ${getContrastText(uiColors.bg)}`,
-        color: getContrastText(uiColors.bg),
+        background: '#ffffff',
+        border: '1px solid #333333',
+        color: '#333333',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1000,
@@ -206,13 +255,13 @@ export const UploadModal = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1.5rem',
-          borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
+          borderBottom: '1px solid #333333',
           flexShrink: 0
         }}>
           <h2 style={{ 
             margin: 0,
             fontSize: '1.2rem',
-            color: getContrastText(uiColors.bg)
+            color: '#333333'
           }}>
             Upload Images
           </h2>
@@ -225,7 +274,7 @@ export const UploadModal = ({
               padding: '0.5rem'
             }}
           >
-            <X size={20} weight="bold" color={getContrastText(uiColors.bg)} />
+            <X size={20} weight="bold" color="#333333" />
           </button>
         </div>
 
@@ -235,19 +284,78 @@ export const UploadModal = ({
           overflowY: 'auto',
           flex: 1
         }}>
-          {/* Collection selector */}
-          {!selectedCollectionId && (
-            <div style={{ 
-              padding: '1rem',
-              background: uiColors.bg,
-              marginBottom: '1rem',
-              fontSize: '0.9rem',
-              border: `1px solid ${uiColors.border}`
+          {/* Show sign-in prompt if not authenticated */}
+          {!session ? (
+            <div style={{
+              textAlign: 'center',
+              padding: '3rem 0'
             }}>
-              <strong>Choose where to upload your images:</strong>
+              <p style={{ 
+                fontSize: '1.1rem',
+                marginBottom: '2rem',
+                color: '#333333'
+              }}>
+                Please sign in to upload your own images
+              </p>
+              <div style={{ 
+                display: 'flex',
+                gap: '1rem',
+                justifyContent: 'center' 
+              }}>
+                <button
+                  onClick={() => {
+                    handleClose();
+                    // Trigger sign up
+                    setTimeout(() => {
+                      const signInBtn = document.querySelector('.sign-in-btn');
+                      if (signInBtn) {
+                        signInBtn.click();
+                        // Wait for auth modal to load then switch to sign up
+                        setTimeout(() => {
+                          const signUpLink = document.querySelector('[data-supabase-auth-ui] a[href="#auth-sign_up"]');
+                          if (signUpLink) signUpLink.click();
+                        }, 100);
+                      }
+                    }, 100);
+                  }}
+                  style={{
+                    background: '#333333',
+                    border: '1px solid #333333',
+                    color: '#ffffff',
+                    padding: '0.5rem 1.5rem',
+                    cursor: 'pointer',
+                    fontFamily: 'Space Mono, monospace',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Sign Up
+                </button>
+                <button
+                  onClick={() => {
+                    handleClose();
+                    // Trigger sign in
+                    setTimeout(() => {
+                      const signInBtn = document.querySelector('.sign-in-btn');
+                      if (signInBtn) signInBtn.click();
+                    }, 100);
+                  }}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #333333',
+                    color: '#333333',
+                    padding: '0.5rem 1.5rem',
+                    cursor: 'pointer',
+                    fontFamily: 'Space Mono, monospace',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Sign In
+                </button>
+              </div>
             </div>
-          )}
-          
+          ) : (
+            <>
+          {/* Collection selector */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ 
               display: 'block',
@@ -255,7 +363,7 @@ export const UploadModal = ({
               fontSize: '0.9rem',
               fontWeight: 'bold'
             }}>
-              Upload to:
+              Upload to collection:
             </label>
             <select 
               value={selectedCollectionId || ''}
@@ -263,8 +371,9 @@ export const UploadModal = ({
               style={{
                 width: '100%',
                 padding: '0.5rem',
-                border: `1px solid ${uiColors.border}`,
-                background: uiColors.bg,
+                border: '1px solid #333333',
+                background: '#ffffff',
+                color: '#333333',
                 fontFamily: 'Space Mono, monospace',
                 fontSize: '0.9rem'
               }}
@@ -280,9 +389,9 @@ export const UploadModal = ({
               ))}
             </select>
             {userCollections.length === 0 && !loading && (
-              <p style={{fontSize: '0.8rem', color: uiColors.fg, opacity: 0.7, marginTop: '0.5rem'}}>
-                You need to create a collection first before uploading images.
-              </p>
+            <p style={{fontSize: '0.8rem', color: '#333333', opacity: 0.7, marginTop: '0.5rem'}}>
+            You need to create a collection first before uploading images.
+            </p>
             )}
           </div>
           
@@ -291,25 +400,28 @@ export const UploadModal = ({
             <div
               {...getRootProps()}
               style={{
-                border: `2px dashed ${isDragActive ? uiColors.fg : '#ccc'}`,
+                border: `2px dashed ${isDragActive ? '#333333' : '#ccc'}`,
                 padding: '3rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDragActive ? uiColors.bg : uiColors.bg,
+                background: '#ffffff',
                 transition: 'all 0.2s ease',
                 marginBottom: '1rem'
               }}
             >
               <input {...getInputProps()} />
               {isDragActive ? (
-                <p style={{ margin: 0, color: uiColors.fg }}>Drop the images here...</p>
+                <p style={{ margin: 0, color: '#333333' }}>Drop the images here...</p>
               ) : (
                 <div>
-                  <p style={{ marginBottom: '0.5rem', color: uiColors.fg }}>
+                  <p style={{ marginBottom: '0.5rem', color: '#333333' }}>
                     Drag & drop images here, or click to select
                   </p>
                   <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.6 }}>
                     JPEG and PNG only, max 10MB per file
+                  </p>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.6 }}>
+                    Maximum {MAX_ACTIVE_IMAGES} active images per account
                   </p>
                 </div>
               )}
@@ -323,18 +435,51 @@ export const UploadModal = ({
                 padding: '1rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDragActive ? uiColors.bg : uiColors.bg,
+                background: '#ffffff',
                 transition: 'all 0.2s ease',
                 marginBottom: '1rem',
                 fontSize: '0.85rem'
               }}
             >
               <input {...getInputProps()} />
-              <p style={{ margin: 0, color: uiColors.fg }}>
+              <p style={{ margin: 0, color: '#333333' }}>
                 + Add more images
               </p>
             </div>
           )}
+
+          {/* Metadata generation toggle */}
+          <div style={{ 
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem'
+          }}>
+            <input 
+              type="checkbox" 
+              id="generate-metadata"
+              checked={generateMetadata}
+              onChange={(e) => setGenerateMetadata(e.target.checked)}
+              style={{
+                cursor: 'pointer'
+              }}
+            />
+            <label 
+              htmlFor="generate-metadata" 
+              style={{ 
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              Generate AI metadata
+            </label>
+            <span style={{ 
+              fontSize: '0.8rem', 
+              opacity: 0.7 
+            }}>
+              (Unchecked images won't have descriptions)
+            </span>
+          </div>
 
           {/* File previews */}
           {files.length > 0 && (
@@ -342,7 +487,7 @@ export const UploadModal = ({
               <h3 style={{ 
                 margin: '0 0 1rem 0',
                 fontSize: '0.9rem',
-                color: uiColors.fg
+                color: '#333333'
               }}>
                 Selected Files ({files.length})
               </h3>
@@ -355,8 +500,8 @@ export const UploadModal = ({
               }} className="file-grid">
                 {files.map(({ id, file, preview }) => (
                   <div key={id} style={{ 
-                    border: `1px solid ${uiColors.border}`,
-                    background: uiColors.bg,
+                    border: '1px solid #333333',
+                    background: '#ffffff',
                     position: 'relative',
                     width: '100px',
                     flexShrink: 0
@@ -386,8 +531,8 @@ export const UploadModal = ({
                         position: 'absolute',
                         top: '4px',
                         right: '4px',
-                        background: uiColors.fg,
-                        color: uiColors.bg,
+                        background: '#333333',
+                        color: '#ffffff',
                         border: 'none',
                         width: '20px',
                         height: '20px',
@@ -405,7 +550,7 @@ export const UploadModal = ({
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
-                      borderTop: `1px solid ${uiColors.border}`
+                      borderTop: '1px solid #333333'
                     }}>
                       {file.name}
                     </div>
@@ -430,19 +575,29 @@ export const UploadModal = ({
               <div style={{
                 width: '100%',
                 height: '4px',
-                background: uiColors.bg,
+                background: '#f0f0f0',
                 overflow: 'hidden',
-                border: `1px solid ${uiColors.border}`
+                border: '1px solid #333333'
               }}>
                 <div
                   style={{
                     width: `${progress}%`,
                     height: '100%',
-                    background: uiColors.fg,
+                    background: '#333333',
                     transition: 'width 0.3s ease'
                   }}
                 />
               </div>
+              {window.innerWidth <= 640 && (
+                <p style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.8rem',
+                  opacity: 0.8,
+                  textAlign: 'center'
+                }}>
+                  Please keep this tab open while uploading
+                </p>
+              )}
             </div>
           )}
 
@@ -512,6 +667,8 @@ export const UploadModal = ({
               )}
             </div>
           )}
+            </>
+          )}
         </div>
 
         {/* Footer - Sticky */}
@@ -520,16 +677,16 @@ export const UploadModal = ({
           justifyContent: 'flex-end',
           gap: '0.5rem',
           padding: '1.5rem',
-          borderTop: `1px solid ${getContrastText(uiColors.bg)}`,
-          background: uiColors.bg,
+          borderTop: '1px solid #333333',
+          background: '#ffffff',
           flexShrink: 0
         }}>
           <button
             onClick={handleClose}
             style={{
-              background: uiColors.bg,
-              border: `1px solid ${getContrastText(uiColors.bg)}`,
-              color: getContrastText(uiColors.bg),
+              background: '#ffffff',
+              border: '1px solid #333333',
+              color: '#333333',
               padding: '0.5rem 1rem',
               cursor: 'pointer',
               fontFamily: 'Space Mono, monospace',
@@ -537,12 +694,12 @@ export const UploadModal = ({
               transition: 'all 0.3s ease'
             }}
             onMouseEnter={e => {
-              e.target.style.background = getContrastText(uiColors.bg);
-              e.target.style.color = uiColors.bg;
+              e.target.style.background = '#333333';
+              e.target.style.color = '#ffffff';
             }}
             onMouseLeave={e => {
-              e.target.style.background = uiColors.bg;
-              e.target.style.color = getContrastText(uiColors.bg);
+              e.target.style.background = '#ffffff';
+              e.target.style.color = '#333333';
             }}
           >
             Cancel
@@ -551,9 +708,9 @@ export const UploadModal = ({
             onClick={handleUpload}
             disabled={!selectedCollectionId || files.length === 0 || uploading}
             style={{
-              background: getContrastText(uiColors.bg),
-              border: `1px solid ${getContrastText(uiColors.bg)}`,
-              color: uiColors.bg,
+              background: '#333333',
+              border: '1px solid #333333',
+              color: '#ffffff',
               padding: '0.5rem 1rem',
               cursor: !selectedCollectionId || files.length === 0 || uploading ? 'not-allowed' : 'pointer',
               fontFamily: 'Space Mono, monospace',
@@ -563,14 +720,14 @@ export const UploadModal = ({
             }}
             onMouseEnter={e => {
               if (!e.target.disabled) {
-                e.target.style.background = uiColors.bg;
-                e.target.style.color = getContrastText(uiColors.bg);
+                e.target.style.background = '#ffffff';
+                e.target.style.color = '#333333';
               }
             }}
             onMouseLeave={e => {
               if (!e.target.disabled) {
-                e.target.style.background = getContrastText(uiColors.bg);
-                e.target.style.color = uiColors.bg;
+                e.target.style.background = '#333333';
+                e.target.style.color = '#ffffff';
               }
             }}
           >

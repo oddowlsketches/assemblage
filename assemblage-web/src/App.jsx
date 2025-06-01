@@ -29,7 +29,6 @@ function MainApp() {
   const [showGallery, setShowGallery] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [saveState, setSaveState] = useState('idle'); // 'idle', 'saving', 'saved', 'error'
-  const [isFirstSave, setIsFirstSave] = useState(false);
   const [feedbackTextColor, setFeedbackTextColor] = useState('#333333');
   const [bgColor, setBgColor] = useState('#f5f5f5');
   
@@ -40,6 +39,52 @@ function MainApp() {
   const [showDrawer, setShowDrawer] = useState(false);
 
   // Update feedback text color based on background using WCAG AA compliant contrast
+  // Generate a placeholder collage for first-run experience
+  const generateFirstCollage = async () => {
+    if (!serviceRef.current || !serviceRef.current.canvas) return;
+    
+    const ctx = serviceRef.current.ctx;
+    const canvas = serviceRef.current.canvas;
+    
+    // Generate a colorful geometric pattern
+    const colors = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C'];
+    const bgColor = colors[Math.floor(Math.random() * colors.length)];
+    
+    // Clear and fill background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Update UI colors
+    serviceRef.current.updateUIColors(bgColor);
+    
+    // Draw some geometric shapes as placeholders
+    ctx.globalCompositeOperation = 'multiply';
+    
+    for (let i = 0; i < 8; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const size = 100 + Math.random() * 200;
+      const shapeColor = colors[Math.floor(Math.random() * colors.length)];
+      
+      ctx.fillStyle = shapeColor;
+      ctx.globalAlpha = 0.7;
+      
+      // Random shape
+      if (Math.random() > 0.5) {
+        // Circle
+        ctx.beginPath();
+        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Rectangle
+        ctx.fillRect(x - size/2, y - size/2, size, size);
+      }
+    }
+    
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
   const updateFeedbackTextColor = () => {
     // Get the background color from CSS variables which change with collages
     const rootStyle = getComputedStyle(document.documentElement);
@@ -119,6 +164,13 @@ function MainApp() {
       if (localStorage.getItem('openCollectionsDrawer') === 'true') {
         setShowDrawer(true);
         localStorage.removeItem('openCollectionsDrawer');
+      }
+      
+      // Check if first run and generate placeholder collage if needed
+      if (serviceRef.current && serviceRef.current.imageMetadata.length === 0) {
+        console.log('[MainApp] First run detected, generating placeholder collage');
+        // Generate a simple pattern-based collage without images
+        await generateFirstCollage();
       }
     };
     
@@ -425,17 +477,19 @@ function MainApp() {
 
   // Update activeCollectionName when activeCollection changes
   useEffect(() => {
-    if (activeCollection === 'cms') {
-      // For CMS/default, the name should already be set from loadCollections
-      // Don't override it here unless we need to
-      if (!activeCollectionName || activeCollectionName === 'Default Library') {
-        // Try to find the default collection name from image_collections
-        const defaultCollection = userCollectionsForSelect.find(
-          c => c.id === '00000000-0000-0000-0000-000000000001'
-        );
-        if (defaultCollection) {
-          setActiveCollectionName(defaultCollection.name);
-        }
+    // Always update the name based on the active collection
+    const defaultCollectionId = '00000000-0000-0000-0000-000000000001';
+    
+    if (activeCollection === 'cms' || activeCollection === defaultCollectionId) {
+      // Find the default collection in the list
+      const defaultCollection = userCollectionsForSelect.find(
+        c => c.id === defaultCollectionId
+      );
+      if (defaultCollection) {
+        setActiveCollectionName(defaultCollection.name);
+      } else {
+        // Fallback if not found
+        setActiveCollectionName('Default Library');
       }
     } else {
       // For user collections, find the collection in the list
@@ -443,7 +497,6 @@ function MainApp() {
       if (foundCollection) {
         setActiveCollectionName(foundCollection.name);
       }
-      // Don't update the name if we can't find the collection - keep the existing name
     }
   }, [activeCollection, userCollectionsForSelect]);
 
@@ -480,15 +533,7 @@ function MainApp() {
     // Small delay to ensure UI updates
     await new Promise(resolve => setTimeout(resolve, 50));
     
-    // Check if this is the user's first save
     const supabase = getSupabase();
-    const { count } = await supabase
-      .from('saved_collages')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', session.user.id);
-    
-    const isFirstSaveAttempt = count === 0;
-    setIsFirstSave(isFirstSaveAttempt);
     
     try {
       // Get the canvas data
@@ -610,40 +655,45 @@ function MainApp() {
     
     if (newSession) {
       setShowAuth(false);
-      
-      // Check if user has any collections, if not create a default one
-      const supabase = getSupabase();
-      const { data: collections, error: fetchError } = await supabase
-        .from('user_collections')
-        .select('id')
-        .eq('user_id', newSession.user.id)
-        .limit(1);
-        
-      if (!fetchError && (!collections || collections.length === 0)) {
-        console.log('[Auth] Creating default collection for new user');
-        // Create in user_collections only
-        const { data: newUserCollection, error: createUserCollectionError } = await supabase
-          .from('user_collections')
-          .insert({
-            user_id: newSession.user.id,
-            name: 'My Images' // Default name
-          })
-          .select()
-          .single();
-          
-        if (createUserCollectionError) {
-          console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
-        } else if (newUserCollection) {
-          console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
-
-          // If we're currently on cms/default, switch to the new collection
-          if (activeCollection === 'cms') {
-            setActiveCollection(newUserCollection.id);
-            await loadImagesForCollection(newUserCollection.id);
-          }
-        }
+      // Don't show gallery on sign in - stay on main app
+      // Clear any URL params that might trigger navigation
+      if (window.location.hash || window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-    }
+    
+    // Check if user has any collections, if not create a default one
+    const supabase = getSupabase();
+    const { data: collections, error: fetchError } = await supabase
+    .from('user_collections')
+    .select('id')
+    .eq('user_id', newSession.user.id)
+    .limit(1);
+      
+    if (!fetchError && (!collections || collections.length === 0)) {
+    console.log('[Auth] Creating default collection for new user');
+    // Create in user_collections only
+    const { data: newUserCollection, error: createUserCollectionError } = await supabase
+    .from('user_collections')
+    .insert({
+    user_id: newSession.user.id,
+      name: 'My Images' // Default name
+    })
+    .select()
+    .single();
+      
+    if (createUserCollectionError) {
+      console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
+    } else if (newUserCollection) {
+            console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
+
+    // If we're currently on cms/default, switch to the new collection
+    if (activeCollection === 'cms') {
+    setActiveCollection(newUserCollection.id);
+      await loadImagesForCollection(newUserCollection.id);
+      }
+      }
+      }
+      }
   };
 
   return (
@@ -657,15 +707,49 @@ function MainApp() {
           <div className="action-buttons sm:flex-row flex-wrap">
 
             
-            <button id="saveButton" onClick={handleSave} className="save-btn" disabled={saveState === 'saving'}>
-              {session ? (
-                saveState === 'saving' ? (
-                  <div className="save-spinner"></div>
-                ) : (
-                  <BookmarkSimple size={16} weight="regular" />
-                )
+            <button 
+              id="saveButton" 
+              onClick={session ? handleSave : (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Show toast message when not authenticated
+                const existingToast = document.querySelector('.toast-message');
+                if (existingToast) existingToast.remove();
+                
+                const toast = document.createElement('div');
+                toast.className = 'toast-message';
+                toast.textContent = 'Sign in to save collages';
+                toast.style.cssText = `
+                  position: fixed;
+                  top: 20px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  background: white;
+                  color: #333;
+                  padding: 12px 24px;
+                  border-radius: 4px;
+                  border: 1px solid #333;
+                  font-family: 'Space Mono', monospace;
+                  font-size: 14px;
+                  z-index: 10000;
+                  animation: slideDown 0.3s ease-out;
+                  pointer-events: none;
+                  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+              }} 
+              className="save-btn" 
+              disabled={!session || saveState === 'saving'}
+              style={{
+                opacity: !session ? 0.5 : 1,
+                cursor: !session ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {saveState === 'saving' ? (
+                <div className="save-spinner"></div>
               ) : (
-                'Sign In'
+                <BookmarkSimple size={16} weight="regular" />
               )}
             </button>
             
@@ -684,7 +768,10 @@ function MainApp() {
             
             {/* Prompt placeholder - removed gear icon */}
             
-            {/* User menu - no gear icon */}
+            {/* Empty placeholder for spacing */}
+            <div style={{ flex: 1 }}></div>
+            
+            {/* User menu/Sign in - aligned to far right */}
             {authLoading ? (
               <div className="auth-loading">Loading...</div>
             ) : session ? (
@@ -714,9 +801,9 @@ function MainApp() {
                 </div>
               </div>
             ) : (
-              <div className="auth-section">
-                <span className="auth-helper-text">Sign in to save collages</span>
-              </div>
+              <button onClick={() => setShowAuth(true)} className="sign-in-btn">
+                Sign In
+              </button>
             )}
           </div>
             
@@ -740,8 +827,12 @@ function MainApp() {
         </button>
         <button onClick={(e) => {
           console.log('[Mobile] Save button clicked');
-          handleSave();
-        }} className="mobile-save-btn" title="Save" disabled={saveState === 'saving'}>
+          if (session) {
+            handleSave();
+          } else {
+            setShowAuth(true);
+          }
+        }} className="mobile-save-btn" title="Save" disabled={session && saveState === 'saving'}>
           {session ? (
             saveState === 'saving' ? (
               <div className="save-spinner mobile-spinner"></div>
@@ -804,12 +895,16 @@ function MainApp() {
           <button
             className="mobile-menu-item"
             onClick={() => {
-              setShowDrawer(true);
+              if (session) {
+                setShowDrawer(true);
+              } else {
+                setShowAuth(true);
+              }
               document.querySelector('.mobile-menu-overlay').classList.remove('show');
               document.querySelector('.mobile-menu-panel').classList.remove('show');
             }}
           >
-            My Collections
+          My Images
           </button>
           
           {session && (
@@ -868,8 +963,8 @@ function MainApp() {
                 document.querySelector('.mobile-menu-panel').classList.remove('show');
               }}
               style={{
-                background: 'var(--text-color, #333)',
-                color: 'var(--background-color, white)',
+                background: '#333',
+                color: 'white',
                 textAlign: 'center',
                 justifyContent: 'center'
               }}
@@ -900,17 +995,15 @@ function MainApp() {
                     <Check size={48} weight="bold" style={{ color: 'inherit' }} />
                   </div>
                   <p>Collage saved!</p>
-                  {isFirstSave && (
-                    <button 
-                      onClick={() => {
-                        setShowGallery(true);
-                        setSaveState('idle');
-                      }}
-                      className="save-overlay-button"
-                    >
-                      View in My Collages
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => {
+                      setShowGallery(true);
+                      setSaveState('idle');
+                    }}
+                    className="save-overlay-button"
+                  >
+                    View in My Collages
+                  </button>
                   <button 
                     onClick={() => setSaveState('idle')}
                     className="save-overlay-dismiss"
@@ -945,24 +1038,39 @@ function MainApp() {
             transform: 'translate(-50%, -50%)',
             textAlign: 'center',
             padding: '2rem',
-            background: 'var(--background-color, #f5f5f5)',
-            border: '1px solid var(--button-border-color, #333)',
+            background: '#ffffff',
+            border: '1px solid #333333',
             fontFamily: 'Space Mono, monospace',
             maxWidth: '400px',
-            color: 'var(--text-color, #333)'
+            color: '#333333',
+            zIndex: 10,
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
           }}>
             <p style={{ marginBottom: '1rem' }}>No images available in this collection.</p>
             {activeCollection !== 'cms' && (
               <button 
-                onClick={() => setShowUpload(true)}
+                onClick={() => {
+                  if (session) {
+                    setShowUpload(true);
+                  } else {
+                    setShowAuth(true);
+                  }
+                }}
                 style={{
-                  background: 'var(--text-color, #333)',
-                  border: '1px solid var(--text-color, #333)',
-                  color: 'var(--background-color, white)',
+                  background: '#333333',
+                  border: '1px solid #333333',
+                  color: '#ffffff',
                   padding: '0.5rem 1rem',
                   cursor: 'pointer',
                   fontFamily: 'Space Mono, monospace',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  transition: 'background 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.target.style.background = '#555555';
+                }}
+                onMouseLeave={e => {
+                  e.target.style.background = '#333333';
                 }}
               >
                 Upload Images
@@ -1003,14 +1111,23 @@ function MainApp() {
           
           // If we uploaded to a collection, refresh it after a short delay
           // to ensure database has propagated the changes
-          if (activeCollection !== 'cms' && results && results.length > 0) {
-            console.log(`[MainApp] Upload complete, refreshing collection ${activeCollection} with ${results.length} new images`);
-            // Increase delay to ensure database has fully propagated
-            setTimeout(async () => {
-              // Force a complete reinitialize to ensure we get all images
-              await serviceRef.current.reinitialize(activeCollection);
-              console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
-            }, 2000); // Increased from 1500ms to 2000ms
+          if (results && results.length > 0) {
+            const uploadedCollectionId = results[0].user_collection_id;
+            console.log(`[MainApp] Upload complete to collection ${uploadedCollectionId} with ${results.length} new images`);
+            
+            // If we uploaded to a different collection than the active one, switch to it
+            if (uploadedCollectionId && uploadedCollectionId !== activeCollection) {
+              console.log(`[MainApp] Switching to uploaded collection ${uploadedCollectionId}`);
+              setActiveCollection(uploadedCollectionId);
+              await loadImagesForCollection(uploadedCollectionId);
+            } else if (activeCollection !== 'cms') {
+              // Refresh current collection
+              setTimeout(async () => {
+                // Force a complete reinitialize to ensure we get all images
+                await serviceRef.current.reinitialize(activeCollection);
+                console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
+              }, 2000);
+            }
           }
         }}
       />

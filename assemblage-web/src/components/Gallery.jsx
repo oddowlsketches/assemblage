@@ -20,7 +20,13 @@ export default function Gallery({ session, onClose }) {
   const supabase = getSupabase();
   const observer = useRef();
   const loadMoreRef = useRef();
-  const uiColors = useUiColors();
+  // Force white background colors for gallery
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#333333',
+    complementaryColor: '#333333'
+  };
 
   useEffect(() => {
     // Only load once when the component mounts with a valid session
@@ -407,17 +413,17 @@ export default function Gallery({ session, onClose }) {
   }
 
   return (
-    <div className="gallery-fullscreen" style={{ background: uiColors.bg }}>
+    <div className="gallery-fullscreen" style={{ background: 'white' }}>
       <header className="gallery-header" style={{ 
-        background: uiColors.bg,
-        borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
+        background: 'white',
+        borderBottom: `1px solid #333`,
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '1.5rem'
       }}>
         <h1 style={{ 
-          color: getContrastText(uiColors.bg),
+          color: '#333',
           fontSize: '2rem',
           fontFamily: 'Playfair Display, serif',
           fontStyle: 'italic',
@@ -426,7 +432,7 @@ export default function Gallery({ session, onClose }) {
         <button 
           onClick={onClose} 
           style={{ 
-            color: getContrastText(uiColors.bg),
+            color: '#333',
             background: 'transparent',
             border: 'none',
             cursor: 'pointer',
@@ -437,10 +443,10 @@ export default function Gallery({ session, onClose }) {
         </button>
       </header>
       
-      <div className="gallery-content" style={{ background: uiColors.bg }}>
+      <div className="gallery-content" style={{ background: 'white' }}>
         {/* Page title */}
         <div className="gallery-page-title" style={{ padding: '2rem 2rem 0 2rem' }}>
-          <h2 style={{ color: getContrastText(uiColors.bg), fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
+          <h2 style={{ color: '#333', fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
         </div>
         
         {/* Search, Filter, Sort - single line */}
@@ -734,7 +740,13 @@ function CollageDetail({ collage, onClose, onDownload, onShare, onDelete, onNavi
   const [loading, setLoading] = useState(true);
   const [fullImageUrl, setFullImageUrl] = useState(null);
   const supabase = getSupabase();
-  const uiColors = useUiColors();
+  // Force white background colors for gallery detail
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#333333',
+    complementaryColor: '#333333'
+  };
   
   useEffect(() => {
     // Fetch the full resolution image

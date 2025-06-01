@@ -146,7 +146,7 @@ export const useImageUpload = () => {
     })
   }, [])
 
-  const uploadToSupabase = useCallback(async (file: File, collectionId: CollectionId) => {
+  const uploadToSupabase = useCallback(async (file: File, collectionId: CollectionId, generateMetadata: boolean = true) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase client not initialized');
     
@@ -217,22 +217,27 @@ export const useImageUpload = () => {
     if (collectionId === 'cms') {
       throw new Error('Cannot upload images to Default Library');
     }
-
+    
+    // Generate a unique ID for the image
+    const imageId = crypto.randomUUID();
+    
+    // Insert image record with URLs
     const { data: imageData, error: dbError } = await supabase
       .from('images')
       .insert({
-        id: crypto.randomUUID(),
+        id: imageId,
         src: publicUrl,
         thumb_src: thumbUrl,
-        collection_id: null, // Must be explicitly NULL for uploads
-        user_collection_id: collectionId, // Use user_collection_id for uploads
+        collection_id: null,
+        user_collection_id: collectionId,
         user_id: user.id,
         provider: 'upload',
-        remote_id: null, // Explicitly NULL for local uploads
+        remote_id: null,
         file_hash: fileHash,
-        metadata_status: 'pending_llm',
+        metadata_status: generateMetadata ? 'pending_llm' : 'skipped',
         description: '',
-        title: file.name
+        title: file.name,
+        archived: false
       })
       .select('id, src, thumb_src, user_collection_id, user_id, metadata_status, description, title, provider')
       .single()
@@ -243,33 +248,35 @@ export const useImageUpload = () => {
       throw new Error(dbError.message || 'Failed to save image to database')
     }
 
-    // Trigger metadata generation asynchronously (don't wait for it)
-    fetch('/.netlify/functions/process-user-image-metadata', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageId: imageData.id })
-    }).then(response => {
-      if (!response.ok) {
-        response.text().then(errorText => {
-          console.error('[uploadToSupabase] Metadata generation failed:', errorText);
-        });
-      } else {
-        console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
-      }
-    }).catch(metadataError => {
-      console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
-    });
+    // Trigger metadata generation only if enabled
+    if (generateMetadata) {
+      fetch('/.netlify/functions/process-user-image-metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageId: imageData.id })
+      }).then(response => {
+        if (!response.ok) {
+          response.text().then(errorText => {
+            console.error('[uploadToSupabase] Metadata generation failed:', errorText);
+          });
+        } else {
+          console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
+        }
+      }).catch(metadataError => {
+        console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
+      });
+    }
 
     return imageData
   }, [generateThumbnail, calculateFileHash])
 
-  const uploadImage = useCallback(async (file: File, collectionId: CollectionId) => {
+  const uploadImage = useCallback(async (file: File, collectionId: CollectionId, generateMetadata: boolean = true) => {
     try {
       validateFile(file)
       await validateDimensions(file)
 
       const processedFile = await compressImage(file)
-      const imageData = await uploadToSupabase(processedFile, collectionId)
+      const imageData = await uploadToSupabase(processedFile, collectionId, generateMetadata)
       
       return imageData
     } catch (err: any) {
@@ -277,7 +284,7 @@ export const useImageUpload = () => {
     }
   }, [validateFile, validateDimensions, compressImage, uploadToSupabase])
 
-  const uploadMultiple = useCallback(async (files: File[], collectionId: CollectionId) => {
+  const uploadMultiple = useCallback(async (files: File[], collectionId: CollectionId, generateMetadata: boolean = true) => {
     const results = []
     const errors = []
     const totalFiles = files.length
@@ -295,7 +302,7 @@ export const useImageUpload = () => {
         setProgress(fileProgress)
         
         console.log(`[uploadMultiple] Uploading file ${i + 1}/${totalFiles}: ${files[i].name}`);
-        const result = await uploadImage(files[i], collectionId)
+        const result = await uploadImage(files[i], collectionId, generateMetadata)
         console.log(`[uploadMultiple] Successfully uploaded: ${files[i].name}`, result);
         results.push(result)
       } catch (err: any) {

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { X, Plus, ImageSquare, FolderSimple } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
-import { useUiColors } from '../hooks/useUiColors'
 import { getContrastText } from '../lib/colorUtils/contrastText'
 
 export const CollectionDrawer = ({ 
@@ -19,15 +18,33 @@ export const CollectionDrawer = ({
   const [newCollectionName, setNewCollectionName] = useState('')
   const [error, setError] = useState(null)
   const [showNewForm, setShowNewForm] = useState(false)
+  const [session, setSession] = useState(null)
   const navigate = useNavigate()
-  const uiColors = useUiColors()
+  // Force white background for collection drawer
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#333333',
+    complementaryColor: '#333333'
+  }
 
-  // Fetch user collections
+  // Check session and fetch collections
   useEffect(() => {
     if (isOpen) {
-      fetchCollections()
+      checkSession()
     }
   }, [isOpen])
+  
+  const checkSession = async () => {
+    const supabase = getSupabase()
+    const { data: { user } } = await supabase.auth.getUser()
+    setSession(user)
+    if (user) {
+      fetchCollections()
+    } else {
+      setLoading(false)
+    }
+  }
 
   const fetchCollections = async () => {
     try {
@@ -192,54 +209,109 @@ export const CollectionDrawer = ({
             fontFamily: 'Space Mono, monospace',
             color: getContrastText(uiColors.bg)
           }}>
-            My Collections
+            My Images
           </h2>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            {onUploadImages && (
+          {session && (
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {onUploadImages && (
+                <button
+                  onClick={onUploadImages}
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem',
+                    padding: '0.5rem 1rem',
+                    background: 'transparent',
+                    color: getContrastText(uiColors.bg),
+                    border: `1px solid ${getContrastText(uiColors.bg)}`,
+                    cursor: 'pointer',
+                    fontFamily: 'Space Mono, monospace',
+                    fontSize: '0.9rem'
+                  }}
+                  className="upload-images-btn"
+                >
+                  <ImageSquare size={16} weight="regular" />
+                  <span className="desktop-only">Upload</span>
+                </button>
+              )}
               <button
-                onClick={onUploadImages}
+                onClick={() => setShowNewForm(true)}
                 style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
                   gap: '0.5rem',
                   padding: '0.5rem 1rem',
-                  background: 'transparent',
-                  color: getContrastText(uiColors.bg),
+                  background: getContrastText(uiColors.bg),
+                  color: uiColors.bg,
                   border: `1px solid ${getContrastText(uiColors.bg)}`,
                   cursor: 'pointer',
                   fontFamily: 'Space Mono, monospace',
                   fontSize: '0.9rem'
                 }}
-                className="upload-images-btn"
+                className="new-collection-btn"
               >
-                <ImageSquare size={16} weight="regular" />
-                <span className="desktop-only">Upload</span>
+                <Plus size={16} weight="regular" />
+                <span className="desktop-only">New</span>
               </button>
-            )}
-            <button
-              onClick={() => setShowNewForm(true)}
-              style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem',
-                padding: '0.5rem 1rem',
-                background: getContrastText(uiColors.bg),
-                color: uiColors.bg,
-                border: `1px solid ${getContrastText(uiColors.bg)}`,
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace',
-                fontSize: '0.9rem'
-              }}
-              className="new-collection-btn"
-            >
-              <Plus size={16} weight="regular" />
-              <span className="desktop-only">New</span>
-            </button>
-          </div>
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="gallery-loading">Loading collections...</div>
+        ) : !session ? (
+          <div className="gallery-empty" style={{ 
+            textAlign: 'center', 
+            padding: '4rem 2rem',
+            color: uiColors.fg 
+          }}>
+            <p style={{ marginBottom: '2rem', fontSize: '1.1rem' }}>Please sign in to upload your own images</p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button
+                onClick={() => {
+                  onClose();
+                  // Trigger auth modal in main app
+                  const authButton = document.querySelector('.sign-in-btn');
+                  if (authButton) authButton.click();
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: uiColors.fg,
+                  color: uiColors.bg,
+                  border: `1px solid ${uiColors.fg}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                onClick={() => {
+                  onClose();
+                  // Trigger auth modal in create account mode
+                  const authButton = document.querySelector('.sign-in-btn');
+                  if (authButton) authButton.click();
+                  // Small delay to ensure modal opens first
+                  setTimeout(() => {
+                    const createLink = document.querySelector('[data-supabase-auth-ui-create-account]');
+                    if (createLink) createLink.click();
+                  }, 100);
+                }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  background: 'transparent',
+                  color: uiColors.fg,
+                  border: `1px solid ${uiColors.fg}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  fontSize: '0.9rem'
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+          </div>
         ) : error ? (
           <div className="gallery-empty">
             <p>{error}</p>

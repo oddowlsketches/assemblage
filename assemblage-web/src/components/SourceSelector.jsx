@@ -16,9 +16,20 @@ export const SourceSelector = ({
 }) => {
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [imageActionsOpen, setImageActionsOpen] = useState(false)
+  const [session, setSession] = useState(null)
   const libraryRef = useRef(null)
   const imageActionsRef = useRef(null)
   const uiColors = useUiColors()
+  
+  // Check session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const supabase = getSupabase()
+      const { data: { user } } = await supabase.auth.getUser()
+      setSession(user)
+    }
+    checkSession()
+  }, [])
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -57,9 +68,9 @@ export const SourceSelector = ({
             justifyContent: 'space-between',
             paddingLeft: '1rem',
             paddingRight: '0.75rem',
-            backgroundColor: uiColors.bg,
-            color: getContrastText(uiColors.bg),
-            border: `1px solid ${getContrastText(uiColors.bg)}`,
+            backgroundColor: 'white',
+            color: '#333',
+            border: '1px solid #333',
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.9rem',
@@ -78,10 +89,10 @@ export const SourceSelector = ({
         {libraryOpen && (
           <div className="dropdown-content show" style={{ 
             minWidth: '12rem',
-            backgroundColor: uiColors.bg,
-            color: getContrastText(uiColors.bg)
+            backgroundColor: 'white',
+            color: '#333'
           }}>
-            <div className="dropdown-label" style={{ color: getContrastText(uiColors.bg) }}>SELECT COLLECTION</div>
+            <div className="dropdown-label" style={{ color: '#666' }}>IMAGE SOURCE</div>
             
             {/* User Collections */}
             {userCollections && userCollections.length > 0 && (
@@ -107,14 +118,29 @@ export const SourceSelector = ({
                       {needsDivider && (
                         <div className="dropdown-divider" style={{
                           height: '1px',
-                          background: uiColors.border,
+                          background: '#eee',
                           margin: '0.25rem 0',
-                          opacity: 0.2
+                          opacity: 1
                         }} />
                       )}
                     </React.Fragment>
                   );
                 })}
+                
+                {/* Educational text for signed-out users */}
+                {!session && userCollections.length === 1 && (
+                  <div style={{
+                    padding: '0.75rem 1rem',
+                    fontSize: '0.8rem',
+                    color: '#666',
+                    opacity: 0.9,
+                    fontStyle: 'italic',
+                    borderTop: '1px solid #eee',
+                    background: '#f9f9f9'
+                  }}>
+                    Sign in to upload your own images
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -131,9 +157,9 @@ export const SourceSelector = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.25rem',
-            backgroundColor: uiColors.bg,
-            color: getContrastText(uiColors.bg),
-            border: `1px solid ${getContrastText(uiColors.bg)}`,
+            backgroundColor: 'white',
+            color: '#333',
+            border: '1px solid #333',
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.9rem',
@@ -147,24 +173,36 @@ export const SourceSelector = ({
         {imageActionsOpen && (
           <div className="dropdown-content show" style={{ 
             minWidth: '12rem',
-            backgroundColor: uiColors.bg,
-            color: getContrastText(uiColors.bg)
+            backgroundColor: 'white',
+            color: '#333'
           }}>
             <button
               onClick={() => {
                 setImageActionsOpen(false)
-                onManageCollections()
+                if (session) {
+                  onManageCollections()
+                } else {
+                  // Trigger auth modal
+                  const authButton = document.querySelector('.sign-in-btn');
+                  if (authButton) authButton.click();
+                }
               }}
               className="dropdown-item"
               style={{ whiteSpace: 'nowrap' }}
             >
-              My Collections
+              My Images
             </button>
             
             <button
               onClick={() => {
                 setImageActionsOpen(false)
-                onOpenGallery()
+                if (session) {
+                  onOpenGallery()
+                } else {
+                  // Trigger auth modal
+                  const authButton = document.querySelector('.sign-in-btn');
+                  if (authButton) authButton.click();
+                }
               }}
               className="dropdown-item"
               style={{ whiteSpace: 'nowrap' }}
@@ -174,15 +212,21 @@ export const SourceSelector = ({
             
             <div className="dropdown-divider" style={{
               height: '1px',
-              background: uiColors.border,
+              background: '#eee',
               margin: '0.25rem 0',
-              opacity: 0.2
+              opacity: 1
             }} />
             
             <button
               onClick={() => {
                 setImageActionsOpen(false)
-                onUploadImages()
+                if (session) {
+                  onUploadImages()
+                } else {
+                  // Trigger auth modal
+                  const authButton = document.querySelector('.sign-in-btn');
+                  if (authButton) authButton.click();
+                }
               }}
               className="dropdown-item"
               style={{ whiteSpace: 'nowrap' }}

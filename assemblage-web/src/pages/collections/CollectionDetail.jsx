@@ -12,7 +12,13 @@ export default function CollectionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const supabase = getSupabase();
-  const uiColors = useUiColors();
+  // Force white background colors for collection detail page
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#333333',
+    complementaryColor: '#333333'
+  };
   
   const [collection, setCollection] = useState(null);
   const [images, setImages] = useState([]);

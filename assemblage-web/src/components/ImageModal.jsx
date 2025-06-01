@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
 import { X, Tag, FileText, Calendar, CaretLeft, CaretRight } from 'phosphor-react';
-import { useUiColors } from '../hooks/useUiColors';
 import { getSupabase } from '../supabaseClient';
 
 export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNavigate }) => {
-  const uiColors = useUiColors();
+  // Force white background and black text for image modal
+  const uiColors = {
+    bg: '#ffffff',
+    fg: '#333333',
+    border: '#cccccc',
+    complementaryColor: '#333333'
+  };
   const [isEditing, setIsEditing] = useState(false);
   // Handle both cases: metadata in separate columns or in metadata JSONB column
   const getInitialMetadata = () => {
@@ -119,7 +124,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
         left: 0,
         right: 0,
         bottom: 0,
-        background: uiColors.bg,
+        background: '#ffffff',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 1001,
@@ -132,7 +137,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '1rem',
-          borderBottom: `1px solid ${uiColors.border}`
+          borderBottom: '1px solid #cccccc'
         }}>
           <div style={{
             display: 'flex',
@@ -156,7 +161,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   }}
                   title="Previous image"
                 >
-                  <CaretLeft size={20} weight="bold" color={uiColors.fg} />
+                  <CaretLeft size={20} weight="bold" color="#333333" />
                 </button>
                 <button
                   onClick={() => handleNavigate('next')}
@@ -170,13 +175,13 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   }}
                   title="Next image"
                 >
-                  <CaretRight size={20} weight="bold" color={uiColors.fg} />
+                  <CaretRight size={20} weight="bold" color="#333333" />
                 </button>
               </>
             )}
             <h3 style={{ 
               margin: 0, 
-              color: uiColors.fg,
+              color: '#333333',
               fontSize: window.innerWidth <= 768 ? '1rem' : '1.2rem',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
@@ -193,7 +198,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
               padding: '0.5rem'
             }}
           >
-            <X size={20} weight="bold" color={uiColors.fg} />
+            <X size={20} weight="bold" color="#333333" />
           </button>
         </div>
 
@@ -213,7 +218,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
             alignItems: 'center',
             justifyContent: 'center',
             padding: window.innerWidth <= 768 ? '1rem' : '2rem',
-            background: uiColors.bg === '#ffffff' ? '#f9f9f9' : `${uiColors.bg}88`,
+            background: '#f9f9f9',
             minHeight: window.innerWidth <= 768 ? '300px' : '400px'
           }}>
             <img
@@ -235,8 +240,8 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
           <div style={{
             flex: window.innerWidth <= 768 ? '0 0 auto' : '0 0 40%',
             padding: window.innerWidth <= 768 ? '1rem' : '2rem',
-            borderLeft: window.innerWidth <= 768 ? 'none' : `1px solid ${uiColors.border}`,
-            borderTop: window.innerWidth <= 768 ? `1px solid ${uiColors.border}` : 'none',
+            borderLeft: window.innerWidth <= 768 ? 'none' : '1px solid #cccccc',
+            borderTop: window.innerWidth <= 768 ? '1px solid #cccccc' : 'none',
             overflowY: window.innerWidth <= 768 ? 'visible' : 'auto',
             minWidth: 0
           }}>
@@ -252,9 +257,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   onClick={() => setIsEditing(true)}
                   style={{
                     padding: '0.25rem 0.75rem',
-                    background: uiColors.fg,
-                    color: uiColors.bg,
-                    border: `1px solid ${uiColors.fg}`,
+                    background: '#333333',
+                    color: '#ffffff',
+                    border: '1px solid #333333',
                     cursor: 'pointer',
                     fontFamily: 'Space Mono, monospace',
                     fontSize: '0.8rem'
@@ -269,9 +274,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                     disabled={saving}
                     style={{
                       padding: '0.25rem 0.75rem',
-                      background: uiColors.fg,
-                      color: uiColors.bg,
-                      border: `1px solid ${uiColors.fg}`,
+                      background: '#333333',
+                      color: '#ffffff',
+                      border: '1px solid #333333',
                       cursor: saving ? 'not-allowed' : 'pointer',
                       fontFamily: 'Space Mono, monospace',
                       fontSize: '0.8rem',
@@ -286,8 +291,8 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                     style={{
                       padding: '0.25rem 0.75rem',
                       background: 'transparent',
-                      color: uiColors.fg,
-                      border: `1px solid ${uiColors.border}`,
+                      color: '#333333',
+                      border: '1px solid #cccccc',
                       cursor: 'pointer',
                       fontFamily: 'Space Mono, monospace',
                       fontSize: '0.8rem'
@@ -306,7 +311,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                 alignItems: 'center',
                 gap: '0.5rem',
                 marginBottom: '0.5rem',
-                color: uiColors.fg,
+                color: '#333333',
                 fontSize: '0.9rem',
                 fontWeight: 'bold'
               }}>
@@ -322,9 +327,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   style={{
                     width: '100%',
                     padding: '0.5rem',
-                    border: `1px solid ${uiColors.border}`,
-                    background: uiColors.bg,
-                    color: uiColors.fg,
+                    border: '1px solid #cccccc',
+                    background: '#ffffff',
+                    color: '#333333',
                     fontFamily: 'Space Mono, monospace',
                     fontSize: '0.85rem'
                   }}
@@ -339,8 +344,8 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                           key={index}
                           style={{
                             padding: '0.25rem 0.5rem',
-                            background: `${uiColors.fg}20`,
-                            color: uiColors.fg,
+                            background: 'rgba(51, 51, 51, 0.1)',
+                            color: '#333333',
                             fontSize: '0.8rem',
                             borderRadius: '2px'
                           }}
@@ -349,7 +354,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                         </span>
                       ))
                     ) : (
-                      <span style={{ color: uiColors.fg, opacity: 0.5, fontSize: '0.85rem' }}>
+                      <span style={{ color: '#333333', opacity: 0.5, fontSize: '0.85rem' }}>
                         No tags
                       </span>
                     );
@@ -381,9 +386,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   style={{
                     width: '100%',
                     padding: '0.5rem',
-                    border: `1px solid ${uiColors.border}`,
-                    background: uiColors.bg,
-                    color: uiColors.fg,
+                    border: '1px solid #cccccc',
+                    background: '#ffffff',
+                    color: '#333333',
                     fontFamily: 'Space Mono, monospace',
                     fontSize: '0.85rem'
                   }}
@@ -391,7 +396,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
               ) : (
                 <p style={{
                   margin: 0,
-                  color: uiColors.fg,
+                  color: '#333333',
                   fontSize: '0.85rem',
                   opacity: (image.metadata?.caption || image.caption || image.title) ? 1 : 0.5
                 }}>
@@ -423,9 +428,9 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
                   style={{
                     width: '100%',
                     padding: '0.5rem',
-                    border: `1px solid ${uiColors.border}`,
-                    background: uiColors.bg,
-                    color: uiColors.fg,
+                    border: '1px solid #cccccc',
+                    background: '#ffffff',
+                    color: '#333333',
                     fontFamily: 'Space Mono, monospace',
                     fontSize: '0.85rem',
                     resize: 'vertical'
@@ -434,7 +439,7 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
               ) : (
                 <p style={{
                   margin: 0,
-                  color: uiColors.fg,
+                  color: '#333333',
                   fontSize: '0.85rem',
                   opacity: (image.metadata?.description || image.description) ? 1 : 0.5,
                   whiteSpace: 'pre-wrap'
@@ -446,10 +451,10 @@ export const ImageModal = ({ image, isOpen, onClose, onUpdate, images = [], onNa
 
             {/* File info */}
             <div style={{
-              borderTop: `1px solid ${uiColors.border}`,
+              borderTop: '1px solid #cccccc',
               paddingTop: '1rem',
               fontSize: '0.8rem',
-              color: uiColors.fg,
+              color: '#333333',
               opacity: 0.7
             }}>
               <p style={{ margin: '0.25rem 0' }}>
