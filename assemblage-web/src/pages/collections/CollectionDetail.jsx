@@ -396,7 +396,7 @@ export default function CollectionDetail() {
     }}>
       {/* Header - matches gallery/drawer style */}
       <header style={{
-        padding: '1.5rem',
+        padding: window.innerWidth <= 768 ? '1rem 1.5rem' : '1.5rem',
         borderBottom: `1px solid ${getContrastText(uiColors.bg)}`,
         background: uiColors.bg,
         display: 'flex',
@@ -408,7 +408,7 @@ export default function CollectionDetail() {
       }}>
         <h1 style={{ 
           color: getContrastText(uiColors.bg),
-          fontSize: '2rem',
+          fontSize: window.innerWidth <= 768 ? '1.5rem' : '2rem',
           fontFamily: 'Playfair Display, serif',
           fontStyle: 'italic',
           margin: 0
@@ -423,20 +423,17 @@ export default function CollectionDetail() {
             padding: '0.5rem'
           }}
         >
-          <X size={24} weight="regular" />
+          <X size={20} weight="regular" />
         </button>
       </header>
 
       {/* Content */}
       <div style={{ padding: '1.5rem' }}>
-        {/* Page title and controls */}
+        {/* Page title */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '1.5rem'
+          marginBottom: '1rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
             <button
               onClick={() => {
                 // Navigate back to main app and open collections drawer
@@ -459,7 +456,7 @@ export default function CollectionDetail() {
             </button>
             
             {isEditing ? (
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flex: 1 }}>
                 <input
                   type="text"
                   value={collectionName}
@@ -470,7 +467,8 @@ export default function CollectionDetail() {
                     background: uiColors.bg,
                     color: uiColors.fg,
                     fontFamily: 'Space Mono, monospace',
-                    fontSize: '1.5rem'
+                    fontSize: '1.5rem',
+                    flex: 1
                   }}
                   autoFocus
                 />
@@ -509,7 +507,8 @@ export default function CollectionDetail() {
               <h1 style={{
                 fontSize: '1.5rem',
                 margin: 0,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                flex: 1
               }}
               onClick={() => setIsEditing(true)}
               >
@@ -518,7 +517,13 @@ export default function CollectionDetail() {
             )}
           </div>
           
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {/* Action buttons row */}
+          <div style={{ 
+            display: 'flex', 
+            gap: '0.5rem', 
+            flexWrap: 'wrap',
+            alignItems: 'center'
+          }}>
             {/* Upload button */}
             <button
               onClick={() => setShowUploadModal(true)}
@@ -535,7 +540,7 @@ export default function CollectionDetail() {
               }}
               title="Upload images"
             >
-              <UploadSimple size={20} weight="regular" />
+              <UploadSimple size={16} weight="regular" />
               <span className="desktop-only">Upload</span>
             </button>
             
@@ -611,13 +616,13 @@ export default function CollectionDetail() {
               }}
               title="Delete collection"
             >
-              <Trash size={20} weight="regular" />
+              <Trash size={16} weight="regular" />
             </button>
           </div>
         </div>
 
-        {/* Search, Filter, Sort - single line */}
-        {!bulkActionMode && (
+        {/* Search, Filter, Sort - desktop only */}
+        {!bulkActionMode && window.innerWidth > 768 && (
           <div style={{
             display: 'flex',
             gap: '1rem',
@@ -626,7 +631,7 @@ export default function CollectionDetail() {
           }}>
             <form onSubmit={handleSearch} style={{ 
               flex: 1, 
-              display: window.innerWidth > 768 || showMobileSearch ? 'flex' : 'none', 
+              display: 'flex', 
               gap: '0.5rem' 
             }}>
               <label htmlFor="collection-search" style={{ position: 'absolute', left: '-9999px' }}>Search images</label>
@@ -645,7 +650,6 @@ export default function CollectionDetail() {
                   color: getContrastText(uiColors.bg),
                   fontFamily: 'Space Mono, monospace'
                 }}
-                autoFocus={showMobileSearch}
               />
               {searchTerm && (
                 <button
@@ -672,21 +676,6 @@ export default function CollectionDetail() {
             </form>
             
             <button
-              onClick={() => setShowMobileSearch(!showMobileSearch)}
-              style={{
-                padding: '0.5rem',
-                background: uiColors.bg,
-                color: getContrastText(uiColors.bg),
-                border: `1px solid ${getContrastText(uiColors.bg)}`,
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace',
-                display: window.innerWidth <= 768 ? 'flex' : 'none'
-              }}
-            >
-              <MagnifyingGlass size={20} weight="regular" />
-            </button>
-            
-            <button
               onClick={() => handleSort(sortBy === 'created_at' ? 'display_name' : 'created_at')}
               style={{
                 padding: '0.5rem 1rem',
@@ -702,23 +691,6 @@ export default function CollectionDetail() {
             >
               Sort
               {sortOrder === 'asc' ? <SortAscending size={16} /> : <SortDescending size={16} />}
-            </button>
-            
-            {/* View toggle for mobile */}
-            <button
-              onClick={() => setView(view === 'grid' ? 'list' : 'grid')}
-              style={{
-                padding: '0.5rem',
-                background: uiColors.bg,
-                color: getContrastText(uiColors.bg),
-                border: `1px solid ${getContrastText(uiColors.bg)}`,
-                cursor: 'pointer',
-                fontFamily: 'Space Mono, monospace',
-                display: window.innerWidth <= 768 ? 'flex' : 'none'
-              }}
-              title={`Switch to ${view === 'grid' ? 'list' : 'grid'} view`}
-            >
-              {view === 'grid' ? <Rows size={20} weight="regular" /> : <SquaresFour size={20} weight="regular" />}
             </button>
           </div>
         )}

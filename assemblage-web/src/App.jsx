@@ -9,7 +9,7 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple, X, Sliders } from 'phosphor-react';
+import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple, X, Pencil } from 'phosphor-react';
 import { UploadModal } from './components/UploadModal';
 import { CollectionDrawer } from './components/CollectionDrawer';
 import { MakeDrawer } from './components/MakeDrawer';
@@ -664,10 +664,10 @@ function MainApp() {
           alert('Collage saved successfully!');
         }
         
-        // Auto-hide the success message after 4 seconds
+        // Auto-hide the success message after 2.5 seconds
         setTimeout(() => {
           setSaveState('idle');
-        }, 4000);
+        }, 2500);
       }
     } catch (err) {
       console.error('Error saving collage:', err);
@@ -832,7 +832,7 @@ function MainApp() {
                 transition: 'all 0.2s ease'
               }}
             >
-              <Sliders size={16} weight="regular" />
+              <Pencil size={16} weight="regular" />
               <span>Tune</span>
             </button>
             
@@ -970,7 +970,7 @@ function MainApp() {
             transition: 'all 0.2s ease'
           }}
         >
-          <Sliders size={20} weight="regular" />
+          <Pencil size={20} weight="regular" />
         </button>
         
         <button onClick={(e) => {
@@ -1097,22 +1097,10 @@ function MainApp() {
                   <div className="save-success-icon">
                     <Check size={48} weight="bold" style={{ color: 'inherit' }} />
                   </div>
-                  <p>Collage saved!</p>
-                  <button 
-                    onClick={() => {
-                      setShowGallery(true);
-                      setSaveState('idle');
-                    }}
-                    className="save-overlay-button"
-                  >
-                    View in My Collages
-                  </button>
-                  <button 
-                    onClick={() => setSaveState('idle')}
-                    className="save-overlay-dismiss"
-                  >
-                    Dismiss
-                  </button>
+                  <p>Collage saved successfully!</p>
+                  <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.5rem 0 0 0' }}>
+                    View it anytime in "My Collages" from the user menu
+                  </p>
                 </>
               )}
               {saveState === 'error' && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { getSupabase } from '../supabaseClient';
-import { DownloadSimple, Trash, X, Share, ArrowLeft, ArrowRight, Check } from 'phosphor-react';
+import { DownloadSimple, Trash, X, Share, ArrowLeft, ArrowRight, Check, MagnifyingGlass } from 'phosphor-react';
 import { useUiColors } from '../hooks/useUiColors';
 import { getContrastText } from '../lib/colorUtils/contrastText';
 
@@ -15,6 +15,7 @@ export default function Gallery({ session, onClose }) {
   const [sortOrder, setSortOrder] = useState('desc');
   const [filterTemplates, setFilterTemplates] = useState([]); // Changed to array for multi-select
   const [showFilters, setShowFilters] = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const itemsPerPage = 12; // Show 12 collages per page
   const initialLoadCount = 12; // Load only 12 initially for faster performance
   const supabase = getSupabase();
@@ -420,11 +421,11 @@ export default function Gallery({ session, onClose }) {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '1.5rem'
+        padding: window.innerWidth <= 768 ? '1rem 1.5rem' : '1.5rem'
       }}>
         <h1 style={{ 
           color: '#333',
-          fontSize: '2rem',
+          fontSize: window.innerWidth <= 768 ? '1.5rem' : '2rem',
           fontFamily: 'Playfair Display, serif',
           fontStyle: 'italic',
           margin: 0
@@ -439,7 +440,7 @@ export default function Gallery({ session, onClose }) {
             padding: '0.5rem'
           }}
         >
-          <X size={24} weight="regular" />
+          <X size={20} weight="regular" />
         </button>
       </header>
       
@@ -449,7 +450,7 @@ export default function Gallery({ session, onClose }) {
           <h2 style={{ color: '#333', fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
         </div>
         
-        {/* Search, Filter, Sort - single line */}
+        {/* Search, Filter, Sort - responsive */}
         <div style={{
           display: 'flex',
           gap: '1rem',
@@ -457,7 +458,12 @@ export default function Gallery({ session, onClose }) {
           marginBottom: '2rem',
           padding: '1rem 2rem'
         }}>
-          <form onSubmit={(e) => { e.preventDefault(); handleFilterSubmit(); }} style={{ flex: 1 }}>
+          {/* Search - expandable on mobile */}
+          <form onSubmit={(e) => { e.preventDefault(); handleFilterSubmit(); }} style={{ 
+            flex: 1, 
+            display: window.innerWidth > 768 || showMobileSearch ? 'flex' : 'none',
+            gap: '0.5rem'
+          }}>
             <label htmlFor="gallery-search" style={{ position: 'absolute', left: '-9999px' }}>Search collages</label>
             <input
               type="text"
@@ -467,7 +473,7 @@ export default function Gallery({ session, onClose }) {
               value={searchTerm}
               onChange={handleSearchChange}
               style={{
-                width: '100%',
+                flex: 1,
                 padding: '0.5rem 1rem',
                 border: `1px solid ${uiColors.border}`,
                 background: uiColors.bg,
@@ -475,8 +481,50 @@ export default function Gallery({ session, onClose }) {
                 fontFamily: 'Space Mono, monospace',
                 fontSize: '0.9rem'
               }}
+              autoFocus={showMobileSearch}
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setCurrentPage(1);
+                  setHasLoaded(false);
+                  loadCollages(1, true, { searchTerm: '' });
+                }}
+                style={{
+                  padding: '0.5rem',
+                  background: uiColors.bg,
+                  color: uiColors.fg,
+                  border: `1px solid ${uiColors.border}`,
+                  cursor: 'pointer',
+                  fontFamily: 'Space Mono, monospace',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title="Clear search"
+              >
+                <X size={16} weight="regular" />
+              </button>
+            )}
           </form>
+          
+          {/* Mobile search toggle button */}
+          <button
+            onClick={() => setShowMobileSearch(!showMobileSearch)}
+            style={{
+              padding: '0.5rem',
+              background: uiColors.bg,
+              color: uiColors.fg,
+              border: `1px solid ${uiColors.border}`,
+              cursor: 'pointer',
+              fontFamily: 'Space Mono, monospace',
+              display: window.innerWidth <= 768 ? 'flex' : 'none',
+              alignItems: 'center'
+            }}
+          >
+            <MagnifyingGlass size={20} weight="regular" />
+          </button>
           
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {/* Filters dropdown */}

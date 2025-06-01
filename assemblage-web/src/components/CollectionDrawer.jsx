@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Plus, ImageSquare, FolderSimple } from 'phosphor-react'
+import { X, Plus, UploadSimple, FolderSimple } from 'phosphor-react'
 import { getSupabase } from '../supabaseClient'
 import { useNavigate } from 'react-router-dom'
 import { getContrastText } from '../lib/colorUtils/contrastText'
@@ -171,11 +171,11 @@ export const CollectionDrawer = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '1.5rem'
+        padding: window.innerWidth <= 768 ? '1rem 1.5rem' : '1.5rem'
       }}>
         <h1 style={{ 
           color: getContrastText(uiColors.bg),
-          fontSize: '2rem',
+          fontSize: window.innerWidth <= 768 ? '1.5rem' : '2rem',
           fontFamily: 'Playfair Display, serif',
           fontStyle: 'italic',
           margin: 0
@@ -190,7 +190,7 @@ export const CollectionDrawer = ({
             padding: '0.5rem'
           }}
         >
-          <X size={24} weight="regular" />
+          <X size={20} weight="regular" />
         </button>
       </header>
       
@@ -230,7 +230,7 @@ export const CollectionDrawer = ({
                   }}
                   className="upload-images-btn"
                 >
-                  <ImageSquare size={16} weight="regular" />
+                  <UploadSimple size={16} weight="regular" />
                   <span className="desktop-only">Upload</span>
                 </button>
               )}

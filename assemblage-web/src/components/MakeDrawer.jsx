@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Image, UploadSimple } from 'phosphor-react'
+import { X, Image, UploadSimple, Pencil } from 'phosphor-react'
 import { SourceSelector } from './SourceSelector'
 import { getContrastText } from '../lib/colorUtils/contrastText'
 
@@ -86,7 +86,7 @@ export const MakeDrawer = ({
                 border: 'none'
               }}
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
           
@@ -190,7 +190,7 @@ export const MakeDrawer = ({
               border: 'none'
             }}
           >
-            <X size={24} />
+            <X size={20} />
           </button>
         </div>
         

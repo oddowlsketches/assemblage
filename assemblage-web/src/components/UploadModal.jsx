@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useEffect } from 'react'
 import { useDropzone } from 'react-dropzone'
-import { X, Upload, Trash, Check } from 'phosphor-react'
+import { X, Trash, Check } from 'phosphor-react'
 import { useImageUpload } from '../hooks/useImageUpload.ts'
 import { getSupabase } from '../supabaseClient'
 import { calculateSHA1 } from '../utils/fileHash'
@@ -27,6 +27,9 @@ export const UploadModal = ({
   const [loading, setLoading] = useState(false)
   const [generateMetadata, setGenerateMetadata] = useState(true)
   const [session, setSession] = useState(null)
+  const [showNewCollectionForm, setShowNewCollectionForm] = useState(false)
+  const [newCollectionName, setNewCollectionName] = useState('')
+  const [creatingCollection, setCreatingCollection] = useState(false)
   // Force white background and black text for upload modal
   const uiColors = {
     bg: '#ffffff',
@@ -114,6 +117,43 @@ export const UploadModal = ({
     }
   }
 
+  const createNewCollection = async (e) => {
+    e.preventDefault()
+    if (!newCollectionName.trim()) return
+
+    try {
+      setCreatingCollection(true)
+      const supabase = getSupabase()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      const { data: newCollection, error } = await supabase
+        .from('user_collections')
+        .insert({
+          user_id: user.id,
+          name: newCollectionName.trim()
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Add to local state and select it
+      setUserCollections(prev => [newCollection, ...prev])
+      setSelectedCollectionId(newCollection.id)
+      
+      // Reset form
+      setNewCollectionName('')
+      setShowNewCollectionForm(false)
+      
+      console.log('[UploadModal] Created new collection:', newCollection.name)
+    } catch (err) {
+      console.error('Error creating collection:', err)
+      alert('Failed to create collection. Please try again.')
+    } finally {
+      setCreatingCollection(false)
+    }
+  }
+
   const removeFile = (id) => {
     setFiles(prev => {
       const file = prev.find(f => f.id === id)
@@ -125,6 +165,10 @@ export const UploadModal = ({
   }
 
   const handleUpload = async () => {
+    if (showNewCollectionForm) {
+      alert('Please create the collection first or select an existing one.')
+      return
+    }
     if (!selectedCollectionId) {
       alert('Please select a collection from the dropdown above.')
       return;
@@ -366,8 +410,16 @@ export const UploadModal = ({
               Upload to collection:
             </label>
             <select 
-              value={selectedCollectionId || ''}
-              onChange={(e) => setSelectedCollectionId(e.target.value)}
+              value={showNewCollectionForm ? 'new' : (selectedCollectionId || '')}
+              onChange={(e) => {
+                if (e.target.value === 'new') {
+                  setShowNewCollectionForm(true)
+                  setSelectedCollectionId('')
+                } else {
+                  setShowNewCollectionForm(false)
+                  setSelectedCollectionId(e.target.value)
+                }
+              }}
               style={{
                 width: '100%',
                 padding: '0.5rem',
@@ -387,8 +439,73 @@ export const UploadModal = ({
                   {collection.name}
                 </option>
               ))}
+              <option value="new">+ Create New Collection</option>
             </select>
-            {userCollections.length === 0 && !loading && (
+            
+            {/* New collection form */}
+            {showNewCollectionForm && (
+              <form onSubmit={createNewCollection} style={{ marginTop: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={newCollectionName}
+                    onChange={(e) => setNewCollectionName(e.target.value)}
+                    placeholder="Collection name"
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      border: '1px solid #333333',
+                      background: '#ffffff',
+                      color: '#333333',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.9rem'
+                    }}
+                    autoFocus
+                    disabled={creatingCollection}
+                  />
+                  <button
+                    type="submit"
+                    disabled={creatingCollection || !newCollectionName.trim()}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#333333',
+                      color: '#ffffff',
+                      border: '1px solid #333333',
+                      cursor: creatingCollection || !newCollectionName.trim() ? 'not-allowed' : 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.9rem',
+                      opacity: creatingCollection || !newCollectionName.trim() ? 0.5 : 1
+                    }}
+                  >
+                    {creatingCollection ? 'Creating...' : 'Create'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewCollectionForm(false)
+                      setNewCollectionName('')
+                      // Select first collection if available
+                      if (userCollections.length > 0) {
+                        setSelectedCollectionId(userCollections[0].id)
+                      }
+                    }}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: '#ffffff',
+                      color: '#333333',
+                      border: '1px solid #333333',
+                      cursor: 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+            
+            {userCollections.length === 0 && !loading && !showNewCollectionForm && (
             <p style={{fontSize: '0.8rem', color: '#333333', opacity: 0.7, marginTop: '0.5rem'}}>
             You need to create a collection first before uploading images.
             </p>
@@ -422,6 +539,9 @@ export const UploadModal = ({
                   </p>
                   <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.6 }}>
                     Maximum {MAX_ACTIVE_IMAGES} active images per account
+                  </p>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>
+                    Note: Some devices limit multi-select to ~15-20 files at once
                   </p>
                 </div>
               )}
@@ -706,17 +826,17 @@ export const UploadModal = ({
           </button>
           <button
             onClick={handleUpload}
-            disabled={!selectedCollectionId || files.length === 0 || uploading}
+            disabled={showNewCollectionForm || !selectedCollectionId || files.length === 0 || uploading}
             style={{
               background: '#333333',
               border: '1px solid #333333',
               color: '#ffffff',
               padding: '0.5rem 1rem',
-              cursor: !selectedCollectionId || files.length === 0 || uploading ? 'not-allowed' : 'pointer',
+              cursor: showNewCollectionForm || !selectedCollectionId || files.length === 0 || uploading ? 'not-allowed' : 'pointer',
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.9rem',
               transition: 'all 0.3s ease',
-              opacity: !selectedCollectionId || files.length === 0 || uploading ? 0.5 : 1
+              opacity: showNewCollectionForm || !selectedCollectionId || files.length === 0 || uploading ? 0.5 : 1
             }}
             onMouseEnter={e => {
               if (!e.target.disabled) {
