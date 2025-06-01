@@ -9,12 +9,14 @@ import TemplateReview from './components/TemplateReview';
 import AuthComponent from './components/Auth';
 import Gallery from './components/Gallery';
 import { getSupabase } from './supabaseClient';
-import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple, X } from 'phosphor-react';
+import { ImageSquare, CaretDown, Check, User, FloppyDisk, List, UploadSimple, Link as LinkIcon, Folder, Stack, BookmarkSimple, X, Sliders } from 'phosphor-react';
 import { UploadModal } from './components/UploadModal';
 import { CollectionDrawer } from './components/CollectionDrawer';
+import { MakeDrawer } from './components/MakeDrawer';
 import { SourceSelector } from './components/SourceSelector';
 import CollectionDetail from './pages/collections/CollectionDetail';
 import { getContrastText } from './lib/colorUtils/contrastText';
+import { useQuota } from './hooks/useQuota';
 
 function MainApp() {
   const canvasRef = useRef(null);
@@ -37,6 +39,14 @@ function MainApp() {
   const [activeCollectionName, setActiveCollectionName] = useState('Default Library');
   const [showUpload, setShowUpload] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
+  
+  // New states for Milestone 3.6
+  const [showMakeDrawer, setShowMakeDrawer] = useState(false);
+  const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [quotaModalType, setQuotaModalType] = useState(''); // 'images' or 'collages'
+  
+  // Quota management
+  const { checkQuota, downloadAndArchiveOldestCollages, archiveOldestImages, loading: quotaLoading } = useQuota();
 
   // Update feedback text color based on background using WCAG AA compliant contrast
   // Generate a placeholder collage for first-run experience
@@ -140,6 +150,15 @@ function MainApp() {
     };
     document.addEventListener('click', handleClickOutside);
 
+    // Keyboard shortcut handler for Shift+T
+    const handleKeyDown = (event) => {
+      if (event.shiftKey && event.key.toLowerCase() === 't') {
+        event.preventDefault();
+        setShowMakeDrawer(prev => !prev);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
     // Initialize collage service and wire up loading events
     const supabase = getSupabase();
     if (!serviceRef.current) {
@@ -179,6 +198,7 @@ function MainApp() {
     return () => {
       window.removeEventListener('resize', resize);
       document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, []); // Empty dependency array - only run once
 
@@ -283,6 +303,11 @@ function MainApp() {
           await loadImagesForCollection('cms');
         }
       }
+      
+      // Also call fetchUserCollectionsForSelect to ensure user collections are loaded
+      if (session) {
+        await fetchUserCollectionsForSelect();
+      }
     } catch (err) {
       console.error('Error loading collections:', err);
       setActiveCollectionName('Default Library');
@@ -376,6 +401,8 @@ function MainApp() {
         .eq('id', '00000000-0000-0000-0000-000000000001')
         .single();
       
+      console.log('[fetchUserCollectionsForSelect] Default collection:', defaultCollection);
+
       if (!session) {
         console.log('[fetchUserCollectionsForSelect] No session');
         // No session - only show public collections
@@ -395,11 +422,12 @@ function MainApp() {
         return;
       }
       
-      console.log('[fetchUserCollectionsForSelect] Session exists, isAdmin:', isAdmin);
+      console.log('[fetchUserCollectionsForSelect] Session exists, user:', session.user.email, 'isAdmin:', isAdmin);
       
       // For admin users, fetch from both image_collections and user_collections
       // For regular users, fetch public collections plus their own
       if (isAdmin) {
+        console.log('[fetchUserCollectionsForSelect] Loading as admin');
         const [imageCollectionsResult, userCollectionsResult] = await Promise.all([
           supabase
             .from('image_collections')
@@ -427,6 +455,7 @@ function MainApp() {
         console.log('[fetchUserCollectionsForSelect] Admin collections (combined):', allCollections);
         setUserCollectionsForSelect(allCollections);
       } else {
+        console.log('[fetchUserCollectionsForSelect] Loading as regular user');
         // Regular users: get public collections + their own user collections
         const [publicCollectionsResult, userCollectionsResult] = await Promise.all([
           supabase
@@ -440,6 +469,9 @@ function MainApp() {
             .eq('user_id', session.user.id)
             .order('name', { ascending: true })
         ]);
+        
+        console.log('[fetchUserCollectionsForSelect] Public collections:', publicCollectionsResult.data);
+        console.log('[fetchUserCollectionsForSelect] User collections:', userCollectionsResult.data);
         
         const allCollections = [];
         
@@ -526,6 +558,20 @@ function MainApp() {
     }
     
     if (!serviceRef.current) return;
+    
+    // Check quota before saving
+    try {
+      const quotaStatus = await checkQuota();
+      if (quotaStatus.collages.isOverQuota) {
+        // Show quota modal
+        setQuotaModalType('collages');
+        setShowQuotaModal(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking quota:', error);
+      // Continue with save if quota check fails
+    }
     
     // Show saving state immediately
     setSaveState('saving');
@@ -660,40 +706,51 @@ function MainApp() {
       if (window.location.hash || window.location.search) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
+      
+      // Immediately fetch collections for the signed-in user
+      console.log('[Auth] User signed in, fetching collections immediately');
+      await fetchUserCollectionsForSelect();
     
-    // Check if user has any collections, if not create a default one
-    const supabase = getSupabase();
-    const { data: collections, error: fetchError } = await supabase
-    .from('user_collections')
-    .select('id')
-    .eq('user_id', newSession.user.id)
-    .limit(1);
-      
-    if (!fetchError && (!collections || collections.length === 0)) {
-    console.log('[Auth] Creating default collection for new user');
-    // Create in user_collections only
-    const { data: newUserCollection, error: createUserCollectionError } = await supabase
-    .from('user_collections')
-    .insert({
-    user_id: newSession.user.id,
-      name: 'My Images' // Default name
-    })
-    .select()
-    .single();
-      
-    if (createUserCollectionError) {
-      console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
-    } else if (newUserCollection) {
-            console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
-
-    // If we're currently on cms/default, switch to the new collection
-    if (activeCollection === 'cms') {
-    setActiveCollection(newUserCollection.id);
-      await loadImagesForCollection(newUserCollection.id);
+      // Check if user has any collections, if not create a default one
+      const supabase = getSupabase();
+      const { data: collections, error: fetchError } = await supabase
+        .from('user_collections')
+        .select('id')
+        .eq('user_id', newSession.user.id)
+        .limit(1);
+        
+      if (!fetchError && (!collections || collections.length === 0)) {
+        console.log('[Auth] Creating default collection for new user');
+        // Create in user_collections only
+        const { data: newUserCollection, error: createUserCollectionError } = await supabase
+          .from('user_collections')
+          .insert({
+            user_id: newSession.user.id,
+            name: 'My Images' // Default name
+          })
+          .select()
+          .single();
+        
+        if (createUserCollectionError) {
+          console.error('[Auth] Error creating default user_collection:', createUserCollectionError);
+        } else if (newUserCollection) {
+          console.log('[Auth] Created default user_collection:', newUserCollection.id, newUserCollection.name);
+          
+          // Refresh the collections list to include the new collection
+          await fetchUserCollectionsForSelect();
+          
+          // If we're currently on cms/default, switch to the new collection
+          if (activeCollection === 'cms') {
+            setActiveCollection(newUserCollection.id);
+            await loadImagesForCollection(newUserCollection.id);
+          }
+        }
+      } else {
+        // User already has collections, just refresh the list
+        console.log('[Auth] User has existing collections, refreshing list');
+        await fetchUserCollectionsForSelect();
       }
-      }
-      }
-      }
+    }
   };
 
   return (
@@ -755,18 +812,50 @@ function MainApp() {
             
             <button id="generateButton" onClick={handleShiftPerspective}>New</button>
             
-            {/* Updated Source Selector */}
-            <SourceSelector 
-              activeSource={activeCollection}
-              activeSourceName={activeCollectionName}
-              onSourceChange={handleSourceChange}
-              onManageCollections={() => setShowDrawer(true)}
-              onUploadImages={() => setShowUpload(true)}
-              onOpenGallery={() => setShowGallery(true)}
-              userCollections={userCollectionsForSelect}
-            />
+            {/* Tune button for collage settings */}
+            <button 
+              id="tuneButton" 
+              onClick={() => setShowMakeDrawer(true)}
+              title="Tune collage settings (Shift+T)"
+              className="desktop-only"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                padding: '0.5rem 1rem',
+                backgroundColor: 'white',
+                color: '#333',
+                border: '1px solid #333',
+                cursor: 'pointer',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Sliders size={16} weight="regular" />
+              <span>Tune</span>
+            </button>
             
-            {/* Prompt placeholder - removed gear icon */}
+            {/* Three-dot menu for mobile */}
+            <button 
+              className="mobile-only"
+              onClick={() => setShowMakeDrawer(true)}
+              title="Tune collage settings"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                padding: '0.5rem',
+                backgroundColor: 'white',
+                color: '#333',
+                border: '1px solid #333',
+                cursor: 'pointer',
+                fontSize: '1.2rem'
+              }}
+            >
+              ⋯
+            </button>
+            
+            {/* Removed Source Selector - now handled in MakeDrawer */}
             
             {/* Empty placeholder for spacing */}
             <div style={{ flex: 1 }}></div>
@@ -784,6 +873,39 @@ function MainApp() {
                 </button>
                 <div className="user-dropdown">
                   <div className="user-email-header">{session.user.email}</div>
+                  <button 
+                    onClick={() => {
+                      setShowDrawer(true);
+                      // Close the dropdown
+                      const userDropdown = document.querySelector('.user-menu .user-dropdown');
+                      if (userDropdown) userDropdown.classList.remove('show');
+                    }}
+                    className="dropdown-item"
+                  >
+                    My Images
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowGallery(true);
+                      // Close the dropdown
+                      const userDropdown = document.querySelector('.user-menu .user-dropdown');
+                      if (userDropdown) userDropdown.classList.remove('show');
+                    }}
+                    className="dropdown-item"
+                  >
+                    Saved Collages
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setShowUpload(true);
+                      // Close the dropdown
+                      const userDropdown = document.querySelector('.user-menu .user-dropdown');
+                      if (userDropdown) userDropdown.classList.remove('show');
+                    }}
+                    className="dropdown-item"
+                  >
+                    Upload Images
+                  </button>
                   <button 
                     onClick={async () => {
                       const supabase = getSupabase();
@@ -812,19 +934,45 @@ function MainApp() {
             document.querySelector('.mobile-menu-overlay').classList.toggle('show');
             document.querySelector('.mobile-menu-panel').classList.toggle('show');
           }}>
-            <List size={36} weight="regular" />
+            <User size={24} weight="regular" />
           </button>
         </div>
       </header>
 
       {/* Mobile floating action buttons */}
-      <div className="mobile-actions mobile-only">
+      <div className={`mobile-actions mobile-only ${showMakeDrawer ? 'hidden' : ''}`}>
         <button onClick={(e) => {
           console.log('[Mobile] New button clicked');
           handleShiftPerspective();
         }} className="mobile-new-btn" title="New Collage">
           New
         </button>
+        
+        {/* Mobile Tune button - integrated into mobile-actions container */}
+        <button 
+          onClick={() => setShowMakeDrawer(true)}
+          className="mobile-tune-btn" 
+          title="Tune collage settings"
+          style={{
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            backgroundColor: 'white',
+            color: '#333',
+            border: '1px solid #333',
+            cursor: 'pointer',
+            fontFamily: 'Space Mono, monospace',
+            fontSize: '0.8rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            transition: 'all 0.2s ease'
+          }}
+        >
+          <Sliders size={20} weight="regular" />
+        </button>
+        
         <button onClick={(e) => {
           console.log('[Mobile] Save button clicked');
           if (session) {
@@ -851,80 +999,27 @@ function MainApp() {
         document.querySelector('.mobile-menu-panel').classList.remove('show');
       }}></div>
       
-      {/* Mobile menu panel */}
+      {/* Simplified Mobile menu panel - User account only */}
       <div className="mobile-menu-panel">
         <button className="mobile-menu-close" onClick={() => {
           document.querySelector('.mobile-menu-overlay').classList.remove('show');
           document.querySelector('.mobile-menu-panel').classList.remove('show');
         }}>×</button>
         
-        {/* Collection Management */}
-        <div className="mobile-menu-section">
-          <div className="mobile-menu-label">Image Source</div>
-          
-          {/* Collection Switcher */}
-          <div className="mobile-collection-selector">
-            <select 
-              value={activeCollection} 
-              onChange={(e) => {
-                handleSourceChange(e.target.value);
-                document.querySelector('.mobile-menu-overlay').classList.remove('show');
-                document.querySelector('.mobile-menu-panel').classList.remove('show');
-              }}
-              className="mobile-collection-dropdown"
-            >
-              {userCollectionsForSelect.map(collection => {
-                const isDefaultCollection = collection.id === '00000000-0000-0000-0000-000000000001';
-                return (
-                  <option 
-                    key={collection.id} 
-                    value={isDefaultCollection ? 'cms' : collection.id}
-                  >
-                    {collection.name}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-        </div>
-        
-        {/* Image Actions Section */}
-        <div className="mobile-menu-section">
-          <div className="mobile-menu-label">Image Actions</div>
-          
-          <button
-            className="mobile-menu-item"
-            onClick={() => {
-              if (session) {
-                setShowDrawer(true);
-              } else {
-                setShowAuth(true);
-              }
-              document.querySelector('.mobile-menu-overlay').classList.remove('show');
-              document.querySelector('.mobile-menu-panel').classList.remove('show');
-            }}
-          >
-          My Images
-          </button>
-          
-          {session && (
-            <button
-              className="mobile-menu-item"
-              onClick={() => {
-                setShowUpload(true);
-                document.querySelector('.mobile-menu-overlay').classList.remove('show');
-                document.querySelector('.mobile-menu-panel').classList.remove('show');
-              }}
-            >
-              Upload Images
-            </button>
-          )}
-        </div>
-        
         {/* User menu for mobile */}
-        {session && (
+        {session ? (
           <div className="mobile-menu-section">
             <div className="mobile-menu-label">{session.user.email}</div>
+            <button 
+              onClick={() => {
+                setShowDrawer(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-menu-item"
+            >
+              My Images
+            </button>
             <button 
               onClick={() => {
                 setShowGallery(true);
@@ -934,6 +1029,16 @@ function MainApp() {
               className="mobile-menu-item"
             >
               My Collages
+            </button>
+            <button 
+              onClick={() => {
+                setShowUpload(true);
+                document.querySelector('.mobile-menu-overlay').classList.remove('show');
+                document.querySelector('.mobile-menu-panel').classList.remove('show');
+              }}
+              className="mobile-menu-item"
+            >
+              Upload Images
             </button>
             <button 
               onClick={async () => {
@@ -949,10 +1054,8 @@ function MainApp() {
               Sign Out
             </button>
           </div>
-        )}
-        
-        {/* Sign in for non-authenticated users */}
-        {!session && (
+        ) : (
+          /* Sign in for non-authenticated users */
           <div className="mobile-menu-section">
             <div className="mobile-menu-label">Account</div>
             <button
@@ -969,7 +1072,7 @@ function MainApp() {
                 justifyContent: 'center'
               }}
             >
-              Sign In to Upload Images
+              Sign In
             </button>
           </div>
         )}
@@ -1148,6 +1251,121 @@ function MainApp() {
           setShowDrawer(false);
         }}
       />
+      
+      {/* Make Drawer */}
+      <MakeDrawer 
+        isOpen={showMakeDrawer} 
+        onClose={() => setShowMakeDrawer(false)}
+        onApplyAndClose={() => {
+          // Regenerate collage with current settings and close drawer
+          if (serviceRef.current) {
+            serviceRef.current.generateCollage();
+          }
+          setShowMakeDrawer(false);
+        }}
+        activeCollection={activeCollection}
+        activeCollectionName={activeCollectionName}
+        onSourceChange={handleSourceChange}
+        onManageCollections={() => setShowDrawer(true)}
+        onUploadImages={() => setShowUpload(true)}
+        onOpenGallery={() => setShowGallery(true)}
+        userCollections={userCollectionsForSelect}
+        onDrawerOpen={async () => {
+          // Refresh collections when drawer opens to ensure we have the latest data
+          if (session) {
+            console.log('[MakeDrawer] Refreshing collections on drawer open');
+            await fetchUserCollectionsForSelect();
+          }
+        }}
+      />
+      
+      {/* Quota Modal */}
+      {showQuotaModal && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+        >
+          <div 
+            className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full mx-4"
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#333333',
+              fontFamily: 'Space Mono, monospace'
+            }}
+          >
+            <h2 className="text-xl font-bold mb-4">
+              {quotaModalType === 'collages' ? 'Collage Limit Reached' : 'Image Limit Reached'}
+            </h2>
+            <p className="mb-6">
+              {quotaModalType === 'collages' 
+                ? "You've reached 50 saved collages. To save a new collage, you can download and archive your oldest 20 collages."
+                : "You've reached 50 active images. To upload more images, you can archive your oldest images."
+              }
+            </p>
+            
+            <div className="flex gap-3">
+              {quotaModalType === 'collages' ? (
+                <button
+                  onClick={async () => {
+                    setShowQuotaModal(false);
+                    try {
+                      const archivedCount = await downloadAndArchiveOldestCollages(20);
+                      alert(`Successfully archived ${archivedCount} collages. You can now save new collages.`);
+                    } catch (error) {
+                      alert('Failed to archive collages. Please try again.');
+                    }
+                  }}
+                  disabled={quotaLoading}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                  style={{
+                    backgroundColor: '#333333',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: quotaLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {quotaLoading ? 'Archiving...' : 'Download & Archive oldest 20'}
+                </button>
+              ) : (
+                <button
+                  onClick={async () => {
+                    setShowQuotaModal(false);
+                    try {
+                      const archivedCount = await archiveOldestImages(10);
+                      alert(`Successfully archived ${archivedCount} images. You can now upload more.`);
+                    } catch (error) {
+                      alert('Failed to archive images. Please try again.');
+                    }
+                  }}
+                  disabled={quotaLoading}
+                  className="flex-1 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 disabled:opacity-50"
+                  style={{
+                    backgroundColor: '#333333',
+                    color: '#ffffff',
+                    border: 'none',
+                    cursor: quotaLoading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {quotaLoading ? 'Archiving...' : 'Archive oldest 10 images'}
+                </button>
+              )}
+              
+              <button
+                onClick={() => setShowQuotaModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-800 rounded hover:bg-gray-100"
+                style={{
+                  backgroundColor: 'transparent',
+                  color: '#333333',
+                  border: '1px solid #333333',
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

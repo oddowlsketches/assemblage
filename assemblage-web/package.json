@@ -13,6 +13,7 @@
     "format": "prettier --write 'src/**/*.{js,jsx,ts,tsx,css}'"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.4",
     "@netlify/functions": "^3.1.8",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/auth-ui-shared": "^0.1.8",
@@ -24,6 +25,7 @@
     "csv-parse": "^5.6.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.511.0",
     "openai": "^4.98.0",
     "paper": "^0.12.18",

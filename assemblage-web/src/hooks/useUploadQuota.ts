@@ -4,7 +4,7 @@ import { getSupabase } from '../supabaseClient'
 // Get the storage cap from environment variable or use default
 const MAX_ACTIVE_IMAGES = import.meta.env.VITE_MAX_ACTIVE_IMAGES 
   ? parseInt(import.meta.env.VITE_MAX_ACTIVE_IMAGES) 
-  : 30
+  : 50
 
 export const useUploadQuota = () => {
   const [loading, setLoading] = useState(false)
@@ -83,7 +83,7 @@ export const useUploadQuota = () => {
       }
 
       // Archive them
-      const imageIds = oldestImages.map(img => img.id)
+      const imageIds = oldestImages.map((img: { id: string }) => img.id)
       const { error: updateError } = await supabase
         .from('images')
         .update({ archived: true })
