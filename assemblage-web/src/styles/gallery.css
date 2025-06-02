@@ -380,6 +380,11 @@
   align-items: center;
   justify-content: center;
   padding: 0;
+  /* Mobile-friendly touch properties */
+  -webkit-tap-highlight-color: rgba(0,0,0,0.1);
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 /* Download button - filled black */
@@ -394,16 +399,16 @@
   color: var(--text-color, #333);
 }
 
-/* Share button - white with black stroke (same as download button style) */
+/* Share button - primary CTA (same as download button style) */
 .gallery-share-btn {
-  background: white;
-  color: var(--text-color, #333);
+  background: var(--text-color, #333);
+  color: white;
   border-color: var(--text-color, #333);
 }
 
 .gallery-share-btn:hover {
-  background: var(--text-color, #333);
-  color: white;
+  background: var(--background-color, #f5f5f5);
+  color: var(--text-color, #333);
 }
 
 /* Delete button - white with black stroke */
@@ -460,6 +465,18 @@
     width: 40px;
     height: 40px;
     min-width: 40px;
+  }
+
+  /* Mobile-friendly button sizing */
+  .gallery-btn {
+    height: 44px !important;
+    min-height: 44px;
+    font-size: 0.8rem;
+    padding: 0.75rem !important;
+  }
+
+  .gallery-actions {
+    padding: 0.75rem 1rem;
   }
 }
 
