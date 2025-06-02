@@ -44,6 +44,7 @@ function MainApp() {
   const [showMakeDrawer, setShowMakeDrawer] = useState(false);
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [quotaModalType, setQuotaModalType] = useState(''); // 'images' or 'collages'
+  const [uploadCollectionId, setUploadCollectionId] = useState(null); // For passing to upload modal
   
   // Quota management
   const { checkQuota, downloadAndArchiveOldestCollages, archiveOldestImages, loading: quotaLoading } = useQuota();
@@ -1247,11 +1248,15 @@ function MainApp() {
       {/* Upload Modal */}
       <UploadModal 
         isOpen={showUpload} 
-        onClose={() => setShowUpload(false)} 
-        collectionId={activeCollection === 'cms' ? null : activeCollection}
+        onClose={() => {
+          setShowUpload(false);
+          setUploadCollectionId(null); // Clear the collection ID
+        }} 
+        collectionId={uploadCollectionId || (activeCollection === 'cms' ? null : activeCollection)}
         onUploadComplete={async (results) => {
           // Close the upload modal immediately
           setShowUpload(false);
+          setUploadCollectionId(null); // Clear the collection ID
           
           // If we uploaded to a collection, refresh it after a short delay
           // to ensure database has propagated the changes
@@ -1259,18 +1264,17 @@ function MainApp() {
             const uploadedCollectionId = results[0].user_collection_id;
             console.log(`[MainApp] Upload complete to collection ${uploadedCollectionId} with ${results.length} new images`);
             
-            // If we uploaded to a different collection than the active one, switch to it
-            if (uploadedCollectionId && uploadedCollectionId !== activeCollection) {
-              console.log(`[MainApp] Switching to uploaded collection ${uploadedCollectionId}`);
-              setActiveCollection(uploadedCollectionId);
-              await loadImagesForCollection(uploadedCollectionId);
-            } else if (activeCollection !== 'cms') {
-              // Refresh current collection
-              setTimeout(async () => {
-                // Force a complete reinitialize to ensure we get all images
-                await serviceRef.current.reinitialize(activeCollection);
-                console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
-              }, 2000);
+            // Wait a bit longer to ensure database propagation
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            // Always switch to the uploaded collection and refresh it
+            setActiveCollection(uploadedCollectionId);
+            await serviceRef.current.reinitialize(uploadedCollectionId);
+            console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
+            
+            // Generate a new collage with the uploaded images
+            if (serviceRef.current.imageMetadata.length > 0) {
+              await serviceRef.current.generateCollage();
             }
           }
         }}
@@ -1290,6 +1294,13 @@ function MainApp() {
         onUploadImages={() => {
           setShowUpload(true);
           setShowDrawer(false);
+        }}
+        onNewCollectionCreated={(newCollectionId) => {
+          // When a new collection is created, open upload modal with that collection selected
+          console.log('[App] New collection created:', newCollectionId);
+          setUploadCollectionId(newCollectionId);
+          setShowUpload(true);
+          // Don't close the drawer yet - let the user see their new collection
         }}
       />
       

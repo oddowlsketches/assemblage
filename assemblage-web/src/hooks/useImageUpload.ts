@@ -369,21 +369,29 @@ export const useImageUpload = () => {
 
     // Trigger metadata generation only if enabled
     if (generateMetadata) {
-      fetch('/.netlify/functions/process-user-image-metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageId: imageData.id })
-      }).then(response => {
-        if (!response.ok) {
-          response.text().then(errorText => {
-            console.error('[uploadToSupabase] Metadata generation failed:', errorText);
-          });
-        } else {
-          console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
-        }
-      }).catch(metadataError => {
-        console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
-      });
+      // Only try to generate metadata in production
+      // In development, the netlify functions might not have proper env vars
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      
+      if (!isDevelopment) {
+        fetch('/.netlify/functions/process-user-image-metadata', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageId: imageData.id })
+        }).then(response => {
+          if (!response.ok) {
+            response.text().then(errorText => {
+              console.error('[uploadToSupabase] Metadata generation failed:', errorText);
+            });
+          } else {
+            console.log('[uploadToSupabase] Metadata generation triggered for image:', imageData.id);
+          }
+        }).catch(metadataError => {
+          console.error('[uploadToSupabase] Error triggering metadata generation:', metadataError);
+        });
+      } else {
+        console.log('[uploadToSupabase] Skipping metadata generation in development');
+      }
     }
 
     return imageData

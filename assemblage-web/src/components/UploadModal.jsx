@@ -78,6 +78,10 @@ export const UploadModal = ({
       if (collectionId) {
         setSelectedCollectionId(collectionId)
       }
+      // Always refresh storage stats when modal opens
+      if (session?.user) {
+        fetchStorageStats()
+      }
     }
   }, [isOpen, collectionId])
   
@@ -240,6 +244,8 @@ export const UploadModal = ({
 
       // Clear successfully uploaded files
       if (results.length > 0 && errors.length === 0) {
+        // Refresh storage stats after successful upload
+        await fetchStorageStats()
         // Show success message for longer
         setTimeout(() => {
           setFiles([])
@@ -251,6 +257,10 @@ export const UploadModal = ({
         // Remove successfully uploaded files from the list
         const uploadedFileNames = results.map(r => r.title || '')
         setFiles(prev => prev.filter(f => !uploadedFileNames.includes(f.file.name)))
+        // Refresh storage stats even if there were some errors
+        if (results.length > 0) {
+          await fetchStorageStats()
+        }
       }
     } catch (err) {
       console.error('Upload failed:', err)

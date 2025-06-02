@@ -1038,18 +1038,29 @@ const ImagesPage: React.FC = () => {
 
     setBulkActionLoading(true);
     try {
-      // Delete images one by one (could be optimized with a batch delete)
-      for (const imageId of selectedImages) {
-        const { error } = await supa.from('images').delete().eq('id', imageId);
+      // Get the actual image data for selected images to verify they belong to current collection
+      const selectedImagesList = Array.from(selectedImages);
+      const imagesToDelete = rows.filter(row => selectedImages.has(row.id));
+      
+      // Delete images one by one, ensuring we only delete from the current collection
+      for (const image of imagesToDelete) {
+        let deleteQuery = supa.from('images').delete().eq('id', image.id);
+        
+        // If we're viewing a specific collection, ensure we only delete from that collection
+        if (selectedCollection) {
+          deleteQuery = deleteQuery.eq('collection_id', selectedCollection);
+        }
+        
+        const { error } = await deleteQuery;
         if (error) {
-          console.error('Error deleting image:', imageId, error);
+          console.error('Error deleting image:', image.id, error);
         }
       }
       
       // Update local state
       setRows(prev => prev.filter(row => !selectedImages.has(row.id)));
       deselectAll();
-      alert(`Successfully deleted ${selectedImages.size} images`);
+      alert(`Successfully deleted ${imagesToDelete.length} images`);
     } catch (err) {
       console.error('Error during bulk delete:', err);
       alert('Error deleting some images');
@@ -1170,9 +1181,20 @@ const ImagesPage: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete image?')) return;
-    const { error } = await supa.from('images').delete().eq('id', id);
+    
+    let deleteQuery = supa.from('images').delete().eq('id', id);
+    
+    // If we're viewing a specific collection, ensure we only delete from that collection
+    if (selectedCollection) {
+      deleteQuery = deleteQuery.eq('collection_id', selectedCollection);
+    }
+    
+    const { error } = await deleteQuery;
     if (!error) {
       setRows((prev) => prev.filter((r) => r.id !== id));
+    } else {
+      console.error('Error deleting image:', error);
+      alert('Error deleting image: ' + error.message);
     }
   };
 

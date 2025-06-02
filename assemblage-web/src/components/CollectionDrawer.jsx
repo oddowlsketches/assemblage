@@ -10,7 +10,8 @@ export const CollectionDrawer = ({
   activeCollectionId,
   onCollectionSelect,
   onShowGallery,
-  onUploadImages 
+  onUploadImages,
+  onNewCollectionCreated // New prop for handling new collection creation
 }) => {
   const [userCollections, setUserCollections] = useState([])
   const [loading, setLoading] = useState(true)
@@ -145,9 +146,9 @@ export const CollectionDrawer = ({
       
       setUserCollections(prev => [collectionForState, ...prev])
       
-      // Select the new collection
-      if (onCollectionSelect) {
-        onCollectionSelect(newUserCollection.id)
+      // Instead of selecting the collection, call the new handler
+      if (onNewCollectionCreated) {
+        onNewCollectionCreated(newUserCollection.id)
       }
 
       // Reset form
