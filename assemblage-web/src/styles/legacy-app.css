@@ -387,6 +387,12 @@ footer {
   100% { transform: rotate(360deg); }
 }
 
+/* Specific animation for centered spinners */
+@keyframes spinCentered {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
 /* Save overlay */
 .save-overlay {
   position: fixed;
@@ -410,23 +416,28 @@ footer {
   max-width: 300px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   border: 1px solid #333;
+  position: relative;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.save-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  width: 100%;
 }
 
 .save-overlay-content p {
-  margin: 1rem 0;
+  margin: 0;
   font-family: 'Space Mono', monospace;
   font-size: 1.1rem;
   color: #333;
-}
-
-.save-spinner-large {
-  width: 48px;
-  height: 48px;
-  border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top: 3px solid #333;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto;
 }
 
 .save-success-icon,

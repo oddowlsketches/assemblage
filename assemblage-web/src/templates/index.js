@@ -16,6 +16,7 @@ import mixedMediaTemplate from './mixedMediaTemplate.js';
 import slicedTemplate from './slicedTemplate.js'; // Keep this one
 import packedShapesTemplate from './packedShapesTemplate.js';
 import narrativeGrid from './narrativeGrid.js';
+import doubleExposure from './doubleExposure.js';
 // legacy placement templates removed for now
 // import legacyTemplates from './legacyTemplates.js';
 
@@ -36,5 +37,6 @@ export default [
   // architecturalComposition, // REMOVED OLD TEMPLATE
   // Remove duplicate slicedTemplate here
   packedShapesTemplate,
-  narrativeGrid
+  narrativeGrid,
+  doubleExposure
 ];

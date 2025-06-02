@@ -1087,13 +1087,12 @@ function MainApp() {
           <div className="save-overlay">
             <div className="save-overlay-content">
               {saveState === 'saving' && (
-                <>
-                  <div className="save-spinner-large"></div>
+                <div className="save-overlay-inner">
                   <p>Saving your collage...</p>
-                </>
+                </div>
               )}
               {saveState === 'saved' && (
-                <>
+                <div className="save-overlay-inner">
                   <div className="save-success-icon">
                     <Check size={48} weight="bold" style={{ color: 'inherit' }} />
                   </div>
@@ -1101,10 +1100,10 @@ function MainApp() {
                   <p style={{ fontSize: '0.9rem', opacity: 0.8, margin: '0.5rem 0 0 0' }}>
                     View it anytime in "My Collages" from the user menu
                   </p>
-                </>
+                </div>
               )}
               {saveState === 'error' && (
-                <>
+                <div className="save-overlay-inner">
                   <div className="save-error-icon">
                     <X size={48} weight="bold" style={{ color: '#e74c3c' }} />
                   </div>
@@ -1115,7 +1114,7 @@ function MainApp() {
                   >
                     Try Again
                   </button>
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -1286,8 +1285,8 @@ function MainApp() {
             </h2>
             <p className="mb-6">
               {quotaModalType === 'collages' 
-                ? "You've reached 50 saved collages. To save a new collage, you can download and archive your oldest 20 collages."
-                : "You've reached 50 active images. To upload more images, you can archive your oldest images."
+                ? "You've reached your limit of 30 saved collages. To save a new collage, you can download and archive your oldest collages to make room for new ones."
+                : "You've reached your limit of 100 active images. To upload more images, you can archive your oldest images."
               }
             </p>
             
@@ -1297,7 +1296,7 @@ function MainApp() {
                   onClick={async () => {
                     setShowQuotaModal(false);
                     try {
-                      const archivedCount = await downloadAndArchiveOldestCollages(20);
+                      const archivedCount = await downloadAndArchiveOldestCollages(10);
                       alert(`Successfully archived ${archivedCount} collages. You can now save new collages.`);
                     } catch (error) {
                       alert('Failed to archive collages. Please try again.');
@@ -1312,7 +1311,7 @@ function MainApp() {
                     cursor: quotaLoading ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {quotaLoading ? 'Archiving...' : 'Download & Archive oldest 20'}
+                  {quotaLoading ? 'Archiving...' : 'Download & Archive 10 oldest'}
                 </button>
               ) : (
                 <button

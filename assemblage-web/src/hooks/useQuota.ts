@@ -5,11 +5,11 @@ import JSZip from 'jszip'
 // Get quota caps from environment variables or use defaults
 const MAX_ACTIVE_IMAGES = import.meta.env?.VITE_MAX_ACTIVE_IMAGES 
   ? parseInt(import.meta.env.VITE_MAX_ACTIVE_IMAGES as string) 
-  : 50
+  : 100
 
 const MAX_COLLAGES = import.meta.env?.VITE_MAX_COLLAGES 
   ? parseInt(import.meta.env.VITE_MAX_COLLAGES as string) 
-  : 50
+  : 30
 
 export interface QuotaStatus {
   images: {
@@ -64,7 +64,6 @@ export const useQuota = () => {
         .from('saved_collages')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .eq('archived', false)
 
       if (collageError) throw collageError
 
@@ -156,7 +155,6 @@ export const useQuota = () => {
         .from('saved_collages')
         .select('id, title, image_data_url, created_at')
         .eq('user_id', user.id)
-        .eq('archived', false)
         .order('created_at', { ascending: true })
         .limit(count)
 

@@ -1,24 +1,157 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from 'react';
 import { getSupabase } from '../supabaseClient';
 import { DownloadSimple, Trash, X, Share, ArrowLeft, ArrowRight, Check, MagnifyingGlass } from 'phosphor-react';
 import { useUiColors } from '../hooks/useUiColors';
 import { getContrastText } from '../lib/colorUtils/contrastText';
 
+// Memoized gallery item component for better performance
+const GalleryItem = memo(({ 
+  collage, 
+  index, 
+  isLast, 
+  lastCollageElementRef,
+  onTitleEdit,
+  onTitleSave,
+  onTitleCancel,
+  onDelete,
+  onDownload,
+  onShare,
+  onImageClick,
+  editingTitle,
+  newTitle,
+  setNewTitle,
+  uiColors 
+}) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  return (
+    <div 
+      className="gallery-item"
+      ref={isLast ? lastCollageElementRef : null}
+      style={{
+        background: uiColors.bg === '#ffffff' ? '#ffffff' : `${uiColors.bg}33`,
+        border: `1px solid ${getContrastText(uiColors.bg)}`,
+        boxShadow: `0 2px 8px rgba(0, 0, 0, 0.1)`,
+        opacity: 0,
+        animation: 'fadeIn 0.3s ease-out forwards',
+        animationDelay: `${Math.min(index * 0.05, 0.3)}s`
+      }}
+    >
+      <div className="gallery-thumbnail">
+        {!imageLoaded && !imageError && (
+          <div className="gallery-thumbnail-loading" />
+        )}
+        <img 
+          src={collage.thumbnail_url} 
+          alt={collage.title}
+          loading="lazy"
+          decoding="async"
+          onClick={() => onImageClick(collage)}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            setImageError(true);
+            e.target.style.backgroundColor = '#f0f0f0';
+            e.target.alt = 'Thumbnail not available';
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            opacity: imageLoaded ? 1 : 0,
+            transition: 'opacity 0.3s ease'
+          }}
+        />
+      </div>
+      <div className="gallery-info" style={{ color: getContrastText(uiColors.bg) }}>
+        {editingTitle === collage.id ? (
+          <div className="gallery-title-edit">
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              className="gallery-title-input"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') onTitleSave(collage.id);
+                if (e.key === 'Escape') onTitleCancel();
+              }}
+              onBlur={() => onTitleSave(collage.id)}
+              autoFocus
+            />
+          </div>
+        ) : (
+          <h4 onClick={() => onTitleEdit(collage)} className="gallery-title-editable">
+            {collage.title}
+          </h4>
+        )}
+        <p>Template: {collage.template_key}</p>
+        <p>Created: {new Date(collage.created_at).toLocaleDateString()}</p>
+      </div>
+      <div className="gallery-actions">
+        <button 
+          onClick={() => onDownload(collage)}
+          className="gallery-btn gallery-download-btn"
+          title="Download"
+          style={{
+            background: getContrastText(uiColors.bg),
+            color: uiColors.bg,
+            border: `1px solid ${getContrastText(uiColors.bg)}`
+          }}
+        >
+          <DownloadSimple size={16} weight="regular" />
+        </button>
+        <button 
+          onClick={() => onShare(collage)}
+          className="gallery-btn gallery-share-btn"
+          title="Share"
+          style={{
+            background: getContrastText(uiColors.bg),
+            color: uiColors.bg,
+            border: `1px solid ${getContrastText(uiColors.bg)}`
+          }}
+        >
+          <Share size={16} weight="regular" />
+        </button>
+        <button 
+          onClick={() => onDelete(collage.id)}
+          className="gallery-btn gallery-delete-btn"
+          title="Delete"
+          style={{
+            background: 'transparent',
+            color: getContrastText(uiColors.bg),
+            border: `1px solid ${getContrastText(uiColors.bg)}`
+          }}
+        >
+          <Trash size={16} weight="regular" />
+        </button>
+      </div>
+    </div>
+  );
+});
+
+GalleryItem.displayName = 'GalleryItem';
+
 export default function Gallery({ session, onClose }) {
   const [collages, setCollages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showMobileSearch, setShowMobileSearch] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(null);
+  const [newTitle, setNewTitle] = useState('');
+  const [selectedCollage, setSelectedCollage] = useState(null);
+  const [showDetail, setShowDetail] = useState(false);
+  
   const itemsPerPage = 12; // Show 12 collages per page
-  const initialLoadCount = 12; // Load only 12 initially for faster performance
   const supabase = getSupabase();
   const observer = useRef();
-  const loadMoreRef = useRef();
+  const loadingRef = useRef(false);
+  
   // Force white background colors for gallery
   const uiColors = {
     bg: '#ffffff',
@@ -27,10 +160,19 @@ export default function Gallery({ session, onClose }) {
     complementaryColor: '#333333'
   };
 
+  // Mount effect
   useEffect(() => {
-    // Only load once when the component mounts with a valid session
+    console.log('[Gallery] Component mounted with session:', session?.user?.id);
+    return () => {
+      console.log('[Gallery] Component unmounting');
+    };
+  }, []);
+
+  // Load collages on mount
+  useEffect(() => {
     if (session?.user?.id && !hasLoaded) {
-      loadCollages();
+      console.log('[Gallery] Initial load triggered');
+      loadCollages(1, true);
     } else if (!session) {
       setLoading(false);
       setCollages([]);
@@ -40,14 +182,21 @@ export default function Gallery({ session, onClose }) {
   }, [session?.user?.id]);
 
   const loadCollages = async (page = 1, resetData = false, customFilters = {}) => {
+    // Prevent concurrent loads
+    if (loadingRef.current && !resetData) {
+      console.log('[Gallery] Load already in progress, skipping');
+      return;
+    }
+
     if (!session?.user?.id) {
       console.warn('No user session available for loading collages');
       setLoading(false);
       return;
     }
 
-    console.log(`Loading collages page ${page}`);
+    console.log('[Gallery] Loading collages:', { page, resetData, customFilters });
     setLoading(true);
+    loadingRef.current = true;
     
     try {
       // Use custom filters if provided, otherwise use current state
@@ -70,14 +219,16 @@ export default function Gallery({ session, onClose }) {
         const { count: totalItems, error: countError } = await countQuery;
         
         if (!countError) {
-          setTotalCount(totalItems || 0);
-          console.log('Total count updated to:', totalItems);
+          const validCount = Math.max(0, totalItems || 0);
+          setTotalCount(validCount);
+          console.log('Total count updated to:', validCount);
         } else {
           console.warn('Count query failed:', countError);
+          setTotalCount(0);
         }
       }
       
-      // Now get the actual data
+      // Now get the actual data - only load what we need for display
       let dataQuery = supabase
         .from('saved_collages')
         .select('id, title, template_key, created_at, thumbnail_url')
@@ -94,36 +245,35 @@ export default function Gallery({ session, onClose }) {
       
       const { data, error } = await dataQuery;
 
-      console.log('Query result:', { data, error, page, totalItems: totalCount });
-
       if (error) {
-        console.error('Supabase error loading collages:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        setCollages([]);
+        console.error('Supabase error loading collages:', error);
+        setCollages(resetData ? [] : prev => prev);
+        setHasMore(false);
       } else {
-        console.log('Successfully loaded collages:', data?.length || 0);
+        const newData = data || [];
+        console.log(`[Gallery] Loaded ${newData.length} collages for page ${page}`);
+        
         if (page === 1 || resetData) {
-          setCollages(data || []);
+          setCollages(newData);
         } else {
-          setCollages(prev => [...prev, ...(data || [])]);
+          setCollages(prev => [...prev, ...newData]);
         }
+        
+        // Update hasMore based on whether we got a full page
+        setHasMore(newData.length === itemsPerPage);
       }
+      
       setHasLoaded(true);
       setCurrentPage(page);
     } catch (err) {
-      console.error('Network error loading collages:', {
-        message: err.message,
-        stack: err.stack,
-        name: err.name
-      });
-      setCollages([]);
+      console.error('Network error loading collages:', err);
+      if (resetData) {
+        setCollages([]);
+      }
+      setHasMore(false);
     } finally {
       setLoading(false);
+      loadingRef.current = false;
     }
   };
 
@@ -131,53 +281,31 @@ export default function Gallery({ session, onClose }) {
   const lastCollageElementRef = useCallback(node => {
     if (loading) return;
     if (observer.current) observer.current.disconnect();
+    
     observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && collages.length < totalCount) {
-        loadCollages(currentPage + 1);
+      if (entries[0].isIntersecting && hasMore && !loading) {
+        console.log('[Gallery] Infinite scroll triggered');
+        loadCollages(currentPage + 1, false);
       }
+    }, {
+      rootMargin: '100px' // Load when within 100px of bottom
     });
+    
     if (node) observer.current.observe(node);
-  }, [loading, collages.length, totalCount, currentPage]);
+  }, [loading, hasMore, currentPage]);
 
-  // Filter and search handlers
-  const handleSearchChange = (e) => {
-    setSearchTerm(e.target.value);
-  };
+  // Memoized callbacks
+  const handleImageClick = useCallback((collage) => {
+    setSelectedCollage(collage);
+    setShowDetail(true);
+  }, []);
 
-  const handleFilterSubmit = () => {
-    setCurrentPage(1);
-    setHasLoaded(false);
-    loadCollages(1, true, { searchTerm });
-  };
-
-  const handleSortToggle = () => {
-    const newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
-    setSortOrder(newSortOrder);
-    setCurrentPage(1);
-    setHasLoaded(false);
-    loadCollages(1, true, { sortBy, sortOrder: newSortOrder });
-  };
-
-  const clearFilters = () => {
-    setSearchTerm('');
-    setSortBy('created_at');
-    setSortOrder('desc');
-    setCurrentPage(1);
-    setHasLoaded(false);
-    loadCollages(1, true, { searchTerm: '', sortBy: 'created_at', sortOrder: 'desc' });
-  };
-
-  const [editingTitle, setEditingTitle] = useState(null);
-  const [newTitle, setNewTitle] = useState('');
-  const [selectedCollage, setSelectedCollage] = useState(null);
-  const [showDetail, setShowDetail] = useState(false);
-
-  const handleTitleEdit = (collage) => {
+  const handleTitleEdit = useCallback((collage) => {
     setEditingTitle(collage.id);
     setNewTitle(collage.title);
-  };
+  }, []);
 
-  const handleTitleSave = async (collageId) => {
+  const handleTitleSave = useCallback(async (collageId) => {
     if (!newTitle.trim()) return;
     
     try {
@@ -203,14 +331,14 @@ export default function Gallery({ session, onClose }) {
       console.error('Error updating title:', err);
       alert('Failed to update title');
     }
-  };
+  }, [newTitle, supabase]);
 
-  const handleTitleCancel = () => {
+  const handleTitleCancel = useCallback(() => {
     setEditingTitle(null);
     setNewTitle('');
-  };
+  }, []);
 
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (id) => {
     if (!window.confirm('Are you sure you want to delete this collage?')) return;
 
     try {
@@ -225,16 +353,16 @@ export default function Gallery({ session, onClose }) {
       } else {
         // Update the local state immediately without refetching
         setCollages(prevCollages => prevCollages.filter(c => c.id !== id));
-        setTotalCount(prev => prev - 1);
+        setTotalCount(prev => Math.max(0, prev - 1));
         console.log('Collage deleted successfully');
       }
     } catch (err) {
       console.error('Error deleting collage:', err);
       alert('Failed to delete collage');
     }
-  };
+  }, [supabase]);
 
-  const handleDownload = async (collage) => {
+  const handleDownload = useCallback(async (collage) => {
     try {
       // Fetch the full collage data including image_data_url for download
       const { data, error } = await supabase
@@ -257,9 +385,9 @@ export default function Gallery({ session, onClose }) {
       console.error('Error downloading collage:', err);
       alert('Failed to download collage');
     }
-  };
+  }, [supabase]);
 
-  const handleShare = async (collage) => {
+  const handleShare = useCallback(async (collage) => {
     try {
       // Fetch the full collage data including image_data_url for sharing
       const { data, error } = await supabase
@@ -344,21 +472,49 @@ export default function Gallery({ session, onClose }) {
       console.error('Error sharing collage:', err);
       alert('Failed to share collage');
     }
-  };
+  }, [supabase]);
+
+  // Filter and search handlers
+  const handleSearchChange = useCallback((e) => {
+    setSearchTerm(e.target.value);
+  }, []);
+
+  const handleFilterSubmit = useCallback(() => {
+    setCurrentPage(1);
+    setHasLoaded(false);
+    loadCollages(1, true, { searchTerm });
+  }, [searchTerm]);
+
+  const handleSortToggle = useCallback(() => {
+    const newSortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+    setSortOrder(newSortOrder);
+    setCurrentPage(1);
+    setHasLoaded(false);
+    loadCollages(1, true, { sortBy, sortOrder: newSortOrder });
+  }, [sortOrder, sortBy]);
+
+  const clearFilters = useCallback(() => {
+    setSearchTerm('');
+    setSortBy('created_at');
+    setSortOrder('desc');
+    setCurrentPage(1);
+    setHasLoaded(false);
+    loadCollages(1, true, { searchTerm: '', sortBy: 'created_at', sortOrder: 'desc' });
+  }, []);
 
   if (loading && !hasLoaded && collages.length === 0) {
     return (
       <div className="gallery-fullscreen">
-      <header className="gallery-header">
-        <div className="gallery-header-text">
-          <h1>Assemblage</h1>
-        </div>
-        <div className="gallery-header-controls">
-          <button onClick={onClose} className="gallery-close-btn">
-            <X size={20} weight="regular" />
-          </button>
-        </div>
-      </header>
+        <header className="gallery-header">
+          <div className="gallery-header-text">
+            <h1>Assemblage</h1>
+          </div>
+          <div className="gallery-header-controls">
+            <button onClick={onClose} className="gallery-close-btn">
+              <X size={20} weight="regular" />
+            </button>
+          </div>
+        </header>
         <div className="gallery-content">
           <div className="gallery-loading">Loading your collages...</div>
         </div>
@@ -400,7 +556,7 @@ export default function Gallery({ session, onClose }) {
       <div className="gallery-content" style={{ background: 'white' }}>
         {/* Page title */}
         <div className="gallery-page-title" style={{ padding: '2rem 2rem 0 2rem' }}>
-          <h2 style={{ color: '#333', fontFamily: 'Space Mono, monospace' }}>My Collages ({totalCount})</h2>
+          <h2 style={{ color: '#333', fontFamily: 'Space Mono, monospace' }}>My Collages ({Math.max(0, totalCount)})</h2>
         </div>
         
         {/* Search and Sort - responsive */}
@@ -516,94 +672,24 @@ export default function Gallery({ session, onClose }) {
             )}
             <div className="gallery-grid">
               {collages.map((collage, index) => (
-                <div 
-                  key={collage.id} 
-                  className="gallery-item"
-                  ref={index === collages.length - 1 ? lastCollageElementRef : null}
-                  style={{
-                    background: uiColors.bg === '#ffffff' ? '#ffffff' : `${uiColors.bg}33`,
-                    border: `1px solid ${getContrastText(uiColors.bg)}`,
-                    boxShadow: `0 2px 8px rgba(0, 0, 0, 0.1)`
-                  }}
-                >
-                  <div className="gallery-thumbnail">
-                    <img 
-                      src={collage.thumbnail_url} 
-                      alt={collage.title}
-                      loading="lazy"
-                      onClick={() => {
-                        setSelectedCollage(collage);
-                        setShowDetail(true);
-                      }}
-                      onError={(e) => {
-                        e.target.style.backgroundColor = '#f0f0f0';
-                        e.target.alt = 'Thumbnail not available';
-                      }}
-                    />
-                  </div>
-                  <div className="gallery-info" style={{ color: getContrastText(uiColors.bg) }}>
-                    {editingTitle === collage.id ? (
-                      <div className="gallery-title-edit">
-                        <input
-                          type="text"
-                          value={newTitle}
-                          onChange={(e) => setNewTitle(e.target.value)}
-                          className="gallery-title-input"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') handleTitleSave(collage.id);
-                            if (e.key === 'Escape') handleTitleCancel();
-                          }}
-                          onBlur={() => handleTitleSave(collage.id)}
-                          autoFocus
-                        />
-                      </div>
-                    ) : (
-                      <h4 onClick={() => handleTitleEdit(collage)} className="gallery-title-editable">
-                        {collage.title}
-                      </h4>
-                    )}
-                    <p>Template: {collage.template_key}</p>
-                    <p>Created: {new Date(collage.created_at).toLocaleDateString()}</p>
-                  </div>
-                  <div className="gallery-actions">
-                    <button 
-                      onClick={() => handleDownload(collage)}
-                      className="gallery-btn gallery-download-btn"
-                      title="Download"
-                      style={{
-                        background: getContrastText(uiColors.bg),
-                        color: uiColors.bg,
-                        border: `1px solid ${getContrastText(uiColors.bg)}`
-                      }}
-                    >
-                      <DownloadSimple size={16} weight="regular" />
-                    </button>
-                    <button 
-                      onClick={() => handleShare(collage)}
-                      className="gallery-btn gallery-share-btn"
-                      title="Share"
-                      style={{
-                        background: getContrastText(uiColors.bg),
-                        color: uiColors.bg,
-                        border: `1px solid ${getContrastText(uiColors.bg)}`
-                      }}
-                    >
-                      <Share size={16} weight="regular" />
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(collage.id)}
-                      className="gallery-btn gallery-delete-btn"
-                      title="Delete"
-                      style={{
-                        background: 'transparent',
-                        color: getContrastText(uiColors.bg),
-                        border: `1px solid ${getContrastText(uiColors.bg)}`
-                      }}
-                    >
-                      <Trash size={16} weight="regular" />
-                    </button>
-                  </div>
-                </div>
+                <GalleryItem
+                  key={collage.id}
+                  collage={collage}
+                  index={index}
+                  isLast={index === collages.length - 1}
+                  lastCollageElementRef={lastCollageElementRef}
+                  onTitleEdit={handleTitleEdit}
+                  onTitleSave={handleTitleSave}
+                  onTitleCancel={handleTitleCancel}
+                  onDelete={handleDelete}
+                  onDownload={handleDownload}
+                  onShare={handleShare}
+                  onImageClick={handleImageClick}
+                  editingTitle={editingTitle}
+                  newTitle={newTitle}
+                  setNewTitle={setNewTitle}
+                  uiColors={uiColors}
+                />
               ))}
             </div>
             
@@ -611,6 +697,19 @@ export default function Gallery({ session, onClose }) {
             {loading && hasLoaded && (
               <div className="gallery-loading-more">
                 Loading more collages...
+              </div>
+            )}
+            
+            {/* Show remaining count */}
+            {!loading && hasLoaded && totalCount > collages.length && (
+              <div style={{
+                textAlign: 'center',
+                padding: '2rem',
+                color: '#666',
+                fontFamily: 'Space Mono, monospace',
+                fontSize: '0.9rem'
+              }}>
+                {totalCount - collages.length} more collages available
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@ import { getSupabase } from '../supabaseClient'
 // Get the storage cap from environment variable or use default
 const MAX_ACTIVE_IMAGES = import.meta.env.VITE_MAX_ACTIVE_IMAGES 
   ? parseInt(import.meta.env.VITE_MAX_ACTIVE_IMAGES) 
-  : 50
+  : 100
 
 export const useUploadQuota = () => {
   const [loading, setLoading] = useState(false)
