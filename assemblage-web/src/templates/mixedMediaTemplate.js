@@ -176,11 +176,25 @@ function renderMixedMedia(canvas, images, params = {}) {
   
   const imageIndices = selectImageElements(allElements, imagesForElements, params.imageRatio || 0.6, maxImagesForElements);
   
-  // Color Harmony: Always use generateAccentColors based on initialBgColor
-  const complementaryColor = getComplementaryColor(initialBgColor);
-  // FIXED: Use lightened version of complementary color for better visibility
-  const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
-  const accentColorsForForeground = generateAccentColors(initialBgColor, lightenedComplementaryColor);
+  // Check if images are color (not B&W)
+  const hasColorImages = imagesForElements.some(img => img && img.is_black_and_white === false);
+  
+  // Color Harmony: Use appropriate colors based on image type
+  let accentColorsForForeground;
+  if (hasColorImages) {
+    // For color images: ONLY use bgColor or white
+    accentColorsForForeground = [
+      initialBgColor,
+      '#FFFFFF',
+      initialBgColor,
+      '#FFFFFF'
+    ];
+  } else {
+    // For B&W images: can use complementary and other colors
+    const complementaryColor = getComplementaryColor(initialBgColor);
+    const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
+    accentColorsForForeground = generateAccentColors(initialBgColor, lightenedComplementaryColor);
+  }
 
   // Corrected population of actualImagesToDrawForElements
   const actualImagesToDrawForElements = [];
@@ -229,11 +243,21 @@ function renderMixedMedia(canvas, images, params = {}) {
       if (maskAppliedOnTemp && imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
         const colorIndexToUse = Math.abs(index) % accentColorsForForeground.length;
         const baseFillColor = accentColorsForForeground[colorIndexToUse];
-        tempCtx.fillStyle = baseFillColor; 
-        tempCtx.globalAlpha = 1.0;      
+        // Choose color based on image type
+        let fillColor = baseFillColor;
+        if (hasColorImages) {
+          // For color images, only use white or background color
+          fillColor = (index % 2 === 0) ? '#FFFFFF' : initialBgColor;
+        }
+        tempCtx.fillStyle = fillColor;
+        // Apply opacity variation 0.9-1.0
+        const fillOpacity = 0.9 + Math.random() * 0.1;
+        tempCtx.globalAlpha = fillOpacity;      
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
         tempCtx.globalCompositeOperation = 'multiply';
-        tempCtx.globalAlpha = element.opacity || 0.9; 
+        // For color images, use slightly less opacity to prevent muddiness
+        const imageOpacity = hasColorImages ? 0.85 : (element.opacity || 0.9);
+        tempCtx.globalAlpha = imageOpacity; 
         const imgWidth = imageToDraw.naturalWidth || imageToDraw.width;
         const imgHeight = imageToDraw.naturalHeight || imageToDraw.height;
         const imgRatio = imgWidth / imgHeight;
@@ -362,7 +386,7 @@ function createDynamicComposition(canvasWidth, canvasHeight, cellWidth, cellHeig
       maskName: maskOptions[Math.floor(Math.random() * maskOptions.length)],
       x, y, width: currentSize, height: currentSize,
       rotation: (Math.random() - 0.5) * 5, // Max +/- 2.5 degrees rotation, very subtle
-      opacity: 0.92 + Math.random() * 0.08, // Consistently high opacity
+      opacity: 0.9 + Math.random() * 0.1, // 0.9-1.0 opacity range
       blendMode: 'multiply', layer: i
     });
     placedElements.push({x, y, width: currentSize, height: currentSize});
@@ -413,7 +437,7 @@ function createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHei
       width: width,
       height: height,
       rotation: Math.random() > 0.7 ? (Math.random() - 0.5) * 10 : 0,
-      opacity: 0.8 + Math.random() * 0.2,
+      opacity: 0.9 + Math.random() * 0.1, // Updated to 0.9-1.0 range
       blendMode: 'multiply',
       layer: index
     });
@@ -440,7 +464,7 @@ function createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cel
     width: mainSize,
     height: mainSize,
     rotation: 0,
-    opacity: 1,
+    opacity: 0.95 + Math.random() * 0.05, // Main focal: 0.95-1.0
     blendMode: 'multiply',
     layer: 10
   });
@@ -467,7 +491,7 @@ function createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cel
         width: secondarySize,
         height: secondarySize,
         rotation: (Math.random() - 0.5) * 20,
-        opacity: 0.8,
+        opacity: 0.9 + Math.random() * 0.1, // Secondary: 0.9-1.0
         blendMode: 'multiply',
         layer: 5 + index
       });
@@ -487,7 +511,7 @@ function createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cel
       width: accentSize,
       height: accentSize,
       rotation: Math.random() * 360,
-      opacity: 0.6 + Math.random() * 0.2,
+      opacity: 0.9 + Math.random() * 0.1, // Tertiary: 0.9-1.0
       blendMode: Math.random() > 0.5 ? 'multiply' : 'source-over',
       layer: i
     });
@@ -543,7 +567,7 @@ function createUnmaskedElements(canvasWidth, canvasHeight, existingElements) {
       width,
       height,
       rotation: (Math.random() - 0.5) * 15, // Less extreme rotation for unmasked
-      opacity: 0.85 + Math.random() * 0.15, // Tend to be lower layers
+      opacity: 0.9 + Math.random() * 0.1, // 0.9-1.0 opacity range
       blendMode: 'multiply',
       layer: Math.floor(Math.random() * 5)
     });

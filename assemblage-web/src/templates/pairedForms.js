@@ -395,7 +395,13 @@ function applyModularGrid(shapes, canvasWidth, canvasHeight) {
  */
 function createDiptychTriptych(width, height, formCount, complexity, formType = 'rectangular') {
   const composition = []; 
-  const tempShapesData = []; 
+  const tempShapesData = [];
+  
+  // Determine optimal orientation based on canvas aspect ratio
+  const canvasAspectRatio = width / height;
+  const isLandscape = canvasAspectRatio > 1.2; // Significantly wider than tall
+  const isPortrait = canvasAspectRatio < 0.8; // Significantly taller than wide
+  const isSquarish = !isLandscape && !isPortrait;
   
   function pickType(index, count) {
     if (formType === 'mixed') {
@@ -455,7 +461,23 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     return formType;
   }
   
-  const isVerticalSplit = Math.random() < 0.5 + (complexity * 0.2 - 0.1); 
+  // Smart orientation decision based on canvas aspect ratio and form count
+  let isVerticalSplit;
+  if (formCount === 2) {
+    if (isLandscape) {
+      // For landscape canvas, vertical split usually fills better
+      isVerticalSplit = Math.random() < 0.8; // 80% chance vertical split
+    } else if (isPortrait) {
+      // For portrait canvas, horizontal split usually fills better
+      isVerticalSplit = Math.random() < 0.2; // 20% chance vertical split
+    } else {
+      // Square canvas - either works
+      isVerticalSplit = Math.random() < 0.5;
+    }
+  } else {
+    // For 3+ forms, use original logic
+    isVerticalSplit = Math.random() < 0.5 + (complexity * 0.2 - 0.1);
+  } 
   const variationFactor = (0.05 + complexity * 0.15); // Reduced variation for more consistent sizing
   
   const useMargins = Math.random() < (complexity * 0.15); // Further reduced chance of margins
@@ -475,32 +497,54 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
       
-      // For rectangles, allow more varied aspect ratios
-      if (shapeType === 'rectangular' && formCount === 2 && tempShapesData._forceRectangularPair) {
-        // Create more varied rectangular shapes - not always square-like
-        const aspectRatioChoice = Math.random();
-        if (aspectRatioChoice < 0.4) {
-          // Tall rectangles
-          shapeHeight = effectiveHeight * (0.8 + Math.random() * 0.15);
-          shapeWidth = effectiveWidth * (0.35 + Math.random() * 0.1);
-        } else if (aspectRatioChoice < 0.8) {
-          // Wide rectangles
-          shapeHeight = effectiveHeight * (0.4 + Math.random() * 0.2);
-          shapeWidth = effectiveWidth * (0.45 + Math.random() * 0.05);
+      // Optimize shape dimensions based on canvas orientation
+      if (isVerticalSplit) {
+        // Vertical split - shapes side by side
+        shapeHeight = effectiveHeight * (0.85 + Math.random() * 0.13); // 85-98% height
+        
+        if (formCount === 2) {
+          // For two forms, each takes roughly half width with slight variation
+          shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.02); // 48-50% width each
         } else {
-          // Square-ish (original behavior)
-          shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23);
-          shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04);
+          shapeWidth = effectiveWidth / formCount * (0.9 + Math.random() * 0.1);
+        }
+        
+        // Special handling for rectangles to create more variety
+        if (shapeType === 'rectangular' && Math.random() < 0.4) {
+          const aspectChoice = Math.random();
+          if (aspectChoice < 0.5 && isLandscape) {
+            // In landscape, allow some tall thin rectangles
+            shapeWidth *= 0.7;
+            shapeHeight = effectiveHeight * 0.95;
+          } else if (aspectChoice > 0.5 && !isLandscape) {
+            // In portrait/square, allow some wide rectangles
+            shapeHeight *= 0.7;
+            shapeWidth = Math.min(effectiveWidth * 0.6, shapeWidth * 1.3);
+          }
         }
       } else {
-        // Original logic for other shapes
-        shapeHeight = effectiveHeight * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
+        // Horizontal split - shapes stacked
+        shapeWidth = effectiveWidth * (0.85 + Math.random() * 0.13); // 85-98% width
+        
         if (formCount === 2) {
-          shapeWidth = effectiveWidth * (0.48 + Math.random() * 0.04); // Aim for roughly half each, less variation
+          shapeHeight = effectiveHeight * (0.48 + Math.random() * 0.02); // 48-50% height each
         } else {
-          shapeWidth = effectiveWidth / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
+          shapeHeight = effectiveHeight / formCount * (0.9 + Math.random() * 0.1);
         }
-        shapeWidth = Math.max(effectiveWidth * 0.35, Math.min(shapeWidth, effectiveWidth * 0.75));
+        
+        // Special handling for rectangles
+        if (shapeType === 'rectangular' && Math.random() < 0.4) {
+          const aspectChoice = Math.random();
+          if (aspectChoice < 0.5 && isPortrait) {
+            // In portrait, allow some wide thin rectangles
+            shapeHeight *= 0.7;
+            shapeWidth = effectiveWidth * 0.95;
+          } else if (aspectChoice > 0.5 && !isPortrait) {
+            // In landscape/square, allow some tall rectangles
+            shapeWidth *= 0.7;
+            shapeHeight = Math.min(effectiveHeight * 0.6, shapeHeight * 1.3);
+          }
+        }
       }
       
       // Ensure minimum and maximum bounds
@@ -523,15 +567,34 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
     for (let i = 0; i < formCount; i++) {
       let shapeType = pickType(i, formCount);
       let shapeWidth, shapeHeight;
-      shapeWidth = effectiveWidth * (0.75 + Math.random() * 0.23); // Range 75-98% (was 55-90%)
-      const xPos = marginX + (effectiveWidth - shapeWidth) / 2; 
-
-      if (formCount === 2) {
-        shapeHeight = effectiveHeight * (0.48 + Math.random() * 0.04); // Less variation
-      } else {
-        shapeHeight = effectiveHeight / formCount * (1 - variationFactor + Math.random() * variationFactor * 2);
+      
+      // Optimize shape dimensions based on canvas orientation
+      if (!isVerticalSplit) {
+        // Horizontal split - shapes stacked
+        shapeWidth = effectiveWidth * (0.85 + Math.random() * 0.13); // 85-98% width
+        
+        if (formCount === 2) {
+          shapeHeight = effectiveHeight * (0.48 + Math.random() * 0.02); // 48-50% height each
+        } else {
+          shapeHeight = effectiveHeight / formCount * (0.9 + Math.random() * 0.1);
+        }
+        
+        // Special handling for rectangles
+        if (shapeType === 'rectangular' && Math.random() < 0.4) {
+          const aspectChoice = Math.random();
+          if (aspectChoice < 0.5 && isPortrait) {
+            // In portrait, allow some wide thin rectangles
+            shapeHeight *= 0.7;
+            shapeWidth = effectiveWidth * 0.95;
+          } else if (aspectChoice > 0.5 && !isPortrait) {
+            // In landscape/square, allow some tall rectangles
+            shapeWidth *= 0.7;
+            shapeHeight = Math.min(effectiveHeight * 0.6, shapeHeight * 1.3);
+          }
+        }
       }
-      shapeHeight = Math.max(effectiveHeight * 0.35, Math.min(shapeHeight, effectiveHeight * 0.75)); 
+      
+      const xPos = marginX + (effectiveWidth - shapeWidth) / 2; 
 
       let actualY = currentY;
       if (!useMargins && i > 0 && lastShapeBounds) {
@@ -961,7 +1024,9 @@ function drawTriangle(ctx, shape, img, useMultiply, keepImageUpright = true, par
 function centerAndScaleComposition(composition, canvasWidth, canvasHeight) {
   if (!composition || composition.length === 0) return composition;
 
-  const MARGIN_PERCENT = 0.005; // Was 0.01 (1% margin), now 0.5%
+  // Dynamic margin based on screen size - smaller margin on mobile
+  const isMobileSize = canvasWidth < 600 || canvasHeight < 600;
+  const MARGIN_PERCENT = isMobileSize ? 0.001 : 0.002; // 0.1% on mobile, 0.2% on desktop
 
   // Calculate current bounding box of the composition
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -981,10 +1046,25 @@ function centerAndScaleComposition(composition, canvasWidth, canvasHeight) {
   const targetCanvasWidth = canvasWidth * (1 - MARGIN_PERCENT * 2);
   const targetCanvasHeight = canvasHeight * (1 - MARGIN_PERCENT * 2);
 
-  // Calculate scale factor
-  const scaleX = targetCanvasWidth / currentCompWidth;
-  const scaleY = targetCanvasHeight / currentCompHeight;
-  const scale = Math.min(scaleX, scaleY);
+  // Calculate scale factor with boost for mobile
+  const baseScaleX = targetCanvasWidth / currentCompWidth;
+  const baseScaleY = targetCanvasHeight / currentCompHeight;
+  let scale = Math.min(baseScaleX, baseScaleY);
+  
+  // Boost scale to fill more space
+  scale *= 1.35; // 35% larger to fill canvas better
+  
+  // On mobile, boost even more
+  if (isMobileSize) {
+    scale *= 1.1; // Additional 10% on mobile (total 48.5% larger)
+  }
+  
+  // But ensure we don't exceed canvas bounds with a small safety margin
+  const maxScale = Math.min(
+    (canvasWidth * 0.98) / currentCompWidth,
+    (canvasHeight * 0.98) / currentCompHeight
+  );
+  scale = Math.min(scale, maxScale);
 
   // Apply scale and translate to new positions
   composition.forEach(shape => {

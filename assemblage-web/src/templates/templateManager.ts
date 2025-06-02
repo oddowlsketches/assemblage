@@ -11,8 +11,9 @@ import layeredGeometric from './layeredGeometric';
 // import architecturalComposition from './architecturalComposition'; // Removed old template
 import packedShapesTemplate from './packedShapesTemplate';
 import photoStrip from './photoStrip';
+import narrativeGrid from './narrativeGrid';
 
-type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'packedShapes' | 'photoStrip';
+type TemplateType = 'crystal' | 'scrambledMosaic' | 'tiling' | 'sliced' | 'pairedForms' | 'dynamicArchitectural' | 'floatingElements' | 'layeredGeometric' | 'packedShapes' | 'photoStrip' | 'narrativeGrid';
 
 // Template types and their weights for random selection
 const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
@@ -26,7 +27,8 @@ const TEMPLATE_WEIGHTS: Record<TemplateType, number> = {
   layeredGeometric: 0.08,
   // architecturalComposition: 0.0, // Removed old architectural template
   packedShapes: 0.08,
-  photoStrip: 0.04 // Increased for testing
+  photoStrip: 0.04, // Increased for testing
+  narrativeGrid: 0.06 // Weight of 6 as requested
 };
 
 // Random parameter generators for each template
@@ -113,6 +115,13 @@ const parameterGenerators = {
   
   photoStrip: () => ({
     bgColor: randomVibrantColor()
+  }),
+  
+  narrativeGrid: () => ({
+    compositionType: 'random', // Let the template choose
+    gutter: Math.random() < 0.3 ? 0 : 4 + Math.floor(Math.random() * 9), // 30% chance of no gutter, otherwise 4-12
+    useColorEcho: Math.random() > 0.3, // 70% chance of color echo
+    bgColor: randomVibrantColor()
   })
 } as const;
 
@@ -163,6 +172,8 @@ function getTemplateByType(type: TemplateType) {
       return packedShapesTemplate;
     case 'photoStrip':
       return photoStrip;
+    case 'narrativeGrid':
+      return narrativeGrid;
     default:
       return crystalTemplate;
   }
@@ -180,7 +191,8 @@ export const templates = {
   layeredGeometric: layeredGeometric,
   // architecturalComposition: architecturalComposition, // Removed old template
   packedShapes: packedShapesTemplate,
-  photoStrip: photoStrip
+  photoStrip: photoStrip,
+  narrativeGrid: narrativeGrid
 } as const;
 
 export const generators = parameterGenerators; 

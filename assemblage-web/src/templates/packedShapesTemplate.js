@@ -56,6 +56,59 @@ function calculateOverlap(rect1, rect2) {
 }
 
 /**
+ * Apply Swiss grid principles to element positioning
+ */
+function applySwissGrid(elements, canvasWidth, canvasHeight) {
+  const gridUnit = Math.min(canvasWidth, canvasHeight) / 12; // 12-column grid
+  const margin = gridUnit * 0.5; // Half grid unit margin
+  
+  // Create a copy of elements to avoid mutation issues
+  const gridElements = [...elements];
+  
+  // Sort elements by size (largest first) for better composition
+  gridElements.sort((a, b) => (b.width * b.height) - (a.width * a.height));
+  
+  gridElements.forEach((element, index) => {
+    // Apply grid snapping with some controlled randomness
+    if (Math.random() < 0.7) { // 70% chance to snap to grid
+      // Snap position to grid
+      element.x = Math.round(element.x / gridUnit) * gridUnit;
+      element.y = Math.round(element.y / gridUnit) * gridUnit;
+      
+      // Optionally snap size to grid units (30% chance)
+      if (Math.random() < 0.3) {
+        element.width = Math.round(element.width / gridUnit) * gridUnit;
+        element.height = Math.round(element.height / gridUnit) * gridUnit;
+      }
+      
+      // Ensure minimum margin from edges
+      element.x = Math.max(margin, Math.min(canvasWidth - element.width - margin, element.x));
+      element.y = Math.max(margin, Math.min(canvasHeight - element.height - margin, element.y));
+    }
+    
+    // Apply diagonal alignment for dynamic compositions (20% chance)
+    if (Math.random() < 0.2 && index > 0) {
+      const prevElement = gridElements[index - 1];
+      if (Math.random() < 0.5) {
+        // Align on 45-degree diagonal
+        element.x = prevElement.x + prevElement.width + gridUnit;
+        element.y = prevElement.y + prevElement.height + gridUnit;
+      } else {
+        // Align on negative diagonal
+        element.x = prevElement.x + prevElement.width + gridUnit;
+        element.y = prevElement.y - element.height - gridUnit;
+      }
+      
+      // Keep within bounds
+      element.x = Math.max(0, Math.min(canvasWidth - element.width, element.x));
+      element.y = Math.max(0, Math.min(canvasHeight - element.height, element.y));
+    }
+  });
+  
+  return gridElements;
+}
+
+/**
  * Check if a new element would have acceptable overlap with existing elements
  */
 function hasAcceptableOverlap(newElement, existingElements, maxOverlapPercent = 0.5) {
@@ -221,6 +274,20 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
       layer = Math.floor(elementCount * 0.6) + Math.floor(Math.random() * (elementCount * 0.4)); // Top 40%
     }
     
+    // Calculate overlap for transparency variation
+    let hasSignificantOverlap = false;
+    for (const existing of elements) {
+      const overlap = calculateOverlap({x, y, width, height}, existing);
+      if (overlap > 0.1) { // More than 10% overlap
+        hasSignificantOverlap = true;
+        break;
+      }
+    }
+    
+    // Apply transparency variation (0.9-1.0) with more transparency for overlapping elements
+    const baseOpacity = hasSignificantOverlap ? 0.9 : 0.95;
+    const opacity = baseOpacity + Math.random() * (1.0 - baseOpacity);
+    
     elements.push({
       maskName: maskName,
       x,
@@ -228,7 +295,7 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
       width,
       height,
       rotation,
-      opacity: 0.85 + Math.random() * 0.15, // 0.85 to 1.0 opacity
+      opacity,
       layer,
       sizeCategory, // Store for later use
     });
@@ -236,6 +303,12 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
   
   // Sort elements by layer for proper rendering order
   elements.sort((a, b) => a.layer - b.layer);
+  
+  // Apply Swiss grid principles with some probability
+  if (Math.random() < 0.6) { // 60% chance to apply Swiss grid
+    return applySwissGrid(elements, canvasWidth, canvasHeight);
+  }
+  
   return elements;
 }
 
@@ -370,6 +443,10 @@ function renderPackedShapes(canvas, images, params = {}) {
 
     ctx.save();
     try {
+      // Apply overall element opacity for layering effect (higher layers are slightly transparent)
+      // This creates depth by making overlapping elements semi-transparent
+      ctx.globalAlpha = element.opacity;
+      
       // Center transform for rotation
       ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
       ctx.rotate(element.rotation * Math.PI / 180);
@@ -432,7 +509,7 @@ function renderPackedShapes(canvas, images, params = {}) {
             aspectRatio: imageAspectRatio,
             clipPath: null, // Mask is already applied to context
             cover: true, // Ensure image covers the area
-            opacity: element.opacity || 1.0
+            opacity: 1.0 // Don't double-apply opacity
           });
         }
       } else {
@@ -445,9 +522,12 @@ function renderPackedShapes(canvas, images, params = {}) {
         if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
           
-          // For color images, use slight transparency to prevent muddiness
+          // Apply element opacity for layering effect
+          // For color images, combine with slight transparency to prevent muddiness
           if (hasColorImages) {
-            ctx.globalAlpha = 0.85;
+            ctx.globalAlpha = 0.85 * element.opacity;
+          } else {
+            ctx.globalAlpha = element.opacity;
           }
           
           const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
@@ -455,7 +535,7 @@ function renderPackedShapes(canvas, images, params = {}) {
             aspectRatio: imageAspectRatio,
             clipPath: null,
             cover: true,
-            opacity: element.opacity || 1.0
+            opacity: 1.0 // Don't double-apply opacity
           });
         }
       }

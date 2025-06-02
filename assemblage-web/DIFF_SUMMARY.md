@@ -65,6 +65,30 @@ Implemented strict color echo rules for color vs B&W images and enhanced scrambl
 3. **Unknown/Missing Metadata**:
    - Treated as B&W for flexibility
 
-## Total Lines Changed: ~350 lines
-- New files: 2 (colorUtils.ts, scrambledMosaic.test.js)
-- Modified files: 4 (scrambledMosaic.js, imageOverlapUtils.js, photoStrip.js, packedShapesTemplate.js)
+### 7. **src/templates/narrativeGrid.js** (NEW)
+- Created narrative grid template:
+  - Uses narrative panel masks (panelRectWide, panelRectTall, panelSquare, etc.)
+  - Supports 3×3, 4×3, and 4×4 grid configurations
+  - 5-20% overlap jitter for organic feel
+  - No rotation applied to maintain clean grid
+  - Optional multiply blend mode at 0.2-0.3 opacity
+  - Mobile responsive: automatically collapses to 2 columns
+  - Mobile grid mapping: 3×3→2×5, 4×3→2×6, 4×4→2×8
+
+### 8. **src/templates/index.js**
+- Added import and export for narrativeGrid template
+
+### 9. **src/templates/templateManager.ts**
+- Added narrativeGrid to template type definitions
+- Set weight to 0.06 (6%) as requested
+- Added parameter generator with random grid type and jitter
+- 30% chance of multiply effect at 0.2-0.3 opacity
+- Added to getTemplateByType and templates export
+
+### 10. **snapshots/** (NEW)
+- Created directory for template snapshots
+- Added placeholder documentation for narrative-desktop.png and narrative-mobile.png
+
+## Total Lines Changed: ~600 lines
+- New files: 4 (colorUtils.ts, scrambledMosaic.test.js, narrativeGrid.js, snapshot docs)
+- Modified files: 6 (scrambledMosaic.js, imageOverlapUtils.js, photoStrip.js, packedShapesTemplate.js, index.js, templateManager.ts)
