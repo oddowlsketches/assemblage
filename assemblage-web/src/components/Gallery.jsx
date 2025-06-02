@@ -89,37 +89,64 @@ const GalleryItem = memo(({
       </div>
       <div className="gallery-actions">
         <button 
-          onClick={() => onDownload(collage)}
+          onClick={(e) => {
+            e.preventDefault();
+            onDownload(collage);
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            onDownload(collage);
+          }}
           className="gallery-btn gallery-download-btn"
           title="Download"
           style={{
             background: getContrastText(uiColors.bg),
             color: uiColors.bg,
-            border: `1px solid ${getContrastText(uiColors.bg)}`
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
+            WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+            touchAction: 'manipulation'
           }}
         >
           <DownloadSimple size={16} weight="regular" />
         </button>
         <button 
-          onClick={() => onShare(collage)}
+          onClick={(e) => {
+            e.preventDefault();
+            onShare(collage);
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            onShare(collage);
+          }}
           className="gallery-btn gallery-share-btn"
           title="Share"
           style={{
             background: getContrastText(uiColors.bg),
             color: uiColors.bg,
-            border: `1px solid ${getContrastText(uiColors.bg)}`
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
+            WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+            touchAction: 'manipulation'
           }}
         >
           <Share size={16} weight="regular" />
         </button>
         <button 
-          onClick={() => onDelete(collage.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            onDelete(collage.id);
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            onDelete(collage.id);
+          }}
           className="gallery-btn gallery-delete-btn"
           title="Delete"
           style={{
             background: 'transparent',
             color: getContrastText(uiColors.bg),
-            border: `1px solid ${getContrastText(uiColors.bg)}`
+            border: `1px solid ${getContrastText(uiColors.bg)}`,
+            WebkitTapHighlightColor: 'rgba(0,0,0,0.1)',
+            touchAction: 'manipulation'
           }}
         >
           <Trash size={16} weight="regular" />
