@@ -633,19 +633,73 @@ function MainApp() {
       
       console.log('[Save] Template info:', templateInfo);
       
-      // Save to database
+      // Convert data URLs to blobs
+      const imageBlob = serviceRef.current.dataURLtoBlob(dataUrl);
+      const thumbnailBlob = serviceRef.current.dataURLtoBlob(thumbnailUrl);
+      
+      // Generate unique storage keys
+      const collageId = crypto.randomUUID();
+      const storageKey = `${session.user.id}/${collageId}.png`;
+      const thumbnailKey = `${session.user.id}/${collageId}_thumb.png`;
+      
+      // Upload full image to storage
+      const { error: uploadError } = await supabase.storage
+        .from('collages')
+        .upload(storageKey, imageBlob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: false
+        });
+        
+      if (uploadError) {
+        console.error('Error uploading collage to storage:', uploadError);
+        throw uploadError;
+      }
+      
+      // Upload thumbnail to storage  
+      const { error: thumbUploadError } = await supabase.storage
+        .from('collages')
+        .upload(thumbnailKey, thumbnailBlob, {
+          contentType: 'image/png',
+          cacheControl: '3600',
+          upsert: false
+        });
+        
+      if (thumbUploadError) {
+        // Clean up main image if thumbnail fails
+        await supabase.storage.from('collages').remove([storageKey]);
+        console.error('Error uploading thumbnail to storage:', thumbUploadError);
+        throw thumbUploadError;
+      }
+      
+      // Generate a signed URL for the thumbnail (60 minutes)
+      const { data: thumbUrlData, error: thumbUrlError } = await supabase.storage
+        .from('collages')
+        .createSignedUrl(thumbnailKey, 3600);
+        
+      if (thumbUrlError) {
+        // Clean up both uploads if URL generation fails
+        await supabase.storage.from('collages').remove([storageKey, thumbnailKey]);
+        console.error('Error creating thumbnail URL:', thumbUrlError);
+        throw thumbUrlError;
+      }
+      
+      // Save to database with storage keys instead of data URLs
       const { data, error } = await supabase
         .from('saved_collages')
         .insert({
+          id: collageId,
           user_id: session.user.id,
           title: title,
-          image_data_url: dataUrl,
-          thumbnail_url: thumbnailUrl,
+          storage_key: storageKey,
+          thumbnail_url: thumbUrlData.signedUrl,
           template_key: templateInfo.templateKey || 'unknown',
           template_params: templateInfo.params || {}
         });
         
       if (error) {
+        // Clean up storage if database insert fails
+        await supabase.storage.from('collages').remove([storageKey, thumbnailKey]);
         console.error('Error saving collage:', error);
         setSaveState('error');
         // Show native alert on mobile, custom message on desktop

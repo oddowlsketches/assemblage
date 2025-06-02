@@ -246,7 +246,7 @@ export default function Gallery({ session, onClose }) {
       // Now get the actual data - only load what we need for display
       let dataQuery = supabase
         .from('saved_collages')
-        .select('id, title, template_key, created_at, thumbnail_url')
+        .select('id, title, template_key, created_at, thumbnail_url, storage_key')
         .eq('user_id', session.user.id)
         .order(activeSortBy, { ascending: activeSortOrder === 'asc' });
       
@@ -379,22 +379,43 @@ export default function Gallery({ session, onClose }) {
 
   const handleDownload = useCallback(async (collage) => {
     try {
-      // Fetch the full collage data including image_data_url for download
-      const { data, error } = await supabase
-        .from('saved_collages')
-        .select('image_data_url, title')
-        .eq('id', collage.id)
-        .single();
+      let downloadUrl;
+      
+      // Check if we have a storage_key (new system) or need to use image_data_url (legacy)
+      if (collage.storage_key) {
+        // Generate a signed URL for download (valid for 1 hour)
+        const { data: urlData, error: urlError } = await supabase
+          .storage
+          .from('collages')
+          .createSignedUrl(collage.storage_key, 3600); // 1 hour expiry
+          
+        if (urlError) {
+          console.error('Error creating signed URL:', urlError);
+          alert('Failed to download collage');
+          return;
+        }
         
-      if (error) {
-        console.error('Error fetching collage for download:', error);
-        alert('Failed to download collage');
-        return;
+        downloadUrl = urlData.signedUrl;
+      } else {
+        // Legacy: fetch from database
+        const { data, error } = await supabase
+          .from('saved_collages')
+          .select('image_data_url')
+          .eq('id', collage.id)
+          .single();
+          
+        if (error || !data.image_data_url) {
+          console.error('Error fetching collage:', error);
+          alert('Failed to download collage');
+          return;
+        }
+        
+        downloadUrl = data.image_data_url;
       }
       
       const link = document.createElement('a');
-      link.download = `${data.title}.png`;
-      link.href = data.image_data_url;
+      link.download = `${collage.title}.png`;
+      link.href = downloadUrl;
       link.click();
     } catch (err) {
       console.error('Error downloading collage:', err);
@@ -404,21 +425,42 @@ export default function Gallery({ session, onClose }) {
 
   const handleShare = useCallback(async (collage) => {
     try {
-      // Fetch the full collage data including image_data_url for sharing
-      const { data, error } = await supabase
-        .from('saved_collages')
-        .select('image_data_url, title')
-        .eq('id', collage.id)
-        .single();
+      let imageUrl;
+      
+      // Check if we have a storage_key (new system) or need to use image_data_url (legacy)
+      if (collage.storage_key) {
+        // Generate a signed URL for sharing (valid for 1 hour)
+        const { data: urlData, error: urlError } = await supabase
+          .storage
+          .from('collages')
+          .createSignedUrl(collage.storage_key, 3600); // 1 hour expiry
+          
+        if (urlError) {
+          console.error('Error creating signed URL:', urlError);
+          alert('Failed to share collage');
+          return;
+        }
         
-      if (error) {
-        console.error('Error fetching collage for sharing:', error);
-        alert('Failed to share collage');
-        return;
+        imageUrl = urlData.signedUrl;
+      } else {
+        // Legacy: fetch from database
+        const { data, error } = await supabase
+          .from('saved_collages')
+          .select('image_data_url')
+          .eq('id', collage.id)
+          .single();
+          
+        if (error || !data.image_data_url) {
+          console.error('Error fetching collage:', error);
+          alert('Failed to share collage');
+          return;
+        }
+        
+        imageUrl = data.image_data_url;
       }
 
-      // Convert data URL to blob
-      const response = await fetch(data.image_data_url);
+      // Convert URL to blob
+      const response = await fetch(imageUrl);
       const blob = await response.blob();
       
       // Try clipboard API first (works on modern browsers)
@@ -438,7 +480,7 @@ export default function Gallery({ session, onClose }) {
       // Try Web Share API with files (mobile browsers)
       if (navigator.share && navigator.canShare) {
         try {
-          const file = new File([blob], `${data.title}.png`, { type: 'image/png' });
+          const file = new File([blob], `${collage.title}.png`, { type: 'image/png' });
           const shareData = {
             text: 'Check out this collage I created with Assemblage!',
             files: [file]
@@ -461,8 +503,8 @@ export default function Gallery({ session, onClose }) {
           });
           // Also download the image
           const link = document.createElement('a');
-          link.download = `${data.title}.png`;
-          link.href = data.image_data_url;
+          link.download = `${collage.title}.png`;
+          link.href = imageUrl;
           link.click();
           return;
         } catch (shareError) {
@@ -472,8 +514,8 @@ export default function Gallery({ session, onClose }) {
       
       // Final fallback: Download image and copy text
       const link = document.createElement('a');
-      link.download = `${data.title}.png`;
-      link.href = data.image_data_url;
+      link.download = `${collage.title}.png`;
+      link.href = imageUrl;
       link.click();
       
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -779,23 +821,38 @@ function CollageDetail({ collage, onClose, onDownload, onShare, onDelete, onNavi
     // Fetch the full resolution image
     const fetchFullImage = async () => {
       try {
-        const { data, error } = await supabase
-          .from('saved_collages')
-          .select('image_data_url')
-          .eq('id', collage.id)
-          .single();
-          
-        if (error) throw error;
-        setFullImageUrl(data.image_data_url);
+        // Check if we have a storage_key (new system) or need to use image_data_url (legacy)
+        if (collage.storage_key) {
+          // Generate a signed URL for viewing (valid for 24 hours)
+          const { data: urlData, error: urlError } = await supabase
+            .storage
+            .from('collages')
+            .createSignedUrl(collage.storage_key, 86400); // 24 hour expiry
+            
+          if (urlError) throw urlError;
+          setFullImageUrl(urlData.signedUrl);
+        } else {
+          // Legacy: fetch from database
+          const { data, error } = await supabase
+            .from('saved_collages')
+            .select('image_data_url')
+            .eq('id', collage.id)
+            .single();
+            
+          if (error) throw error;
+          setFullImageUrl(data.image_data_url);
+        }
       } catch (err) {
         console.error('Error loading full image:', err);
+        // Fall back to thumbnail if full image fails
+        setFullImageUrl(collage.thumbnail_url);
       } finally {
         setLoading(false);
       }
     };
     
     fetchFullImage();
-  }, [collage.id]);
+  }, [collage.id, collage.storage_key, collage.thumbnail_url]);
   
   // Handle keyboard navigation
   useEffect(() => {

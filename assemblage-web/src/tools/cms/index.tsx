@@ -52,7 +52,7 @@ const TagChips: React.FC<{ tags: string[] }> = ({ tags }) => (
 );
 
 const Sidebar: React.FC<{ currentPage: string; onPageChange: (page: string) => void }> = ({ currentPage, onPageChange }) => (
-  <aside className="w-48 bg-gray-100 h-screen p-4 border-r border-gray-200 hidden md:block">
+  <aside className="w-48 bg-gray-100 h-screen p-4 border-r border-gray-200">
     <nav className="space-y-2 text-sm">
       <button 
         className={`block w-full text-left font-medium ${
