@@ -38,6 +38,7 @@ export const UploadModal = ({
     complementaryColor: '#333333'
   }
   const { checkQuota, archiveOldestImages, MAX_ACTIVE_IMAGES } = useUploadQuota()
+  const [storageStats, setStorageStats] = useState(null)
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     // Handle rejected files
@@ -80,6 +81,13 @@ export const UploadModal = ({
     }
   }, [isOpen, collectionId])
   
+  // Fetch storage stats when authenticated
+  useEffect(() => {
+    if (session?.user) {
+      fetchStorageStats()
+    }
+  }, [session])
+  
   const checkAuth = async () => {
     const supabase = getSupabase()
     const { data: { session } } = await supabase.auth.getSession()
@@ -114,6 +122,23 @@ export const UploadModal = ({
       console.error('Error fetching collections:', err)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  const fetchStorageStats = async () => {
+    try {
+      const supabase = getSupabase()
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (user) {
+        const { data, error } = await supabase
+          .rpc('get_user_storage_stats', { p_user_id: user.id })
+        
+        if (error) throw error
+        setStorageStats(data)
+      }
+    } catch (err) {
+      console.error('Error fetching storage stats:', err)
     }
   }
 
@@ -180,7 +205,7 @@ export const UploadModal = ({
       const quota = await checkQuota()
       if (quota.isOverQuota) {
         const shouldArchive = window.confirm(
-          `You have ${quota.activeCount} active images (limit ${MAX_ACTIVE_IMAGES}). \n\n` +
+          `You have reached the limit of 30 images. \n\n` +
           `Would you like to automatically archive your ${Math.min(files.length, quota.activeCount)} oldest images to make room?`
         )
         
@@ -192,7 +217,7 @@ export const UploadModal = ({
         }
       } else if (quota.remainingQuota < files.length) {
         const proceed = window.confirm(
-          `You can only upload ${quota.remainingQuota} more images before reaching your limit of ${MAX_ACTIVE_IMAGES}. \n\n` +
+          `You can only upload ${quota.remainingQuota} more images before reaching your limit of 30. \n\n` +
           `Continue with uploading the first ${quota.remainingQuota} images?`
         )
         
@@ -553,9 +578,16 @@ export const UploadModal = ({
                   <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.6 }}>
                     JPEG and PNG only, max 10MB per file
                   </p>
-                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.6 }}>
-                    Maximum {MAX_ACTIVE_IMAGES} active images per account
-                  </p>
+                  {storageStats && (
+                    <>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.6 }}>
+                        Images: {storageStats.image_count}/{storageStats.max_images} • Storage: {storageStats.total_size_mb}/{storageStats.max_size_mb} MB
+                      </p>
+                      <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', opacity: 0.6 }}>
+                        Images will be resized to max 2560px and compressed to save space
+                      </p>
+                    </>
+                  )}
                   <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', opacity: 0.6 }}>
                     Note: Some devices limit multi-select to ~15-20 files at once
                   </p>

@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react'
-import imageCompression from 'browser-image-compression'
 import { getSupabase } from '../supabaseClient'
 import { User } from '@supabase/supabase-js'
 
@@ -8,10 +7,11 @@ interface ProcessedFile extends File {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const MAX_DIMENSION = 8000 // Increased from 4000 to 8000 pixels
-const COMPRESSION_THRESHOLD = 2 * 1024 * 1024 // 2MB
+const MAX_DIMENSION = 2560 // Reduced to 2560px as per requirements
+const COMPRESSION_QUALITY = 0.85 // 85% quality as per requirements
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png']
 const REJECTED_TYPES = ['image/gif', 'image/webp', 'image/heic']
+const THUMBNAIL_SIZE = 400 // 400px thumbnail as per requirements
 
 type CollectionId = string | 'cms';
 
@@ -37,18 +37,14 @@ export const useImageUpload = () => {
     return true
   }, [])
 
-  const validateDimensions = useCallback(async (file: File) => {
+  const getImageDimensions = useCallback(async (file: File): Promise<{width: number, height: number}> => {
     return new Promise((resolve, reject) => {
       const img = new Image()
       const url = URL.createObjectURL(file)
       
       img.onload = () => {
         URL.revokeObjectURL(url)
-        if (img.width > MAX_DIMENSION || img.height > MAX_DIMENSION) {
-          reject(new Error(`Image dimensions (${img.width}x${img.height}) exceed ${MAX_DIMENSION}px limit. Please resize the image or it will be compressed automatically.`))
-        } else {
-          resolve(true)
-        }
+        resolve({ width: img.width, height: img.height })
       }
       
       img.onerror = () => {
@@ -60,34 +56,69 @@ export const useImageUpload = () => {
     })
   }, [])
 
-  const compressImage = useCallback(async (file: File): Promise<File> => {
-    // Skip compression for small files
-    if (file.size < COMPRESSION_THRESHOLD) {
-      console.log(`[compressImage] File already under ${COMPRESSION_THRESHOLD / 1024 / 1024}MB, skipping compression`);
-      return file;
-    }
-    
-    // Always attempt to optimize images
-    const options = {
-      maxSizeMB: 2,
-      maxWidthOrHeight: MAX_DIMENSION,
-      useWebWorker: true,
-      initialQuality: 0.85,
-      fileType: file.type as 'image/jpeg' | 'image/png'
-    }
-
-    try {
-      const compressedFile = await imageCompression(file, options)
-      console.log(`[compressImage] Original: ${(file.size / 1024 / 1024).toFixed(2)}MB, Compressed: ${(compressedFile.size / 1024 / 1024).toFixed(2)}MB`)
-      return compressedFile
-    } catch (error) {
-      console.error('Compression failed:', error)
-      return file
-    }
+  const resizeAndCompressImage = useCallback(async (file: File): Promise<{file: File, width: number, height: number}> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'))
+          return
+        }
+        
+        // Calculate new dimensions
+        let width = img.width
+        let height = img.height
+        
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIMENSION) / width)
+            width = MAX_DIMENSION
+          } else {
+            width = Math.round((width * MAX_DIMENSION) / height)
+            height = MAX_DIMENSION
+          }
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        // Draw and compress
+        ctx.drawImage(img, 0, 0, width, height)
+        
+        // Determine output format - prefer WebP if browser supports it, otherwise JPEG
+        const supportsWebP = canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0
+        const outputFormat = supportsWebP ? 'image/webp' : 'image/jpeg'
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            // Create a new file with the appropriate extension
+            const extension = outputFormat === 'image/webp' ? '.webp' : '.jpg'
+            const fileName = file.name.replace(/\.[^/.]+$/, extension)
+            const compressedFile = new File([blob], fileName, { type: outputFormat })
+            resolve({ file: compressedFile, width, height })
+          } else {
+            reject(new Error('Failed to compress image'))
+          }
+        }, outputFormat, COMPRESSION_QUALITY)
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('Failed to load image for processing'))
+      }
+      
+      img.src = url
+    })
   }, [])
 
   const calculateFileHash = useCallback(async (file: File): Promise<string> => {
-    // Use SHA-1 as specified in the requirements for better compatibility
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -111,16 +142,16 @@ export const useImageUpload = () => {
           return;
         }
         
-        const maxSize = 400
+        // Fixed size thumbnail
         let width = img.width
         let height = img.height
         
-        if (width > height && width > maxSize) {
-          height = (height * maxSize) / width
-          width = maxSize
-        } else if (height > maxSize) {
-          width = (width * maxSize) / height
-          height = maxSize
+        if (width > height) {
+          height = Math.round((height * THUMBNAIL_SIZE) / width)
+          width = THUMBNAIL_SIZE
+        } else {
+          width = Math.round((width * THUMBNAIL_SIZE) / height)
+          height = THUMBNAIL_SIZE
         }
         
         canvas.width = width
@@ -146,6 +177,58 @@ export const useImageUpload = () => {
     })
   }, [])
 
+  const checkIsBlackAndWhite = useCallback(async (file: File): Promise<boolean> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        if (!ctx) {
+          resolve(false)
+          return
+        }
+        
+        // Sample a smaller version for performance
+        const sampleSize = 100
+        canvas.width = sampleSize
+        canvas.height = sampleSize
+        
+        ctx.drawImage(img, 0, 0, sampleSize, sampleSize)
+        
+        const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize)
+        const data = imageData.data
+        
+        let isGrayscale = true
+        
+        // Check if all pixels are grayscale (R=G=B)
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i]
+          const g = data[i + 1]
+          const b = data[i + 2]
+          
+          if (Math.abs(r - g) > 5 || Math.abs(g - b) > 5 || Math.abs(r - b) > 5) {
+            isGrayscale = false
+            break
+          }
+        }
+        
+        resolve(isGrayscale)
+      }
+      
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        resolve(false) // Default to false on error
+      }
+      
+      img.src = url
+    })
+  }, [])
+
   const uploadToSupabase = useCallback(async (file: File, collectionId: CollectionId, generateMetadata: boolean = true) => {
     const supabase = getSupabase();
     if (!supabase) throw new Error('Supabase client not initialized');
@@ -154,13 +237,20 @@ export const useImageUpload = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User must be authenticated');
     
-    const fileName = `${user.id}/${Date.now()}_${file.name}`
-    const thumbFileName = fileName.replace(/\.[^/.]+$/, '_thumb.jpg')
+    // Process the image
+    const { file: processedFile, width, height } = await resizeAndCompressImage(file)
+    const fileSize = processedFile.size
+    
+    // Generate storage paths
+    const timestamp = Date.now()
+    const baseFileName = file.name.replace(/\.[^/.]+$/, '')
+    const fileName = `${user.id}/${timestamp}_${baseFileName}.${processedFile.type === 'image/webp' ? 'webp' : 'jpg'}`
+    const thumbFileName = `${user.id}/${timestamp}_${baseFileName}_thumb.jpg`
     
     // Calculate file hash for deduplication
-    const fileHash = await calculateFileHash(file);
+    const fileHash = await calculateFileHash(processedFile);
     
-    // Check if file already exists by hash (across all user's collections)
+    // Check if file already exists by hash
     const { data: existingImages, error: checkError } = await supabase
       .from('images')
       .select('id, src, thumb_src, user_collection_id, title')
@@ -173,26 +263,28 @@ export const useImageUpload = () => {
     }
       
     if (existingImages && existingImages.length > 0) {
-      // File already exists
       const existingImage = existingImages[0];
       console.log(`[uploadToSupabase] File already exists with hash ${fileHash}`);
-      
-      // If it's in a different collection, you might want to handle this differently
-      // For now, we'll return an error to inform the user
       throw new Error(`This image already exists in your library as "${existingImage.title}"`)
     }
     
-    const thumbnailBlob: Blob = await generateThumbnail(file)
+    // Check if image is black and white
+    const isBW = await checkIsBlackAndWhite(processedFile)
     
+    // Generate thumbnail
+    const thumbnailBlob = await generateThumbnail(processedFile)
+    
+    // Upload original (processed) image
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('user-images')
-      .upload(fileName, file, {
+      .upload(fileName, processedFile, {
         cacheControl: '3600',
         upsert: false
       })
 
     if (uploadError) throw uploadError
     
+    // Upload thumbnail
     const { data: thumbData, error: thumbError } = await supabase.storage
       .from('user-images')
       .upload(thumbFileName, thumbnailBlob, {
@@ -205,6 +297,7 @@ export const useImageUpload = () => {
       throw thumbError
     }
 
+    // Get public URLs
     const { data: { publicUrl } } = supabase.storage
       .from('user-images')
       .getPublicUrl(fileName)
@@ -221,13 +314,19 @@ export const useImageUpload = () => {
     // Generate a unique ID for the image
     const imageId = crypto.randomUUID();
     
-    // Insert image record with URLs
+    // Insert image record with all optimization data
     const { data: imageData, error: dbError } = await supabase
       .from('images')
       .insert({
         id: imageId,
         src: publicUrl,
         thumb_src: thumbUrl,
+        storage_key_original: fileName,
+        storage_key_thumb: thumbFileName,
+        width: width,
+        height: height,
+        size_bytes: fileSize,
+        is_bw: isBW,
         collection_id: null,
         user_collection_id: collectionId,
         user_id: user.id,
@@ -245,6 +344,26 @@ export const useImageUpload = () => {
     if (dbError) {
       console.error('[uploadToSupabase] Database insert error:', dbError);
       await supabase.storage.from('user-images').remove([fileName, thumbFileName])
+      
+      // Parse the error to provide user-friendly message
+      if (dbError.message && dbError.message.includes('check_violation')) {
+        try {
+          // Extract the JSON detail from the error
+          const detailMatch = dbError.message.match(/DETAIL:\s*({.*})/);
+          if (detailMatch) {
+            const errorDetail = JSON.parse(detailMatch[1]);
+            throw new Error(errorDetail.message || 'Storage limit exceeded');
+          }
+        } catch (parseError) {
+          // Fallback to a generic message if parsing fails
+          if (dbError.message.includes('IMAGE_COUNT_LIMIT')) {
+            throw new Error('You have reached the limit of 30 images. Please delete or archive some images before uploading more.');
+          } else if (dbError.message.includes('STORAGE_SIZE_LIMIT')) {
+            throw new Error('You have reached the storage limit of 15 MB. Please delete or archive some images before uploading more.');
+          }
+        }
+      }
+      
       throw new Error(dbError.message || 'Failed to save image to database')
     }
 
@@ -268,21 +387,17 @@ export const useImageUpload = () => {
     }
 
     return imageData
-  }, [generateThumbnail, calculateFileHash])
+  }, [resizeAndCompressImage, generateThumbnail, calculateFileHash, checkIsBlackAndWhite])
 
   const uploadImage = useCallback(async (file: File, collectionId: CollectionId, generateMetadata: boolean = true) => {
     try {
       validateFile(file)
-      await validateDimensions(file)
-
-      const processedFile = await compressImage(file)
-      const imageData = await uploadToSupabase(processedFile, collectionId, generateMetadata)
-      
+      const imageData = await uploadToSupabase(file, collectionId, generateMetadata)
       return imageData
     } catch (err: any) {
       throw err
     }
-  }, [validateFile, validateDimensions, compressImage, uploadToSupabase])
+  }, [validateFile, uploadToSupabase])
 
   const uploadMultiple = useCallback(async (files: File[], collectionId: CollectionId, generateMetadata: boolean = true) => {
     const results = []
@@ -333,7 +448,7 @@ export const useImageUpload = () => {
     error,
     reset,
     validateFile,
-    validateDimensions,
-    compressImage
+    resizeAndCompressImage,
+    generateThumbnail
   }
 }
