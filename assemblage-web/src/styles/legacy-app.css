@@ -305,7 +305,7 @@ footer {
 #saveButton {
   background: var(--text-color);
   border: 1px solid var(--text-color);
-  color: white;
+  color: var(--button-text-color, white); /* Use dynamic button text color */
   padding: 0.5rem 1rem;
   cursor: pointer;
   font-family: 'Space Mono', monospace;
@@ -371,10 +371,11 @@ footer {
 .save-spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  border: 2px solid var(--button-text-color, rgba(255, 255, 255, 0.3));
+  border-top: 2px solid var(--button-text-color, white);
   border-radius: 50%;
   animation: spin 1s linear infinite;
+  opacity: 0.8; /* Slightly transparent to work on both light and dark backgrounds */
 }
 
 .mobile-spinner {
@@ -768,7 +769,7 @@ footer {
   padding: 0.75rem 1rem;
   border: none !important;
   background: white !important;
-  color: var(--text-color) !important;
+  color: #333333 !important; /* Always use dark text for dropdown items */
   cursor: pointer;
   font-family: 'Space Mono', monospace;
   font-size: 0.9rem;
@@ -804,7 +805,7 @@ footer {
 .user-email-header {
   padding: 0.5rem 1rem;
   font-size: 0.75rem;
-  color: var(--color-accent);
+  color: #666666; /* Fixed color for email header */
   border-bottom: 1px solid #eee;
   background: #f9f9f9;
   font-weight: 500;

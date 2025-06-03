@@ -470,15 +470,16 @@ export class CollageService {
             const { getComplementaryColor } = colorUtils;
             const { getContrastRatio } = contrastUtils;
             
-            // Use the exact same complementary color logic as templates
+            // Get the safe complementary color for UI text (uses safeComplement internally)
+            // This ensures good contrast and avoids pure white/black
             const complementaryColor = getComplementaryColor(bgColor);
             
-            // The getComplementaryColor function already ensures good readability
-            // So we should use it directly for UI elements
+            // Use the complementary color directly for UI elements
+            // The safeComplement function now generates vibrant colors with good contrast
             const textColor = complementaryColor;
             
             // Log the contrast ratio for debugging
-            const contrastRatio = getContrastRatio(bgColor, complementaryColor);
+            const contrastRatio = getContrastRatio(bgColor, textColor);
             console.log(`[CollageService] UI Colors - BG: ${bgColor}, Text/Border: ${textColor}, Contrast: ${contrastRatio.toFixed(2)}`);
             
             // Convert bgColor to CSS format if it was hex
@@ -489,6 +490,33 @@ export class CollageService {
             document.documentElement.style.setProperty('--button-border-color', textColor);
             document.documentElement.style.setProperty('--button-hover-bg', textColor);
             document.documentElement.style.setProperty('--complementary-color', complementaryColor);
+            
+            // Determine if button text should be dark or light based on button background
+            // When buttons use the complementary color as background, we need appropriate text color
+            const buttonTextColor = needsDarkText(textColor) ? '#000000' : '#FFFFFF';
+            document.documentElement.style.setProperty('--button-text-color', buttonTextColor);
+            
+            // Helper function to determine if a color needs dark text
+            function needsDarkText(bgColor) {
+                const rgb = hexToRgb(bgColor);
+                if (!rgb) return false;
+                
+                // Calculate relative luminance
+                const luminance = (0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b) / 255;
+                
+                // If luminance is high (light color), use dark text
+                return luminance > 0.6; // Threshold tuned for better readability
+            }
+            
+            // Helper function to parse hex to RGB
+            function hexToRgb(hex) {
+                const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                return result ? {
+                    r: parseInt(result[1], 16),
+                    g: parseInt(result[2], 16),
+                    b: parseInt(result[3], 16)
+                } : null;
+            }
         }).catch(err => {
             console.warn('[CollageService] Could not load color utilities, using fallback');
             // Fallback color logic

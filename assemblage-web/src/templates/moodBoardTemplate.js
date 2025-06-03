@@ -3,9 +3,10 @@
 import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
 import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
-import { vibrantColors, getRandomColorFromPalette, getColorPalette } from '../utils/colors';
-import { getComplementaryColor } from '../utils/colorUtils';
+import { vibrantColors, getRandomColorFromPalette, getColorPalette, areImagesMostlyBlackAndWhite } from '../utils/colors';
+import { getComplementaryColor, getColorfulComplementaryColor } from '../utils/colorUtils';
 import { getAppropriateEchoColor, analyzeElementsForAutoEcho } from '../utils/imageOverlapUtils';
+import { generatePalette } from '../utils/advancedColorUtils.js';
 
 // Helper to create subtle color variations
 function createColorVariation(baseColor, variation = 0.1) {
@@ -74,17 +75,17 @@ function createMoodboardElements(canvasWidth, canvasHeight, elementCount) {
     const { row, col } = positions[i];
     
     // Size variation - fashion moodboards often have mixed sizes
-    // Adjusted: previous smallest (0.7-1.0x) is now the minimum
+    // Adjusted for fewer elements: slightly larger sizes on average for good coverage
     let sizeMultiplier;
     const sizeRoll = Math.random();
-    if (sizeRoll < 0.20) {
-      sizeMultiplier = 2.0 + Math.random() * 0.8; // 20% extra large (2.0-2.8x) - increased from 1.8-2.4x
-    } else if (sizeRoll < 0.45) {
-      sizeMultiplier = 1.5 + Math.random() * 0.5; // 25% large (1.5-2.0x) - increased from 1.3-1.8x
-    } else if (sizeRoll < 0.75) {
-      sizeMultiplier = 1.1 + Math.random() * 0.4; // 30% medium (1.1-1.5x) - increased from 1.0-1.3x
+    if (sizeRoll < 0.25) {
+      sizeMultiplier = 2.2 + Math.random() * 0.8; // 25% extra large (2.2-3.0x) - increased for fewer elements
+    } else if (sizeRoll < 0.50) {
+      sizeMultiplier = 1.6 + Math.random() * 0.6; // 25% large (1.6-2.2x) - increased for better coverage
+    } else if (sizeRoll < 0.80) {
+      sizeMultiplier = 1.2 + Math.random() * 0.4; // 30% medium (1.2-1.6x) - increased baseline
     } else {
-      sizeMultiplier = 0.7 + Math.random() * 0.3; // 25% smaller (0.7-1.0x) - kept the same
+      sizeMultiplier = 0.8 + Math.random() * 0.4; // 20% smaller (0.8-1.2x) - slightly larger minimum
     }
     
     const width = cellWidth * sizeMultiplier;
@@ -143,6 +144,7 @@ function createMoodboardElements(canvasWidth, canvasHeight, elementCount) {
  * - 5% skip echo for variety  
  * - Color images: echo uses bgColor or white
  * - B&W images: echo can use complementary color or bgColor
+ * - Uses uniform scaling to preserve image aspect ratios and prevent distortion
  */
 function renderMoodBoard(canvas, images, params = {}) {
   if (!canvas || !images || images.length === 0) {
@@ -162,17 +164,21 @@ function renderMoodBoard(canvas, images, params = {}) {
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  // Get color palette and background
-  const palette = getColorPalette(images, params.paletteType || 'auto');
+  // Check if images are color or B&W first
+  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
+  const isBW = areImagesMostlyBlackAndWhite(images);
+  
+  // Use new generatePalette function for enhanced color analysis
+  const palette = generatePalette(images, isBW);
   const bgColor = params.bgColor || palette[Math.floor(Math.random() * palette.length)];
   
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  console.log(`[MoodBoard] Using palette: ${params.paletteType || 'auto'}, BG: ${bgColor}`);
+  console.log(`[MoodBoard] Using enhanced palette generation, B&W: ${isBW}, BG: ${bgColor}`);
 
-  // Element count - dense for moodboard (20-35 elements) - increased from 18-30
-  const elementCount = params.elementCount || (20 + Math.floor(Math.random() * 16));
+  // Element count - dense for moodboard but reduced max for less clutter (15-25 elements)
+  const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 11));
   
   // Create element layout
   const elements = createMoodboardElements(canvasWidth, canvasHeight, elementCount);
@@ -190,9 +196,6 @@ function renderMoodBoard(canvas, images, params = {}) {
   // Shuffle images for variety
   const shuffledImages = [...availableImages].sort(() => Math.random() - 0.5);
   
-  // Check if images are color or B&W
-  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
-  
   // Get appropriate echo color
   const echoColor = getAppropriateEchoColor(bgColor, shuffledImages[0], getComplementaryColor);
   
@@ -209,11 +212,22 @@ function renderMoodBoard(canvas, images, params = {}) {
   // Helper function to choose echo color based on image type
   function chooseEchoColor(imageIsBW) {
   if (hasColorImages && !imageIsBW) {
-    // For color images: use bgColor or white
-    return bgColor;
+  // For color images: use bgColor or white
+  return bgColor;
   } else {
-    // For B&W images: can use complementary color or bgColor
-    return Math.random() < 0.6 ? getComplementaryColor(bgColor) : bgColor;
+  // For B&W images: can use colorful complementary color or bgColor
+  return Math.random() < 0.6 ? getColorfulComplementaryColor(bgColor) : bgColor;
+  }
+  }
+
+  // Helper function to choose color block for B&W images (original behavior)
+  function chooseColorBlock(imageIsBW) {
+  if (imageIsBW) {
+  // For B&W images: use background color OR colorful complementary color for multiply effect
+  return Math.random() < 0.5 ? bgColor : getColorfulComplementaryColor(bgColor);
+  } else {
+  // For color images: use bgColor only
+  return bgColor;
   }
   }
 
@@ -270,36 +284,51 @@ function renderMoodBoard(canvas, images, params = {}) {
       }
   
   if (element.maskName && maskPath) {
-  // Scale mask to element size
+  // Use UNIFORM scaling to prevent mask distortion, similar to packedShapes
   const scaleX = element.width / 100;
   const scaleY = element.height / 100;
-  ctx.scale(scaleX, scaleY);
+  const uniformScale = Math.min(scaleX, scaleY); // Use smaller scale to prevent stretching
+        
+        // Calculate the actual rendered size with uniform scaling
+        const renderedWidth = 100 * uniformScale;
+        const renderedHeight = 100 * uniformScale;
+        
+        // Center the uniformly scaled mask within the element area
+        const offsetX = (element.width - renderedWidth) / 2;
+        const offsetY = (element.height - renderedHeight) / 2;
+        
+        // Apply the centering offset
+        ctx.translate(offsetX, offsetY);
+        
+        // Apply uniform scaling - this prevents any distortion
+        ctx.scale(uniformScale, uniformScale);
 
   if (isEchoBlock) {
   // Draw just the echo color block
   ctx.fillStyle = chooseEchoColor(true); // Default to safe color for echo blocks
   ctx.fill(maskPath);
   } else {
-  // 1. Draw echo layer first (95% of tiles)
-    if (!skipEcho) {
-        ctx.fillStyle = chooseEchoColor(imageIsBW);
-      ctx.fill(maskPath);
-    }
+  // 1. Draw color block first (for B&W images, this provides the multiply base)
+  if (!skipEcho) {
+  const colorBlockColor = imageIsBW ? chooseColorBlock(imageIsBW) : chooseEchoColor(imageIsBW);
+  ctx.fillStyle = colorBlockColor;
+    ctx.fill(maskPath);
+          }
 
   // 2. Draw image with multiply blend on top
-    if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.clip(maskPath);
+  if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.clip(maskPath);
   
   const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
-    drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
-              aspectRatio: imageAspectRatio,
-      clipPath: null,
-      cover: true,
-      opacity: 1.0
+  drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
+  aspectRatio: imageAspectRatio,
+  clipPath: null,
+  cover: true,
+    opacity: 1.0
     });
-  }
-  }
+    }
+        }
   } else {
   // No mask - rectangular element
   if (isEchoBlock) {
@@ -344,7 +373,9 @@ function renderMoodBoard(canvas, images, params = {}) {
     echoSubsetRatio: echoSubsetRatio,
     palette: palette,
     hasColorImages: hasColorImages,
-    complementaryColor: getComplementaryColor(bgColor),
+    complementaryColor: getComplementaryColor(bgColor), // Safe version for UI
+    colorfulComplementaryColor: getColorfulComplementaryColor(bgColor), // Colorful version for templates
+    isBW: isBW,
     echoSkipPercentage: 0.05, // 5% of tiles skip echo layer
     elements: elementConfigs,
     imageDistribution: shuffledImages.map((img, idx) => ({
@@ -371,9 +402,9 @@ const moodBoardTemplate = {
   params: {
     elementCount: { 
       type: 'number', 
-      min: 15, 
-      max: 40, 
-      default: 28, 
+      min: 10, 
+      max: 25, 
+      default: 20, 
       step: 1,
       description: 'Number of elements in the moodboard'
     },

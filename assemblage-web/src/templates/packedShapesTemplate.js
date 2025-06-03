@@ -3,8 +3,9 @@
 import { getMaskDescriptor, maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils';
 import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
-import { vibrantColors, getRandomColorFromPalette, getColorPalette } from '../utils/colors';
-import { getComplementaryColor } from '../utils/colorUtils';
+import { vibrantColors, getRandomColorFromPalette, getColorPalette, areImagesMostlyBlackAndWhite } from '../utils/colors';
+import { getComplementaryColor, getColorfulComplementaryColor } from '../utils/colorUtils';
+import { generatePalette } from '../utils/advancedColorUtils.js';
 
 // Helper function to lighten colors for better visibility
 function lightenColor(color, amount) {
@@ -356,14 +357,18 @@ function renderPackedShapes(canvas, images, params = {}) {
 
   ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
-  // Determine the color palette based on image analysis
-  const palette = getColorPalette(images, params.paletteType || 'auto');
+  // Check if images are color or B&W first
+  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
+  const isBW = areImagesMostlyBlackAndWhite(images);
+  
+  // Use new generatePalette function for enhanced color analysis
+  const palette = generatePalette(images, isBW);
   const initialBgColor = params.bgColor || palette[Math.floor(Math.random() * palette.length)];
   
   ctx.fillStyle = initialBgColor;
   ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-  console.log(`[PackedShapes] Using palette: ${params.paletteType || 'auto'}, BG: ${initialBgColor}`);
+  console.log(`[PackedShapes] Using enhanced palette generation, B&W: ${isBW}, BG: ${initialBgColor}`);
 
   const elementCount = params.elementCount || (12 + Math.floor(Math.random() * 11)); // Random 12-22 elements (reduced from 15-30)
   
@@ -386,10 +391,8 @@ function renderPackedShapes(canvas, images, params = {}) {
     sizeCategory: el.sizeCategory
   }));
 
-  // Check if images are color (not B&W)
-  const hasColorImages = images.some(img => img && img.is_black_and_white === false);
-  
-  const complementaryColor = getComplementaryColor(initialBgColor);
+  // Check if images are color (not B&W) - already determined above
+  const complementaryColor = getColorfulComplementaryColor(initialBgColor); // Use colorful version for visual appeal
   
   // Helper function to create subtle variations of a color
   function createSubtleVariation(baseColor, variation = 0.15) {

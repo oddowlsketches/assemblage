@@ -1,3 +1,5 @@
+import { generatePalette } from './advancedColorUtils.js';
+
 // colors.js – shared color helpers
 
 export const vibrantColors = [
@@ -217,6 +219,7 @@ export function areImagesMostlyBlackAndWhite(images) {
 
 /**
  * Gets an appropriate color palette based on image analysis
+ * Uses advanced k-means clustering in Lab space for color images
  * @param {HTMLImageElement[]} images - Array of images to analyze
  * @param {'auto'|'vibrant'|'subtle'|'pastel'|'earthTone'} paletteType - Palette type (auto uses image analysis)
  * @returns {string[]} Array of colors from the appropriate palette
@@ -230,36 +233,9 @@ export function getColorPalette(images, paletteType = 'auto') {
   // Auto mode: analyze images to determine palette
   if (paletteType === 'auto') {
     const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
-    // For B&W images: use vibrant backgrounds since they create good contrast
-    // For color images: ONLY use light/subtle backgrounds that work well with multiply blend
-    let selectedPalette;
-    if (isBlackAndWhite) {
-      selectedPalette = vibrantColors;
-    } else {
-      // For color images, use a more balanced selection that provides better contrast
-      // Less restrictive than before to avoid overly light backgrounds that make images look dark
-      selectedPalette = [
-        '#F5F5DC', // Beige
-        '#E6E6FA', // Lavender
-        '#F0F8FF', // Alice Blue
-        '#F5FFFA', // Mint Cream
-        '#F0E68C', // Khaki
-        '#DDA0DD', // Plum
-        '#98FB98', // Pale Green
-        '#FFE4E1', // Misty Rose
-        '#FFEFD5', // Papaya Whip
-        '#F0FFF0', // Honeydew
-        '#D2B48C', // Tan (from earth tones - provides more contrast)
-        '#DEB887', // Burlywood (from earth tones)
-        '#F4A460', // Sandy Brown (from earth tones)
-        '#BC8F8F', // Rosy Brown (from earth tones)
-        '#8FBC8F', // Dark Sea Green (from earth tones)
-        '#F5DEB3'  // Wheat (from earth tones)
-      ];
-    }
     
-    console.log(`[Color Palette] Auto mode - Images are ${isBlackAndWhite ? 'B&W' : 'colorful'}, using ${isBlackAndWhite ? 'vibrant' : 'balanced'} palette (${selectedPalette.length} colors)`);
-    return selectedPalette;
+    // Use new generatePalette function
+    return generatePalette(images, isBlackAndWhite);
   }
   
   return vibrantColors; // Default fallback
@@ -267,18 +243,30 @@ export function getColorPalette(images, paletteType = 'auto') {
 
 /**
  * Gets a random color from the appropriate palette based on image analysis
+ * For color images, returns a lighter, less saturated color suitable for backgrounds
  * @param {HTMLImageElement[]} images - Array of images to analyze
  * @param {'auto'|'vibrant'|'subtle'|'pastel'|'earthTone'} paletteType - Palette type
  * @returns {string} A random color from the appropriate palette
  */
 export function getRandomColorFromPalette(images, paletteType = 'auto') {
+  const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
+  
+  // For color images, we need to be more careful about background selection
+  if (!isBlackAndWhite && paletteType === 'auto') {
+    // Use subtle colors for color images to avoid muddy multiply effects
+    const palette = subtleColors;
+    const selectedColor = palette[Math.floor(Math.random() * palette.length)];
+    console.log(`[Color Palette] Color images detected - using subtle palette, selected: ${selectedColor}`);
+    return selectedColor;
+  }
+  
+  // For B&W images or explicit palette selection, use original logic
   const palette = getColorPalette(images, paletteType);
   const selectedColor = palette[Math.floor(Math.random() * palette.length)];
   
   // Debug logging to help track palette selection
   if (paletteType === 'auto' && images && images.length > 0) {
-    const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
-    console.log(`[Color Palette] Analyzed ${images.length} images - B&W: ${isBlackAndWhite}, Selected: ${selectedColor} from ${palette === vibrantColors ? 'vibrant' : 'balanced'} palette`);
+    console.log(`[Color Palette] Analyzed ${images.length} images - B&W: ${isBlackAndWhite}, Selected: ${selectedColor} from palette`);
   }
   
   return selectedColor;
@@ -329,4 +317,40 @@ export function getComplimentaryColor(hexColor) {
   const b = 255 - rgb.b;
 
   return rgbToHex(r, g, b);
+}
+
+/**
+ * Gets a smart background color for templates, optimized to avoid muddiness with multiply blend mode
+ * @param {HTMLImageElement[]} images - Array of images to analyze
+ * @param {'auto'|'vibrant'|'subtle'|'pastel'|'earthTone'} paletteType - Palette type
+ * @returns {string} A background color optimized for the image content
+ */
+export function getSmartBackgroundColor(images, paletteType = 'auto') {
+  const isBlackAndWhite = areImagesMostlyBlackAndWhite(images);
+  
+  if (!isBlackAndWhite && paletteType === 'auto') {
+    // For color images, pick from subtle colors or generate a very light tint
+    const baseColors = subtleColors.concat(pastelColors);
+    const selectedColor = baseColors[Math.floor(Math.random() * baseColors.length)];
+    
+    // Further lighten the color to ensure it doesn't overpower images
+    const rgb = hexToRgb(selectedColor);
+    if (rgb) {
+      // Ensure minimum brightness
+      const brightness = (rgb.r + rgb.g + rgb.b) / 3;
+      if (brightness < 200) {
+        // Lighten dark colors
+        const factor = 200 / brightness;
+        const r = Math.min(255, Math.round(rgb.r * factor));
+        const g = Math.min(255, Math.round(rgb.g * factor));
+        const b = Math.min(255, Math.round(rgb.b * factor));
+        return rgbToHex(r, g, b);
+      }
+    }
+    
+    return selectedColor;
+  }
+  
+  // For B&W images, use vibrant colors as before
+  return getRandomColorFromPalette(images, paletteType);
 } 
