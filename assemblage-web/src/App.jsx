@@ -101,7 +101,7 @@ function WelcomeTooltip({ onDismiss }) {
             lineHeight: '1.4',
             opacity: '0.9'
           }}>
-            Click <strong>"New"</strong> to create collages, or sign in to upload your own images and save your work.
+            To get started, explore <strong>My Images</strong> to upload or view your photos, and check <strong>Saved Collages</strong> to see or download your creations.
           </div>
         </div>
       </div>
@@ -127,7 +127,7 @@ function MainApp() {
   
   // Initialize with default collection
   const [activeCollection, setActiveCollection] = useState('cms');
-  const [activeCollectionName, setActiveCollectionName] = useState('Default Library');
+  const [activeCollectionName, setActiveCollectionName] = useState('Default Library'); // Will be updated dynamically
   const [showUpload, setShowUpload] = useState(false);
   const [showDrawer, setShowDrawer] = useState(false);
   
@@ -372,6 +372,7 @@ function MainApp() {
           // Set the actual name for the default collection
           if (defaultCollection) {
             setActiveCollectionName(defaultCollection.name);
+            console.log('[loadCollections] Set default collection name to:', defaultCollection.name);
           }
           await loadImagesForCollection('cms');
         } else {
@@ -398,6 +399,7 @@ function MainApp() {
           const defaultInList = data.find(c => c.id === '00000000-0000-0000-0000-000000000001');
           if (defaultInList) {
             setActiveCollectionName(defaultInList.name);
+            console.log('[loadCollections] Set default collection name to:', defaultInList.name);
           }
           await loadImagesForCollection('cms');
         } else {
@@ -406,9 +408,11 @@ function MainApp() {
           if (defaultCollection && defaultCollection.is_public) {
             setUserCollectionsForSelect([defaultCollection]);
             setActiveCollectionName(defaultCollection.name);
+            console.log('[loadCollections] Set fallback collection name to:', defaultCollection.name);
           } else {
             setUserCollectionsForSelect([]);
             setActiveCollectionName('Default Library');
+            console.log('[loadCollections] No collections found, using fallback name');
           }
           await loadImagesForCollection('cms');
         }
@@ -637,9 +641,11 @@ function MainApp() {
       );
       if (defaultCollection) {
         setActiveCollectionName(defaultCollection.name);
+        console.log('[activeCollection effect] Updated name to:', defaultCollection.name);
       } else {
         // Fallback if not found
         setActiveCollectionName('Default Library');
+        console.log('[activeCollection effect] Using fallback name: Default Library');
       }
     } else {
       // For user collections, find the collection in the list

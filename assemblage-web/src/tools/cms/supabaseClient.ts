@@ -1,8 +1,15 @@
 // Shared Supabase client for CMS to avoid multiple instances
-import { createClient } from '@supabase/supabase-js';
+import { getSupabase } from '../../supabaseClient';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+// Get the shared instance, with a fallback for when it's not ready yet
+const getOrInitSupabase = () => {
+  const supabase = getSupabase();
+  if (!supabase) {
+    console.error('[CMS] Supabase client not available - check if main app is initialized');
+    throw new Error('Supabase client not initialized');
+  }
+  return supabase;
+};
 
-// Create a single shared instance
-export const cmsSupabase = createClient(supabaseUrl, supabaseAnonKey);
+// Use the same shared instance as the main app
+export const cmsSupabase = getOrInitSupabase();

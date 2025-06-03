@@ -2,6 +2,7 @@ import MasksPage from './MasksPage';
 import TemplatesPage from './TemplatesPage';
 import AISettingsPage from './AISettingsPage';
 import { cmsSupabase as supa } from './supabaseClient';
+import { getSupabase } from '../../supabaseClient';
 import { ArrowClockwise, Pencil, Trash, Globe, Lock } from 'phosphor-react';
 
 /// <reference types="vite/client" />
@@ -1110,20 +1111,203 @@ const ImagesPage: React.FC = () => {
 
   const loadImages = async (collectionId?: string) => {
     setLoading(true);
+    console.log('[CMS] Loading images for collection:', collectionId);
+    
+    // Check authentication status
+    const { data: { user }, error: authError } = await supa.auth.getUser();
+    console.log('[CMS] Auth status - User:', user?.email || 'Not authenticated', 'Error:', authError);
+    
+    // Check database connection info
+    const supabaseUrl = supa.supabaseUrl;
+    console.log('[CMS] Connected to Supabase URL:', supabaseUrl);
+    
+    // Try a simple test query first to check table access
+    const { data: testData, error: testError } = await supa
+      .from('images')
+      .select('count', { count: 'exact', head: true });
+    console.log('[CMS] Table access test - Count:', testData, 'Error:', testError);
+    
+    // If that fails, try with RLS bypass (if user has bypass permissions)
+    if (testError) {
+      console.log('[CMS] Regular query failed, trying with different approach...');
+      const { data: rpcData, error: rpcError } = await supa.rpc('get_total_image_count');
+      console.log('[CMS] RPC fallback result:', rpcData, 'Error:', rpcError);
+    }
+    
+    // First, let's do a diagnostic check to see what's in the database
+    const { data: allImages, error: allError } = await supa.from('images').select('id, collection_id, title').limit(10);
+    console.log('[CMS] Diagnostic - First 10 images in database:', allImages, 'Error:', allError);
+    
+    // Check what collection IDs actually exist
+    const { data: collectionIds, error: collectionError } = await supa
+      .from('images')
+      .select('collection_id')
+      .not('collection_id', 'is', null);
+    
+    if (collectionIds) {
+      const uniqueCollectionIds = [...new Set(collectionIds.map(img => img.collection_id))];
+      console.log('[CMS] Unique collection IDs found in images table:', uniqueCollectionIds);
+      
+      // Count images for each collection ID
+      for (const colId of uniqueCollectionIds) {
+        const { count } = await supa
+          .from('images')
+          .select('*', { count: 'exact', head: true })
+          .eq('collection_id', colId);
+        console.log(`[CMS] Collection ${colId}: ${count} images`);
+      }
+      
+      // Check for images with null collection_id
+      const { count: nullCollectionCount } = await supa
+        .from('images')
+        .select('*', { count: 'exact', head: true })
+        .is('collection_id', null);
+      console.log(`[CMS] Images with NULL collection_id: ${nullCollectionCount}`);
+      
+      // If we have images with null collection_id, offer to fix them
+      if (nullCollectionCount > 0) {
+        console.log('[CMS] Found images with null collection_id - these should be assigned to default collection');
+        
+        // First, check if the default collection exists
+        const { data: defaultCollection, error: collectionError } = await supa
+          .from('image_collections')
+          .select('id, name')
+          .eq('id', '00000000-0000-0000-0000-000000000001')
+          .single();
+          
+        if (collectionError) {
+          console.error('[CMS] Default collection not found:', collectionError);
+          console.log('[CMS] Need to create the default collection first');
+          
+          // Try to create the default collection
+          const { data: newCollection, error: createError } = await supa
+            .from('image_collections')
+            .insert({
+              id: '00000000-0000-0000-0000-000000000001',
+              name: 'Curated Treasures',
+              description: 'Default curated image collection',
+              is_public: true
+            })
+            .select()
+            .single();
+            
+          if (createError) {
+            console.error('[CMS] Error creating default collection:', createError);
+            console.log('[CMS] Will load images without collection filter for now');
+            // Load all images without filtering
+            const { data: allImagesData, error: allImagesError } = await supa
+              .from('images')
+              .select('*')
+              .order('created_at', { ascending: false });
+            
+            if (!allImagesError && allImagesData) {
+              console.log('[CMS] Loaded all images (no collection filter):', allImagesData.length);
+              setRows(allImagesData as ImageRow[]);
+            }
+            setLoading(false);
+            return;
+          } else {
+            console.log('[CMS] Created default collection:', newCollection);
+          }
+        } else {
+          console.log('[CMS] Default collection exists:', defaultCollection);
+        }
+        
+        // Now try to update the images to use the default collection
+        const { data: updateResult, error: updateError } = await supa
+          .from('images')
+          .update({ 
+            collection_id: '00000000-0000-0000-0000-000000000001', // Default Collection ID
+            provider: 'cms', // Set provider to CMS
+            user_collection_id: null // Ensure user_collection_id is NULL
+          })
+          .is('collection_id', null)
+          .is('user_collection_id', null) // Only update truly orphaned images
+          .select('id'); // Return updated rows so we can count them
+          
+        if (updateError) {
+          console.error('[CMS] Error updating null collection_id images:', updateError);
+          console.log('[CMS] Will load images without collection filter for now');
+          // Load all images without filtering
+          const { data: allImagesData, error: allImagesError } = await supa
+            .from('images')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (!allImagesError && allImagesData) {
+            console.log('[CMS] Loaded all images (no collection filter):', allImagesData.length);
+            setRows(allImagesData as ImageRow[]);
+          }
+          setLoading(false);
+          return;
+        } else {
+          const actualUpdatedCount = updateResult?.length || 0;
+          console.log(`[CMS] Successfully updated ${actualUpdatedCount} images to use default collection ID (out of ${nullCollectionCount} candidates)`);
+          
+          // Only reload if we actually updated some images
+          if (actualUpdatedCount > 0) {
+            console.log('[CMS] Reloading images after updating orphaned images');
+            setTimeout(() => {
+              loadImages(collectionId);
+              return;
+            }, 500);
+            return; // Exit here to prevent running the rest of the function
+          } else {
+            console.log('[CMS] No orphaned images to update, continuing with normal load');
+            // Continue with normal loading since no updates were made
+          }
+        }
+      }
+    }
+    
+    // Check how many images have the default collection ID
+    const { count: defaultCollectionCount } = await supa
+      .from('images')
+      .select('*', { count: 'exact', head: true })
+      .eq('collection_id', '00000000-0000-0000-0000-000000000001');
+    console.log('[CMS] Images with default collection ID:', defaultCollectionCount);
+    
+    // Check total image count
+    const { count: totalCount } = await supa
+      .from('images')
+      .select('*', { count: 'exact', head: true });
+    console.log('[CMS] Total images in database:', totalCount);
+    
+    // Try to query the way the main app does - check for images with the specific collection_id
+    const { data: mainAppStyleQuery, error: mainAppError } = await supa
+      .from('images')
+      .select('*', { count: 'exact', head: true })
+      .eq('collection_id', '00000000-0000-0000-0000-000000000001');
+    console.log('[CMS] Main-app-style query result:', mainAppStyleQuery, 'Error:', mainAppError);
+    
+    // Try querying without any RLS restrictions (if user has bypass permissions)
+    // const { data: bypassQuery, error: bypassError } = await supa
+    //   .rpc('get_images_count_for_collection', { 
+    //     collection_id: '00000000-0000-0000-0000-000000000001' 
+    //   });
+    // console.log('[CMS] Bypass query result:', bypassQuery, 'Error:', bypassError);
+    
     let query = supa.from('images').select('*').order('created_at', { ascending: false });
     
     // Only filter by collection if a specific collection is selected
     if (collectionId) {
       query = query.eq('collection_id', collectionId);
+      console.log('[CMS] Filtering by collection_id:', collectionId);
+    } else {
+      console.log('[CMS] Loading all images (no collection filter)');
     }
     
     const { data, error } = await query;
-    console.log('CMS load images for collection:', collectionId, 'data:', data, 'error:', error);
+    console.log('[CMS] Query result - Collection:', collectionId, 'Found images:', data?.length || 0, 'Error:', error);
     
     if (error) {
       console.error('Error fetching images in CMS:', error);
     } else if (data) {
+      console.log('[CMS] Successfully loaded', data.length, 'images');
       setRows(data as ImageRow[]);
+    } else {
+      console.log('[CMS] No data returned from query');
+      setRows([]);
     }
     setLoading(false);
   };
@@ -1162,17 +1346,21 @@ const ImagesPage: React.FC = () => {
   }, [selectedImages, filteredRows]);
 
   useEffect(() => {
-    // Fetch collections first, then load images for the first collection
+    // Fetch collections first, then load images for the default collection
     (async () => {
       const { data, error } = await supa.from('image_collections').select('*').order('created_at', { ascending: true });
       if (!error && data) {
         setCollections(data);
-        const firstCollectionId = data[0]?.id || '';
+        // Always load the default collection first (if it exists)
+        const defaultCollection = data.find(col => col.id === '00000000-0000-0000-0000-000000000001');
+        const firstCollectionId = defaultCollection?.id || data[0]?.id || '';
         setSelectedCollection(firstCollectionId);
         
+        console.log('[CMS] Loading images for default collection:', firstCollectionId);
         // Now load images for the selected collection
         await loadImages(firstCollectionId);
       } else {
+        console.error('[CMS] Error loading collections:', error);
         // If no collections found, just load all images
         await loadImages('');
       }
@@ -1369,6 +1557,7 @@ const ImagesPage: React.FC = () => {
               loadImages(newCollectionId);
             }}
           >
+            <option value="">All Images (No Filter)</option>
             {collections.map(col => (
               <option key={col.id} value={col.id}>
                 {col.name}
@@ -1638,16 +1827,220 @@ const ImagesPage: React.FC = () => {
 
 const CmsApp: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<'images' | 'masks' | 'templates' | 'ai-settings'>('images');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  
+  // Check authentication on load
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const supabase = getSupabase();
+        if (!supabase) {
+          console.error('[CMS Auth] Supabase client not available');
+          setIsAuthenticated(false);
+          setUser(null);
+          setAuthLoading(false);
+          return;
+        }
+        
+        const { data: { user }, error } = await supabase.auth.getUser();
+        console.log('[CMS Auth] User check result:', user?.email || 'Not authenticated', 'Error:', error);
+        
+        if (user && !error) {
+          setUser(user);
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } catch (err) {
+        console.error('[CMS Auth] Error checking auth:', err);
+        setIsAuthenticated(false);
+        setUser(null);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    
+    checkAuth();
+    
+    // Listen for auth changes
+    const supabase = getSupabase();
+    if (supabase) {
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        (event, session) => {
+          console.log('[CMS Auth] Auth state changed:', event, session?.user?.email || 'No user');
+          if (session?.user) {
+            setUser(session.user);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        }
+      );
+      
+      return () => subscription.unsubscribe();
+    }
+  }, []);
+  
+  const handleSignIn = async (email: string, password: string) => {
+    try {
+      const supabase = getSupabase();
+      if (!supabase) {
+        alert('Supabase client not available');
+        return;
+      }
+      
+      const { data, error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password 
+      });
+      
+      if (error) {
+        alert('Sign in failed: ' + error.message);
+      } else if (data.user) {
+        console.log('[CMS Auth] Successfully signed in:', data.user.email);
+        setUser(data.user);
+        setIsAuthenticated(true);
+      }
+    } catch (err) {
+      console.error('[CMS Auth] Sign in error:', err);
+      alert('Sign in failed');
+    }
+  };
+  
+  const handleSignOut = async () => {
+    try {
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+      setUser(null);
+      setIsAuthenticated(false);
+    } catch (err) {
+      console.error('[CMS Auth] Sign out error:', err);
+    }
+  };
+  
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show login form if not authenticated
+  if (!isAuthenticated) {
+    return <LoginForm onSignIn={handleSignIn} />;
+  }
   
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar currentPage={currentPage} onPageChange={setCurrentPage} />
       <main className="flex-1 overflow-y-auto">
+        {/* Header with user info and sign out */}
+        <div className="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center">
+          <h1 className="text-lg font-semibold text-gray-900">Assemblage CMS</h1>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">Welcome, {user?.email}</span>
+            <button
+              onClick={handleSignOut}
+              className="text-sm text-red-600 hover:text-red-800"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+        
         {currentPage === 'images' && <ImagesPage />}
         {currentPage === 'masks' && <MasksPage />}
         {currentPage === 'templates' && <TemplatesPage />}
         {currentPage === 'ai-settings' && <AISettingsPage />}
       </main>
+    </div>
+  );
+};
+
+// Simple login form component
+const LoginForm: React.FC<{ onSignIn: (email: string, password: string) => void }> = ({ onSignIn }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+    
+    setLoading(true);
+    await onSignIn(email, password);
+    setLoading(false);
+  };
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            Assemblage CMS
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in to access the content management system
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your email"
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Enter your password"
+              />
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              disabled={loading || !email || !password}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
