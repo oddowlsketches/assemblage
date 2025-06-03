@@ -137,7 +137,12 @@ function createMoodboardElements(canvasWidth, canvasHeight, elementCount) {
 }
 
 /**
- * Render the moodboard template
+ * Render the moodboard template with cut-paper echo layers
+ * Each photo tile gets a backing color (echo layer) behind it, similar to packedShapes:
+ * - 95% of tiles get echo layers
+ * - 5% skip echo for variety  
+ * - Color images: echo uses bgColor or white
+ * - B&W images: echo can use complementary color or bgColor
  */
 function renderMoodBoard(canvas, images, params = {}) {
   if (!canvas || !images || images.length === 0) {
@@ -201,98 +206,116 @@ function renderMoodBoard(canvas, images, params = {}) {
   const elementConfigs = [];
 
   // Render elements
-  elementsWithAutoEcho.forEach((element, index) => {
-    // Select image - cycle through shuffled array
-    const imageIndex = index % shuffledImages.length;
-    const imageToDraw = shuffledImages[imageIndex];
-    
-    // Determine if this element should be an echo block (no image, just color)
-    const isEchoBlock = useEchoBlocks && Math.random() < echoSubsetRatio;
-    
-    // Store configuration
-    const elementConfig = {
-      maskName: element.maskName,
-      x: Math.round(element.x * 100) / 100,
-      y: Math.round(element.y * 100) / 100,
-      width: Math.round(element.width * 100) / 100,
-      height: Math.round(element.height * 100) / 100,
-      rotation: Math.round(element.rotation * 100) / 100,
-      opacity: Math.round(element.opacity * 100) / 100,
-      layer: element.layer,
-      imageIndex: isEchoBlock ? -1 : imageIndex,
-      isEchoBlock: isEchoBlock,
-      autoColorEcho: element.autoColorEcho || false
-    };
-    elementConfigs.push(elementConfig);
+  // Helper function to choose echo color based on image type
+  function chooseEchoColor(imageIsBW) {
+  if (hasColorImages && !imageIsBW) {
+    // For color images: use bgColor or white
+    return bgColor;
+  } else {
+    // For B&W images: can use complementary color or bgColor
+    return Math.random() < 0.6 ? getComplementaryColor(bgColor) : bgColor;
+  }
+  }
 
-    ctx.save();
-    try {
-      // Apply element opacity
-      ctx.globalAlpha = element.opacity;
-      
-      // Apply rotation
-      ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
-      ctx.rotate(element.rotation * Math.PI / 180);
+  elementsWithAutoEcho.forEach((element, index) => {
+  // Select image - cycle through shuffled array
+  const imageIndex = index % shuffledImages.length;
+  const imageToDraw = shuffledImages[imageIndex];
+  
+  // Check if this image is B&W
+  const imageIsBW = imageToDraw && imageToDraw.is_black_and_white === true;
+  
+  // Determine if this element should be an echo block (no image, just color)
+  const isEchoBlock = useEchoBlocks && Math.random() < echoSubsetRatio;
+  
+  // 95% of tiles get echo layer, 5% skip for variety
+    const skipEcho = Math.random() < 0.05;
+  
+  // Store configuration
+  const elementConfig = {
+  maskName: element.maskName,
+  x: Math.round(element.x * 100) / 100,
+  y: Math.round(element.y * 100) / 100,
+  width: Math.round(element.width * 100) / 100,
+  height: Math.round(element.height * 100) / 100,
+  rotation: Math.round(element.rotation * 100) / 100,
+      opacity: Math.round(element.opacity * 100) / 100,
+  layer: element.layer,
+  imageIndex: isEchoBlock ? -1 : imageIndex,
+  isEchoBlock: isEchoBlock,
+  skipEcho: skipEcho,
+  imageIsBW: imageIsBW
+  };
+  elementConfigs.push(elementConfig);
+
+  ctx.save();
+  try {
+  // Apply element opacity
+  ctx.globalAlpha = element.opacity;
+  
+  // Apply rotation
+  ctx.translate(element.x + element.width / 2, element.y + element.height / 2);
+  ctx.rotate(element.rotation * Math.PI / 180);
       ctx.translate(-element.width / 2, -element.height / 2);
 
-      // Get mask if specified
-      let maskPath = null;
-      if (element.maskName) {
-        const [family, name] = element.maskName.split('/');
-        const maskDescriptor = getMaskDescriptor(family, name);
-        if (maskDescriptor && maskDescriptor.kind === 'svg') {
-          const svgString = maskDescriptor.getSvg();
-          maskPath = svgToPath2D(svgString);
-        }
+  // Get mask if specified
+  let maskPath = null;
+  if (element.maskName) {
+  const [family, name] = element.maskName.split('/');
+  const maskDescriptor = getMaskDescriptor(family, name);
+  if (maskDescriptor && maskDescriptor.kind === 'svg') {
+  const svgString = maskDescriptor.getSvg();
+  maskPath = svgToPath2D(svgString);
+  }
       }
-      
-      if (element.maskName && maskPath) {
-        // Scale mask to element size
-        const scaleX = element.width / 100;
-        const scaleY = element.height / 100;
-        ctx.scale(scaleX, scaleY);
+  
+  if (element.maskName && maskPath) {
+  // Scale mask to element size
+  const scaleX = element.width / 100;
+  const scaleY = element.height / 100;
+  ctx.scale(scaleX, scaleY);
 
-        if (isEchoBlock) {
-          // Draw just the echo color block
-          ctx.fillStyle = echoColor;
-          ctx.fill(maskPath);
-        } else {
-          // Draw color background first (for multiply effect)
-          if (element.autoColorEcho || (useEchoBlocks && Math.random() < 0.1)) {
-            ctx.fillStyle = createColorVariation(echoColor);
-            ctx.fill(maskPath);
-          }
+  if (isEchoBlock) {
+  // Draw just the echo color block
+  ctx.fillStyle = chooseEchoColor(true); // Default to safe color for echo blocks
+  ctx.fill(maskPath);
+  } else {
+  // 1. Draw echo layer first (95% of tiles)
+    if (!skipEcho) {
+        ctx.fillStyle = chooseEchoColor(imageIsBW);
+      ctx.fill(maskPath);
+    }
 
-          // Draw image with multiply blend
-          ctx.globalCompositeOperation = 'multiply';
-          ctx.clip(maskPath);
-          
-          if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
-            const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
-            drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
+  // 2. Draw image with multiply blend on top
+    if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.clip(maskPath);
+  
+  const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
+    drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, 100, 100, {
               aspectRatio: imageAspectRatio,
-              clipPath: null,
-              cover: true,
-              opacity: 1.0
-            });
-          }
+      clipPath: null,
+      cover: true,
+      opacity: 1.0
+    });
+  }
+  }
+  } else {
+  // No mask - rectangular element
+  if (isEchoBlock) {
+  ctx.fillStyle = chooseEchoColor(true); // Default to safe color for echo blocks
+  ctx.fillRect(0, 0, element.width, element.height);
+  } else {
+    // 1. Draw echo layer first (95% of tiles)
+      if (!skipEcho) {
+          ctx.fillStyle = chooseEchoColor(imageIsBW);
+        ctx.fillRect(0, 0, element.width, element.height);
         }
-      } else {
-        // No mask - rectangular element
-        if (isEchoBlock) {
-          ctx.fillStyle = echoColor;
-          ctx.fillRect(0, 0, element.width, element.height);
-        } else {
-          // Draw color background if needed
-          if (element.autoColorEcho || (useEchoBlocks && Math.random() < 0.1)) {
-            ctx.fillStyle = createColorVariation(echoColor);
-            ctx.fillRect(0, 0, element.width, element.height);
-          }
 
-          // Draw image
-          ctx.globalCompositeOperation = 'multiply';
-          
+        // 2. Draw image with multiply blend on top
           if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
+            ctx.globalCompositeOperation = 'multiply';
+            
             const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
             drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {
               aspectRatio: imageAspectRatio,
@@ -321,6 +344,8 @@ function renderMoodBoard(canvas, images, params = {}) {
     echoSubsetRatio: echoSubsetRatio,
     palette: palette,
     hasColorImages: hasColorImages,
+    complementaryColor: getComplementaryColor(bgColor),
+    echoSkipPercentage: 0.05, // 5% of tiles skip echo layer
     elements: elementConfigs,
     imageDistribution: shuffledImages.map((img, idx) => ({
       index: idx,
