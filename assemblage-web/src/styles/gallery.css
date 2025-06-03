@@ -284,10 +284,19 @@
   transform: translate(-50%, -50%);
   width: 40px;
   height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gallery-thumbnail-loading::before {
+  content: '';
+  width: 32px;
+  height: 32px;
   border: 3px solid #ddd;
   border-top-color: #999;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spinOnly 1s linear infinite;
 }
 
 .gallery-thumbnail img {
@@ -298,8 +307,8 @@
   position: relative;
 }
 
-@keyframes spin {
-  to { transform: translate(-50%, -50%) rotate(360deg); }
+@keyframes spinOnly {
+  to { transform: rotate(360deg); }
 }
 
 .gallery-thumbnail:hover img {

@@ -24,6 +24,39 @@ const GalleryItem = memo(({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState(collage.thumbnail_url);
+  const supabase = getSupabase();
+
+  // Handle thumbnail loading with fallback to generate fresh signed URL
+  const handleThumbnailError = useCallback(async (e) => {
+    console.log('[Gallery] Thumbnail failed to load, attempting to generate fresh URL for:', collage.id);
+    
+    // If we have a storage_key, try to generate a fresh signed URL
+    if (collage.storage_key && !imageError) {
+      try {
+        // Generate thumbnail key from storage key (assumes thumbnail has _thumb suffix)
+        const thumbnailKey = collage.storage_key.replace('.png', '_thumb.png');
+        
+        const { data: urlData, error: urlError } = await supabase
+          .storage
+          .from('collages')
+          .createSignedUrl(thumbnailKey, 3600); // 1 hour expiry
+          
+        if (!urlError && urlData?.signedUrl) {
+          console.log('[Gallery] Generated fresh thumbnail URL');
+          setThumbnailUrl(urlData.signedUrl);
+          return; // Don't set error state, let it try the new URL
+        }
+      } catch (err) {
+        console.warn('[Gallery] Failed to generate fresh thumbnail URL:', err);
+      }
+    }
+    
+    // If fresh URL generation failed, show error state
+    setImageError(true);
+    e.target.style.backgroundColor = '#f0f0f0';
+    e.target.alt = 'Thumbnail not available';
+  }, [collage.id, collage.storage_key, imageError, supabase]);
 
   return (
     <div 
@@ -43,17 +76,13 @@ const GalleryItem = memo(({
           <div className="gallery-thumbnail-loading" />
         )}
         <img 
-          src={collage.thumbnail_url} 
+          src={thumbnailUrl} 
           alt={collage.title}
           loading="lazy"
           decoding="async"
           onClick={() => onImageClick(collage)}
           onLoad={() => setImageLoaded(true)}
-          onError={(e) => {
-            setImageError(true);
-            e.target.style.backgroundColor = '#f0f0f0';
-            e.target.alt = 'Thumbnail not available';
-          }}
+          onError={handleThumbnailError}
           style={{
             width: '100%',
             height: '100%',
@@ -413,13 +442,34 @@ export default function Gallery({ session, onClose }) {
         downloadUrl = data.image_data_url;
       }
       
+      // Fetch the image as a blob to ensure proper download
+      console.log('[Gallery] Fetching image for download:', collage.title);
+      const response = await fetch(downloadUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
+      // Create a blob URL and trigger download
+      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `${collage.title}.png`;
-      link.href = downloadUrl;
+      link.href = blobUrl;
+      
+      // Trigger download
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      
+      // Clean up blob URL
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+      
+      console.log('[Gallery] Download completed for:', collage.title);
     } catch (err) {
       console.error('Error downloading collage:', err);
-      alert('Failed to download collage');
+      alert('Failed to download collage. Please try again.');
     }
   }, [supabase]);
 
