@@ -18,6 +18,97 @@ import CollectionDetail from './pages/collections/CollectionDetail';
 import { getContrastText } from './lib/colorUtils/contrastText';
 import { useQuota } from './hooks/useQuota';
 
+
+
+// Welcome Tooltip Component
+function WelcomeTooltip({ onDismiss }) {
+  const handleDismiss = () => {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    if (onDismiss) onDismiss();
+  };
+  
+  // Tooltip positioned below the user menu
+  return (
+    <div 
+      style={{
+        position: 'absolute',
+        top: '100%',
+        right: '0',
+        marginTop: '0.5rem',
+        background: '#333333',
+        color: '#ffffff',
+        padding: '1rem 1.25rem',
+        fontFamily: 'Space Mono, monospace',
+        fontSize: '0.85rem',
+        borderRadius: '6px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        zIndex: 1000,
+        width: '280px',
+        maxWidth: 'calc(100vw - 2rem)',
+        // Arrow pointing up
+        '::before': {
+          content: '""',
+          position: 'absolute',
+          top: '-6px',
+          right: '1rem',
+          width: '0',
+          height: '0',
+          borderLeft: '6px solid transparent',
+          borderRight: '6px solid transparent',
+          borderBottom: '6px solid #333333'
+        }
+      }}
+    >
+      {/* Arrow */}
+      <div style={{
+        position: 'absolute',
+        top: '-6px',
+        right: '1rem',
+        width: '0',
+        height: '0',
+        borderLeft: '6px solid transparent',
+        borderRight: '6px solid transparent',
+        borderBottom: '6px solid #333333'
+      }} />
+      
+      <div style={{ position: 'relative' }}>
+        <button
+          onClick={handleDismiss}
+          style={{ 
+            position: 'absolute',
+            top: '-0.5rem',
+            right: '-0.75rem',
+            background: 'transparent',
+            border: 'none',
+            color: '#ffffff',
+            padding: '0.25rem',
+            cursor: 'pointer',
+            fontSize: '1.2rem',
+            fontFamily: 'Space Mono, monospace',
+            lineHeight: '1'
+          }}
+          title="Dismiss"
+        >×</button>
+        
+        <div style={{ paddingRight: '1rem' }}>
+          <div style={{ 
+            fontWeight: 'bold',
+            marginBottom: '0.5rem'
+          }}>
+            Welcome to Assemblage! 🎨
+          </div>
+          <div style={{ 
+            lineHeight: '1.4',
+            opacity: '0.9'
+          }}>
+            Click <strong>"New"</strong> to create collages, or sign in to upload your own images and save your work.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MainApp() {
   const canvasRef = useRef(null);
   const serviceRef = useRef(null);
@@ -34,7 +125,7 @@ function MainApp() {
   const [feedbackTextColor, setFeedbackTextColor] = useState('#333333');
   const [bgColor, setBgColor] = useState('#f5f5f5');
   
-  // New states for the source selector functionality
+  // Initialize with default collection
   const [activeCollection, setActiveCollection] = useState('cms');
   const [activeCollectionName, setActiveCollectionName] = useState('Default Library');
   const [showUpload, setShowUpload] = useState(false);
@@ -45,6 +136,7 @@ function MainApp() {
   const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [quotaModalType, setQuotaModalType] = useState(''); // 'images' or 'collages'
   const [uploadCollectionId, setUploadCollectionId] = useState(null); // For passing to upload modal
+  const [showWelcomeTooltip, setShowWelcomeTooltip] = useState(false);
   
   // Quota management
   const { checkQuota, downloadAndArchiveOldestCollages, archiveOldestImages, loading: quotaLoading } = useQuota();
@@ -137,7 +229,7 @@ function MainApp() {
     };
     window.addEventListener('resize', resize);
     
-    // Click outside to close dropdowns
+    // Click outside to close dropdowns and tooltips
     const handleClickOutside = (event) => {
       const dropdowns = document.querySelectorAll('.dropdown-content, .user-dropdown');
       dropdowns.forEach(dropdown => {
@@ -148,6 +240,14 @@ function MainApp() {
           }
         }
       });
+      
+      // Close welcome tooltip when clicking outside
+      if (showWelcomeTooltip) {
+        const userMenu = document.querySelector('.user-menu');
+        if (userMenu && !userMenu.contains(event.target)) {
+          setShowWelcomeTooltip(false);
+        }
+      }
     };
     document.addEventListener('click', handleClickOutside);
 
@@ -187,10 +287,19 @@ function MainApp() {
       }
       
       // Check if first run and generate placeholder collage if needed
-      if (serviceRef.current && serviceRef.current.imageMetadata.length === 0) {
-        console.log('[MainApp] First run detected, generating placeholder collage');
-        // Generate a simple pattern-based collage without images
-        await generateFirstCollage();
+      if (serviceRef.current) {
+        // If no images are loaded yet, initialize with default collection
+        if (serviceRef.current.imageMetadata.length === 0) {
+          console.log('[MainApp] No images loaded yet, ensuring default collection is loaded');
+          await loadImagesForCollection('cms');
+        }
+        
+        // Only show placeholder if still no images after loading
+        if (serviceRef.current.imageMetadata.length === 0) {
+          console.log('[MainApp] First run detected, generating placeholder collage');
+          // Generate a simple pattern-based collage without images
+          await generateFirstCollage();
+        }
       }
     };
     
@@ -201,7 +310,7 @@ function MainApp() {
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, []); // Empty dependency array - only run once
+  }, [showWelcomeTooltip]); // Include showWelcomeTooltip to handle click outside
 
   // Initialize authentication session
   const initializeAuth = async () => {
@@ -334,8 +443,16 @@ function MainApp() {
       }
       
       console.log(`[MainApp] Service initialized with ${serviceRef.current.imageMetadata.length} images`);
-      // Generate initial collage
-      await serviceRef.current.generateCollage();
+      
+      // Check if this is an empty user collection
+      if (serviceRef.current.imageMetadata.length === 0 && collectionId !== 'cms') {
+        // Open upload modal with this collection preselected
+        setUploadCollectionId(collectionId);
+        setShowUpload(true);
+      } else {
+        // Generate initial collage
+        await serviceRef.current.generateCollage();
+      }
     } catch (err) {
       console.error('Failed to load images for collection:', err);
     } finally {
@@ -794,22 +911,31 @@ function MainApp() {
           // Refresh the collections list to include the new collection
           await fetchUserCollectionsForSelect();
           
-          // If we're currently on cms/default, switch to the new collection
-          if (activeCollection === 'cms') {
-            setActiveCollection(newUserCollection.id);
-            await loadImagesForCollection(newUserCollection.id);
+          // Keep Emily's Treasures selected, but show upload modal with new collection preselected
+          setUploadCollectionId(newUserCollection.id);
+          setShowUpload(true);
+          
+          // Show welcome tooltip for new users if they haven't seen it
+          if (localStorage.getItem('hasSeenWelcome') !== 'true') {
+            setTimeout(() => setShowWelcomeTooltip(true), 1000);
           }
         }
       } else {
         // User already has collections, just refresh the list
         console.log('[Auth] User has existing collections, refreshing list');
         await fetchUserCollectionsForSelect();
+        
+        // Show welcome tooltip for returning users if they haven't seen it
+        if (localStorage.getItem('hasSeenWelcome') !== 'true') {
+          setTimeout(() => setShowWelcomeTooltip(true), 1000);
+        }
       }
     }
   };
 
   return (
     <div id="wrapper">
+      
       <header className="space-y-2 sm:space-y-0">
         <div className="header-text">
           <h1>Assemblage</h1>
@@ -919,9 +1045,11 @@ function MainApp() {
             {authLoading ? (
               <div className="auth-loading">Loading...</div>
             ) : session ? (
-              <div className="user-menu" style={{ marginLeft: '0.5rem' }}>
+              <div className="user-menu" style={{ marginLeft: '0.5rem', position: 'relative' }}>
                 <button className="user-btn" onClick={(e) => {
                   e.currentTarget.nextElementSibling.classList.toggle('show');
+                  // Hide welcome tooltip when dropdown is opened
+                  setShowWelcomeTooltip(false);
                 }}>
                   <User size={16} weight="regular" />
                   <CaretDown size={12} weight="regular" />
@@ -976,6 +1104,13 @@ function MainApp() {
                     Sign Out
                   </button>
                 </div>
+                
+                {/* Welcome tooltip */}
+                {showWelcomeTooltip && (
+                  <WelcomeTooltip 
+                    onDismiss={() => setShowWelcomeTooltip(false)}
+                  />
+                )}
               </div>
             ) : (
               <button onClick={() => setShowAuth(true)} className="sign-in-btn">
@@ -1174,55 +1309,6 @@ function MainApp() {
             </div>
           </div>
         )}
-        
-        {!isLoading && serviceRef.current?.imageMetadata?.length === 0 && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center',
-            padding: '2rem',
-            background: '#ffffff',
-            border: '1px solid #333333',
-            fontFamily: 'Space Mono, monospace',
-            maxWidth: '400px',
-            color: '#333333',
-            zIndex: 10,
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
-          }}>
-            <p style={{ marginBottom: '1rem' }}>No images available in this collection.</p>
-            {activeCollection !== 'cms' && (
-              <button 
-                onClick={() => {
-                  if (session) {
-                    setShowUpload(true);
-                  } else {
-                    setShowAuth(true);
-                  }
-                }}
-                style={{
-                  background: '#333333',
-                  border: '1px solid #333333',
-                  color: '#ffffff',
-                  padding: '0.5rem 1rem',
-                  cursor: 'pointer',
-                  fontFamily: 'Space Mono, monospace',
-                  fontSize: '0.9rem',
-                  transition: 'background 0.2s ease',
-                }}
-                onMouseEnter={e => {
-                  e.target.style.background = '#555555';
-                }}
-                onMouseLeave={e => {
-                  e.target.style.background = '#333333';
-                }}
-              >
-                Upload Images
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       <footer>
@@ -1258,8 +1344,7 @@ function MainApp() {
           setShowUpload(false);
           setUploadCollectionId(null); // Clear the collection ID
           
-          // If we uploaded to a collection, refresh it after a short delay
-          // to ensure database has propagated the changes
+          // If we uploaded to a collection, switch to it and refresh
           if (results && results.length > 0) {
             const uploadedCollectionId = results[0].user_collection_id;
             console.log(`[MainApp] Upload complete to collection ${uploadedCollectionId} with ${results.length} new images`);
@@ -1267,7 +1352,7 @@ function MainApp() {
             // Wait a bit longer to ensure database propagation
             await new Promise(resolve => setTimeout(resolve, 1500));
             
-            // Always switch to the uploaded collection and refresh it
+            // Switch to the uploaded collection and refresh it
             setActiveCollection(uploadedCollectionId);
             await serviceRef.current.reinitialize(uploadedCollectionId);
             console.log(`[MainApp] Collection refreshed, now has ${serviceRef.current.imageMetadata.length} images`);
@@ -1330,6 +1415,8 @@ function MainApp() {
           }
         }}
       />
+      
+
       
       {/* Quota Modal */}
       {showQuotaModal && (

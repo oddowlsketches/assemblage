@@ -13,8 +13,9 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
 
   const ctx = canvas.getContext('2d');
   
-  // Randomize gridSize between 6-12 if not explicitly provided
-  const gridSize = params.gridSize || (Math.floor(Math.random() * 7) + 6); // 6-12
+  // Randomize gridSize between 4-12 if not explicitly provided - increased range
+  const gridSize = params.gridSize || (Math.floor(Math.random() * 9) + 4); // 4-12 instead of 6-12
+  console.log(`[ScrambledMosaic] Grid size: ${gridSize}x${gridSize} = ${gridSize * gridSize} tiles`);
   let { revealPct, swapPct, rotatePct, operation, bgColor, useMultiply } = params;
 
   // Valid operations array
@@ -49,15 +50,30 @@ export function generateScrambledMosaic(canvas, images, params = {}) {
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // Calculate cell dimensions - ensure square tiles by using the smaller dimension
-  const minDimension = Math.min(canvas.width, canvas.height);
-  const cellSize = Math.floor(minDimension / gridSize);
+  // Calculate cell dimensions - allow full canvas usage based on random choice
+  const useFullCanvas = Math.random() < 0.5; // 50% chance to use full canvas
+  let cellSize, totalWidth, totalHeight, offsetX, offsetY;
   
-  // Calculate offsets to center the grid
-  const totalWidth = cellSize * gridSize;
-  const totalHeight = cellSize * gridSize;
-  const offsetX = Math.floor((canvas.width - totalWidth) / 2);
-  const offsetY = Math.floor((canvas.height - totalHeight) / 2);
+  if (useFullCanvas) {
+    // Use the larger dimension to ensure we cover the full canvas
+    const maxDimension = Math.max(canvas.width, canvas.height);
+    cellSize = Math.ceil(maxDimension / gridSize); // Use ceil to ensure full coverage
+    totalWidth = cellSize * gridSize;
+    totalHeight = cellSize * gridSize;
+    // Center the grid, but allow overflow
+    offsetX = Math.floor((canvas.width - totalWidth) / 2);
+    offsetY = Math.floor((canvas.height - totalHeight) / 2);
+    console.log(`[ScrambledMosaic] Using full canvas mode - may extend beyond edges`);
+  } else {
+    // Original square centered approach
+    const minDimension = Math.min(canvas.width, canvas.height);
+    cellSize = Math.floor(minDimension / gridSize);
+    totalWidth = cellSize * gridSize;
+    totalHeight = cellSize * gridSize;
+    offsetX = Math.floor((canvas.width - totalWidth) / 2);
+    offsetY = Math.floor((canvas.height - totalHeight) / 2);
+    console.log(`[ScrambledMosaic] Using centered square mode`);
+  }
   
   const selectedImageIndex = Math.floor(Math.random() * images.length);
   const selectedImage = images[selectedImageIndex];
@@ -283,7 +299,7 @@ const scrambledMosaicTemplate = {
   name: 'Scrambled Mosaic',
   render: generateScrambledMosaic,
   params: {
-    gridSize: { type: 'number', min: 2, max: 16, default: 8 },
+    gridSize: { type: 'number', min: 4, max: 16, default: 8 },
     revealPct: { type: 'number', min: 0, max: 100, default: 75 }, 
     swapPct: { type: 'number', min: 0, max: 100, default: 0 },
     rotatePct: { type: 'number', min: 0, max: 100, default: 0 },
