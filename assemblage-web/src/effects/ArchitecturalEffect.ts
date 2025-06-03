@@ -243,11 +243,21 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
 
     
 
-  // Three concentric arches
+  // Three concentric arches with more variation
   nestedArches: (w, h) => {
     console.log('[nestedArches preset] Called with dimensions:', w, h);
-    const variation = Math.random() > 0.3 ? 'offset' : 'centered'; // Increased chance of offset from 50% to 70%
-    console.log('[nestedArches preset] Using variation:', variation);
+    const variation = Math.random(); // More variation options
+    let variationType;
+    if (variation < 0.2) {
+      variationType = 'centered';
+    } else if (variation < 0.4) {
+      variationType = 'bottomAligned';
+    } else if (variation < 0.6) {
+      variationType = 'verticallyOffset';
+    } else {
+      variationType = 'staggered';
+    }
+    console.log('[nestedArches preset] Using variation:', variationType);
     
     const placements: MaskPlacement[] = [];
     const numShapes = 2 + Math.floor(Math.random() * 2); // 2-3 nested shapes (was 2-4) for cleaner look
@@ -274,7 +284,7 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
     // Shuffle the masks array to get random order
     const shuffled = [...shapeMasks].sort(() => Math.random() - 0.5);
     
-    if (variation === 'centered') {
+    if (variationType === 'centered') {
       const centerX = w * 0.5;
       const centerY = h * 0.5;
       
@@ -319,7 +329,78 @@ const presets: Record<string, (width: number, height: number) => MaskPlacement[]
           layer: numShapes - i - 1 // Reverse layer order so largest is on bottom
         });
       }
-    } else { // 'offset' variation - create staggered overlapping compositions
+    } else if (variationType === 'bottomAligned') {
+      // All shapes aligned to bottom of canvas
+      const centerX = w * 0.5;
+      const bottomY = h * 0.95; // 5% margin from bottom
+      
+      for (let i = 0; i < numShapes; i++) {
+        const sizeFactor = 1 - (i * 0.2);
+        const currentSize = effectiveBaseSize * sizeFactor;
+        
+        const maskName = shuffled[i % shuffled.length];
+        let shapeWidth, shapeHeight;
+        
+        if (maskName.includes('arch') || maskName.includes('gable')) {
+          shapeHeight = currentSize;
+          shapeWidth = shapeHeight * 0.8;
+        } else {
+          shapeHeight = currentSize;
+          shapeWidth = currentSize;
+        }
+        
+        // Add slight horizontal offset for visual interest
+        const xOffset = (Math.random() - 0.5) * w * 0.1;
+        
+        placements.push({
+          maskName: maskName,
+          x: centerX - shapeWidth / 2 + xOffset,
+          y: bottomY - shapeHeight,
+          width: shapeWidth,
+          height: shapeHeight,
+          rotation: 0,
+          layer: numShapes - i - 1
+        });
+      }
+    } else if (variationType === 'verticallyOffset') {
+      // Shapes vertically offset with some overlap
+      const centerX = w * 0.5;
+      const totalHeight = h * 0.8;
+      const startY = h * 0.1;
+      
+      for (let i = 0; i < numShapes; i++) {
+        const sizeFactor = 1 - (i * 0.15); // Less aggressive size reduction
+        const currentSize = effectiveBaseSize * sizeFactor;
+        
+        const maskName = shuffled[i % shuffled.length];
+        let shapeWidth, shapeHeight;
+        
+        if (maskName.includes('arch') || maskName.includes('gable')) {
+          shapeHeight = currentSize;
+          shapeWidth = shapeHeight * 0.8;
+        } else {
+          shapeHeight = currentSize;
+          shapeWidth = currentSize * 0.9;
+        }
+        
+        // Calculate vertical position with overlap
+        const verticalStep = totalHeight / (numShapes + 1);
+        const yPos = startY + (i * verticalStep);
+        
+        // Add horizontal variation
+        const xOffset = (Math.random() - 0.5) * w * 0.15;
+        
+        placements.push({
+          maskName: maskName,
+          x: centerX - shapeWidth / 2 + xOffset,
+          y: yPos,
+          width: shapeWidth,
+          height: shapeHeight,
+          rotation: 0,
+          layer: numShapes - i - 1
+        });
+      }
+    } else { // 'staggered' variation
       // Don't center the group - instead create dynamic staggered layouts
       
       // Special staggered composition types

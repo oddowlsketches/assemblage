@@ -28,7 +28,9 @@ const MAX_IMAGES_TO_USE = 15; // Max images to pick from for elements
 const suitableMasks = [
   'basic/circleMask', 'basic/ovalMask', 'basic/diamondMask', 'basic/hexagonMask',
   'basic/semiCircleMask', 'basic/triangleMask', 'basic/rectangleMask',
-  'abstract/blobIrregular', 'abstract/polygonSoft', 'abstract/cloudLike',
+  'abstract/blobIrregular', 'abstract/polygonSoft', 
+  'abstract/polygonSoftWide', 'abstract/polygonSoftTall', 
+  'abstract/polygonSoftAsymmetric', 'abstract/polygonSoftCompact',
   'architectural/archClassical', 'architectural/archFlat', 'architectural/windowRect',
   'altar/nicheArch', 'altar/circleInset', 'altar/gableAltar',
   'narrative/panelSquare', 'narrative/panelRectWide', 'narrative/panelRectTall',
@@ -36,7 +38,15 @@ const suitableMasks = [
 ];
 
 function getRandomMask() {
-  return suitableMasks[Math.floor(Math.random() * suitableMasks.length)];
+  // Create a weighted array - most masks appear once, donutMask appears less frequently
+  const weightedMasks = [...suitableMasks];
+  
+  // Add donut mask with only 5% probability
+  if (Math.random() < 0.05) {
+    weightedMasks.push('basic/donutMask');
+  }
+  
+  return weightedMasks[Math.floor(Math.random() * weightedMasks.length)];
 }
 
 /**
@@ -124,7 +134,7 @@ function hasAcceptableOverlap(newElement, existingElements, maxOverlapPercent = 
 /**
  * Creates the element configurations for the packed collage.
  */
-function createPackedElements(canvasWidth, canvasHeight, elementCount) {
+function createPackedElements(canvasWidth, canvasHeight, elementCount, numSolidColorElements = 0) {
   const elements = [];
   const minDim = Math.min(canvasWidth, canvasHeight);
 
@@ -134,6 +144,9 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
     if (rand < 0.15) sizeCategory = 'large';      // 15% large
     else if (rand < 0.45) sizeCategory = 'medium'; // 30% medium
     else sizeCategory = 'small';                 // 55% small
+    
+    // Determine if this should be a solid color element
+    const isSolidColor = i < numSolidColorElements;
 
     // Decide if this element should use a mask or just be unmasked first
     const useMask = Math.random() > 0.3; // 70% chance to use a mask
@@ -227,7 +240,7 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
       x = Math.random() * (canvasWidth + width * 0.2) - width * 0.1;
       y = Math.random() * (canvasHeight + height * 0.2) - height * 0.1;
       attempts++;
-    } while (attempts < maxAttempts && !hasAcceptableOverlap({x, y, width, height}, elements, 0.5));
+    } while (attempts < maxAttempts && !hasAcceptableOverlap({x, y, width, height}, elements, 0.3)); // Reduced from 0.5 to 0.3
 
     // Edge alignment: 25% chance to align with existing elements (reduced from 30% to avoid forced overlaps)
     if (elements.length > 0 && Math.random() < 0.25) {
@@ -284,8 +297,17 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
       }
     }
     
-    // Apply transparency variation (0.9-1.0) with more transparency for overlapping elements
-    const baseOpacity = hasSignificantOverlap ? 0.9 : 0.95;
+    // Apply transparency variation (0.8-1.0) with more transparency for overlapping elements
+    // For solid color elements, allow even lower opacity
+    let baseOpacity;
+    
+    if (isSolidColor) {
+      // Solid color elements can have lower opacity for ethereal effect
+      baseOpacity = hasSignificantOverlap ? 0.5 : 0.6;
+    } else {
+      baseOpacity = hasSignificantOverlap ? 0.8 : 0.9;
+    }
+    
     const opacity = baseOpacity + Math.random() * (1.0 - baseOpacity);
     
     elements.push({
@@ -298,6 +320,7 @@ function createPackedElements(canvasWidth, canvasHeight, elementCount) {
       opacity,
       layer,
       sizeCategory, // Store for later use
+      isSolidColor, // Store solid color flag
     });
   }
   
@@ -342,8 +365,13 @@ function renderPackedShapes(canvas, images, params = {}) {
 
   console.log(`[PackedShapes] Using palette: ${params.paletteType || 'auto'}, BG: ${initialBgColor}`);
 
-  const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 16)); // Random 15-30 elements
-  const elements = createPackedElements(canvasWidth, canvasHeight, elementCount);
+  const elementCount = params.elementCount || (12 + Math.floor(Math.random() * 11)); // Random 12-22 elements (reduced from 15-30)
+  
+  // Determine which elements should use solid color fill (up to 30%)
+  const maxSolidColorElements = Math.floor(elementCount * 0.3);
+  const numSolidColorElements = Math.floor(Math.random() * (maxSolidColorElements + 1));
+  
+  const elements = createPackedElements(canvasWidth, canvasHeight, elementCount, numSolidColorElements);
 
   // Store the element configuration for reproducibility
   const elementConfigs = elements.map(el => ({
@@ -363,16 +391,62 @@ function renderPackedShapes(canvas, images, params = {}) {
   
   const complementaryColor = getComplementaryColor(initialBgColor);
   
+  // Helper function to create subtle variations of a color
+  function createSubtleVariation(baseColor, variation = 0.15) {
+    const rgb = hexToRgb(baseColor);
+    if (!rgb) return baseColor;
+    
+    // Create a slightly lighter or darker version
+    const factor = Math.random() < 0.5 ? (1 + variation) : (1 - variation);
+    
+    const r = Math.round(Math.min(255, Math.max(0, rgb.r * factor)));
+    const g = Math.round(Math.min(255, Math.max(0, rgb.g * factor)));
+    const b = Math.round(Math.min(255, Math.max(0, rgb.b * factor)));
+    
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+  
+  // Helper function to create a subtle complementary color
+  function createSubtleComplementary(baseColor) {
+    const rgb = hexToRgb(baseColor);
+    if (!rgb) return baseColor;
+    
+    // Get complementary
+    const compR = 255 - rgb.r;
+    const compG = 255 - rgb.g;
+    const compB = 255 - rgb.b;
+    
+    // Mix with base color to make it subtle (70% base, 30% complementary)
+    const mixedR = Math.round(rgb.r * 0.7 + compR * 0.3);
+    const mixedG = Math.round(rgb.g * 0.7 + compG * 0.3);
+    const mixedB = Math.round(rgb.b * 0.7 + compB * 0.3);
+    
+    return `#${mixedR.toString(16).padStart(2, '0')}${mixedG.toString(16).padStart(2, '0')}${mixedB.toString(16).padStart(2, '0')}`;
+  }
+  
+  // Helper function to convert hex to RGB
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+  
   // FIXED: Create appropriate color palette based on image type
   let accentColorPalette;
   if (hasColorImages) {
-    // For color images: ONLY use bgColor or white
+    // For color images: use subtle variations of background color
+    // Never use pure white - create tinted variations instead
     accentColorPalette = [
       initialBgColor,
-      '#FFFFFF',
-      initialBgColor,
-      '#FFFFFF'
-    ];
+      createSubtleVariation(initialBgColor, 0.15),
+      createSubtleVariation(initialBgColor, 0.20),
+      lightenColor(initialBgColor, 0.15), // Slightly lighter tint
+      createSubtleComplementary(initialBgColor), // Subtle complementary
+      lightenColor(createSubtleComplementary(initialBgColor), 0.1), // Light subtle complementary
+    ].filter(color => color !== '#FFFFFF' && color !== '#ffffff'); // Extra safety to remove any white
   } else {
     // For B&W images: can use complementary and other colors
     const lightenedComplementaryColor = lightenColor(complementaryColor, 0.3);
@@ -390,18 +464,18 @@ function renderPackedShapes(canvas, images, params = {}) {
   let singleColor = null;
   
   if (hasColorImages) {
-    // For color images: only use bgColor or white
+    // For color images: use subtle variations instead of pure white
     if (colorMode < 0.5) {
-      // Alternate between bgColor and white
+      // Varied subtle colors
       useVariedColors = true;
     } else if (colorMode < 0.75) {
-      // All white
+      // All light tinted version of background
       useVariedColors = false;
-      singleColor = '#FFFFFF';
+      singleColor = lightenColor(initialBgColor, 0.2); // 20% lighter tint
     } else {
-      // All background color
+      // All subtle variation of background color
       useVariedColors = false;
-      singleColor = initialBgColor;
+      singleColor = createSubtleVariation(initialBgColor, 0.15);
     }
   } else {
     // For B&W images: original logic with complementary colors allowed
@@ -427,11 +501,16 @@ function renderPackedShapes(canvas, images, params = {}) {
   const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
   const shuffledImages = [...availableImages].sort(() => Math.random() - 0.5);
   
+  console.log(`[PackedShapes] Using solid color fill for ${numSolidColorElements} of ${elementCount} elements`);
+  
   elements.forEach((element, index) => {
+    // Check if this element should use solid color only
+    const useSolidColorOnly = element.isSolidColor;
+    
     // Use different image for each element, cycling through shuffled array
     let imageToDraw;
     
-    if (shuffledImages.length > 0) {
+    if (!useSolidColorOnly && shuffledImages.length > 0) {
       // Use modulo to cycle through images, ensuring each gets used before repeating
       const imageIndex = index % shuffledImages.length;
       imageToDraw = shuffledImages[imageIndex];
@@ -493,13 +572,14 @@ function renderPackedShapes(canvas, images, params = {}) {
         ctx.fill(maskPath);
 
         // 2. Draw the image with multiply blend mode, clipped by the same mask
-        if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
+        if (!useSolidColorOnly && imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
           
           // For color images, use slight transparency to prevent muddiness
           if (hasColorImages) {
-            ctx.globalAlpha = 0.85;
+            ctx.globalAlpha = element.opacity * 0.85;
           }
+          // Note: for B&W images, opacity is already set to element.opacity at the save point
           
           ctx.clip(maskPath); // Apply clipping AFTER color block fill
           
@@ -519,16 +599,15 @@ function renderPackedShapes(canvas, images, params = {}) {
         ctx.fillRect(0, 0, element.width, element.height);
 
         // 2. Draw the image with multiply blend mode
-        if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
+        if (!useSolidColorOnly && imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
           
-          // Apply element opacity for layering effect
-          // For color images, combine with slight transparency to prevent muddiness
+          // For color images, apply additional transparency to prevent muddiness
+          // Note: element.opacity is already applied at the beginning of ctx.save()
           if (hasColorImages) {
-            ctx.globalAlpha = 0.85 * element.opacity;
-          } else {
-            ctx.globalAlpha = element.opacity;
+            ctx.globalAlpha = element.opacity * 0.85;
           }
+          // For B&W images, keep the already-applied element.opacity
           
           const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {
@@ -557,6 +636,7 @@ function renderPackedShapes(canvas, images, params = {}) {
     complementaryColor: hasColorImages ? null : lightenColor(complementaryColor, 0.3),
     palette: palette,
     elements: elementConfigs, // Full element layout data
+    solidColorIndices: elements.map((el, idx) => el.isSolidColor ? idx : -1).filter(idx => idx >= 0), // Which elements use solid color
     imageDistribution: shuffledImages.map((img, idx) => ({
       index: idx,
       src: img.src || `image_${idx}`
@@ -579,7 +659,7 @@ const packedShapesTemplate = {
   render: renderPackedShapes,
   generate: renderPackedShapes, // Alias for compatibility
   params: {
-    elementCount: { type: 'number', min: 5, max: 35, default: 20, step: 1 },
+    elementCount: { type: 'number', min: 5, max: 25, default: 15, step: 1 }, // Reduced max from 35 to 25
     bgColor: { type: 'color' },
     paletteType: { 
       type: 'select', 

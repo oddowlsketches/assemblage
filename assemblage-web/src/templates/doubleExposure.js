@@ -2,6 +2,9 @@
 
 import { getRandomColorFromPalette, areImagesMostlyBlackAndWhite } from '../utils/colors.js';
 import { chooseBlend } from '../utils/blendModeUtils';
+import { getMaskDescriptor } from '../masks/maskRegistry';
+import { svgToPath2D } from '../core/svgUtils';
+import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
 
 /**
  * Generate a double exposure effect with 2-3 layered images
@@ -52,9 +55,16 @@ export function generateDoubleExposure(canvas, images, params = {}) {
   const useAllMultiply = allBlackAndWhite && Math.random() < 0.9;
   console.log('[DoubleExposure] Use all multiply?', useAllMultiply);
   
-  // Choose layout style: 'center', 'left', 'right', 'fullBleed', 'border'
-  const layoutStyles = ['center', 'left', 'right', 'fullBleed', 'border'];
-  const layoutStyle = layoutStyles[Math.floor(Math.random() * layoutStyles.length)];
+  // Choose layout style: 'center', 'left', 'right', 'fullBleed', 'border', or mask types
+  const layoutStyles = ['center', 'left', 'right', 'fullBleed', 'border', 'masked'];
+  let layoutStyle = layoutStyles[Math.floor(Math.random() * layoutStyles.length)];
+  
+  // If masked layout, choose a mask shape
+  const maskShapes = ['archClassical', 'circle', 'diamond', 'triangle', 'hexagon', 'square', 'windowGrid', 'donutMask'];
+  let selectedMaskShape = null;
+  if (layoutStyle === 'masked') {
+    selectedMaskShape = maskShapes[Math.floor(Math.random() * maskShapes.length)];
+  }
   
   // Define border size for 'border' layout
   const borderSize = canvas.width * 0.05; // 5% of canvas width
@@ -71,18 +81,25 @@ export function generateDoubleExposure(canvas, images, params = {}) {
     
     // For first image, always use normal composite operation
     if (index === 0) {
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.globalAlpha = 1.0;
-      blendChoices.push({ mode: 'normal', opacity: 1.0 });
-    } else {
-      // For subsequent images, choose blend mode
-      if (useAllMultiply) {
-        // Force multiply mode for B&W images
+      // FIXED: For B&W images, always use multiply blend mode
+      if (allBlackAndWhite || (img && img.is_black_and_white !== false)) {
         ctx.globalCompositeOperation = 'multiply';
-        ctx.globalAlpha = 0.4 + Math.random() * 0.4; // Still vary opacity
+        ctx.globalAlpha = 0.9 + Math.random() * 0.1; // 0.9-1.0 opacity
         blendChoices.push({ mode: 'multiply', opacity: ctx.globalAlpha });
       } else {
-        // Use standard blend choice
+        ctx.globalCompositeOperation = 'source-over';
+        ctx.globalAlpha = 1.0;
+        blendChoices.push({ mode: 'normal', opacity: 1.0 });
+      }
+    } else {
+      // For subsequent images, choose blend mode
+      if (useAllMultiply || (img && img.is_black_and_white !== false)) {
+        // Force multiply mode for B&W images
+        ctx.globalCompositeOperation = 'multiply';
+        ctx.globalAlpha = 0.7 + Math.random() * 0.3; // 0.7-1.0 opacity (increased from 0.4-0.8)
+        blendChoices.push({ mode: 'multiply', opacity: ctx.globalAlpha });
+      } else {
+        // Use standard blend choice for color images
         const previousImg = selectedImages[index - 1];
         const blendChoice = chooseBlend(previousImg, img);
         
@@ -98,7 +115,75 @@ export function generateDoubleExposure(canvas, images, params = {}) {
     
     let drawWidth, drawHeight, drawX, drawY;
     let scalingMode;
+    let maskPath = null;
     
+    // For masked layout, create the mask and calculate dimensions differently
+    if (layoutStyle === 'masked' && selectedMaskShape) {
+      // Get mask descriptor based on selected shape
+      let maskFamily = 'basic';
+      let maskType = selectedMaskShape;
+      
+      if (selectedMaskShape === 'archClassical') {
+        maskFamily = 'architectural';
+        maskType = 'archClassical';
+      } else if (selectedMaskShape === 'circle') {
+        maskType = 'circleMask';
+      } else if (selectedMaskShape === 'diamond') {
+        maskType = 'diamondMask';
+      } else if (selectedMaskShape === 'triangle') {
+        maskType = 'triangleMask';
+      } else if (selectedMaskShape === 'hexagon') {
+        maskType = 'hexagonMask';
+      } else if (selectedMaskShape === 'square') {
+        maskType = 'rectangleMask';
+      } else if (selectedMaskShape === 'windowGrid') {
+        maskFamily = 'architectural';
+        maskType = 'windowGrid';
+      } else if (selectedMaskShape === 'donutMask') {
+        maskType = 'donutMask';
+      }
+      
+      const maskDescriptor = getMaskDescriptor(maskFamily, maskType);
+      if (maskDescriptor && maskDescriptor.kind === 'svg') {
+        const svgString = maskDescriptor.getSvg();
+        maskPath = svgToPath2D(svgString);
+      }
+      
+      // Calculate size for mask - use 60-80% of canvas
+      const maskSizeFactor = 0.6 + Math.random() * 0.2;
+      const maskSize = Math.min(canvas.width, canvas.height) * maskSizeFactor;
+      
+      // Position mask in center with some variation
+      const maskX = (canvas.width - maskSize) / 2 + (Math.random() - 0.5) * maskSize * 0.1;
+      const maskY = (canvas.height - maskSize) / 2 + (Math.random() - 0.5) * maskSize * 0.1;
+      
+      // Apply mask transform
+      ctx.translate(maskX, maskY);
+      ctx.scale(maskSize / 100, maskSize / 100);
+      
+      // Apply clipping
+      if (maskPath) {
+        ctx.clip(maskPath);
+      }
+      
+      // Reset transform for image drawing
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      
+      // Draw image to cover entire canvas (will be clipped by mask)
+      if (imgAspect > canvasAspect) {
+        drawHeight = canvas.height;
+        drawWidth = drawHeight * imgAspect;
+        drawX = (canvas.width - drawWidth) / 2;
+        drawY = 0;
+      } else {
+        drawWidth = canvas.width;
+        drawHeight = drawWidth / imgAspect;
+        drawX = 0;
+        drawY = (canvas.height - drawHeight) / 2;
+      }
+      scalingMode = 'masked';
+      
+    } else {
     switch (layoutStyle) {
       case 'fullBleed':
         // Cover entire canvas - some parts may be cropped
@@ -195,6 +280,7 @@ export function generateDoubleExposure(canvas, images, params = {}) {
         scalingMode = 'contain-center';
         break;
     }
+    }
     
     // Store positioning data
     positioningData.push({
@@ -218,6 +304,7 @@ export function generateDoubleExposure(canvas, images, params = {}) {
     imageIndices: imageIndices,
     blendChoices: blendChoices,
     layoutStyle: layoutStyle,
+    maskShape: selectedMaskShape,
     useAllMultiply: useAllMultiply,
     borderSize: layoutStyle === 'border' ? borderSize : null,
     positioningData: positioningData,

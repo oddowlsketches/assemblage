@@ -31,9 +31,14 @@ export async function renderSliced(canvas, images, params = {}) {
     
   console.log(`[SlicedTemplate] Randomized sliceBehavior to: ${randomizedSliceBehavior}`);
   
+  // Mobile cap: limit slices to 8 on mobile devices
+  const isMobile = window.innerWidth < 600;
+  const maxSlicesValue = Number(params.maxSlices) || 40;
+  const actualMaxSlices = isMobile ? Math.min(8, maxSlicesValue) : maxSlicesValue;
+  
   const legacyParams = {
     sliceBehavior: randomizedSliceBehavior,
-    maxSlices: Number(params.maxSlices) || 40,
+    maxSlices: actualMaxSlices,
     sliceWidthVariation: Number(params.sliceWidthVariation) || 0.1,
   };
 

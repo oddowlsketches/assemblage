@@ -87,5 +87,26 @@ export function getComplementaryColor(hexColor) {
   return rgbToHex(r, g, b);
 }
 
+/**
+ * Get safe fill color for templates based on image type.
+ * For color photos (is_bw = false), mask fill must be either canvas background or white.
+ * @param {boolean} isBW - Whether the image is black and white
+ * @param {string} bgColor - The canvas background color
+ * @param {number} opacity - Optional opacity value (0-1)
+ * @returns {object} Object with fillColor and opacity
+ */
+export function getSafeFillColour(isBW, bgColor, opacity = 0.1) {
+  // For color photos, use either background color or white
+  const fillColor = isBW ? bgColor : (Math.random() > 0.5 ? bgColor : '#FFFFFF');
+  
+  // Ensure opacity is within allowed range (0 to 0.2)
+  const safeOpacity = Math.min(0.2, Math.max(0, opacity));
+  
+  return {
+    fillColor,
+    opacity: safeOpacity
+  };
+}
+
 // Keep randomVibrantColor if it exists here, or it should be imported if used by other utils here.
 // For now, assuming it's correctly in utils/colors.js and imported where needed. 

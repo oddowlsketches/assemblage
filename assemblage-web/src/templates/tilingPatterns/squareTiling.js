@@ -6,6 +6,7 @@
 import { svgToPath2D } from '../../core/svgUtils'; // Assuming path is correct
 import { maskRegistry } from '../../masks/maskRegistry.ts';
 import { drawImageInMask } from '../../utils/imageScaling.js';
+import { getSafeFillColour } from '../../utils/colorUtils.js';
 
 /**
  * Lighten a hex color by a given amount
@@ -155,20 +156,16 @@ export function drawSquareTile(ctx, tile, image, options = {}) {
 
   // Image drawing logic considering echo
   if (applyEcho && echoColor && typeof echoColor === 'string' && echoColor.startsWith('#')) {
-    // For echo colors, check if image is colorful and adjust the echo color accordingly
-    let finalEchoColor = echoColor;
-    if (image && image.is_black_and_white === false) {
-      // For colorful images, lighten the echo color to prevent muddy results
-      finalEchoColor = lightenColor(echoColor, 0.3);
-      console.log(`[DrawSquareTile] Lightened echo color for colorful image: ${echoColor} -> ${finalEchoColor}`);
-    }
+    // Use the safe fill color utility
+    const isBW = image && image.is_black_and_white !== false;
+    const safeColors = getSafeFillColour(isBW, echoColor, 0.15);
     
     // Color block echo is active for this tile: Draw color base first
-    ctx.globalAlpha = tileOpacity * 0.9; 
-    ctx.fillStyle = finalEchoColor;
+    ctx.globalAlpha = tileOpacity * safeColors.opacity / 0.2; // Scale to tile opacity
+    ctx.fillStyle = safeColors.fillColor;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fill(); 
-    console.log(`[DrawSquareTile] Echo drawn: color=${finalEchoColor}, opacity=${ctx.globalAlpha}`);
+    console.log(`[DrawSquareTile] Echo drawn: color=${safeColors.fillColor}, opacity=${ctx.globalAlpha}, isBW=${isBW}`);
     
     // Now draw image on top with multiply
     ctx.globalCompositeOperation = 'multiply';

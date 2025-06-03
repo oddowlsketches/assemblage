@@ -5,6 +5,78 @@ import { getComplementaryColor } from '../utils/colorUtils.js';
 import { shouldApplyAutoColorEcho, getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
 /**
+ * Create a donut and circle centered composition
+ */
+function createDonutCircleComposition(width, height) {
+  const composition = [];
+  
+  // Calculate the exact center point that both shapes will share
+  const centerX = width / 2;
+  const centerY = height / 2;
+  
+  // Determine size based on canvas dimensions
+  const baseSize = Math.min(width, height) * 0.7; // 70% of smallest dimension
+  
+  // Create the donut (outer shape)
+  const donutSize = baseSize;
+  // Position donut using its center point
+  const donutX = centerX - donutSize / 2;
+  const donutY = centerY - donutSize / 2;
+  
+  // Random rotation for donut (0, 90, 180, 270 degrees, or no rotation)
+  const donutRotations = [0, 0, 0, 90, 180, 270]; // Triple weight for no rotation
+  const donutRotation = donutRotations[Math.floor(Math.random() * donutRotations.length)];
+  
+  composition.push({
+    type: 'donut',
+    x: donutX,
+    y: donutY,
+    width: donutSize,
+    height: donutSize,
+    rotation: donutRotation,
+    imageIndex: 0,
+    layer: 1,
+    // Store center for debugging
+    _centerX: centerX,
+    _centerY: centerY
+  });
+  
+  // Create the circle (inner shape)
+  // Make it significantly larger to ensure good overlap
+  // The donut's inner hole is about 0.556 of its size, so we'll use 0.65 for safety
+  const circleSize = donutSize * 0.65; // Much larger overlap to ensure coverage
+  
+  // Position circle using the EXACT SAME center point
+  const circleX = centerX - circleSize / 2;
+  const circleY = centerY - circleSize / 2;
+  
+  // Random rotation for circle (though it won't be visible since it's a circle)
+  const circleRotations = [0, 0, 0, 45, 90, 135, 180, 225, 270, 315]; // Triple weight for no rotation
+  const circleRotation = circleRotations[Math.floor(Math.random() * circleRotations.length)];
+  
+  composition.push({
+    type: 'circle',
+    x: circleX,
+    y: circleY,
+    width: circleSize,
+    height: circleSize,
+    rotation: circleRotation,
+    imageIndex: 1,
+    layer: 2, // Circle on top
+    // Store center for debugging
+    _centerX: centerX,
+    _centerY: centerY
+  });
+  
+  console.log('[DonutCircle] Canvas:', width, 'x', height);
+  console.log('[DonutCircle] Center point:', centerX, centerY);
+  console.log('[DonutCircle] Donut:', donutX, donutY, donutSize);
+  console.log('[DonutCircle] Circle:', circleX, circleY, circleSize);
+  
+  return composition;
+}
+
+/**
 * Apply final alignment adjustments to ensure better edge contacts
 * @param {Array} composition - Array of shape objects
 * @param {number} canvasWidth - Canvas width
@@ -397,6 +469,11 @@ function createDiptychTriptych(width, height, formCount, complexity, formType = 
   const composition = []; 
   const tempShapesData = [];
   
+  // Special case: if formType is 'mixed' and formCount is 2, sometimes create donut+circle composition
+  if (formType === 'mixed' && formCount === 2 && Math.random() < 0.15) { // 15% chance
+    return createDonutCircleComposition(width, height);
+  }
+  
   // Determine optimal orientation based on canvas aspect ratio
   const canvasAspectRatio = width / height;
   const isLandscape = canvasAspectRatio > 1.2; // Significantly wider than tall
@@ -692,6 +769,10 @@ function drawComposition(ctx, composition, images, useMultiply, formType = 'rect
       drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else if (shapeType === 'triangle') {
       drawTriangle(ctx, shape, img, useMultiply, keepImageUpright, params);
+    } else if (shapeType === 'donut') {
+      drawDonut(ctx, shape, img, useMultiply, keepImageUpright, params);
+    } else if (shapeType === 'circle') {
+      drawCircle(ctx, shape, img, useMultiply, keepImageUpright, params);
     } else {
       drawRectangle(ctx, shape, img, useMultiply, keepImageUpright, params);
     }
@@ -915,6 +996,180 @@ function drawSemiCircle(ctx, shape, img, useMultiply, keepImageUpright = true, p
   }
   
   ctx.restore(); // Restore from outer save
+}
+
+/**
+ * Draw a donut shape
+ */
+function drawDonut(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
+  const maskFn = maskRegistry.basic?.donutMask;
+  if (!maskFn) {
+    console.warn("[PairedForms] donutMask not found."); return;
+  }
+  const svgDesc = maskFn({});
+  const svg = (svgDesc && typeof svgDesc.getSvg === 'function') ? svgDesc.getSvg({}) : '';
+  const maskPath = svgToPath2D(svg);
+  if (!maskPath) {
+    console.warn("[PairedForms] Could not create Path2D for donutMask."); return;
+  }
+
+  ctx.save();
+  
+  const maskUnitSize = 100;
+  const scale = Math.min(shape.width / maskUnitSize, shape.height / maskUnitSize);
+  const scaledMaskWidth = maskUnitSize * scale;
+  const scaledMaskHeight = maskUnitSize * scale;
+  const offsetX = shape.x + (shape.width - scaledMaskWidth) / 2;
+  const offsetY = shape.y + (shape.height - scaledMaskHeight) / 2;
+
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  
+  // Apply rotation if specified
+  if (shape.rotation) {
+    ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
+    ctx.rotate(shape.rotation * Math.PI / 180);
+    ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
+  }
+
+  ctx.clip(maskPath);
+
+  // Calculate auto echo needs based on pre-calculated overlap
+  const maxOverlap = shape._maxOverlap || 0;
+  const needsAutoEcho = img && shouldApplyAutoColorEcho(img, maxOverlap, 0.1);
+
+  // Conditional Color Block Echo logic
+  let applyEcho = false;
+  const echoPreference = params.echoPreference || 'default';
+  if (echoPreference === 'always') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
+  else if (echoPreference === 'default') {
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : 
+               (needsAutoEcho || (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45)));
+  }
+  
+  if (needsAutoEcho) {
+    console.log(`[PairedForms Donut] Auto color echo applied - overlap: ${Math.round(maxOverlap * 100)}%, is_black_and_white: ${img?.is_black_and_white}`);
+  }
+  const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
+
+  if (applyEcho) {
+    const echoColor = getAppropriateEchoColor(bgColorForEcho, img, getComplementaryColor);
+    ctx.save();
+    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, maskUnitSize, maskUnitSize);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  ctx.globalAlpha = 1.0;
+
+  if (img && img.complete) {
+    const imageAspect = img.width / img.height;
+    const targetAspect = 1; 
+    let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+    if (imageAspect > targetAspect) {
+      sWidth = img.height * targetAspect;
+      sx = (img.width - sWidth) / 2;
+    } else {
+      sHeight = img.width / targetAspect;
+      sy = (img.height - sHeight) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+  } else {
+      console.warn('[PairedForms drawDonut] Image not available or not complete');
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draw a circle shape
+ */
+function drawCircle(ctx, shape, img, useMultiply, keepImageUpright = true, params = {}) {
+  const maskFn = maskRegistry.basic?.circleMask;
+  if (!maskFn) {
+    console.warn("[PairedForms] circleMask not found."); return;
+  }
+  const svgDesc = maskFn({});
+  const svg = (svgDesc && typeof svgDesc.getSvg === 'function') ? svgDesc.getSvg({}) : '';
+  const maskPath = svgToPath2D(svg);
+  if (!maskPath) {
+    console.warn("[PairedForms] Could not create Path2D for circleMask."); return;
+  }
+
+  ctx.save();
+  
+  const maskUnitSize = 100;
+  const scale = Math.min(shape.width / maskUnitSize, shape.height / maskUnitSize);
+  const scaledMaskWidth = maskUnitSize * scale;
+  const scaledMaskHeight = maskUnitSize * scale;
+  const offsetX = shape.x + (shape.width - scaledMaskWidth) / 2;
+  const offsetY = shape.y + (shape.height - scaledMaskHeight) / 2;
+
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+  
+  // Apply rotation if specified (though it won't be visible for a circle)
+  if (shape.rotation) {
+    ctx.translate(maskUnitSize / 2, maskUnitSize / 2);
+    ctx.rotate(shape.rotation * Math.PI / 180);
+    ctx.translate(-maskUnitSize / 2, -maskUnitSize / 2);
+  }
+
+  ctx.clip(maskPath);
+
+  // Calculate auto echo needs based on pre-calculated overlap
+  const maxOverlap = shape._maxOverlap || 0;
+  const needsAutoEcho = img && shouldApplyAutoColorEcho(img, maxOverlap, 0.1);
+
+  // Conditional Color Block Echo logic
+  let applyEcho = false;
+  const echoPreference = params.echoPreference || 'default';
+  if (echoPreference === 'always') applyEcho = true;
+  else if (echoPreference === 'texture_only' && img && img.image_role === 'texture') applyEcho = true;
+  else if (echoPreference === 'default') {
+    applyEcho = shape.useColorBlockEcho !== undefined ? shape.useColorBlockEcho : 
+               (needsAutoEcho || (useMultiply && Math.random() < (img && img.image_role === 'texture' ? 0.85 : 0.45)));
+  }
+  
+  if (needsAutoEcho) {
+    console.log(`[PairedForms Circle] Auto color echo applied - overlap: ${Math.round(maxOverlap * 100)}%, is_black_and_white: ${img?.is_black_and_white}`);
+  }
+  const bgColorForEcho = shape.bgColor || getRandomColorFromPalette([img], 'auto');
+
+  if (applyEcho) {
+    const echoColor = getAppropriateEchoColor(bgColorForEcho, img, getComplementaryColor);
+    ctx.save();
+    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = 0.90;
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillRect(0, 0, maskUnitSize, maskUnitSize);
+    ctx.restore();
+  }
+
+  ctx.globalCompositeOperation = applyEcho ? 'multiply' : (useMultiply ? 'multiply' : 'source-over');
+  ctx.globalAlpha = 1.0;
+
+  if (img && img.complete) {
+    const imageAspect = img.width / img.height;
+    const targetAspect = 1; 
+    let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+    if (imageAspect > targetAspect) {
+      sWidth = img.height * targetAspect;
+      sx = (img.width - sWidth) / 2;
+    } else {
+      sHeight = img.width / targetAspect;
+      sy = (img.height - sHeight) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, maskUnitSize, maskUnitSize);
+  } else {
+      console.warn('[PairedForms drawCircle] Image not available or not complete');
+  }
+
+  ctx.restore();
 }
 
 /**

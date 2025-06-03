@@ -1,6 +1,6 @@
 import { maskRegistry } from '../masks/maskRegistry';
 import { svgToPath2D } from '../core/svgUtils.js';
-import { getComplementaryColor } from '../utils/colorUtils.js';
+import { getComplementaryColor, getSafeFillColour } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 
@@ -17,13 +17,50 @@ const GOLDEN_RATIO = 1.618;
 const suitableMasks = [
   'basic/circleMask', 'basic/ovalMask', 'basic/diamondMask', 'basic/hexagonMask', 
   'basic/semiCircleMask', 'basic/triangleMask', 'basic/rectangleMask',
-  'abstract/blobIrregular', 'abstract/polygonSoft', 'abstract/cloudLike',
+  'abstract/blobIrregular', 'abstract/polygonSoft',
+  'abstract/polygonSoftWide', 'abstract/polygonSoftTall', 
+  'abstract/polygonSoftAsymmetric', 'abstract/polygonSoftCompact',
   'sliced/sliceHorizontalWide', 'sliced/sliceVerticalWide', // Representing simple strips
+  'basic/donutMask', // Added donut mask
+  'architectural/windowGrid' // Good for larger floating elements
   // Add more as deemed suitable, avoiding overly complex ones for floating elements
 ];
 
-function getRandomMask() {
-  return suitableMasks[Math.floor(Math.random() * suitableMasks.length)];
+function getRandomMask(sizeHint, excludeMasks = []) {
+  // For larger elements, include windowGrid in the selection
+  if (sizeHint && sizeHint > 0.5) { // If element is more than 50% of canvas dimension
+    const largeSuitableMasks = [
+      'basic/circleMask', 'basic/diamondMask', 'basic/hexagonMask',
+      'basic/rectangleMask',
+      'abstract/polygonSoft', 'abstract/polygonSoftWide', 
+      'abstract/polygonSoftAsymmetric',
+      'architectural/windowGrid'
+    ];
+    // Filter out excluded masks and windowGrid if already used
+    const availableLargeMasks = largeSuitableMasks.filter(mask => 
+      !excludeMasks.includes(mask) && 
+      (mask !== 'architectural/windowGrid' || !excludeMasks.some(m => m === 'architectural/windowGrid'))
+    );
+    // Add donutMask with lower probability (10% chance)
+    if (Math.random() < 0.1 && !excludeMasks.includes('basic/donutMask')) {
+      availableLargeMasks.push('basic/donutMask');
+    }
+    return availableLargeMasks[Math.floor(Math.random() * availableLargeMasks.length)];
+  }
+  
+  // For smaller elements, avoid windowGrid and reduce donut frequency
+  let smallMasks = suitableMasks.filter(mask => 
+    mask !== 'architectural/windowGrid' && 
+    mask !== 'basic/donutMask' &&
+    !excludeMasks.includes(mask)
+  );
+  
+  // Add donutMask with very low probability for small elements (5% chance)
+  if (Math.random() < 0.05 && !excludeMasks.includes('basic/donutMask')) {
+    smallMasks.push('basic/donutMask');
+  }
+  
+  return smallMasks[Math.floor(Math.random() * smallMasks.length)];
 }
 
 // --- BEGIN Overlap Detection and Types ---
@@ -139,6 +176,7 @@ function createFloatingComposition(width, height, elementCount, style) {
  */
 function createHorizonComposition(width, height, elementCount) {
   const elements = [];
+  const usedMasks = []; // Track used masks
   const numElements = Math.max(2, Math.min(elementCount, 4)); // Reduced further to 2-4 for more impact
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.5)); // Up to 50% major, at least 1
   
@@ -174,8 +212,14 @@ function createHorizonComposition(width, height, elementCount) {
     x = Math.max(-size * maxOffCanvas, Math.min(width - size * (1 - maxOffCanvas), x));
     y = Math.max(-size * maxOffCanvas, Math.min(height - size * (1 - maxOffCanvas), y));
     
+    const sizeRatio = size / Math.min(width, height); // Calculate size relative to canvas
+    
+    // Get random mask, excluding already used ones
+    const selectedMask = getRandomMask(sizeRatio, usedMasks);
+    usedMasks.push(selectedMask); // Track this mask as used
+    
     elements.push({
-      type: getRandomMask(),
+      type: selectedMask,
       x: x, y: y, width: size, height: size, 
       rotation: (Math.random() - 0.5) * (isMajor ? 8 : 12), // Slightly increased allowed rotation
       opacity: 0.88 + Math.random() * 0.12, 
@@ -207,6 +251,7 @@ function createHorizonComposition(width, height, elementCount) {
  */
 function createAscendingComposition(width, height, elementCount) {
   const elements = [];
+  const usedMasks = []; // Track used masks
   const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements
   const columns = Math.max(1, Math.floor(numElements / 2.5)); // Fewer columns for larger elements: 1-2 for 3-5 els, 2-3 for 6-7 els
   const columnWidth = width / columns;
@@ -250,8 +295,14 @@ function createAscendingComposition(width, height, elementCount) {
         y = height * 1.1 - size;
     }
 
+    const sizeRatio = size / Math.min(width, height);
+    
+    // Get random mask, excluding already used ones
+    const selectedMask = getRandomMask(sizeRatio, usedMasks);
+    usedMasks.push(selectedMask); // Track this mask as used
+    
     elements.push({
-      type: getRandomMask(),
+      type: selectedMask,
       x: x, y: y, width: size, height: size, 
       rotation: (Math.random() - 0.5) * (isMajor ? 4 : 8), // Very minimal rotation
       opacity: Math.max(0.85, 0.95 - row * 0.05), // Fade slightly with row, much higher base
@@ -283,6 +334,7 @@ function createAscendingComposition(width, height, elementCount) {
  */
 function createScatteredComposition(width, height, elementCount) {
   const elements = [];
+  const usedMasks = []; // Track used masks
   const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements for scattered
   const guides = [];
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.4)); // ~40% major
@@ -320,8 +372,14 @@ function createScatteredComposition(width, height, elementCount) {
     x = Math.max(-size * maxOffCanvas, Math.min(width - size * (1 - maxOffCanvas), x));
     y = Math.max(-size * maxOffCanvas, Math.min(height - size * (1 - maxOffCanvas), y));
     
+    const sizeRatio = size / Math.min(width, height);
+    
+    // Get random mask, excluding already used ones
+    const selectedMask = getRandomMask(sizeRatio, usedMasks);
+    usedMasks.push(selectedMask); // Track this mask as used
+    
     elements.push({
-      type: getRandomMask(),
+      type: selectedMask,
       x: x, y: y, width: size, height: size,
       rotation: (Math.random() - 0.5) * 10, // Slightly more rotation allowed than ascending, max +/- 5 degrees
       opacity: 0.85 + Math.random() * 0.15,
@@ -415,12 +473,15 @@ function drawFloatingElements(ctx, elements, images, params) {
       const echoColor = element.overlapEcho.useComplementary
         ? getAppropriateEchoColor(bgColor, image, getComplementaryColor) 
         : getAppropriateEchoColor(bgColor, image, getComplementaryColor, true); // Force background color
-      const echoOpacity = 0.85; // Strong fixed opacity for overlap echo block
+      
+      // Use safe fill color utility
+      const isBW = image && image.is_black_and_white !== false;
+      const safeColors = getSafeFillColour(isBW, echoColor, 0.2);
 
-      console.log(`[FloatingElements] Applying OVERLAP Echo: ${element.type}, color: ${echoColor}`);
+      console.log(`[FloatingElements] Applying OVERLAP Echo: ${element.type}, color: ${safeColors.fillColor}, isBW: ${isBW}`);
       // FIXED: Draw echo block by filling a rectangle in the clipped area
-      ctx.fillStyle = echoColor;
-      ctx.globalAlpha = echoOpacity;
+      ctx.fillStyle = safeColors.fillColor;
+      ctx.globalAlpha = safeColors.opacity * 4.25; // Scale up opacity since max is 0.2
       ctx.globalCompositeOperation = 'source-over';
       ctx.fillRect(0, 0, 100, 100); // Fill the entire 100x100 clipped area
       // Image will be drawn next, over this echo
@@ -429,11 +490,15 @@ function drawFloatingElements(ctx, elements, images, params) {
     // This assumes echo is BASE, image on TOP (multiply)
     else if (params.useColorBlockEcho && image && image.complete) {
       const echoColor = getAppropriateEchoColor(bgColor, image, getComplementaryColor);
-      const echoOpacity = params.echoOpacity !== undefined ? params.echoOpacity : 0.85;
+      const requestedOpacity = params.echoOpacity !== undefined ? params.echoOpacity : 0.85;
       
-      console.log(`[FloatingElements] Applying Standard Echo (Base): ${element.type}, color: ${echoColor}`);
-      ctx.fillStyle = echoColor;
-      ctx.globalAlpha = echoOpacity; // Use echo opacity directly, don't multiply
+      // Use safe fill color utility
+      const isBW = image && image.is_black_and_white !== false;
+      const safeColors = getSafeFillColour(isBW, echoColor, requestedOpacity);
+      
+      console.log(`[FloatingElements] Applying Standard Echo (Base): ${element.type}, color: ${safeColors.fillColor}, isBW: ${isBW}`);
+      ctx.fillStyle = safeColors.fillColor;
+      ctx.globalAlpha = safeColors.opacity;
       ctx.globalCompositeOperation = 'source-over';
       // FIXED: Fill a rectangle in the clipped area to match the mask shape exactly
       ctx.fillRect(0, 0, 100, 100); // Fill the entire 100x100 clipped area

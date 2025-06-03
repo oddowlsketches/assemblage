@@ -203,6 +203,26 @@ function polygonSoft({ rotation = 0 }: MaskParams = {}) {
   return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='10,70 25,10 85,20 90,85 20,95' fill='white'/></g></svg>`;
 }
 
+function polygonSoftWide({ rotation = 0 }: MaskParams = {}) {
+  // Wide irregular polygon - good for horizontal emphasis
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='5,65 10,25 95,30 90,75 15,80' fill='white'/></g></svg>`;
+}
+
+function polygonSoftTall({ rotation = 0 }: MaskParams = {}) {
+  // Tall irregular polygon - good for vertical emphasis
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='25,5 75,10 80,95 20,90 15,15' fill='white'/></g></svg>`;
+}
+
+function polygonSoftAsymmetric({ rotation = 0 }: MaskParams = {}) {
+  // Asymmetric polygon with more dramatic angles
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='5,85 40,5 92,25 88,90 30,95' fill='white'/></g></svg>`;
+}
+
+function polygonSoftCompact({ rotation = 0 }: MaskParams = {}) {
+  // Compact polygon - good for small elements
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><g transform='rotate(${rotation},50,50)'><polygon points='20,60 30,20 70,25 75,70 25,75' fill='white'/></g></svg>`;
+}
+
 function cloudLike({ count = 3, minR = 18, maxR = 35, seed = 1 }: MaskParams = {}) {
   // More random cloud: 3-5 overlapping blobs, larger for better visibility
   function seededRandom(s: number) {
@@ -247,11 +267,11 @@ function archBlob({ width = 80, height = 40, baseHeight = 20, archiness = 0.5 }:
 
 function abstractRotated({ mask = 'blobIrregular', rotation }: MaskParams = {}): MaskDescriptor {
   // Randomly rotate any abstract mask by a multiple of 30°
-  const masks = ['blobIrregular', 'blobCrescent', 'polygonSoft', 'cloudLike', 'archBlob'];
+  const masks = ['blobIrregular', 'blobCrescent', 'polygonSoft', 'archBlob'];
   const chosen = mask && masks.includes(mask) ? mask : masks[Math.floor(Math.random() * masks.length)];
   const angle = typeof rotation === 'number' ? rotation : Math.floor(Math.random() * 12) * 30;
   // Call the chosen mask function with rotation param
-  if (chosen === 'blobCrescent' || chosen === 'cloudLike' || chosen === 'archBlob') {
+  if (chosen === 'blobCrescent' || chosen === 'archBlob') {
     // These masks don't use rotation param
     const desc = registry.abstract[chosen as keyof typeof registry.abstract]() as MaskDescriptor;
     if (desc.kind === 'svg') {
@@ -601,6 +621,10 @@ const registry: Record<string, Record<string, MaskGenerator>> = {
     blobIrregular: () => ({ kind: 'svg', getSvg: () => blobIrregular() }),
     blobCrescent: () => ({ kind: 'svg', getSvg: () => blobCrescent() }),
     polygonSoft: () => ({ kind: 'svg', getSvg: () => polygonSoft() }),
+    polygonSoftWide: () => ({ kind: 'svg', getSvg: () => polygonSoftWide() }),
+    polygonSoftTall: () => ({ kind: 'svg', getSvg: () => polygonSoftTall() }),
+    polygonSoftAsymmetric: () => ({ kind: 'svg', getSvg: () => polygonSoftAsymmetric() }),
+    polygonSoftCompact: () => ({ kind: 'svg', getSvg: () => polygonSoftCompact() }),
     cloudLike: () => ({ kind: 'svg', getSvg: () => cloudLike() }),
     archBlob: () => ({ kind: 'svg', getSvg: () => archBlob() }),
     abstractRotated: () => abstractRotated(),

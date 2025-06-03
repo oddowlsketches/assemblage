@@ -3,6 +3,8 @@
  * Creates a grid of hexagons for use in the tiling template
  */
 
+import { getSafeFillColour } from '../../utils/colorUtils.js';
+
 /**
  * Generate data for hexagonal tiling
  * @param {number} count - Approximate number of tiles to generate
@@ -159,10 +161,14 @@ export function drawHexagonalTile(ctx, tile, image, options = {}) {
   }
   
   // Echo and Image drawing
-  if (applyEcho) {
+  if (applyEcho && echoColor && typeof echoColor === 'string' && echoColor.startsWith('#')) {
+    // Use the safe fill color utility
+    const isBW = image && image.is_black_and_white !== false;
+    const safeColors = getSafeFillColour(isBW, echoColor, 0.15);
+    
     // Color block echo is active: Draw color base first
-    ctx.globalAlpha = tileOpacity * 0.75;
-    ctx.fillStyle = echoColor;
+    ctx.globalAlpha = tileOpacity * safeColors.opacity / 0.2; // Scale to tile opacity
+    ctx.fillStyle = safeColors.fillColor;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fill(); // Fill the clipped and transformed path
   }
