@@ -16,6 +16,9 @@ export function renderCrystal(canvas, images, params = {}) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Detect if we're on mobile based on canvas/viewport width
+  const isMobile = canvas.width < 768 || window.innerWidth < 768;
+
   // Debug: Log the raw params to see what's being passed
   console.log('[CrystalTemplate] Raw params received:', params);
   console.log('[CrystalTemplate] seedPattern value:', params.seedPattern, 'type:', typeof params.seedPattern);
@@ -35,10 +38,22 @@ export function renderCrystal(canvas, images, params = {}) {
   // Enhanced randomization for crystal variations
   let variantVal = params.variant;
   if (variantVal === null || variantVal === undefined) { // If null/undefined, randomize
-    variantVal = Math.random() < 0.5 ? 'Standard' : 'Isolated';
-    console.log(`[CrystalTemplate] Randomized variant to: ${variantVal}`);
+    // On mobile, always use Standard variant (Isolated is too small)
+    if (isMobile) {
+      variantVal = 'Standard';
+      console.log(`[CrystalTemplate] Mobile detected - forcing Standard variant`);
+    } else {
+      variantVal = Math.random() < 0.5 ? 'Standard' : 'Isolated';
+      console.log(`[CrystalTemplate] Randomized variant to: ${variantVal}`);
+    }
   } else {
-    variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize
+    // Even if explicitly set to Isolated, override on mobile
+    if (isMobile && variantVal.toLowerCase() === 'isolated') {
+      variantVal = 'Standard';
+      console.log(`[CrystalTemplate] Mobile detected - overriding Isolated to Standard`);
+    } else {
+      variantVal = variantVal.toLowerCase() === 'isolated' ? 'Isolated' : 'Standard'; // Normalize
+    }
   }
   
   let imageModeVal = params.imageMode;
