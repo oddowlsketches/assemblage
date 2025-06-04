@@ -3,6 +3,7 @@ import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor, getSafeFillColour } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
+import { getShapeCount } from './templateDefaults.js';
 
 /**
  * Floating Elements Template
@@ -130,10 +131,11 @@ export function generateFloatingElements(canvas, images, params) {
   }
   console.log(`[FloatingElements] Using style: ${styleToUse}`);
 
+  const elementCount = getShapeCount('floatingElements', params.requestedShapes);
   const elements = createFloatingComposition(
     canvas.width,
     canvas.height,
-    params.elementCount || 5, // Default element count if not specified
+    elementCount,
     styleToUse 
   );
   
@@ -177,7 +179,7 @@ function createFloatingComposition(width, height, elementCount, style) {
 function createHorizonComposition(width, height, elementCount) {
   const elements = [];
   const usedMasks = []; // Track used masks
-  const numElements = Math.max(2, Math.min(elementCount, 4)); // Reduced further to 2-4 for more impact
+  const numElements = elementCount;
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.5)); // Up to 50% major, at least 1
   
   // Increase MIN_ELEMENT_SIDE and general sizes for Horizon style
@@ -252,11 +254,11 @@ function createHorizonComposition(width, height, elementCount) {
 function createAscendingComposition(width, height, elementCount) {
   const elements = [];
   const usedMasks = []; // Track used masks
-  const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements
-  const columns = Math.max(1, Math.floor(numElements / 2.5)); // Fewer columns for larger elements: 1-2 for 3-5 els, 2-3 for 6-7 els
+  const numElements = elementCount;
+  const columns = Math.max(1, Math.floor(numElements / 2.5)); // Fewer columns for larger elements
   const columnWidth = width / columns;
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.35)); // ~35% major
-  const MIN_ELEMENT_SIDE = Math.max(135, Math.min(width, height) * 0.33); // Min side 33% or 135px
+  const MIN_ELEMENT_SIDE = Math.max(180, Math.min(width, height) * 0.40); // Increased min size
 
   for (let i = 0; i < numElements; i++) {
     const isMajor = i < majorElementCount; 
@@ -335,10 +337,10 @@ function createAscendingComposition(width, height, elementCount) {
 function createScatteredComposition(width, height, elementCount) {
   const elements = [];
   const usedMasks = []; // Track used masks
-  const numElements = Math.max(3, Math.min(elementCount, 7)); // 3-7 elements for scattered
+  const numElements = elementCount;
   const guides = [];
   const majorElementCount = Math.max(1, Math.floor(numElements * 0.4)); // ~40% major
-  const MIN_ELEMENT_SIDE = Math.max(135, Math.min(width, height) * 0.33); // Min side 33% or 135px
+  const MIN_ELEMENT_SIDE = Math.max(180, Math.min(width, height) * 0.40); // Increased min size
 
   // Phyllotaxis distribution for guide points
   for (let i = 0; i < numElements; i++) {
@@ -464,7 +466,15 @@ function drawFloatingElements(ctx, elements, images, params) {
     // --- Start Drawing Logic for Echo and Image ---
     let imageDrawn = false;
     let finalOpacity = element.opacity !== undefined ? element.opacity : 1.0;
+    // Check if image is color (not B&W) and no echo is being applied
+    const isColorImage = image && image.is_black_and_white === false;
+    const hasEcho = element.overlapEcho?.active || params.useColorBlockEcho;
     let actualBlendMode = element.blendMode || (params.useMultiply ? 'multiply' : 'source-over');
+    
+    // Use normal blend mode for color images without echo
+    if (isColorImage && !hasEcho) {
+      actualBlendMode = 'normal';
+    }
 
     // Overlap Echo Logic (takes precedence)
     if (element.overlapEcho?.active) {

@@ -1287,15 +1287,20 @@ const ImagesPage: React.FC = () => {
     //   });
     // console.log('[CMS] Bypass query result:', bypassQuery, 'Error:', bypassError);
     
-    let query = supa.from('images').select('*').order('created_at', { ascending: false });
-    
-    // Only filter by collection if a specific collection is selected
-    if (collectionId) {
-      query = query.eq('collection_id', collectionId);
-      console.log('[CMS] Filtering by collection_id:', collectionId);
-    } else {
-      console.log('[CMS] Loading all images (no collection filter)');
+    // Always require a collection ID for CMS queries
+    if (!collectionId) {
+      console.log('[CMS] No collection ID provided, returning empty result');
+      setRows([]);
+      setLoading(false);
+      return;
     }
+    
+    let query = supa.from('images')
+      .select('*')
+      .eq('collection_id', collectionId)
+      .order('created_at', { ascending: false });
+    
+    console.log('[CMS] Filtering by collection_id:', collectionId);
     
     const { data, error } = await query;
     console.log('[CMS] Query result - Collection:', collectionId, 'Found images:', data?.length || 0, 'Error:', error);
@@ -1349,11 +1354,11 @@ const ImagesPage: React.FC = () => {
     // Fetch collections first, then load images for the default collection
     (async () => {
       const { data, error } = await supa.from('image_collections').select('*').order('created_at', { ascending: true });
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         setCollections(data);
         // Always load the default collection first (if it exists)
         const defaultCollection = data.find(col => col.id === '00000000-0000-0000-0000-000000000001');
-        const firstCollectionId = defaultCollection?.id || data[0]?.id || '';
+        const firstCollectionId = defaultCollection?.id || data[0]?.id;
         setSelectedCollection(firstCollectionId);
         
         console.log('[CMS] Loading images for default collection:', firstCollectionId);
@@ -1361,8 +1366,10 @@ const ImagesPage: React.FC = () => {
         await loadImages(firstCollectionId);
       } else {
         console.error('[CMS] Error loading collections:', error);
-        // If no collections found, just load all images
-        await loadImages('');
+        // If no collections found, we should not load any images
+        // as per the requirement to only show public collections
+        setRows([]);
+        setLoading(false);
       }
     })();
   }, []);
@@ -1557,7 +1564,6 @@ const ImagesPage: React.FC = () => {
               loadImages(newCollectionId);
             }}
           >
-            <option value="">All Images (No Filter)</option>
             {collections.map(col => (
               <option key={col.id} value={col.id}>
                 {col.name}

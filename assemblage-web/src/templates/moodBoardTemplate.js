@@ -7,6 +7,7 @@ import { vibrantColors, getRandomColorFromPalette, getColorPalette, areImagesMos
 import { getComplementaryColor, getColorfulComplementaryColor } from '../utils/colorUtils';
 import { getAppropriateEchoColor, analyzeElementsForAutoEcho } from '../utils/imageOverlapUtils';
 import { generatePalette } from '../utils/advancedColorUtils.js';
+import { getShapeCount } from './templateDefaults.js';
 
 // Helper to create subtle color variations
 function createColorVariation(baseColor, variation = 0.1) {
@@ -177,8 +178,8 @@ function renderMoodBoard(canvas, images, params = {}) {
 
   console.log(`[MoodBoard] Using enhanced palette generation, B&W: ${isBW}, BG: ${bgColor}`);
 
-  // Element count - dense for moodboard but reduced max for less clutter (15-25 elements)
-  const elementCount = params.elementCount || (15 + Math.floor(Math.random() * 11));
+  // Element count - get from templateDefaults
+  const elementCount = getShapeCount('moodBoardTemplate', params.requestedShapes);
   
   // Create element layout
   const elements = createMoodboardElements(canvasWidth, canvasHeight, elementCount);
@@ -315,9 +316,11 @@ function renderMoodBoard(canvas, images, params = {}) {
     ctx.fill(maskPath);
           }
 
-  // 2. Draw image with multiply blend on top
+  // 2. Draw image with appropriate blend mode
   if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
-  ctx.globalCompositeOperation = 'multiply';
+  // Use normal blend mode for color images without echo
+  const isColorImage = imageToDraw && imageToDraw.is_black_and_white === false;
+  ctx.globalCompositeOperation = (isColorImage && skipEcho) ? 'normal' : 'multiply';
   ctx.clip(maskPath);
   
   const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
@@ -341,9 +344,11 @@ function renderMoodBoard(canvas, images, params = {}) {
         ctx.fillRect(0, 0, element.width, element.height);
         }
 
-        // 2. Draw image with multiply blend on top
+        // 2. Draw image with appropriate blend mode
           if (imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
-            ctx.globalCompositeOperation = 'multiply';
+            // Use normal blend mode for color images without echo
+            const isColorImage = imageToDraw && imageToDraw.is_black_and_white === false;
+            ctx.globalCompositeOperation = (isColorImage && skipEcho) ? 'normal' : 'multiply';
             
             const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
             drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {

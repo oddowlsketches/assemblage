@@ -7,6 +7,7 @@ import { svgToPath2D } from '../core/svgUtils';
 import { drawImageWithAspectRatio } from '../utils/imageDrawing';
 import { vibrantColors, getRandomColorFromPalette } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
+import { getShapeCount } from './templateDefaults.js';
 
 // Helper function to lighten colors for better visibility
 function lightenColor(color, amount) {
@@ -159,13 +160,13 @@ function renderMixedMedia(canvas, images, params = {}) {
   let elements = [];
   switch (compositionType) {
     case 'dynamic':
-      elements = createDynamicComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage);
+      elements = createDynamicComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params);
       break;
     case 'balanced':
-      elements = createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage);
+      elements = createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params);
       break;
     case 'hierarchical':
-      elements = createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage);
+      elements = createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params);
       break;
   }
 
@@ -254,10 +255,13 @@ function renderMixedMedia(canvas, images, params = {}) {
         const fillOpacity = 0.9 + Math.random() * 0.1;
         tempCtx.globalAlpha = fillOpacity;      
         tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        tempCtx.globalCompositeOperation = 'multiply';
-        // For color images, use slightly less opacity to prevent muddiness
-        const imageOpacity = hasColorImages ? 0.85 : (element.opacity || 0.9);
-        tempCtx.globalAlpha = imageOpacity; 
+        // Set blend mode based on image type
+        if (hasColorImages) {
+          tempCtx.globalCompositeOperation = 'normal';
+        } else {
+          tempCtx.globalCompositeOperation = 'multiply';
+        }
+        tempCtx.globalAlpha = element.opacity || 0.9; 
         const imgWidth = imageToDraw.naturalWidth || imageToDraw.width;
         const imgHeight = imageToDraw.naturalHeight || imageToDraw.height;
         const imgRatio = imgWidth / imgHeight;
@@ -310,9 +314,9 @@ function renderMixedMedia(canvas, images, params = {}) {
 /**
  * Create a dynamic composition with overlapping elements
  */
-function createDynamicComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage) {
+function createDynamicComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params = {}) {
   const elements = [];
-  const numElements = currentBgImage ? (2 + Math.floor(Math.random() * 2)) : (2 + Math.floor(Math.random() * 2)); // 2-3 elements
+  const numElements = Math.floor(getShapeCount('mixedMediaTemplate', params.requestedShapes) * 0.8); // Slightly fewer since we have unmasked elements too
   const MIN_ELEMENT_SIDE = Math.max(80, Math.min(canvasWidth, canvasHeight) * (currentBgImage ? 0.20 : 0.28)); // Slightly larger base if no BG
   const placedElements = [];
 
@@ -404,7 +408,7 @@ function shuffleArray(array) {
 /**
  * Create a balanced composition using grid with variations
  */
-function createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage) {
+function createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params = {}) {
   const elements = [];
   const padding = Math.min(cellWidth, cellHeight) * 0.1;
 
@@ -449,7 +453,7 @@ function createBalancedComposition(canvasWidth, canvasHeight, cellWidth, cellHei
 /**
  * Create a hierarchical composition with clear focal point
  */
-function createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage) {
+function createHierarchicalComposition(canvasWidth, canvasHeight, cellWidth, cellHeight, maskOptions, currentBgImage, params = {}) {
   const elements = [];
 
   const MIN_ELEMENT_SIDE = Math.max(50, Math.min(canvasWidth, canvasHeight) * 0.1);

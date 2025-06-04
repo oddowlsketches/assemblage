@@ -6,6 +6,7 @@ import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
 import { getRandomColorFromPalette, areImagesMostlyBlackAndWhite } from '../utils/colors';
 import { getComplementaryColor } from '../utils/colorUtils';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils';
+import { getShapeCount } from './templateDefaults.js';
 
 // Swiss grid compositions - each defines a focused layout with 3-8 elements
 const swissCompositions = [
@@ -336,7 +337,8 @@ function renderNarrativeGrid(canvas, images, params = {}) {
         ctx.globalCompositeOperation = 'multiply';
         ctx.globalAlpha = 0.85 * (element.opacity || 1.0); // Combine echo transparency with element opacity
       } else {
-        // Color images without echo
+        // Color images without echo - use normal blend mode
+        ctx.globalCompositeOperation = 'normal';
         ctx.globalAlpha = element.opacity || 1.0;
       }
       

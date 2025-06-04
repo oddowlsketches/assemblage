@@ -1149,22 +1149,6 @@ function MainApp() {
           onClick={() => setShowMakeDrawer(true)}
           className="mobile-tune-btn" 
           title="Tune collage settings"
-          style={{
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            backgroundColor: 'white',
-            color: '#333',
-            border: '1px solid #333',
-            cursor: 'pointer',
-            fontFamily: 'Space Mono, monospace',
-            fontSize: '0.8rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            transition: 'all 0.2s ease'
-          }}
         >
           <Pencil size={20} weight="regular" />
         </button>

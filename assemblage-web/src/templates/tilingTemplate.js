@@ -12,6 +12,7 @@ import { createRhombilleTiling, drawRhombilleTile } from './tilingPatterns/rhomb
 import { getComplementaryColor } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
+import { getShapeCount } from './templateDefaults.js';
 
 /**
  * Main render function for the tiling template
@@ -35,7 +36,7 @@ function renderTiling(canvas, images, params) {
   params = params || {};
 
   // Randomize pattern type if not provided or if it's the default 'squares'
-  const patternTypes = ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille'];
+  const patternTypes = ['squares', 'hexagons', 'modular', 'voronoi', 'rhombille'];
   let patternType = params.patternType;
   if (!patternType || patternType.toLowerCase() === 'squares') {
     patternType = patternTypes[Math.floor(Math.random() * patternTypes.length)];
@@ -56,7 +57,7 @@ function renderTiling(canvas, images, params) {
     params.echoPolicy = 'subset';
   }
 
-  let tileCount = params.tileCount || 16;
+  let tileCount = getShapeCount('tilingTemplate', params.requestedShapes);
   if (patternType === 'penrose' && tileCount > 40) tileCount = 40;
   
   const randomRotation = params.randomRotation === true;
@@ -147,7 +148,10 @@ function renderTiling(canvas, images, params) {
     if (!image || !image.complete) return;
 
     let applyEchoToThisTile = false;
-    let finalEchoColorForTile = null; 
+    let finalEchoColorForTile = null;
+    
+    // Check if image is color (not B&W)
+    const isColorImage = image && image.is_black_and_white === false; 
 
     // Determine if echo should apply based on params
     if (params.useColorBlockEcho && calculatedEchoColor) {
@@ -165,7 +169,9 @@ function renderTiling(canvas, images, params) {
       scale: 1, 
       tileOpacity, 
       applyEcho: applyEchoToThisTile,
-      echoColor: finalEchoColorForTile, 
+      echoColor: finalEchoColorForTile,
+      isColorImage: isColorImage,
+      useNormalBlend: isColorImage && !applyEchoToThisTile
     };
 
     // Calculate scale to ensure image fills tile completely with some overflow
@@ -275,9 +281,13 @@ export function generateTiling(canvas, images, params) {
 
   const ctx = canvas.getContext('2d');
   const { width, height } = canvas;
+  // Calculate grid dimensions based on shape count
+  const totalTiles = getShapeCount('tilingTemplate', params.requestedShapes);
+  const gridSize = Math.ceil(Math.sqrt(totalTiles));
+  
   const { 
-    numRows = 4, 
-    numCols = 4, 
+    numRows = gridSize, 
+    numCols = gridSize, 
     randomizeSize = false, 
     sizeVariation = 0.2,
     padding = 5,
@@ -353,6 +363,9 @@ export function generateTiling(canvas, images, params) {
         ctx.fillStyle = actualEchoColorForGrid;
         ctx.fillRect(x, y, w, h);
         ctx.globalCompositeOperation = 'multiply';
+      } else if (img && img.is_black_and_white === false) {
+        // For color images without echo, use normal blend mode
+        ctx.globalCompositeOperation = 'normal';
       }
 
       // Draw image
@@ -393,7 +406,7 @@ const tilingTemplate = {
   params: {
     patternType: { 
       type: 'select', 
-      options: ['squares', 'triangles', 'hexagons', 'modular', 'voronoi', 'rhombille'], 
+      options: ['squares', 'hexagons', 'modular', 'voronoi', 'rhombille'], 
       default: 'squares' 
     },
     tileCount: { type: 'number', min: 4, max: 50, default: 16 },

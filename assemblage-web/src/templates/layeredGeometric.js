@@ -3,6 +3,7 @@ import { svgToPath2D } from '../core/svgUtils.js';
 import { getComplementaryColor } from '../utils/colorUtils.js';
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
+import { getShapeCount } from './templateDefaults.js';
 
 /**
  * Layered Geometric Template
@@ -87,7 +88,7 @@ export function generateLayeredGeometric(canvas, images, params) {
     params.useColorBlockEchoVariation = Math.random() < 0.5; // 50% chance for the variation
   }
 
-  let effectiveLayerCount = params.layerCount || 5;
+  let effectiveLayerCount = getShapeCount('layeredGeometric', params.requestedShapes);
   if (params.useColorBlockEcho && effectiveLayerCount > 3) {
     effectiveLayerCount = Math.max(2, effectiveLayerCount - (Math.random() < 0.7 ? 2 : 1)); // Reduce by 1 or 2
   }
@@ -519,7 +520,17 @@ function drawLayers(ctx, layers, images, params) {
       ctx.save();
       ctx.setTransform(currentTransform);
       ctx.globalAlpha = finalOpacity;
-      ctx.globalCompositeOperation = params.useBlendModes ? actualBlendMode : 'source-over';
+      
+      // Check if image is color (not B&W) and no echo is being applied
+      const isColorImage = image && image.is_black_and_white === false;
+      const hasEcho = layer.overlapEcho?.active || params.useColorBlockEcho;
+      
+      // Use normal blend mode for color images without echo
+      if (isColorImage && !hasEcho) {
+        ctx.globalCompositeOperation = 'normal';
+      } else {
+        ctx.globalCompositeOperation = params.useBlendModes ? actualBlendMode : 'source-over';
+      }
       
       // Draw image to fill the 0-100 clip space (which was scaled from original layer width/height)
       const imgWidth = image.naturalWidth;

@@ -6,6 +6,7 @@ import { drawImageWithAspectRatio } from '../utils/imageDrawing.js';
 import { vibrantColors, getRandomColorFromPalette, getColorPalette, areImagesMostlyBlackAndWhite } from '../utils/colors';
 import { getComplementaryColor, getColorfulComplementaryColor } from '../utils/colorUtils';
 import { generatePalette } from '../utils/advancedColorUtils.js';
+import { getShapeCount } from './templateDefaults.js';
 
 // Helper function to lighten colors for better visibility
 function lightenColor(color, amount) {
@@ -370,7 +371,7 @@ function renderPackedShapes(canvas, images, params = {}) {
 
   console.log(`[PackedShapes] Using enhanced palette generation, B&W: ${isBW}, BG: ${initialBgColor}`);
 
-  const elementCount = params.elementCount || (12 + Math.floor(Math.random() * 11)); // Random 12-22 elements (reduced from 15-30)
+  const elementCount = getShapeCount('packedShapesTemplate', params.requestedShapes);
   
   // Determine which elements should use solid color fill (up to 30%)
   const maxSolidColorElements = Math.floor(elementCount * 0.3);
@@ -578,11 +579,14 @@ function renderPackedShapes(canvas, images, params = {}) {
         if (!useSolidColorOnly && imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
           
-          // For color images, use slight transparency to prevent muddiness
+          // For color images without echo/color blocks, use normal blend mode
           if (hasColorImages) {
-            ctx.globalAlpha = element.opacity * 0.85;
+            ctx.globalCompositeOperation = 'normal';
+            ctx.globalAlpha = element.opacity;
+          } else {
+            // For B&W images, keep multiply mode
+            ctx.globalAlpha = element.opacity;
           }
-          // Note: for B&W images, opacity is already set to element.opacity at the save point
           
           ctx.clip(maskPath); // Apply clipping AFTER color block fill
           
@@ -605,12 +609,14 @@ function renderPackedShapes(canvas, images, params = {}) {
         if (!useSolidColorOnly && imageToDraw && imageToDraw.complete && imageToDraw.naturalWidth > 0) {
           ctx.globalCompositeOperation = 'multiply';
           
-          // For color images, apply additional transparency to prevent muddiness
-          // Note: element.opacity is already applied at the beginning of ctx.save()
+          // For color images without echo/color blocks, use normal blend mode
           if (hasColorImages) {
-            ctx.globalAlpha = element.opacity * 0.85;
+            ctx.globalCompositeOperation = 'normal';
+            ctx.globalAlpha = element.opacity;
+          } else {
+            // For B&W images, keep multiply mode and opacity
+            ctx.globalAlpha = element.opacity;
           }
-          // For B&W images, keep the already-applied element.opacity
           
           const imageAspectRatio = imageToDraw.naturalWidth / imageToDraw.naturalHeight;
           drawImageWithAspectRatio(ctx, imageToDraw, 0, 0, element.width, element.height, {
