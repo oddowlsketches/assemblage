@@ -7,6 +7,7 @@ import { vibrantColors, getRandomColorFromPalette, getColorPalette, areImagesMos
 import { getComplementaryColor, getColorfulComplementaryColor } from '../utils/colorUtils';
 import { generatePalette } from '../utils/advancedColorUtils.js';
 import { getShapeCount } from './templateDefaults.js';
+import { fillNegativeSpace } from '../lib/layout/fillNegativeSpace';
 
 // Helper function to lighten colors for better visibility
 function lightenColor(color, amount) {
@@ -377,9 +378,23 @@ function renderPackedShapes(canvas, images, params = {}) {
   const maxSolidColorElements = Math.floor(elementCount * 0.3);
   const numSolidColorElements = Math.floor(Math.random() * (maxSolidColorElements + 1));
   
-  const elements = createPackedElements(canvasWidth, canvasHeight, elementCount, numSolidColorElements);
+  let elements = createPackedElements(canvasWidth, canvasHeight, elementCount, numSolidColorElements);
+  
+  // Apply fillMode if set to 'pad'
+  if (params.fillMode === 'pad') {
+    console.log('[PackedShapes] Applying fillMode="pad" to fill negative space');
+    const fillResult = fillNegativeSpace({
+      canvas,
+      elements,
+      targetBlankRatio: 0.03,
+      maxIterations: 10,
+      minBlankAreaSize: 1000
+    });
+    elements = fillResult.filledElements;
+    console.log(`[PackedShapes] Fill complete: ${fillResult.iterations} iterations, final blank ratio: ${(fillResult.finalBlankRatio * 100).toFixed(1)}%`);
+  }
 
-  // Store the element configuration for reproducibility
+    // Store the element configuration for reproducibility
   const elementConfigs = elements.map(el => ({
     maskName: el.maskName,
     x: Math.round(el.x * 100) / 100, // Round to 2 decimal places to reduce size
@@ -505,7 +520,7 @@ function renderPackedShapes(canvas, images, params = {}) {
   const availableImages = images.filter(img => img.complete && img.naturalWidth > 0);
   const shuffledImages = [...availableImages].sort(() => Math.random() - 0.5);
   
-  console.log(`[PackedShapes] Using solid color fill for ${numSolidColorElements} of ${elementCount} elements`);
+  console.log(`[PackedShapes] Using solid color fill for ${numSolidColorElements} of ${elements.length} elements`);
   
   elements.forEach((element, index) => {
     // Check if this element should use solid color only
@@ -649,7 +664,8 @@ function renderPackedShapes(canvas, images, params = {}) {
     imageDistribution: shuffledImages.map((img, idx) => ({
       index: idx,
       src: img.src || `image_${idx}`
-    })).slice(0, elementCount) // Only include as many as we used
+    })).slice(0, elementCount), // Only include as many as we used
+    fillMode: params.fillMode || 'none'
   };
   
   console.log('[PackedShapesTemplate] Returning processed params:', processedParams);
@@ -675,6 +691,12 @@ const packedShapesTemplate = {
       options: ['auto', 'vibrant', 'subtle', 'pastel', 'earthTone'], 
       default: 'auto',
       description: 'Color palette - auto detects B&W vs color images'
+    },
+    fillMode: {
+      type: 'select',
+      options: ['none', 'pad'],
+      default: 'none',
+      description: 'Fill negative space by scaling & cloning existing shapes'
     }
   }
 };

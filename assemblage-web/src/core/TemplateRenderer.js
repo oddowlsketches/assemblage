@@ -1,6 +1,7 @@
 // TemplateRenderer.js
 import { getMaskDescriptor } from '../masks/maskRegistry.ts';
 import templateModules from '../templates/index';
+import { fillNegativeSpace } from '../lib/layout/fillNegativeSpace';
 
 /**
  * TemplateRenderer - Handles rendering of all template types

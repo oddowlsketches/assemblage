@@ -4,6 +4,7 @@ import { getComplementaryColor, getSafeFillColour } from '../utils/colorUtils.js
 import { randomVibrantColor, getRandomColorFromPalette } from '../utils/colors.js';
 import { getAppropriateEchoColor } from '../utils/imageOverlapUtils.js';
 import { getShapeCount } from './templateDefaults.js';
+import { fillNegativeSpace } from '../lib/layout/fillNegativeSpace';
 
 /**
  * Floating Elements Template
@@ -132,16 +133,99 @@ export function generateFloatingElements(canvas, images, params) {
   console.log(`[FloatingElements] Using style: ${styleToUse}`);
 
   const elementCount = getShapeCount('floatingElements', params.requestedShapes);
-  const elements = createFloatingComposition(
+  let elements = createFloatingComposition(
     canvas.width,
     canvas.height,
     elementCount,
     styleToUse 
   );
   
+  // Apply fillMode if set to 'pad'
+  if (params.fillMode === 'pad') {
+    console.log('[FloatingElements] Applying fillMode="pad" to fill negative space');
+    const fillResult = fillNegativeSpace({
+      canvas,
+      elements: elements.map(el => ({
+        x: el.x,
+        y: el.y,
+        width: el.width,
+        height: el.height,
+        maskName: el.type,
+        rotation: el.rotation,
+        opacity: el.opacity
+      })),
+      targetBlankRatio: 0.03,
+      maxIterations: 10,
+      minBlankAreaSize: 1000
+    });
+    
+    // Update elements with filled elements, preserving original properties
+    const filledMap = new Map();
+    fillResult.filledElements.forEach((filled, idx) => {
+      if (idx < elements.length) {
+        // Original element - update position/size if changed
+        filledMap.set(idx, filled);
+      } else {
+        // New cloned element
+        const sourceIdx = Math.floor(Math.random() * elements.length);
+        const sourceElement = elements[sourceIdx];
+        elements.push({
+          ...sourceElement,
+          x: filled.x,
+          y: filled.y,
+          width: filled.width,
+          height: filled.height,
+          rotation: filled.rotation || sourceElement.rotation,
+          opacity: filled.opacity || sourceElement.opacity,
+          isCloned: true
+        });
+      }
+    });
+    
+    // Update original elements if their positions/sizes changed
+    filledMap.forEach((filled, idx) => {
+      elements[idx].x = filled.x;
+      elements[idx].y = filled.y;
+      elements[idx].width = filled.width;
+      elements[idx].height = filled.height;
+    });
+    
+    console.log(`[FloatingElements] Fill complete: ${fillResult.iterations} iterations, final blank ratio: ${(fillResult.finalBlankRatio * 100).toFixed(1)}%`);
+  }
+  
   drawFloatingElements(ctx, elements, images, params);
   
-  return { canvas, bgColor: bgColorToUse };
+  // Return processed parameters that were actually used
+  const processedParams = {
+    style: styleToUse,
+    elementCount: elements.length,
+    bgColor: bgColorToUse,
+    useMultiply: params.useMultiply !== false,
+    useColorBlockEcho: params.useColorBlockEcho === true,
+    echoOpacity: params.echoOpacity || 0.85,
+    fillMode: params.fillMode || 'none',
+    elements: elements.map((el, idx) => ({
+      index: idx,
+      type: el.type,
+      x: Math.round(el.x * 100) / 100,
+      y: Math.round(el.y * 100) / 100,
+      width: Math.round(el.width * 100) / 100,
+      height: Math.round(el.height * 100) / 100,
+      rotation: Math.round((el.rotation || 0) * 100) / 100,
+      opacity: Math.round((el.opacity || 1) * 100) / 100,
+      layer: el.layer,
+      isCloned: el.isCloned || false
+    })),
+    userPrompt: params.userPrompt || ''
+  };
+  
+  console.log('[FloatingElements] Returning processed params:', processedParams);
+  
+  return { 
+    canvas, 
+    bgColor: bgColorToUse,
+    processedParams 
+  };
 }
 
 /**
@@ -615,12 +699,18 @@ const floatingElements = {
   name: 'Floating Elements',
   generate: generateFloatingElements,
   params: {
-    elementCount: { type: 'number', min: 3, max: 12, default: 5 },
+    elementCount: { type: 'number', min: 2, max: 12, default: 5 },
     style: { type: 'select', options: ['horizon', 'ascending', 'scattered', 'random'], default: 'random' },
     bgColor: { type: 'color' },
     useMultiply: { type: 'boolean', default: true },
     useColorBlockEcho: { type: 'boolean', default: true },
-    echoOpacity: { type: 'number', min: 0, max: 1, default: 0.85 }
+    echoOpacity: { type: 'number', min: 0, max: 1, default: 0.85 },
+    fillMode: {
+      type: 'select',
+      options: ['none', 'pad'],
+      default: 'none',
+      description: 'Fill negative space by scaling & cloning existing shapes'
+    }
   }
 };
 
