@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { X, Image, UploadSimple, Pencil } from 'phosphor-react'
 import { SourceSelector } from './SourceSelector'
 import { getContrastText } from '../lib/colorUtils/contrastText'
+import templateModules from '../templates/index'
+import { TemplateSelectionUI } from './TemplateSelectionUI'
 
 export const MakeDrawer = ({ 
   isOpen, 
@@ -14,9 +16,70 @@ export const MakeDrawer = ({
   onUploadImages,
   onOpenGallery,
   userCollections,
-  onDrawerOpen
+  onDrawerOpen,
+  onTemplateChange,
+  selectedTemplates
 }) => {
   const [activeTab, setActiveTab] = useState('source')
+  const [templateMode, setTemplateMode] = useState('all') // 'all' or 'custom'
+  const [localSelectedTemplates, setLocalSelectedTemplates] = useState(selectedTemplates || [])
+  const [showTemplateDetails, setShowTemplateDetails] = useState(false)
+  
+  // Categorize templates with descriptions - ordered by popularity
+  const templateCategories = {
+    'Layered': ['doubleExposure', 'mixedMediaTemplate', 'packedShapes'],
+    'Abstract': ['sliced', 'scrambledMosaic', 'floatingElements'],
+    'Geometric': ['tilingTemplate', 'crystal'],
+    'Minimal': ['pairedForms', 'photoStrip'],
+    'Structured': ['dynamicArchitectural', 'narrativeGrid', 'moodBoardTemplate']
+  };
+  
+  const categoryDescriptions = {
+    'Layered': 'Overlapping images with depth and transparency',
+    'Abstract': 'Experimental layouts with unconventional arrangements',
+    'Geometric': 'Mathematical patterns and precise tessellations',
+    'Minimal': 'Clean, simple compositions with breathing room',
+    'Structured': 'Grid-based and architectural organization'
+  };
+  
+  // User-friendly template names (keeping keys unchanged)
+  const templateDisplayNames = {
+    'photoStrip': 'Film Strip',
+    'sliced': 'Sliced Panels',
+    'crystal': 'Crystal Mosaic',
+    'tilingTemplate': 'Tile Pattern',
+    'scrambledMosaic': 'Scattered Grid',
+    'floatingElements': 'Floating Shapes',
+    'packedShapes': 'Packed Collage',
+    'doubleExposure': 'Double Exposure',
+    'mixedMediaTemplate': 'Mixed Media',
+    'narrativeGrid': 'Story Grid',
+    'pairedForms': 'Paired Elements',
+    'dynamicArchitectural': 'Architectural',
+    'moodBoardTemplate': 'Mood Board'
+  };
+  
+  // Create a map for quick lookup
+  const templateToCategory = {};
+  Object.entries(templateCategories).forEach(([category, templates]) => {
+    templates.forEach(template => {
+      templateToCategory[template] = category;
+    });
+  });
+  
+  // Get unique template names (remove duplicates)
+  const uniqueTemplates = Array.from(new Set(templateModules.map(t => t.key)))
+    .map(key => templateModules.find(t => t.key === key))
+    .filter(Boolean);
+  useEffect(() => {
+    setLocalSelectedTemplates(selectedTemplates || []);
+    // If no templates selected, we're in 'all' mode
+    if (!selectedTemplates || selectedTemplates.length === 0) {
+      setTemplateMode('all');
+    } else {
+      setTemplateMode('custom');
+    }
+  }, [selectedTemplates]);
   
   // Debug logging
   React.useEffect(() => {
@@ -30,6 +93,44 @@ export const MakeDrawer = ({
       }
     }
   }, [isOpen, userCollections, activeCollection, activeCollectionName, onDrawerOpen]);
+  
+  const handleTemplateToggle = (templateKey) => {
+    setLocalSelectedTemplates(prev => {
+      if (prev.includes(templateKey)) {
+        return prev.filter(k => k !== templateKey);
+      } else {
+        return [...prev, templateKey];
+      }
+    });
+  };
+  
+  const handleApplyAndClose = () => {
+    // Apply template changes
+    if (onTemplateChange) {
+      if (templateMode === 'all') {
+        onTemplateChange([]); // Empty array means use all templates
+      } else if (localSelectedTemplates.length > 0) {
+        onTemplateChange(localSelectedTemplates);
+      }
+    }
+    onApplyAndClose();
+  };
+  
+  const handleTemplateModeChange = (mode) => {
+    setTemplateMode(mode);
+    if (mode === 'all') {
+      // Clear selection when switching to all
+      setLocalSelectedTemplates([]);
+      setShowTemplateDetails(false);
+    } else if (mode === 'custom') {
+      // Auto-expand templates when switching to custom
+      setShowTemplateDetails(true);
+      if (localSelectedTemplates.length === 0) {
+        // Select first 3 templates as default when switching to custom
+        setLocalSelectedTemplates(uniqueTemplates.slice(0, 3).map(t => t.key));
+      }
+    }
+  };
   
   // Force white background for drawer
   const uiColors = {
@@ -90,9 +191,43 @@ export const MakeDrawer = ({
             </button>
           </div>
           
+          {/* Tabs for mobile */}
+          <div className="border-b" style={{ borderColor: uiColors.border }}>
+            <div className="flex">
+              <button
+                className="flex-1 px-4 py-3 text-sm font-medium"
+                onClick={() => setActiveTab('source')}
+                style={{ 
+                  color: uiColors.fg,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderBottom: activeTab === 'source' ? `2px solid ${uiColors.border}` : '2px solid transparent'
+                }}
+              >
+                Source
+              </button>
+              <button
+                className="flex-1 px-4 py-3 text-sm font-medium"
+                onClick={() => setActiveTab('templates')}
+                style={{ 
+                  color: uiColors.fg,
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  border: 'none',
+                  borderBottom: activeTab === 'templates' ? `2px solid ${uiColors.border}` : '2px solid transparent'
+                }}
+              >
+                Templates
+              </button>
+            </div>
+          </div>
+          
           {/* Content */}
-          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 180px)' }}>
-            <div className="mb-6">
+          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 240px)' }}>
+            {activeTab === 'source' && (
+              <>
+                <div className="mb-6">
               <label className="block text-sm font-medium mb-3" style={{ color: uiColors.fg }}>
                 Select Collection
               </label>
@@ -136,12 +271,87 @@ export const MakeDrawer = ({
                 Upload Images
               </button>
             </div>
+              </>
+            )}
+            
+            {activeTab === 'templates' && (
+              <div>
+                <div className="mb-6">
+                  <label className="block text-sm font-medium mb-3" style={{ color: uiColors.fg }}>
+                    Template Selection
+                  </label>
+                  
+                  {/* Template Mode Toggle */}
+                  <div style={{ 
+                    display: 'flex',
+                    border: `1px solid ${uiColors.border}`,
+                    borderRadius: '4px',
+                    overflow: 'hidden',
+                    marginBottom: '1.5rem'
+                  }}>
+                    <button
+                      onClick={() => handleTemplateModeChange('all')}
+                      style={{
+                        flex: 1,
+                        padding: '0.75rem',
+                        backgroundColor: templateMode === 'all' ? uiColors.fg : 'transparent',
+                        color: templateMode === 'all' ? uiColors.bg : uiColors.fg,
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.875rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      All Templates
+                    </button>
+                    <button
+                      onClick={() => handleTemplateModeChange('custom')}
+                      style={{
+                        flex: 1,
+                        padding: '0.75rem',
+                        backgroundColor: templateMode === 'custom' ? uiColors.fg : 'transparent',
+                        color: templateMode === 'custom' ? uiColors.bg : uiColors.fg,
+                        border: 'none',
+                        borderLeft: `1px solid ${uiColors.border}`,
+                        cursor: 'pointer',
+                        fontFamily: 'Space Mono, monospace',
+                        fontSize: '0.875rem',
+                        transition: 'all 0.2s ease'
+                      }}
+                    >
+                      Custom Selection
+                    </button>
+                  </div>
+                  
+                  <p className="text-sm mb-4" style={{ color: '#666666' }}>
+                    {templateMode === 'all' 
+                      ? 'Using all available templates in random rotation.'
+                      : `Using ${localSelectedTemplates.length} selected template${localSelectedTemplates.length !== 1 ? 's' : ''}.`
+                    }
+                  </p>
+                  
+                  {/* Custom Template Selection */}
+                  <TemplateSelectionUI
+                    templateMode={templateMode}
+                    localSelectedTemplates={localSelectedTemplates}
+                    uniqueTemplates={uniqueTemplates}
+                    templateCategories={templateCategories}
+                    uiColors={uiColors}
+                    handleTemplateToggle={handleTemplateToggle}
+                    setLocalSelectedTemplates={setLocalSelectedTemplates}
+                    isMobile={true}
+                    templateDisplayNames={templateDisplayNames}
+                  />
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Footer - Apply Button */}
           <div className="p-6 border-t bg-white" style={{ borderColor: uiColors.border }}>
             <button 
-              onClick={onApplyAndClose}
+              onClick={handleApplyAndClose}
               className="w-full"
               style={{
                 padding: '0.75rem 1.5rem',
@@ -210,6 +420,19 @@ export const MakeDrawer = ({
             >
               Image Source
             </button>
+            <button
+              className="px-6 py-3 text-sm font-medium"
+              onClick={() => setActiveTab('templates')}
+              style={{ 
+                color: uiColors.fg,
+                background: 'transparent',
+                cursor: 'pointer',
+                border: 'none',
+                borderBottom: activeTab === 'templates' ? `2px solid ${uiColors.border}` : '2px solid transparent'
+              }}
+            >
+              Templates
+            </button>
           </div>
         </div>
         
@@ -264,12 +487,85 @@ export const MakeDrawer = ({
               </div>
             </div>
           )}
+          
+          {activeTab === 'templates' && (
+            <div>
+              <div className="mb-6">
+                <label className="block text-sm font-medium mb-3" style={{ color: uiColors.fg }}>
+                  Template Selection
+                </label>
+                
+                {/* Template Mode Toggle */}
+                <div style={{ 
+                  display: 'flex',
+                  border: `1px solid ${uiColors.border}`,
+                  borderRadius: '4px',
+                  overflow: 'hidden',
+                  marginBottom: '1.5rem'
+                }}>
+                  <button
+                    onClick={() => handleTemplateModeChange('all')}
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem',
+                      backgroundColor: templateMode === 'all' ? uiColors.fg : 'transparent',
+                      color: templateMode === 'all' ? uiColors.bg : uiColors.fg,
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    All Templates
+                  </button>
+                  <button
+                    onClick={() => handleTemplateModeChange('custom')}
+                    style={{
+                      flex: 1,
+                      padding: '0.75rem',
+                      backgroundColor: templateMode === 'custom' ? uiColors.fg : 'transparent',
+                      color: templateMode === 'custom' ? uiColors.bg : uiColors.fg,
+                      border: 'none',
+                      borderLeft: `1px solid ${uiColors.border}`,
+                      cursor: 'pointer',
+                      fontFamily: 'Space Mono, monospace',
+                      fontSize: '0.875rem',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Custom Selection
+                  </button>
+                </div>
+                
+                <p className="text-sm mb-4" style={{ color: '#666666' }}>
+                  {templateMode === 'all' 
+                    ? 'Using all available templates in random rotation. Each new collage will use a randomly selected template.'
+                    : `Using ${localSelectedTemplates.length} selected template${localSelectedTemplates.length !== 1 ? 's' : ''} in rotation.`
+                  }
+                </p>
+                
+                {/* Custom Template Selection */}
+                <TemplateSelectionUI
+                  templateMode={templateMode}
+                  localSelectedTemplates={localSelectedTemplates}
+                  uniqueTemplates={uniqueTemplates}
+                  templateCategories={templateCategories}
+                  uiColors={uiColors}
+                  handleTemplateToggle={handleTemplateToggle}
+                  setLocalSelectedTemplates={setLocalSelectedTemplates}
+                  isMobile={false}
+                  templateDisplayNames={templateDisplayNames}
+                />
+              </div>
+            </div>
+          )}
         </div>
         
         {/* Footer - Apply Button anchored to bottom */}
         <div className="p-6 border-t" style={{ borderColor: uiColors.border }}>
           <button 
-            onClick={onApplyAndClose}
+            onClick={handleApplyAndClose}
             className="w-full"
             style={{
               padding: '0.75rem 1.5rem',

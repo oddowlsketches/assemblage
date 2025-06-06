@@ -34,6 +34,7 @@ export class CollageService {
         // Template rendering tracking
         this.currentEffectName = null;
         this.lastRenderInfo = null;
+        this.templatePool = []; // Pool of templates to randomly select from
         
         console.log('[CollageService] Initialized', { isDevelopment: this.isDevelopment });
 
@@ -316,6 +317,11 @@ export class CollageService {
         this.currentEffectName = effectName;
         console.log('[CollageService] Setting effect to:', effectName);
     }
+    
+    setTemplatePool(templateKeys) {
+        this.templatePool = templateKeys || [];
+        console.log('[CollageService] Setting template pool:', this.templatePool);
+    }
 
     async generateCollage(userPrompt = '') {
         if (!this.canvas) {
@@ -339,9 +345,20 @@ export class CollageService {
         
         try {
             // Select template
-            const selectedTemplate = this.currentEffectName 
-                ? this.templateRenderer.getTemplate(this.currentEffectName) || this.templateRenderer.getRandomTemplate()
-                : this.templateRenderer.getRandomTemplate();
+            let selectedTemplate;
+            
+            // If there's a template pool, select from it
+            if (this.templatePool.length > 0) {
+                const randomKey = this.templatePool[Math.floor(Math.random() * this.templatePool.length)];
+                selectedTemplate = this.templateRenderer.getTemplate(randomKey);
+                console.log(`[CollageService] Selected template from pool: ${randomKey}`);
+            } else if (this.currentEffectName) {
+                // If specific effect is set, use it
+                selectedTemplate = this.templateRenderer.getTemplate(this.currentEffectName) || this.templateRenderer.getRandomTemplate();
+            } else {
+                // Otherwise get random template
+                selectedTemplate = this.templateRenderer.getRandomTemplate();
+            }
                 
             if (!selectedTemplate?.key) {
                 throw new Error('No valid template available');

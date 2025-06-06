@@ -9,7 +9,7 @@ import tilingTemplate from './tilingTemplate.js';
 import crystalEffect from './crystalEffectTemplate.js';
 // import architecturalTemplate from './architecturalTemplate'; // Commenting out the old one
 import dynamicArchitecturalTemplate from './dynamicArchitecturalTemplate.js'; // Import the new one
-import layeredGeometric from './layeredGeometric.js';
+// import layeredGeometric from './layeredGeometric.js'; // Hidden due to consistently poor visual results
 import floatingElements from './floatingElements.js';
 import mixedMediaTemplate from './mixedMediaTemplate.js';
 // import architecturalComposition from './architecturalComposition'; // REMOVED OLD TEMPLATE
@@ -32,7 +32,7 @@ export default [
   tilingTemplate,
   crystalEffect,
   slicedTemplate, // Use this one
-  layeredGeometric,
+  // layeredGeometric, // Hidden due to consistently poor visual results
   floatingElements,
   mixedMediaTemplate,
   // architecturalComposition, // REMOVED OLD TEMPLATE

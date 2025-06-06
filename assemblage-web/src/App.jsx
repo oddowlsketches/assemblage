@@ -15,6 +15,7 @@ import { CollectionDrawer } from './components/CollectionDrawer';
 import { MakeDrawer } from './components/MakeDrawer';
 import { SourceSelector } from './components/SourceSelector';
 import CollectionDetail from './pages/collections/CollectionDetail';
+import Analytics from './pages/admin/Analytics';
 import { getContrastText } from './lib/colorUtils/contrastText';
 import { useQuota } from './hooks/useQuota';
 
@@ -137,6 +138,7 @@ function MainApp() {
   const [quotaModalType, setQuotaModalType] = useState(''); // 'images' or 'collages'
   const [uploadCollectionId, setUploadCollectionId] = useState(null); // For passing to upload modal
   const [showWelcomeTooltip, setShowWelcomeTooltip] = useState(false);
+  const [selectedTemplates, setSelectedTemplates] = useState([]); // Template selection state
   
   // Quota management
   const { checkQuota, downloadAndArchiveOldestCollages, archiveOldestImages, loading: quotaLoading } = useQuota();
@@ -487,6 +489,15 @@ function MainApp() {
   const handleShiftPerspective = () => {
     if (serviceRef.current) {
       serviceRef.current.shiftPerspective(prompt);
+    }
+  };
+  
+  const handleTemplateChange = (templates) => {
+    setSelectedTemplates(templates);
+    console.log('[MainApp] Templates updated:', templates);
+    // Update the template pool in the service
+    if (serviceRef.current) {
+      serviceRef.current.setTemplatePool(templates);
     }
   };
 
@@ -1095,6 +1106,18 @@ function MainApp() {
                   >
                     Upload Images
                   </button>
+                  {isAdmin && (
+                    <>
+                      <div className="dropdown-divider" style={{ margin: '0.5rem 0', borderTop: '1px solid #ddd' }} />
+                      <a 
+                        href="/admin/analytics"
+                        className="dropdown-item"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                      >
+                        Template Analytics
+                      </a>
+                    </>
+                  )}
                   <button 
                     onClick={async () => {
                       const supabase = getSupabase();
@@ -1404,6 +1427,8 @@ function MainApp() {
             await fetchUserCollectionsForSelect();
           }
         }}
+        onTemplateChange={handleTemplateChange}
+        selectedTemplates={selectedTemplates}
       />
       
 
@@ -1511,6 +1536,7 @@ export default function App() {
         <Route path="/" element={<MainApp />} />
         <Route path="/dev-review" element={<TemplateReview />} />
         <Route path="/collections/:id" element={<CollectionDetail />} />
+        <Route path="/admin/analytics" element={<Analytics />} />
       </Routes>
     </Router>
   );

@@ -1,0 +1,30 @@
+/* Analytics Page Specific Styles */
+.analytics-page {
+  overflow: auto !important;
+  height: auto !important;
+  position: static !important;
+}
+
+.analytics-page html {
+  overflow: auto !important;
+  height: auto !important;
+}
+
+/* Ensure scrollbars are visible on analytics page */
+.analytics-page::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.analytics-page::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.analytics-page::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 6px;
+}
+
+.analytics-page::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
