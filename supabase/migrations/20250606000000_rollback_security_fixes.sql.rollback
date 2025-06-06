@@ -1,0 +1,100 @@
+-- Rollback script for security fixes
+-- Use this if the security fixes cause any issues
+
+-- 1. Restore popular_templates_v with SECURITY DEFINER if needed
+-- Note: Only run this if the view was actually using SECURITY DEFINER for a specific reason
+
+-- 2. Remove search_path settings from functions (revert to default)
+-- Note: This is generally not recommended as it reopens the security vulnerability
+
+-- Function: count_collages_to_migrate
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'count_collages_to_migrate' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.count_collages_to_migrate() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: list_pending_images
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'list_pending_images' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.list_pending_images() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: trigger_generate_metadata
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'trigger_generate_metadata' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.trigger_generate_metadata() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: prepare_collages_for_migration
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'prepare_collages_for_migration' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.prepare_collages_for_migration() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: handle_new_user
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'handle_new_user' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.handle_new_user() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: check_user_storage_limit
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'check_user_storage_limit' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.check_user_storage_limit() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: get_user_storage_stats
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_user_storage_stats' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.get_user_storage_stats() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: handle_updated_at
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'handle_updated_at' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.handle_updated_at() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: update_collection_slug
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_collection_slug' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.update_collection_slug() RESET search_path;
+  END IF;
+END $$;
+
+-- Function: list_images
+DO $$ 
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'list_images' AND pronamespace = 'public'::regnamespace) THEN
+    ALTER FUNCTION public.list_images() RESET search_path;
+  END IF;
+END $$;
+
+-- 3. Move extensions back to public (not recommended)
+-- Only do this if absolutely necessary
+
+-- Note: Moving extensions back is complex and may require dropping dependent objects
+-- It's better to update your application code to reference extensions.pg_net and extensions.vector
+
+DO $$ 
+BEGIN
+  RAISE NOTICE 'Rollback completed. Note: This reopens security vulnerabilities.';
+  RAISE NOTICE 'Consider updating application code instead of rolling back security fixes.';
+END $$;

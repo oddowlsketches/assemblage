@@ -20,34 +20,32 @@ const TemplateSelectionUI = ({
       marginTop: '-0.5rem',
       overflow: 'hidden'
     }}>
-      {/* Action buttons */}
+      {/* Action buttons - compact links */}
       <div style={{
-        padding: '0.75rem 1rem',
+        padding: '0.5rem 1rem',
         display: 'flex',
-        gap: '0.5rem',
+        gap: '1rem',
         borderBottom: '1px solid #e0e0e0',
         backgroundColor: '#f5f5f5'
       }}>
         <button
           onClick={() => setLocalSelectedTemplates(uniqueTemplates.map(t => t.key))}
           style={{
-            padding: '0.4rem 0.75rem',
-            backgroundColor: 'white',
+            padding: '0',
+            backgroundColor: 'transparent',
             color: uiColors.fg,
-            border: `1px solid ${uiColors.border}`,
-            borderRadius: '4px',
+            border: 'none',
             cursor: 'pointer',
             fontFamily: 'Space Mono, monospace',
             fontSize: '0.8rem',
-            transition: 'all 0.2s ease'
+            textDecoration: 'underline',
+            transition: 'opacity 0.2s ease'
           }}
           onMouseEnter={(e) => {
-            e.target.style.backgroundColor = uiColors.fg;
-            e.target.style.color = uiColors.bg;
+            e.target.style.opacity = '0.7';
           }}
           onMouseLeave={(e) => {
-            e.target.style.backgroundColor = 'white';
-            e.target.style.color = uiColors.fg;
+            e.target.style.opacity = '1';
           }}
         >
           Select All
@@ -56,23 +54,21 @@ const TemplateSelectionUI = ({
           <button
             onClick={() => setLocalSelectedTemplates([])}
             style={{
-              padding: '0.4rem 0.75rem',
-              backgroundColor: 'white',
+              padding: '0',
+              backgroundColor: 'transparent',
               color: uiColors.fg,
-              border: `1px solid ${uiColors.border}`,
-              borderRadius: '4px',
+              border: 'none',
               cursor: 'pointer',
               fontFamily: 'Space Mono, monospace',
               fontSize: '0.8rem',
-              transition: 'all 0.2s ease'
+              textDecoration: 'underline',
+              transition: 'opacity 0.2s ease'
             }}
             onMouseEnter={(e) => {
-              e.target.style.backgroundColor = uiColors.fg;
-              e.target.style.color = uiColors.bg;
+              e.target.style.opacity = '0.7';
             }}
             onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'white';
-              e.target.style.color = uiColors.fg;
+              e.target.style.opacity = '1';
             }}
           >
             Clear All
@@ -82,9 +78,9 @@ const TemplateSelectionUI = ({
       
       {/* Template categories */}
       <div style={{ 
-        padding: '1rem',
-        maxHeight: isMobile ? '300px' : '400px',
-        overflowY: 'auto'
+        padding: isMobile ? '0.75rem' : '1rem',
+        maxHeight: isMobile ? 'none' : '400px',
+        overflowY: isMobile ? 'visible' : 'auto'
       }}>
         {Object.entries(templateCategories).map(([category, categoryTemplates]) => {
           const visibleTemplates = categoryTemplates.filter(key => 

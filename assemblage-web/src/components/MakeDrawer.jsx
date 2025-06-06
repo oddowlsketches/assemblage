@@ -164,7 +164,7 @@ export const MakeDrawer = ({
       <div className="fixed inset-0 z-50 flex items-end">
         <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
         <div 
-          className="relative w-full bg-white shadow-lg"
+          className="relative w-full bg-white shadow-lg flex flex-col"
           style={{ 
             backgroundColor: uiColors.bg,
             color: uiColors.fg,
@@ -173,7 +173,7 @@ export const MakeDrawer = ({
           }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: uiColors.border }}>
+          <div className="flex items-center justify-between p-4 border-b" style={{ borderColor: uiColors.border }}>
             <h2 style={{ fontSize: '1.5rem', fontFamily: 'Space Mono, monospace', color: uiColors.fg, margin: '0px' }}>
               Collage settings
             </h2>
@@ -224,7 +224,7 @@ export const MakeDrawer = ({
           </div>
           
           {/* Content */}
-          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 240px)' }}>
+          <div className="p-4 overflow-y-auto flex-1">
             {activeTab === 'source' && (
               <>
                 <div className="mb-6">
@@ -276,10 +276,7 @@ export const MakeDrawer = ({
             
             {activeTab === 'templates' && (
               <div>
-                <div className="mb-6">
-                  <label className="block text-sm font-medium mb-3" style={{ color: uiColors.fg }}>
-                    Template Selection
-                  </label>
+                <div className="mb-3">
                   
                   {/* Template Mode Toggle */}
                   <div style={{ 
@@ -287,7 +284,7 @@ export const MakeDrawer = ({
                     border: `1px solid ${uiColors.border}`,
                     borderRadius: '4px',
                     overflow: 'hidden',
-                    marginBottom: '1.5rem'
+                    marginBottom: '1rem'
                   }}>
                     <button
                       onClick={() => handleTemplateModeChange('all')}
@@ -324,12 +321,11 @@ export const MakeDrawer = ({
                     </button>
                   </div>
                   
-                  <p className="text-sm mb-4" style={{ color: '#666666' }}>
-                    {templateMode === 'all' 
-                      ? 'Using all available templates in random rotation.'
-                      : `Using ${localSelectedTemplates.length} selected template${localSelectedTemplates.length !== 1 ? 's' : ''}.`
-                    }
-                  </p>
+                  {templateMode === 'custom' && (
+                    <p className="text-sm mb-2" style={{ color: '#666666', fontSize: '0.75rem' }}>
+                      {`${localSelectedTemplates.length} template${localSelectedTemplates.length !== 1 ? 's' : ''} selected`}
+                    </p>
+                  )}
                   
                   {/* Custom Template Selection */}
                   <TemplateSelectionUI
@@ -349,7 +345,7 @@ export const MakeDrawer = ({
           </div>
           
           {/* Footer - Apply Button */}
-          <div className="p-6 border-t bg-white" style={{ borderColor: uiColors.border }}>
+          <div className="p-4 border-t bg-white" style={{ borderColor: uiColors.border }}>
             <button 
               onClick={handleApplyAndClose}
               className="w-full"
